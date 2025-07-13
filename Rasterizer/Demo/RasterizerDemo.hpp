@@ -225,10 +225,12 @@ struct RasterizerDemo {
     typedef void (*TransferFunction)(size_t li, size_t ui, size_t si, Ra::Scene *scn, Ra::Transform ctm, void *info);
     
     
-    static void runTransferFunction(Ra::SceneList& list, TransferFunction function, void *state) {
+    static void runTransferFunction(Ra::SceneList& list, TransferFunction function, void *info) {
         if (function == nullptr)
             return;
-        for (int si = 0; si < list.scenes.size(); si++) {
+        RasterizerDemo& demo = *((RasterizerDemo *)info);
+        size_t count = list.scenes.size() - size_t(demo.showHud);
+        for (int si = 0; si < count; si++) {
             int threads = 8;
             Ra::Scene *scn = & list.scenes[si];
             Ra::Transform ctm = list.ctms[si];
@@ -237,24 +239,24 @@ struct RasterizerDemo {
             for (int i = 0; i < threads; i++)
                 divisions.emplace_back(ceilf(float(i + 1) / float(threads) * float(scn->count)));
             dispatch_apply(threads, DISPATCH_APPLY_AUTO, ^(size_t i) {
-                (*function)(divisions[i], divisions[i + 1], si, scn, ctm, state);
+                (*function)(divisions[i], divisions[i + 1], si, scn, ctm, info);
             });
         }
     }
     
     static void transferFunction(size_t li, size_t ui, size_t si, Ra::Scene *scn, Ra::Transform ctm, void *info) {
+        RasterizerDemo& demo = *((RasterizerDemo *)info);
         Ra::Bounds *bounds = scn->bnds.base;
         Ra::Transform *srcCtms = scn->ctms->src.base, *dstCtms = scn->ctms->base;
         Ra::Colorant *srcColors = scn->colors->src.base, *dstColors = scn->colors->base;
         float *srcWidths = scn->widths->src.base, *dstWidths = scn->widths->base;
         uint8_t *srcFlags = scn->flags->src.base, *dstFlags = scn->flags->base;
-        RasterizerDemo& state = *((RasterizerDemo *)info);
         size_t count = ui - li;
         Ra::Colorant black(0, 0, 0, 255), red(0, 0, 255, 255);
         const float kScaleMin = 1.0f, kScaleMax = 1.2f;
-        float ftime = state.clock - floor(state.clock);
+        float ftime = demo.clock - floor(demo.clock);
         float t = sinf(kTau * ftime), s = 1.f - t;
-        float scale = s * kScaleMin + t * kScaleMax, outlineWidth = state.outlineWidth;
+        float scale = s * kScaleMin + t * kScaleMax, outlineWidth = demo.outlineWidth;
         if (0 && outlineWidth) {
             black = Ra::Colorant(0, 0, 0, 64), red = Ra::Colorant(0, 0, 255, 64), outlineWidth = -20.f;
         }
@@ -272,7 +274,7 @@ struct RasterizerDemo {
             }
         }
         if (outlineWidth) {
-            float scale = fabsf(outlineWidth) / state.getView().concat(ctm).scale();
+            float scale = fabsf(outlineWidth) / demo.getView().concat(ctm).scale();
             for (size_t j = li; j < ui; j++)
                 dstWidths[j] = scale / dstCtms[j].scale();
         } else if (ftime == 0.f)
@@ -282,12 +284,12 @@ struct RasterizerDemo {
                 dstWidths[j] = scale * srcWidths[j];
         
         for (size_t j = li; j < ui; j++) {
-            dstColors[j] = (state.indices.begin == si && state.indices.end == j) ? red : state.outlineWidth != 0.f ? (srcWidths[j] ? red : black) : srcColors[j];
-            if (state.opaque)
+            dstColors[j] = (demo.indices.begin == si && demo.indices.end == j) ? red : demo.outlineWidth != 0.f ? (srcWidths[j] ? red : black) : srcColors[j];
+            if (demo.opaque)
                 dstColors[j].a = 255;
         }
         for (size_t j = li; j < ui; j++) {
-            dstFlags[j] = state.locked.begin == INT_MAX ? srcFlags[j] : si == state.locked.begin && j == state.locked.end ? srcFlags[j] & ~Ra::Scene::kInvisible : srcFlags[j] | Ra::Scene::kInvisible;
+            dstFlags[j] = demo.locked.begin == INT_MAX ? srcFlags[j] : si == demo.locked.begin && j == demo.locked.end ? srcFlags[j] & ~Ra::Scene::kInvisible : srcFlags[j] | Ra::Scene::kInvisible;
         }
     }
 };
