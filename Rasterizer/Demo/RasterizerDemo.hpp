@@ -42,16 +42,6 @@ struct RasterizerDemo {
                 document.addList(RasterizerPDF::writeSceneList(pdfData.addr, pdfData.size, pageIndex));
             list.addList(document);
         }
-        if (showHud) {
-            float w = 400, h = 300, inset = 20, uw = 2;
-            Ra::Bounds b = Ra::Bounds(0, 0, w, h);
-            if (hud.scenes.size() == 0) {
-                Ra::Path p;  p->addBounds(b.inset(0.5 * uw, 0.5 * uw)), p->close();
-                Ra::Scene scene;  scene.addPath(p, Ra::Transform(), textColor, uw, 0);
-                hud.addScene(scene);
-            }
-            list.addScene(hud.scenes[0], ctm.invert().concat(Ra::Transform(1, 0, 0, 1, inset, bounds.uy - inset - b.uy)));
-        }
     }
     
 #pragma mark - Event handlers
@@ -164,6 +154,16 @@ struct RasterizerDemo {
         runTransferFunction(list, transferFunction, this);
         if (mouseMove)
             indices = RasterizerWinding::indicesForPoint(list, getView(), Ra::Bounds(0.f, 0.f, ceilf(s * w), ceilf(s * h)), s * mx, s * my);
+        if (showHud) {
+            float w = 400, h = 300, inset = 20, uw = 2;
+            Ra::Bounds b = Ra::Bounds(0, 0, w, h);
+            if (hud.scenes.size() == 0) {
+                Ra::Path p;  p->addBounds(b.inset(0.5 * uw, 0.5 * uw)), p->close();
+                Ra::Scene scene;  scene.addPath(p, Ra::Transform(), textColor, uw, 0);
+                hud.addScene(scene);
+            }
+            list.addScene(hud.scenes[0], ctm.invert().concat(Ra::Transform(1, 0, 0, 1, inset, bounds.uy - inset - b.uy)));
+        }
     }
    
 #pragma mark - Properties
@@ -228,9 +228,7 @@ struct RasterizerDemo {
     static void runTransferFunction(Ra::SceneList& list, TransferFunction function, void *info) {
         if (function == nullptr)
             return;
-        RasterizerDemo& demo = *((RasterizerDemo *)info);
-        size_t count = list.scenes.size() - size_t(demo.showHud);
-        for (int si = 0; si < count; si++) {
+        for (int si = 0; si < list.scenes.size(); si++) {
             int threads = 8;
             Ra::Scene *scn = & list.scenes[si];
             Ra::Transform ctm = list.ctms[si];
