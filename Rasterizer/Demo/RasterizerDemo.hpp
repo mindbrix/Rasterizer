@@ -43,15 +43,14 @@ struct RasterizerDemo {
             list.addList(document);
         }
         if (showHud) {
-            float w = 200, h = 150, inset = 20;
-            Ra::Bounds b(0, 0, w, h);
+            float w = 400, h = 300, inset = 20, uw = 2;
+            Ra::Bounds b = Ra::Bounds(0, 0, w, h);
             if (hud.scenes.size() == 0) {
-                Ra::Path p;  p->addBounds(b);
-                Ra::Scene scene;  scene.addPath(p, Ra::Transform(), textColor, 0, 0);
+                Ra::Path p;  p->addBounds(b.inset(0.5 * uw, 0.5 * uw)), p->close();
+                Ra::Scene scene;  scene.addPath(p, Ra::Transform(), textColor, uw, 0);
                 hud.addScene(scene);
             }
-            Ra::Bounds target(bounds.lx + inset, bounds.uy - h - inset, bounds.lx + w + inset, bounds.uy - inset);
-            list.addScene(hud.scenes[0], ctm.invert().concat(target.fit(b)));
+            list.addScene(hud.scenes[0], ctm.invert().concat(Ra::Transform(1, 0, 0, 1, inset, bounds.uy - inset - b.uy)));
         }
     }
     
