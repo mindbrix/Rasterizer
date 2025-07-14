@@ -14,6 +14,8 @@
 
 
 struct RasterizerDemo {
+    constexpr static float kHudWidth = 400, kHudHeight = 300, kHudInset = 20, kHudBorder = 2;
+    
     enum KeyCode { kC = 8, kG = 5, kH = 4, kI = 34, kL = 37, kO = 31, kP = 35, kS = 1, kT = 17, k1 = 18, k0 = 29, kReturn = 36, kLeft = 123, kRight = 124 };
     enum Flags { kCapsLock = 1 << 16, kShift = 1 << 17, kControl = 1 << 18, kOption = 1 << 19, kCommand = 1 << 20, kNumericPad = 1 << 21, kHelp = 1 << 22, kFunction = 1 << 23 };
     
@@ -154,20 +156,23 @@ struct RasterizerDemo {
         runTransferFunction(list, transferFunction, this);
         if (mouseMove)
             indices = RasterizerWinding::indicesForPoint(list, getView(), Ra::Bounds(0.f, 0.f, ceilf(s * w), ceilf(s * h)), s * mx, s * my);
-        if (showHud) {
-            float w = 400, h = 300, inset = 20, uw = 2;
-            Ra::Bounds b = Ra::Bounds(0, 0, w, h);
-            if (hud.scenes.size() == 0) {
-                Ra::Path p;  p->addBounds(b.inset(0.5 * uw, 0.5 * uw)), p->close();
-                Ra::Scene scene;  scene.addPath(p, Ra::Transform(), textColor, uw, 0);
-                hud.addScene(scene);
-            }
-            list.addScene(hud.scenes[0], ctm.invert().concat(Ra::Transform(1, 0, 0, 1, inset, bounds.uy - inset - b.uy)));
-        }
     }
    
 #pragma mark - Properties
     
+    Ra::SceneList getList() {
+        if (!showHud)
+            return list;
+        Ra::SceneList dst = list;
+        Ra::Bounds b(0, 0, kHudWidth, kHudHeight);
+        if (hud.scenes.size() == 0) {
+            Ra::Path p;  p->addBounds(b.inset(0.5 * kHudBorder, 0.5 * kHudBorder)), p->close();
+            Ra::Scene scene;  scene.addPath(p, Ra::Transform(), textColor, kHudBorder, 0);
+            hud.addScene(scene);
+        }
+        dst.addScene(hud.scenes[0], ctm.invert().concat(Ra::Transform(1, 0, 0, 1, kHudInset, bounds.uy - kHudInset - b.uy)));
+        return dst;
+    }
     Ra::Transform getView() const {
         return Ra::Transform(scale, 0.f, 0.f, scale, 0.f, 0.f).concat(ctm);
     }

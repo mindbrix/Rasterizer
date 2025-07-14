@@ -72,7 +72,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
             self.bounds.size.width,
             self.bounds.size.height
         );
-        [self drawList:_demo.list ctm:_demo.ctm useCurves:_demo.useCurves];
+        [self drawList:_demo.getList() ctm:_demo.ctm useCurves:_demo.useCurves];
     }
 }
 
