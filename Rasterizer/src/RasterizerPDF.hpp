@@ -164,6 +164,20 @@ struct RasterizerPDF {
         return originCTM.concat(pageCTM);
     }
 
+    static int getPageCount(const void *bytes, size_t size) {
+        Ra::SceneList list;
+        FPDF_LIBRARY_CONFIG config;
+        config.version = 3;
+        config.m_pUserFontPaths = nullptr;
+        config.m_pIsolate = nullptr;
+        config.m_v8EmbedderSlot = 0;
+        config.m_pPlatform = nullptr;
+        FPDF_InitLibraryWithConfig(&config);
+        
+        FPDF_DOCUMENT doc = FPDF_LoadMemDocument(bytes, int(size), NULL);
+        return doc ? FPDF_GetPageCount(doc) : 0;
+    }
+    
     static Ra::SceneList writeSceneList(const void *bytes, size_t size, size_t pageIndex) {
         Ra::SceneList list;
         FPDF_LIBRARY_CONFIG config;

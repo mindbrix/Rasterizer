@@ -142,8 +142,10 @@ struct RasterizerDemo {
             }
             keyUsed = true;
         } else if (keyCode == KeyCode::kRight) {
-            pageIndex++;
-            document.empty();
+            if (pageIndex < pageCount - 1) {
+                pageIndex++;
+                document.empty();
+            }
             keyUsed = true;
         }
         if (keyUsed)
@@ -230,8 +232,11 @@ struct RasterizerDemo {
         redraw = true;
     }
     void setPdfData(const void *data, size_t size) {
-        if (data)
+        if (data) {
             memcpy(pdfData.resize(size), data, size);
+            pageCount = RasterizerPDF::getPageCount(data, size);
+            pageIndex = 0;
+        }
         redraw = true;
     }
     void setSvgData(const void *data, size_t size) {
@@ -248,7 +253,7 @@ struct RasterizerDemo {
     Ra::SceneList list, document, pasted, text;
     Ra::Memory<char> pastedString;
     bool showGlyphGrid = false, showTime = false, showHud = true;
-    size_t pageIndex = 0;
+    size_t pageCount, pageIndex;
     Ra::Memory<uint8_t> pdfData, svgData;
     
     float scale;
