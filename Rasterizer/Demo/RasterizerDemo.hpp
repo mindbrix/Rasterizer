@@ -14,6 +14,7 @@
 
 struct HUD {
     constexpr static float kWidth = 400, kHeight = 300, kInset = 20, kBorder = 2;
+    constexpr static size_t kItemCount = 10;
     
     struct Item {
         Item(char const *key, char const *text) : key(key), text(text) {}
@@ -21,12 +22,23 @@ struct HUD {
     };
     Ra::SceneList addToList(Ra::SceneList dst, RasterizerFont& font, Ra::Transform ctm, Ra::Bounds bounds) {
         if (scene.weight == 0) {
+            float lineHeight = bnds.height() / kItemCount, lx, uy = bnds.uy;
+            float emSize = 0.666 * lineHeight;
+            for (size_t i = 0; i < kItemCount; i++) {
+                lx = bnds.lx;
+                uy = bnds.uy - i * lineHeight;
+                RasterizerFont::layoutGlyphs(font, emSize, 0, textColor, Ra::Bounds(bnds.lx + emSize, bnds.ly, bnds.ux, uy), false, true, false, hudItems[i].key, scene);
+                RasterizerFont::layoutGlyphs(font, emSize, 0, textColor, Ra::Bounds(bnds.lx + 3 * emSize, bnds.ly, bnds.ux, uy), false, true, false, hudItems[i].text, scene);
+            }
             Ra::Path p;  p->addBounds(bnds.inset(0.5 * kBorder, 0.5 * kBorder)), p->close();
             scene.addPath(p, Ra::Transform(), textColor, kBorder, 0);
         }
         return dst.addScene(scene, ctm.invert().concat(Ra::Transform(1, 0, 0, 1, kInset, bounds.uy - kInset - bnds.uy)));
     }
-    Item hudItems[10] = {
+    void reset() {
+        scene = Ra::Scene();
+    }
+    Item hudItems[kItemCount] = {
         Item("1", "Animating"),
         Item("0", "Reset animation"),
         Item("C", "Curves"),
@@ -206,6 +218,7 @@ struct RasterizerDemo {
         concentrichron.resetFace();
         pasted.empty();
         text.empty();
+        hud.reset();
         redraw = true;
     }
     void setPastedString(const char *string) {
