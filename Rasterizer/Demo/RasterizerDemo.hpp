@@ -12,10 +12,39 @@
 #import "Concentrichron.hpp"
 #import "RasterizerWinding.hpp"
 
+struct HUD {
+    constexpr static float kWidth = 400, kHeight = 300, kInset = 20, kBorder = 2;
+    
+    struct Item {
+        Item(char const *key, char const *text) : key(key), text(text) {}
+        char const *key, *text;
+    };
+    Ra::SceneList addToList(Ra::SceneList dst, RasterizerFont& font, Ra::Transform ctm, Ra::Bounds bounds) {
+        if (scene.weight == 0) {
+            Ra::Path p;  p->addBounds(bnds.inset(0.5 * kBorder, 0.5 * kBorder)), p->close();
+            scene.addPath(p, Ra::Transform(), textColor, kBorder, 0);
+        }
+        return dst.addScene(scene, ctm.invert().concat(Ra::Transform(1, 0, 0, 1, kInset, bounds.uy - kInset - bnds.uy)));
+    }
+    Item hudItems[10] = {
+        Item("1", "Animating"),
+        Item("0", "Reset animation"),
+        Item("C", "Curves"),
+        Item("G", "Glyph grid"),
+        Item("H", "HUD"),
+        Item("I", "Opacity"),
+        Item("O", "Outlines"),
+        Item("P", "Path mouseover"),
+        Item("S", "PDF screenshot"),
+        Item("T", "Time"),
+    };
+    
+    Ra::Bounds bnds = Ra::Bounds(0, 0, kWidth, kHeight);
+    Ra::Colorant textColor = Ra::Colorant(0, 0, 0, 255);
+    Ra::Scene scene;
+};
 
 struct RasterizerDemo {
-    constexpr static float kHudWidth = 400, kHudHeight = 300, kHudInset = 20, kHudBorder = 2;
-    
     enum KeyCode { kC = 8, kG = 5, kH = 4, kI = 34, kL = 37, kO = 31, kP = 35, kS = 1, kT = 17, k1 = 18, k0 = 29, kReturn = 36, kLeft = 123, kRight = 124 };
     enum Flags { kCapsLock = 1 << 16, kShift = 1 << 17, kControl = 1 << 18, kOption = 1 << 19, kCommand = 1 << 20, kNumericPad = 1 << 21, kHelp = 1 << 22, kFunction = 1 << 23 };
     
@@ -163,15 +192,7 @@ struct RasterizerDemo {
     Ra::SceneList getList() {
         if (!showHud)
             return list;
-        Ra::SceneList dst = list;
-        Ra::Bounds b(0, 0, kHudWidth, kHudHeight);
-        if (hud.scenes.size() == 0) {
-            Ra::Path p;  p->addBounds(b.inset(0.5 * kHudBorder, 0.5 * kHudBorder)), p->close();
-            Ra::Scene scene;  scene.addPath(p, Ra::Transform(), textColor, kHudBorder, 0);
-            hud.addScene(scene);
-        }
-        dst.addScene(hud.scenes[0], ctm.invert().concat(Ra::Transform(1, 0, 0, 1, kHudInset, bounds.uy - kHudInset - b.uy)));
-        return dst;
+        return hud.addToList(list, font, ctm, bounds);
     }
     Ra::Transform getView() const {
         return Ra::Transform(scale, 0.f, 0.f, scale, 0.f, 0.f).concat(ctm);
@@ -206,11 +227,12 @@ struct RasterizerDemo {
         redraw = true;
     }
     
+    HUD hud;
     Ra::Colorant textColor = Ra::Colorant(0, 0, 0, 255);
     RasterizerFont font;
     float pointSize = 14;
     Concentrichron concentrichron;
-    Ra::SceneList list, document, pasted, text, hud;
+    Ra::SceneList list, document, pasted, text;
     Ra::Memory<char> pastedString;
     bool showGlyphGrid = false, showTime = false, showHud = true;
     size_t pageIndex = 0;
