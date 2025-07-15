@@ -13,7 +13,7 @@
 #import "RasterizerWinding.hpp"
 
 struct HUD {
-    constexpr static float kWidth = 400, kHeight = 300, kInset = 20, kBorder = 2;
+    constexpr static float kWidth = 200, kHeight = 200, kInset = 20, kBorder = 1;
     constexpr static size_t kItemCount = 10;
     
     struct Item {
@@ -22,15 +22,17 @@ struct HUD {
     };
     Ra::SceneList addToList(Ra::SceneList dst, RasterizerFont& font, Ra::Transform ctm, Ra::Bounds bounds) {
         if (scene.weight == 0) {
+            Ra::Path p;  p->addBounds(bnds.inset(0.5 * kBorder, 0.5 * kBorder)), p->close();
+            scene.addPath(p, Ra::Transform(), bgColor, 0, 0);
             float lineHeight = bnds.height() / kItemCount, lx, uy = bnds.uy;
             float emSize = 0.666 * lineHeight;
             for (size_t i = 0; i < kItemCount; i++) {
                 lx = bnds.lx;
                 uy = bnds.uy - i * lineHeight;
+                Ra::Colorant color = *hudItems[i].key == 'H' ? activeColor : textColor;
                 RasterizerFont::layoutGlyphs(font, emSize, 0, textColor, Ra::Bounds(bnds.lx + emSize, bnds.ly, bnds.ux, uy), false, true, false, hudItems[i].key, scene);
-                RasterizerFont::layoutGlyphs(font, emSize, 0, textColor, Ra::Bounds(bnds.lx + 3 * emSize, bnds.ly, bnds.ux, uy), false, true, false, hudItems[i].text, scene);
+                RasterizerFont::layoutGlyphs(font, emSize, 0, color, Ra::Bounds(bnds.lx + 3 * emSize, bnds.ly, bnds.ux, uy), false, true, false, hudItems[i].text, scene);
             }
-            Ra::Path p;  p->addBounds(bnds.inset(0.5 * kBorder, 0.5 * kBorder)), p->close();
             scene.addPath(p, Ra::Transform(), textColor, kBorder, 0);
         }
         return dst.addScene(scene, ctm.invert().concat(Ra::Transform(1, 0, 0, 1, kInset, bounds.uy - kInset - bnds.uy)));
@@ -52,7 +54,7 @@ struct HUD {
     };
     
     Ra::Bounds bnds = Ra::Bounds(0, 0, kWidth, kHeight);
-    Ra::Colorant textColor = Ra::Colorant(0, 0, 0, 255);
+    Ra::Colorant textColor = Ra::Colorant(0, 0, 0, 255), activeColor = Ra::Colorant(0, 0, 255, 255), bgColor = Ra::Colorant(255, 255, 255, 192);
     Ra::Scene scene;
 };
 
