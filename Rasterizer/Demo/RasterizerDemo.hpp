@@ -21,33 +21,19 @@ struct HUD {
         char const *key, *text;
     };
     Ra::SceneList addToList(Ra::SceneList dst, RasterizerFont& font, Ra::Transform ctm, Ra::Bounds bounds) {
-        if (scene.weight == 0) {
-            Ra::Path p;  p->addBounds(bnds.inset(0.5 * kBorder, 0.5 * kBorder)), p->close();
-            scene.addPath(p, Ra::Transform(), bgColor, 0, 0);
-            float lineHeight = bnds.height() / kItemCount, lx, uy = bnds.uy;
-            float emSize = lineHeight * float(font.unitsPerEm) / (font.ascent - font.descent + font.lineGap);
-            for (size_t i = 0; i < kItemCount; i++) {
-                lx = bnds.lx;
-                uy = bnds.uy - i * lineHeight;
-                Ra::Colorant color = *hudItems[i].key == 'H' ? activeColor : textColor;
-                RasterizerFont::layoutGlyphs(font, emSize, 0, textColor, Ra::Bounds(bnds.lx + emSize, bnds.ly, bnds.ux, uy), false, true, false, hudItems[i].key, scene);
-                RasterizerFont::layoutGlyphs(font, emSize, 0, color, Ra::Bounds(bnds.lx + 3 * emSize, bnds.ly, bnds.ux, uy), false, true, false, hudItems[i].text, scene);
-            }
-            scene.addPath(p, Ra::Transform(), textColor, kBorder, 0);
-        }
         return dst.addScene(scene, ctm.invert().concat(Ra::Transform(1, 0, 0, 1, kInset, bounds.uy - kInset - bnds.uy)), bnds);
     }
     void reset() {
         scene = Ra::Scene();
     }
-    Item hudItems[kItemCount] = {
+    Item items[kItemCount] = {
         Item("1", "Animating"),
         Item("0", "Reset animation"),
         Item("C", "Curves"),
         Item("F", "Fit bounds"),
         Item("G", "Glyph grid"),
         Item("H", "HUD"),
-        Item("I", "Opacity"),
+        Item("I", "Opaque"),
         Item("O", "Outlines"),
         Item("P", "Path mouseover"),
         Item("S", "PDF screenshot"),
@@ -209,6 +195,32 @@ struct RasterizerDemo {
     Ra::SceneList getList() {
         if (!showHud)
             return list;
+        
+        hud.reset();
+        if (hud.scene.weight == 0) {
+            Ra::Path p;  p->addBounds(hud.bnds.inset(0.5 * HUD::kBorder, 0.5 * HUD::kBorder)), p->close();
+            hud.scene.addPath(p, Ra::Transform(), bgColor, 0, 0);
+            Ra::Bounds bnds = hud.bnds;
+            float lineHeight = hud.bnds.height() / HUD::kItemCount, lx, uy = bnds.uy;
+            float emSize = lineHeight * float(font.unitsPerEm) / (font.ascent - font.descent + font.lineGap);
+            for (size_t i = 0; i < HUD::kItemCount; i++) {
+                HUD::Item& item = hud.items[i];
+                lx = hud.bnds.lx;
+                uy = hud.bnds.uy - i * lineHeight;
+                Ra::Colorant color = textColor;
+                if (   (*item.key == '1' && animating)
+                    || (*item.key == 'G' && showGlyphGrid)
+                    || (*item.key == 'I' && opaque)
+                    || (*item.key == 'O' && outlineWidth != 0)
+                    || (*item.key == 'P' && mouseMove)
+                    || (*item.key == 'T' && showTime)
+                    || (*item.key == 'C' && useCurves))
+                    color = activeColor;
+                RasterizerFont::layoutGlyphs(font, emSize, 0, textColor, Ra::Bounds(bnds.lx + emSize, bnds.ly, bnds.ux, uy), false, true, false, item.key, hud.scene);
+                RasterizerFont::layoutGlyphs(font, emSize, 0, color, Ra::Bounds(bnds.lx + 3 * emSize, bnds.ly, bnds.ux, uy), false, true, false, item.text, hud.scene);
+            }
+            hud.scene.addPath(p, Ra::Transform(), textColor, HUD::kBorder, 0);
+        }
         return hud.addToList(list, font, ctm, bounds);
     }
     Ra::Transform getView() const {
@@ -249,7 +261,7 @@ struct RasterizerDemo {
     }
     
     HUD hud;
-    Ra::Colorant textColor = Ra::Colorant(0, 0, 0, 255);
+    Ra::Colorant textColor = Ra::Colorant(0, 0, 0, 255), activeColor = Ra::Colorant(0, 0, 255, 255), bgColor = Ra::Colorant(255, 255, 255, 192);
     RasterizerFont font;
     float pointSize = 14;
     Concentrichron concentrichron;
