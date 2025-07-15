@@ -25,7 +25,7 @@ struct HUD {
             Ra::Path p;  p->addBounds(bnds.inset(0.5 * kBorder, 0.5 * kBorder)), p->close();
             scene.addPath(p, Ra::Transform(), bgColor, 0, 0);
             float lineHeight = bnds.height() / kItemCount, lx, uy = bnds.uy;
-            float emSize = 0.666 * lineHeight;
+            float emSize = lineHeight * float(font.unitsPerEm) / (font.ascent - font.descent + font.lineGap);
             for (size_t i = 0; i < kItemCount; i++) {
                 lx = bnds.lx;
                 uy = bnds.uy - i * lineHeight;
