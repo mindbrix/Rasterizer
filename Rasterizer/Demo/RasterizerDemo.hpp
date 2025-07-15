@@ -35,7 +35,7 @@ struct HUD {
             }
             scene.addPath(p, Ra::Transform(), textColor, kBorder, 0);
         }
-        return dst.addScene(scene, ctm.invert().concat(Ra::Transform(1, 0, 0, 1, kInset, bounds.uy - kInset - bnds.uy)));
+        return dst.addScene(scene, ctm.invert().concat(Ra::Transform(1, 0, 0, 1, kInset, bounds.uy - kInset - bnds.uy)), bnds);
     }
     void reset() {
         scene = Ra::Scene();
