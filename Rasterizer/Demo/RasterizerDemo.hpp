@@ -13,8 +13,8 @@
 #import "RasterizerWinding.hpp"
 
 struct HUD {
-    constexpr static float kWidth = 200, kHeight = 200, kInset = 20, kBorder = 1;
-    constexpr static size_t kItemCount = 10;
+    constexpr static float kWidth = 240, kHeight = 240, kInset = 20, kBorder = 1;
+    constexpr static size_t kItemCount = 11;
     
     struct Item {
         Item(char const *key, char const *text) : key(key), text(text) {}
@@ -44,6 +44,7 @@ struct HUD {
         Item("1", "Animating"),
         Item("0", "Reset animation"),
         Item("C", "Curves"),
+        Item("F", "Fit bounds"),
         Item("G", "Glyph grid"),
         Item("H", "HUD"),
         Item("I", "Opacity"),
@@ -59,7 +60,7 @@ struct HUD {
 };
 
 struct RasterizerDemo {
-    enum KeyCode { kC = 8, kG = 5, kH = 4, kI = 34, kL = 37, kO = 31, kP = 35, kS = 1, kT = 17, k1 = 18, k0 = 29, kReturn = 36, kLeft = 123, kRight = 124 };
+    enum KeyCode { kC = 8, kF = 3, kG = 5, kH = 4, kI = 34, kL = 37, kO = 31, kP = 35, kS = 1, kT = 17, k1 = 18, k0 = 29, kLeft = 123, kRight = 124 };
     enum Flags { kCapsLock = 1 << 16, kShift = 1 << 17, kControl = 1 << 18, kOption = 1 << 19, kCommand = 1 << 20, kNumericPad = 1 << 21, kHelp = 1 << 22, kFunction = 1 << 23 };
     
     void writeList(Ra::Bounds bounds) {
@@ -111,7 +112,7 @@ struct RasterizerDemo {
             clock = 0.0, keyUsed = true;
         else if (keyCode == KeyCode::kC)
             useCurves = !useCurves, keyUsed = true;
-        else if (keyCode == KeyCode::kReturn) {
+        else if (keyCode == KeyCode::kF) {
             Ra::Transform fit = bounds.fit(list.bounds());
             ctm = memcmp(& ctm, & fit, sizeof(ctm)) == 0 ? Ra::Transform() : fit;
             keyUsed = true;
