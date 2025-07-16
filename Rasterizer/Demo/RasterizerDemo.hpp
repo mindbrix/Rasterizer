@@ -12,36 +12,30 @@
 #import "Concentrichron.hpp"
 #import "RasterizerWinding.hpp"
 
-struct HUD {
-    constexpr static float kWidth = 240, kHeight = 240, kInset = 20, kBorder = 1;
-    constexpr static size_t kItemCount = 11;
-    
-    struct Item {
-        Item(char const *key, char const *text) : key(key), text(text) {}
-        char const *key, *text;
-    };
-    void reset() {
-        scene = Ra::Scene();
-    }
-    Item items[kItemCount] = {
-        Item("1", "Animating"),
-        Item("0", "Reset animation"),
-        Item("C", "Curves"),
-        Item("F", "Fit bounds"),
-        Item("G", "Glyph grid"),
-        Item("H", "HUD"),
-        Item("I", "Opaque"),
-        Item("O", "Outlines"),
-        Item("P", "Path mouseover"),
-        Item("S", "PDF screenshot"),
-        Item("T", "Time"),
-    };
-    
-    Ra::Bounds bnds = Ra::Bounds(0, 0, kWidth, kHeight);
-    Ra::Scene scene;
-};
 
 struct RasterizerDemo {
+    constexpr static float kHudWidth = 240, kHudHeight = 240, kHudInset = 20, kHudBorder = 1;
+    constexpr static size_t kHudItemCount = 11;
+    
+    struct HudItem {
+        HudItem(char const *key, char const *text) : key(key), text(text) {}
+        char const *key, *text;
+    };
+    
+    HudItem hudItems[kHudItemCount] = {
+        HudItem("1", "Animating"),
+        HudItem("0", "Reset animation"),
+        HudItem("C", "Curves"),
+        HudItem("F", "Fit bounds"),
+        HudItem("G", "Glyph grid"),
+        HudItem("H", "HUD"),
+        HudItem("I", "Opaque"),
+        HudItem("O", "Outlines"),
+        HudItem("P", "Path mouseover"),
+        HudItem("S", "PDF screenshot"),
+        HudItem("T", "Time"),
+    };
+    
     enum KeyCode { kC = 8, kF = 3, kG = 5, kH = 4, kI = 34, kL = 37, kO = 31, kP = 35, kS = 1, kT = 17, k1 = 18, k0 = 29, kLeft = 123, kRight = 124 };
     enum Flags { kCapsLock = 1 << 16, kShift = 1 << 17, kControl = 1 << 18, kOption = 1 << 19, kCommand = 1 << 20, kNumericPad = 1 << 21, kHelp = 1 << 22, kFunction = 1 << 23 };
     
@@ -188,37 +182,38 @@ struct RasterizerDemo {
    
 #pragma mark - Properties
     
+    Ra::Scene getHUD() {
+        Ra::Scene hud;
+        Ra::Bounds bnds = Ra::Bounds(0, 0, kHudWidth, kHudHeight);
+        Ra::Path p;  p->addBounds(bnds.inset(0.5 * kHudBorder, 0.5 * kHudBorder)), p->close();
+        hud.addPath(p, Ra::Transform(), bgColor, 0, 0);
+        float lineHeight = bnds.height() / kHudItemCount, uy;
+        float emSize = lineHeight * float(font.unitsPerEm) / (font.ascent - font.descent + font.lineGap);
+        for (size_t i = 0; i < kHudItemCount; i++) {
+            HudItem& item = hudItems[i];
+            uy = bnds.uy - i * lineHeight;
+            Ra::Colorant color = textColor;
+            if (   (*item.key == '1' && animating)
+                || (*item.key == 'G' && showGlyphGrid)
+                || (*item.key == 'I' && opaque)
+                || (*item.key == 'O' && outlineWidth != 0)
+                || (*item.key == 'P' && mouseMove)
+                || (*item.key == 'T' && showTime)
+                || (*item.key == 'C' && useCurves))
+                color = activeColor;
+            RasterizerFont::layoutGlyphs(font, emSize, 0, textColor, Ra::Bounds(bnds.lx + emSize, bnds.ly, bnds.ux, uy), false, true, false, item.key, hud);
+            RasterizerFont::layoutGlyphs(font, emSize, 0, color, Ra::Bounds(bnds.lx + 3 * emSize, bnds.ly, bnds.ux, uy), false, true, false, item.text, hud);
+        }
+        hud.addPath(p, Ra::Transform(), textColor, kHudBorder, 0);
+        return hud;
+    }
     Ra::SceneList getList() {
         if (!showHud)
             return list;
         
-        hud.reset();
-        Ra::Bounds bnds = hud.bnds;
-        if (hud.scene.weight == 0) {
-            Ra::Path p;  p->addBounds(hud.bnds.inset(0.5 * HUD::kBorder, 0.5 * HUD::kBorder)), p->close();
-            hud.scene.addPath(p, Ra::Transform(), bgColor, 0, 0);
-            float lineHeight = hud.bnds.height() / HUD::kItemCount, lx, uy;
-            float emSize = lineHeight * float(font.unitsPerEm) / (font.ascent - font.descent + font.lineGap);
-            for (size_t i = 0; i < HUD::kItemCount; i++) {
-                HUD::Item& item = hud.items[i];
-                lx = bnds.lx;
-                uy = bnds.uy - i * lineHeight;
-                Ra::Colorant color = textColor;
-                if (   (*item.key == '1' && animating)
-                    || (*item.key == 'G' && showGlyphGrid)
-                    || (*item.key == 'I' && opaque)
-                    || (*item.key == 'O' && outlineWidth != 0)
-                    || (*item.key == 'P' && mouseMove)
-                    || (*item.key == 'T' && showTime)
-                    || (*item.key == 'C' && useCurves))
-                    color = activeColor;
-                RasterizerFont::layoutGlyphs(font, emSize, 0, textColor, Ra::Bounds(bnds.lx + emSize, bnds.ly, bnds.ux, uy), false, true, false, item.key, hud.scene);
-                RasterizerFont::layoutGlyphs(font, emSize, 0, color, Ra::Bounds(bnds.lx + 3 * emSize, bnds.ly, bnds.ux, uy), false, true, false, item.text, hud.scene);
-            }
-            hud.scene.addPath(p, Ra::Transform(), textColor, HUD::kBorder, 0);
-        }
         Ra::SceneList dst = list;
-        return dst.addScene(hud.scene, ctm.invert().concat(Ra::Transform(1, 0, 0, 1, HUD::kInset, bounds.uy - HUD::kInset - bnds.uy)), bnds);
+        Ra::Bounds clip = Ra::Bounds(0, 0, kHudWidth, kHudHeight);
+        return dst.addScene(getHUD(), ctm.invert().concat(Ra::Transform(1, 0, 0, 1, kHudInset, bounds.uy - kHudInset - kHudHeight)), clip);
     }
     Ra::Transform getView() const {
         return Ra::Transform(scale, 0.f, 0.f, scale, 0.f, 0.f).concat(ctm);
@@ -232,7 +227,6 @@ struct RasterizerDemo {
         concentrichron.resetFace();
         pasted.empty();
         text.empty();
-        hud.reset();
         redraw = true;
     }
     void setPastedString(const char *string) {
@@ -257,7 +251,6 @@ struct RasterizerDemo {
         redraw = true;
     }
     
-    HUD hud;
     Ra::Colorant textColor = Ra::Colorant(0, 0, 0, 255), activeColor = Ra::Colorant(0, 0, 255, 255), bgColor = Ra::Colorant(255, 255, 255, 192);
     RasterizerFont font;
     float pointSize = 14;
