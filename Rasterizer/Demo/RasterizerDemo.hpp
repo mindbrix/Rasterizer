@@ -20,9 +20,6 @@ struct HUD {
         Item(char const *key, char const *text) : key(key), text(text) {}
         char const *key, *text;
     };
-    Ra::SceneList addToList(Ra::SceneList dst, RasterizerFont& font, Ra::Transform ctm, Ra::Bounds bounds) {
-        return dst.addScene(scene, ctm.invert().concat(Ra::Transform(1, 0, 0, 1, kInset, bounds.uy - kInset - bnds.uy)), bnds);
-    }
     void reset() {
         scene = Ra::Scene();
     }
@@ -41,7 +38,6 @@ struct HUD {
     };
     
     Ra::Bounds bnds = Ra::Bounds(0, 0, kWidth, kHeight);
-    Ra::Colorant textColor = Ra::Colorant(0, 0, 0, 255), activeColor = Ra::Colorant(0, 0, 255, 255), bgColor = Ra::Colorant(255, 255, 255, 192);
     Ra::Scene scene;
 };
 
@@ -197,16 +193,16 @@ struct RasterizerDemo {
             return list;
         
         hud.reset();
+        Ra::Bounds bnds = hud.bnds;
         if (hud.scene.weight == 0) {
             Ra::Path p;  p->addBounds(hud.bnds.inset(0.5 * HUD::kBorder, 0.5 * HUD::kBorder)), p->close();
             hud.scene.addPath(p, Ra::Transform(), bgColor, 0, 0);
-            Ra::Bounds bnds = hud.bnds;
-            float lineHeight = hud.bnds.height() / HUD::kItemCount, lx, uy = bnds.uy;
+            float lineHeight = hud.bnds.height() / HUD::kItemCount, lx, uy;
             float emSize = lineHeight * float(font.unitsPerEm) / (font.ascent - font.descent + font.lineGap);
             for (size_t i = 0; i < HUD::kItemCount; i++) {
                 HUD::Item& item = hud.items[i];
-                lx = hud.bnds.lx;
-                uy = hud.bnds.uy - i * lineHeight;
+                lx = bnds.lx;
+                uy = bnds.uy - i * lineHeight;
                 Ra::Colorant color = textColor;
                 if (   (*item.key == '1' && animating)
                     || (*item.key == 'G' && showGlyphGrid)
@@ -221,7 +217,8 @@ struct RasterizerDemo {
             }
             hud.scene.addPath(p, Ra::Transform(), textColor, HUD::kBorder, 0);
         }
-        return hud.addToList(list, font, ctm, bounds);
+        Ra::SceneList dst = list;
+        return dst.addScene(hud.scene, ctm.invert().concat(Ra::Transform(1, 0, 0, 1, HUD::kInset, bounds.uy - HUD::kInset - bnds.uy)), bnds);
     }
     Ra::Transform getView() const {
         return Ra::Transform(scale, 0.f, 0.f, scale, 0.f, 0.f).concat(ctm);
