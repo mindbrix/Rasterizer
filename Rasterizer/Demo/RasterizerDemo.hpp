@@ -14,7 +14,7 @@
 
 
 struct RasterizerDemo {
-    constexpr static float kHudWidth = 240, kHudHeight = 240, kHudInset = 20, kHudBorder = 1;
+    constexpr static float kHudWidth = 240, kHudHeight = 240, kHudInset = 20, kHudBorder = 0.5;
     constexpr static size_t kHudItemCount = 11;
     
     struct HudItem {
@@ -184,14 +184,19 @@ struct RasterizerDemo {
     
     Ra::Scene getHUD() {
         Ra::Scene hud;
+        
         Ra::Bounds bnds = Ra::Bounds(0, 0, kHudWidth, kHudHeight);
+        float padding = 0.666 * bnds.height() / (kHudItemCount + 2);
+        Ra::Bounds text = bnds.inset(padding, 0.666 * padding);
+        
         Ra::Path p;  p->addBounds(bnds.inset(0.5 * kHudBorder, 0.5 * kHudBorder)), p->close();
         hud.addPath(p, Ra::Transform(), bgColor, 0, 0);
-        float lineHeight = bnds.height() / kHudItemCount, uy;
+        
+        float lineHeight = text.height() / kHudItemCount, uy;
         float emSize = lineHeight * float(font.unitsPerEm) / (font.ascent - font.descent + font.lineGap);
         for (size_t i = 0; i < kHudItemCount; i++) {
             HudItem& item = hudItems[i];
-            uy = bnds.uy - i * lineHeight;
+            uy = text.uy - i * lineHeight;
             Ra::Colorant color = textColor;
             if (   (*item.key == '1' && animating)
                 || (*item.key == 'G' && showGlyphGrid)
@@ -201,8 +206,8 @@ struct RasterizerDemo {
                 || (*item.key == 'T' && showTime)
                 || (*item.key == 'C' && useCurves))
                 color = activeColor;
-            RasterizerFont::layoutGlyphs(font, emSize, 0, textColor, Ra::Bounds(bnds.lx + emSize, bnds.ly, bnds.ux, uy), false, true, false, item.key, hud);
-            RasterizerFont::layoutGlyphs(font, emSize, 0, color, Ra::Bounds(bnds.lx + 3 * emSize, bnds.ly, bnds.ux, uy), false, true, false, item.text, hud);
+            RasterizerFont::layoutGlyphs(font, emSize, 0, textColor, Ra::Bounds(text.lx, text.ly, text.ux, uy), false, true, false, item.key, hud);
+            RasterizerFont::layoutGlyphs(font, emSize, 0, color, Ra::Bounds(text.lx + 2 * emSize, text.ly, text.ux, uy), false, true, false, item.text, hud);
         }
         hud.addPath(p, Ra::Transform(), textColor, kHudBorder, 0);
         return hud;
