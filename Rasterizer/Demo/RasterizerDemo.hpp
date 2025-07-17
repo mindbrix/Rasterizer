@@ -133,8 +133,6 @@ struct RasterizerDemo {
     }
     void onMouseMove(float x, float y) {
         mx = x, my = y;
-        if (flags & Flags::kShift)
-            timeScale = powf(y / (bounds.uy - bounds.ly), 2.0);
         if (mouseMove)
             redraw = true;
     }
