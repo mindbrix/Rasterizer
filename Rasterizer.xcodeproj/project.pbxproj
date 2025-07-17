@@ -16,7 +16,7 @@
 		E920A5A621762BCE00F52C25 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E920A5A521762BCE00F52C25 /* Assets.xcassets */; };
 		E920A5A921762BCE00F52C25 /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = E920A5A721762BCE00F52C25 /* MainMenu.xib */; };
 		E920A5AC21762BCE00F52C25 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = E920A5AB21762BCE00F52C25 /* main.m */; };
-		E920A5B5217631E600F52C25 /* DocumentView.mm in Sources */ = {isa = PBXBuildFile; fileRef = E920A5B4217631E600F52C25 /* DocumentView.mm */; };
+		E920A5B5217631E600F52C25 /* DemoView.mm in Sources */ = {isa = PBXBuildFile; fileRef = E920A5B4217631E600F52C25 /* DemoView.mm */; };
 		E9682E222C7F634D001046F5 /* Rasterizer Default.pdf in Resources */ = {isa = PBXBuildFile; fileRef = E9682E212C7F634D001046F5 /* Rasterizer Default.pdf */; };
 		E970B90B2E181F5B00E9A7B1 /* libpdfium.a in Frameworks */ = {isa = PBXBuildFile; fileRef = E970B90A2E181F5B00E9A7B1 /* libpdfium.a */; };
 		E9710C4C24CF975B00F31953 /* xxhash.c in Sources */ = {isa = PBXBuildFile; fileRef = E9710C4A24CF975B00F31953 /* xxhash.c */; };
@@ -44,8 +44,8 @@
 		E920A5AA21762BCE00F52C25 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		E920A5AB21762BCE00F52C25 /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
 		E920A5AD21762BCE00F52C25 /* Rasterizer.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Rasterizer.entitlements; sourceTree = "<group>"; };
-		E920A5B3217631E600F52C25 /* DocumentView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = DocumentView.h; sourceTree = "<group>"; };
-		E920A5B4217631E600F52C25 /* DocumentView.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = DocumentView.mm; sourceTree = "<group>"; };
+		E920A5B3217631E600F52C25 /* DemoView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = DemoView.h; sourceTree = "<group>"; };
+		E920A5B4217631E600F52C25 /* DemoView.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = DemoView.mm; sourceTree = "<group>"; };
 		E938EB1121C4FCB800794C0B /* Rasterizer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Rasterizer.h; sourceTree = "<group>"; };
 		E946C9D1217F0F8B004582CC /* RasterizerCG.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = RasterizerCG.hpp; sourceTree = "<group>"; };
 		E956EDB22177D6BD0094B5AE /* Rasterizer.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Rasterizer.hpp; sourceTree = "<group>"; };
@@ -158,8 +158,8 @@
 			children = (
 				E9E36F08223A722100F6533A /* Concentrichron.hpp */,
 				E91ADF95224266A400729DA0 /* RasterizerDemo.hpp */,
-				E920A5B3217631E600F52C25 /* DocumentView.h */,
-				E920A5B4217631E600F52C25 /* DocumentView.mm */,
+				E920A5B3217631E600F52C25 /* DemoView.h */,
+				E920A5B4217631E600F52C25 /* DemoView.mm */,
 				E920A59F21762BCD00F52C25 /* Document.h */,
 				E920A5A021762BCD00F52C25 /* Document.mm */,
 				E920A5A221762BCD00F52C25 /* Document.xib */,
@@ -331,7 +331,7 @@
 				E9E9600727D65BF800E06451 /* RasterizerPDF.hpp in Sources */,
 				E920A5A121762BCD00F52C25 /* Document.mm in Sources */,
 				E91ADF972243FED000729DA0 /* nanosvg.cc in Sources */,
-				E920A5B5217631E600F52C25 /* DocumentView.mm in Sources */,
+				E920A5B5217631E600F52C25 /* DemoView.mm in Sources */,
 				E91ADF9422425C3000729DA0 /* stb_truetype.c in Sources */,
 				E990649221C2E11500D2DBF2 /* RasterizerLayer.mm in Sources */,
 				E9E8285B2B17555800FABD81 /* RasterizerView.mm in Sources */,

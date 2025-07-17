@@ -1,15 +1,15 @@
 //
-//  DocumentView.mm
+//  DemoView.mm
 //  Rasterizer
 //
 //  Created by Nigel Barber on 16/10/2018.
 //  Copyright © 2018 @mindbrix. All rights reserved.
 //
-#import "DocumentView.h"
+#import "DemoView.h"
 #import "RasterizerCG.hpp"
 #import "RasterizerDemo.hpp"
 
-@interface DocumentView () <NSFontChanging>
+@interface DemoView () <NSFontChanging>
 
 @property(nonatomic) CVDisplayLinkRef displayLink;
 @property(nonatomic) dispatch_semaphore_t inflight_semaphore;
@@ -22,7 +22,7 @@
 
 static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink, const CVTimeStamp *now, const CVTimeStamp *outputTime,
 CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
-    DocumentView *view = (__bridge DocumentView *)displayLinkContext;
+    DemoView *view = (__bridge DemoView *)displayLinkContext;
     @autoreleasepool {
         if (dispatch_semaphore_wait(view.inflight_semaphore, DISPATCH_TIME_NOW) == 0)
             dispatch_async(dispatch_get_main_queue(), ^{
@@ -33,7 +33,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     return kCVReturnSuccess;
 }
 
-@implementation DocumentView
+@implementation DemoView
 
 #pragma mark - NSView
 

@@ -7,11 +7,11 @@
 //
 
 #import <Cocoa/Cocoa.h>
-#import "DocumentView.h"
+#import "DemoView.h"
 
 @interface Document : NSDocument
 
-@property(nonatomic, strong) IBOutlet DocumentView *view;
+@property(nonatomic, strong) IBOutlet DemoView *view;
 
 @end
 

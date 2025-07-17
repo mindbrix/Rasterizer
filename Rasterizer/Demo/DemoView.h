@@ -1,5 +1,5 @@
 //
-//  DocumentView.h
+//  DemoView.h
 //  Rasterizer
 //
 //  Created by Nigel Barber on 16/10/2018.
@@ -9,7 +9,7 @@
 #import <Cocoa/Cocoa.h>
 #import "RasterizerView.h"
 
-@interface DocumentView : RasterizerView
+@interface DemoView : RasterizerView
 
 @property(nonatomic, strong) NSData *pdfData;
 @property(nonatomic, strong) NSData *svgData;
