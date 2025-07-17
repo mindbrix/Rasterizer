@@ -92,8 +92,12 @@ struct Rasterizer {
             };
         }
         inline Transform fit(Bounds b) const {
-            float s = fminf(width() / b.width(), height() / b.height());
-            return { s, 0.f, 0.f, s, lx - s * b.lx, ly - s * b.ly };
+            float w = width(), h = height(), bw = b.width(), bh = b.height(), s = fminf(w / bw, h / bh);
+            return {
+                s, 0.f,
+                0.f, s,
+                lx + 0.5f * (w - s * bw) - s * b.lx, ly + 0.5f * (h - s * bh) - s * b.ly
+            };
         }
         size_t hash() const  { return XXH64(this, sizeof(*this), 0); }
         float lx, ly, ux, uy;
