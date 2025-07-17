@@ -10,11 +10,9 @@
 struct RasterizerRenderer {
     void renderList(Ra::SceneList& list, Ra::Bounds device, Ra::Bounds deviceClip, Ra::Transform view, Ra::Buffer *buffer) {
         assert(sizeof(uint32_t) == sizeof(Ra::Colorant));
-        if (list.pathsCount == 0)
-            return;
-         buffer->prepare(list);
-         buffer->device = device;
-         buffer->clip = deviceClip;
+        buffer->prepare(list);
+        buffer->device = device;
+        buffer->clip = deviceClip;
          
         size_t divisions[kContextCount + 1], *pdivs = divisions;
         writeBalancedWeightDivisions(list, pdivs);
@@ -37,15 +35,19 @@ struct RasterizerRenderer {
         size_t total = 0, count, si, i, iz, target;
         for (int j = 0; j < list.scenes.size(); j++)
             total += list.scenes[j].weight;
-        divisions[0] = 0, divisions[kContextCount] = list.pathsCount;
-        auto scene = & list.scenes[0];
-        for (count = si = iz = 0, i = 1; i < kContextCount; i++) {
-            for (target = total * i / kContextCount; count < target; iz++, si++) {
-                if (si == scene->count)
-                    scene++, si = 0;
-                count += scene->paths->base[si]->types.end;
+        if (total == 0)
+            memset(divisions, 0, (kContextCount + 1) * sizeof(*divisions));
+        else {
+            divisions[0] = 0, divisions[kContextCount] = list.pathsCount;
+            auto scene = & list.scenes[0];
+            for (count = si = iz = 0, i = 1; i < kContextCount; i++) {
+                for (target = total * i / kContextCount; count < target; iz++, si++) {
+                    if (si == scene->count)
+                        scene++, si = 0;
+                    count += scene->paths->base[si]->types.end;
+                }
+                divisions[i] = iz;
             }
-            divisions[i] = iz;
         }
     }
     void reset() { for (auto& ctx : contexts) ctx.reset(); }

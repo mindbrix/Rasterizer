@@ -548,9 +548,10 @@ struct Rasterizer {
             Bounds *bounds = (Bounds *)(buffer->base + buffer->bounds);
             bool clipActive = false;
             
-            size_t lz, uz, i, clz, cuz, iz, is, ip, lastip, size, cnt;  Scene *scn = & list.scenes[0];  uint8_t flags;
+            size_t lz, uz, i, clz, cuz, iz, is, ip, lastip, size, cnt;  uint8_t flags;
             float det, width, uw, softclipMargin = 0.5f;
-            for (lz = uz = i = 0; i < list.scenes.size(); i++, scn++, lz = uz) {
+            for (lz = uz = i = 0; i < list.scenes.size(); i++, lz = uz) {
+                Scene *scn = & list.scenes[i];
                 uz = lz + scn->count, clz = lz < slz ? slz : lz > suz ? suz : lz, cuz = uz < slz ? slz : uz > suz ? suz : uz;
                 Transform ctm = view.concat(list.ctms[i]), clipquad, m, quad, invclip;
                 Bounds dev, clip, *bnds, clipBounds, sceneclip = list.clips[i];
