@@ -23,7 +23,7 @@ struct RasterizerDemo {
     };
     
     HudItem hudItems[kHudItemCount] = {
-        HudItem("0", "Rasterizer (GPU)", "Core Graphics"),
+        HudItem("0", "Rasterizer", "Core Graphics"),
         HudItem("A", "Animate"),
         HudItem("C", "Curves"),
         HudItem("F", "Fit bounds"),
