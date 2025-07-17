@@ -82,6 +82,8 @@
     memset_pattern4(CGBitmapContextGetData(ctx), & color.b, CGBitmapContextGetBytesPerRow(ctx) * CGBitmapContextGetHeight(ctx));
     Ra::Bounds deviceClip = self.device.inset(self.clipInset, self.clipInset);
     CGFloat scale = 1.0 / self.layer.contentsScale;
+    if (!self.useCurves)
+        CGContextSetFlatness(ctx, 20 * self.layer.contentsScale);
     CGContextClipToRect(ctx, CGRectApplyAffineTransform(RaCG::CGRectFromBounds(deviceClip), CGAffineTransformMakeScale(scale, scale)) );
     CGContextConcatCTM(ctx, RaCG::CGFromTransform(self.ctm));
     RaCG::drawList(_sceneList, self.view, self.device, deviceClip, 0.f, ctx);
