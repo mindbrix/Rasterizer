@@ -155,8 +155,10 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 - (void)setFont:(NSFont *)font {
     _font = font ?: [NSFont fontWithName:@"HelveticaNeue-Medium" size:14];
 
-    NSURL *url = RaCG::fontURL(_font.fontName);
-    _demo.setFont(url.path.UTF8String, _font.fontName.UTF8String, _font.pointSize);
+    if (_font) {
+        NSURL *url = RaCG::fontURL(_font.fontName);
+        _demo.setFont(url.path.UTF8String, _font.fontName.UTF8String, _font.pointSize);
+    }
 }
 
 - (void)setPdfData:(NSData *)pdfData {
