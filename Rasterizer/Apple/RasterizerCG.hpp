@@ -171,6 +171,8 @@ struct RasterizerCG {
     }
     
     static NSURL *fontURL(NSString *fontName) {
+        if (fontName == nil)
+            return nil;
         CTFontDescriptorRef fontRef = CTFontDescriptorCreateWithNameAndSize((__bridge CFStringRef)fontName, 1);
         NSURL *URL = (__bridge_transfer NSURL *)CTFontDescriptorCopyAttribute(fontRef, kCTFontURLAttribute);
         CFRelease(fontRef);
