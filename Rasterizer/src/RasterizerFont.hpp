@@ -17,6 +17,8 @@ struct RasterizerFont {
     void empty() { monospace = space = ascent = descent = lineGap = unitsPerEm = 0, bzero(& info, sizeof(info)), cache.clear(); }
     bool isEmpty() { return info.numGlyphs == 0 || space == 0; }
     bool load(const char *filename, const char *name) {
+        if (filename == nullptr || name == nullptr)
+            return false;
         int fd;  struct stat st;
         if ((fd = open(filename, O_RDONLY)) == -1 || fstat(fd, & st) == -1)
             return false;
