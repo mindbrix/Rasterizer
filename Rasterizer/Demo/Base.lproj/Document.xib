@@ -23,23 +23,6 @@
             <view key="contentView" wantsLayer="YES" id="gIp-Ho-8D9" customClass="DemoView">
                 <rect key="frame" x="0.0" y="0.0" width="800" height="600"/>
                 <autoresizingMask key="autoresizingMask"/>
-                <subviews>
-                    <textField hidden="YES" focusRingType="none" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" preferredMaxLayoutWidth="264" translatesAutoresizingMaskIntoConstraints="NO" id="Hz6-mo-xeY">
-                        <rect key="frame" x="340" y="286" width="121" height="28"/>
-                        <textFieldCell key="cell" sendsActionOnEndEditing="YES" alignment="center" title="Rasterizer" drawsBackground="YES" id="JDq-Ah-v2f">
-                            <font key="font" size="24" name="HelveticaNeue-Medium"/>
-                            <color key="textColor" red="0.792156862745098" green="0.0078431372549019607" blue="0.10588235294117647" alpha="1" colorSpace="calibratedRGB"/>
-                            <color key="backgroundColor" white="1" alpha="0.80012103873239437" colorSpace="calibratedWhite"/>
-                        </textFieldCell>
-                    </textField>
-                </subviews>
-                <constraints>
-                    <constraint firstAttribute="centerX" secondItem="Hz6-mo-xeY" secondAttribute="centerX" id="OG3-1c-Sd0"/>
-                    <constraint firstAttribute="centerY" secondItem="Hz6-mo-xeY" secondAttribute="centerY" id="s6i-b7-llN"/>
-                </constraints>
-                <connections>
-                    <outlet property="rasterizerLabel" destination="Hz6-mo-xeY" id="J0R-Xm-tO6"/>
-                </connections>
             </view>
             <connections>
                 <outlet property="delegate" destination="-2" id="0bl-1N-x8E"/>

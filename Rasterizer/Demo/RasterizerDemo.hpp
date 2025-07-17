@@ -15,14 +15,15 @@
 
 struct RasterizerDemo {
     constexpr static float kHudWidth = 240, kHudHeight = 240, kHudInset = 20, kHudBorder = 0.5;
-    constexpr static size_t kHudItemCount = 10;
+    constexpr static size_t kHudItemCount = 11;
     
     struct HudItem {
-        HudItem(char const *key, char const *text) : key(key), text(text) {}
-        char const *key, *text;
+        HudItem(char const *key, char const *text, char const *alt = nullptr) : key(key), text(text), alt(alt) {}
+        char const *key, *text, *alt;
     };
     
     HudItem hudItems[kHudItemCount] = {
+        HudItem("0", "Rasterizer (GPU)", "Core Graphics"),
         HudItem("A", "Animate"),
         HudItem("C", "Curves"),
         HudItem("F", "Fit bounds"),
@@ -195,7 +196,8 @@ struct RasterizerDemo {
             HudItem& item = hudItems[i];
             uy = text.uy - i * lineHeight;
             Ra::Colorant color = textColor;
-            if (   (*item.key == 'A' && animating)
+            if (  (*item.key == '0')
+                || (*item.key == 'A' && animating)
                 || (*item.key == 'G' && showGlyphGrid)
                 || (*item.key == 'I' && opaque)
                 || (*item.key == 'O' && outlineWidth != 0)
@@ -204,7 +206,10 @@ struct RasterizerDemo {
                 || (*item.key == 'C' && useCurves))
                 color = activeColor;
             RasterizerFont::layoutGlyphs(font, emSize, 0, textColor, Ra::Bounds(text.lx, text.ly, text.ux, uy), false, true, false, item.key, hud);
-            RasterizerFont::layoutGlyphs(font, emSize, 0, color, Ra::Bounds(text.lx + 2 * emSize, text.ly, text.ux, uy), false, true, false, item.text, hud);
+            char const *label = item.text;
+            if (*item.key == '0' && !gpu)
+                label = item.alt;
+            RasterizerFont::layoutGlyphs(font, emSize, 0, color, Ra::Bounds(text.lx + 2 * emSize, text.ly, text.ux, uy), false, true, false, label, hud);
         }
         hud.addPath(p, Ra::Transform(), textColor, kHudBorder, 0);
         return hud;
@@ -252,6 +257,10 @@ struct RasterizerDemo {
             memcpy(svgData.resize(size), data, size);
         redraw = true;
     }
+    void setUseGPU(bool useGPU) {
+        gpu = useGPU;
+        redraw = true;
+    }
     
     Ra::Colorant textColor = Ra::Colorant(0, 0, 0, 255), activeColor = Ra::Colorant(0, 0, 255, 255), bgColor = Ra::Colorant(255, 255, 255, 192);
     RasterizerFont font;
@@ -267,7 +276,7 @@ struct RasterizerDemo {
     Ra::Transform ctm;
     Ra::Bounds bounds;
 
-    bool redraw = false, mouseDown = false, mouseMove = false, useCurves = true, animating = false, opaque = false;
+    bool gpu = true, redraw = false, mouseDown = false, mouseMove = false, useCurves = true, animating = false, opaque = false;
     double clock = 0.0, timeScale = 0.333;
     float mx, my, outlineWidth = 0.f;
     Ra::Range indices = Ra::Range(INT_MAX, INT_MAX), locked = Ra::Range(INT_MAX, INT_MAX);

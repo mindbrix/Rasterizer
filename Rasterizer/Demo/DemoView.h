@@ -13,6 +13,5 @@
 
 @property(nonatomic, strong) NSData *pdfData;
 @property(nonatomic, strong) NSData *svgData;
-@property(nonatomic) IBOutlet NSTextField *rasterizerLabel;
 
 @end

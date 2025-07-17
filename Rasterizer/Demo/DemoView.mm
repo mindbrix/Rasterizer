@@ -42,6 +42,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     if (! self)
         return nil;
     self.font = nil;
+    _demo.setUseGPU(!self.useCG);
     [self startTimer];
     return self;
 }
@@ -103,16 +104,13 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     int keyCode = event.keyCode;
     if (_demo.onKeyDown(event.keyCode))
         ;
-    else if (keyCode == 51) {  // Backspace
+    else if (keyCode == 29) {  // 0
         self.useCG = !self.useCG;
-        self.rasterizerLabel.stringValue = self.useCG ? @"Core Graphics" : @"Rasterizer (GPU)";
-        [self.rasterizerLabel setHidden:NO];
+        _demo.setUseGPU(!self.useCG);
     } else if (keyCode == 15) {  // R
         CGFloat native = [self convertSizeToBacking:NSMakeSize(1.f, 1.f)].width;
         self.layer.contentsScale = self.layer.contentsScale == native ? 1.0 : native;
         [self.layer setNeedsDisplay];
-    } else if (keyCode == 49) {  // Space
-        [self.rasterizerLabel setHidden:YES];
     } else
         [super keyDown:event];
     
