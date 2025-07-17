@@ -83,8 +83,6 @@ struct RasterizerDemo {
         
         if (keyCode == KeyCode::kA)
             animating = !animating, clock = 0.0, keyUsed = true;
-        else if (keyCode == KeyCode::k0)
-            clock = 0.0, keyUsed = true;
         else if (keyCode == KeyCode::kC)
             useCurves = !useCurves, keyUsed = true;
         else if (keyCode == KeyCode::kF) {
