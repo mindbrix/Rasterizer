@@ -114,11 +114,7 @@
     if ([self.layerDelegate respondsToSelector:@selector(writeBuffer:forLayer:)])
         colorSpace = [self.layerDelegate writeBuffer:buffer forLayer:self];
     
-    if (buffer->size == 0) {
-        dispatch_semaphore_signal(_inflight_semaphore);
-        return;
-    }
-    id <MTLBuffer> mtlBuffer = [self.device newBufferWithBytesNoCopy:buffer->base
+    id <MTLBuffer> mtlBuffer = buffer->size == 0 ? nil : [self.device newBufferWithBytesNoCopy:buffer->base
                                                length:buffer->size
                                               options:MTLResourceStorageModeShared
                                           deallocator:nil];
