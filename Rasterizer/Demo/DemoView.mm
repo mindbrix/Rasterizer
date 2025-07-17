@@ -41,6 +41,9 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     self = [super initWithCoder:decoder];
     if (! self)
         return nil;
+    self.postsBoundsChangedNotifications = TRUE;
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(boundsDidChange:) name:nil object:nil];
+    
     self.font = nil;
     _demo.setUseGPU(!self.useCG);
     [self startTimer];
@@ -78,6 +81,10 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 }
 
 
+#pragma mark - NSNotificationCenter
+- (void)boundsDidChange:(NSNotification *)notification {
+    _demo.redraw = true;
+}
 #pragma mark - NSFontManager
 
 - (void)changeFont:(id)sender {
