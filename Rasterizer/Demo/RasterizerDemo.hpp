@@ -223,9 +223,6 @@ struct RasterizerDemo {
         }
         return draw;
     }
-    Ra::Transform getView() const {
-        return Ra::Transform(scale, 0.f, 0.f, scale, 0.f, 0.f).concat(ctm);
-    }
     bool getShouldRedraw() const {
         return animating || redraw || showTime;
     }
@@ -334,9 +331,8 @@ struct RasterizerDemo {
             }
         }
         if (outlineWidth) {
-            float scale = fabsf(outlineWidth) / demo.getView().concat(ctm).scale();
             for (size_t j = li; j < ui; j++)
-                dstWidths[j] = scale / dstCtms[j].scale();
+                dstWidths[j] = outlineWidth;
         } else if (ftime == 0.f)
             memcpy(dstWidths + li, srcWidths + li, count * sizeof(srcWidths[0]));
         else
