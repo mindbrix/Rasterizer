@@ -14,7 +14,6 @@
 @interface RasterizerView () <CALayerDelegate, LayerDelegate>
 
 @property(nonatomic) RasterizerRenderer renderer;
-@property(nonatomic) float clipInset;
 
 @end
 
@@ -26,7 +25,6 @@
    if (! self)
        return nil;
     self.useCG = false;
-    self.clipInset = 0.f;
    return self;
 }
 
@@ -63,10 +61,9 @@
         
         float scale = self.layer.contentsScale, w = self.bounds.size.width, h = self.bounds.size.height;
         Ra::Bounds device(0.f, 0.f, ceilf(scale * w), ceilf(scale * h));
-        Ra::Bounds deviceClip = device.inset(self.clipInset, self.clipInset);
         Ra::Transform view = Ra::Transform(scale, 0.f, 0.f, scale, 0.f, 0.f).concat(list.ctm);
         
-        _renderer.renderList(list.list, device, deviceClip, view, buffer);
+        _renderer.renderList(list.list, device, device, view, buffer);
     }
     return self.window.colorSpace.CGColorSpace;
 }
@@ -76,18 +73,14 @@
 - (void)drawLayer:(CALayer *)layer inContext:(CGContextRef)ctx {
     Ra::Colorant color = Ra::Colorant(0xFF, 0xFF, 0xFF, 0xFF);
     memset_pattern4(CGBitmapContextGetData(ctx), & color.b, CGBitmapContextGetBytesPerRow(ctx) * CGBitmapContextGetHeight(ctx));
-    Ra::Bounds bounds = RaCG::BoundsFromCGRect(self.bounds);
-    CGFloat scale = 1.0 / self.layer.contentsScale;
-    Ra::Bounds clip = bounds.inset(scale * self.clipInset, scale * self.clipInset);
-    CGContextClipToRect(ctx, RaCG::CGRectFromBounds(clip));
-    
     if ([self.listDelegate respondsToSelector:@selector(getList:height:)]) {
-        Ra::DrawList list = [self.listDelegate getList: self.bounds.size.width
-                                                 height: self.bounds.size.height];
+        Ra::Bounds bounds = RaCG::BoundsFromCGRect(self.bounds);
+        Ra::DrawList list = [self.listDelegate getList: bounds.width()
+                                                 height: bounds.height()];
         if (!list.useCurves)
             CGContextSetFlatness(ctx, 20 * self.layer.contentsScale);
         CGContextConcatCTM(ctx, RaCG::CGFromTransform(list.ctm));
-        RaCG::drawList(list.list, list.ctm, RaCG::BoundsFromCGRect(self.bounds), clip, 0.f, ctx);
+        RaCG::drawList(list.list, list.ctm, bounds, bounds, 0.f, ctx);
     }
 }
 
