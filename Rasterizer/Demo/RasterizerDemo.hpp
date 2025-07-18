@@ -50,7 +50,7 @@ struct RasterizerDemo {
             list.addList(pasted);
         } else if (showGlyphGrid) {
             if (text.scenes.size() == 0)
-                text.addScene(RasterizerFont::writeGlyphGrid(font, pointSize, textColor));
+                text.addScene(font.writeGlyphGrid(pointSize, textColor));
             list.addList(text);
         } else if (showTime) {
             Ra::SceneList time = concentrichron.writeList(font);

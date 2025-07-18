@@ -179,13 +179,13 @@ struct RasterizerFont {
                 }
             }
     }
-    static Ra::Scene writeGlyphGrid(RasterizerFont& font, float pointSize, Ra::Colorant color) {
+    Ra::Scene writeGlyphGrid(float pointSize, Ra::Colorant color) {
         Ra::Scene scene;
-        if (!font.isEmpty()) {
-            float scale = pointSize / (font.ascent - font.descent + font.lineGap);
-            for (int d = ceilf(sqrtf(font.info.numGlyphs)), glyph = 0; glyph < font.info.numGlyphs; glyph++)
-                if (stbtt_IsGlyphEmpty(& font.info, glyph) == 0) {
-                    Ra::Path path = font.glyphPath(glyph, false);
+        if (!isEmpty()) {
+            float scale = pointSize / (ascent - descent + lineGap);
+            for (int d = ceilf(sqrtf(info.numGlyphs)), glyph = 0; glyph < info.numGlyphs; glyph++)
+                if (stbtt_IsGlyphEmpty(& info, glyph) == 0) {
+                    Ra::Path path = glyphPath(glyph, false);
                     scene.addPath(path, Ra::Transform(scale, 0.f, 0.f, scale, pointSize * float(glyph % d), pointSize * float(glyph / d)), color, 0.f, 0);
                 }
         }
