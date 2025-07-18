@@ -270,7 +270,6 @@ struct RasterizerDemo {
     size_t pageCount, pageIndex;
     Ra::Memory<uint8_t> pdfData, svgData;
     
-//    float scale;
     Ra::Transform ctm;
     Ra::Bounds bounds;
 
