@@ -62,7 +62,7 @@ struct RasterizerCG {
         return dev.lx < dev.ux && dev.ly < dev.uy && soft.lx < 1.f && soft.ux > 0.f && soft.ly < 1.f && soft.uy > 0.f;
     }
     
-    static void drawList(Ra::SceneList& list, Ra::Transform view, Ra::Bounds bounds, float outlineWidth, CGContextRef ctx) {
+    static void drawList(Ra::SceneList& list, Ra::Transform view, Ra::Bounds bounds, CGContextRef ctx) {
         uint32_t ip, lastip = ~0;
         for (int j = 0; j < list.scenes.size(); j++) {
             Ra::Scene& scn = list.scenes[j];
@@ -96,9 +96,9 @@ struct RasterizerCG {
                     CGContextSaveGState(ctx);
                     CGContextConcatCTM(ctx, CGFromTransform(t));
                     writePathToCGContext(g, ctx);
-                    if (outlineWidth || scn.widths->base[i]) {
+                    if (scn.widths->base[i]) {
                         CGContextSetRGBStrokeColor(ctx, scn.colors->base[i].r / 255.0, scn.colors->base[i].g / 255.0, scn.colors->base[i].b / 255.0, scn.colors->base[i].a / 255.0);
-                        CGContextSetLineWidth(ctx, outlineWidth || scn.widths->base[i] < 0.f ? (CGFloat)-109.05473e+14 : scn.widths->base[i]);
+                        CGContextSetLineWidth(ctx, scn.widths->base[i] < 0.f ? (CGFloat)-109.05473e+14 : scn.widths->base[i]);
                         bool square = scn.flags->base[i] & Ra::Scene::kSquareCap;
                         bool round = scn.flags->base[i] & Ra::Scene::kRoundCap;
                         CGContextSetLineCap(ctx, round ? kCGLineCapRound : square ? kCGLineCapSquare : kCGLineCapButt);
@@ -164,7 +164,7 @@ struct RasterizerCG {
         CGContextRef ctx = CGPDFContextCreateWithURL((__bridge CFURLRef)fileURL, & mediaBox, NULL);
         CGPDFContextBeginPage(ctx, NULL);
         CGContextConcatCTM(ctx, CGFromTransform(ctm));
-        drawList(list, ctm, bounds, 0.f, ctx);
+        drawList(list, ctm, bounds, ctx);
         CGPDFContextEndPage(ctx);
         CGPDFContextClose(ctx);
         CGContextRelease(ctx);

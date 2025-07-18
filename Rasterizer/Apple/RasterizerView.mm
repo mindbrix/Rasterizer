@@ -80,7 +80,7 @@
         if (!list.useCurves)
             CGContextSetFlatness(ctx, 20 * self.layer.contentsScale);
         CGContextConcatCTM(ctx, RaCG::CGFromTransform(list.ctm));
-        RaCG::drawList(list.list, list.ctm, bounds, 0.f, ctx);
+        RaCG::drawList(list.list, list.ctm, bounds, ctx);
     }
 }
 
