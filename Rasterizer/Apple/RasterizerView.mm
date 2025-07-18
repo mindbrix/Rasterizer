@@ -14,9 +14,6 @@
 @interface RasterizerView () <CALayerDelegate, LayerDelegate>
 
 @property(nonatomic) RasterizerRenderer renderer;
-@property(nonatomic) Ra::Transform ctm;
-@property(nonatomic, readonly) Ra::Bounds device;
-@property(nonatomic, readonly) Ra::Transform view;
 @property(nonatomic) float clipInset;
 
 @end
@@ -29,7 +26,6 @@
    if (! self)
        return nil;
     self.useCG = false;
-    self.ctm = Ra::Transform();
     self.clipInset = 0.f;
    return self;
 }
@@ -60,14 +56,17 @@
 
 - (CGColorSpaceRef)writeBuffer:(Ra::Buffer *)buffer forLayer:(CALayer *)layer {
     buffer->clearColor = Ra::Colorant(0xFF, 0xFF, 0xFF, 0xFF);
-    Ra::Bounds deviceClip = self.device.inset(self.clipInset, self.clipInset);
-    
     if ([self.listDelegate respondsToSelector:@selector(getList:height:)]) {
         Ra::DrawList list = [self.listDelegate getList: self.bounds.size.width
                                                  height: self.bounds.size.height];
         buffer->useCurves = list.useCurves;
-        self.ctm = list.ctm;
-        _renderer.renderList(list.list, self.device, deviceClip, self.view, buffer);
+        
+        float scale = self.layer.contentsScale, w = self.bounds.size.width, h = self.bounds.size.height;
+        Ra::Bounds device(0.f, 0.f, ceilf(scale * w), ceilf(scale * h));
+        Ra::Bounds deviceClip = device.inset(self.clipInset, self.clipInset);
+        Ra::Transform view = Ra::Transform(scale, 0.f, 0.f, scale, 0.f, 0.f).concat(list.ctm);
+        
+        _renderer.renderList(list.list, device, deviceClip, view, buffer);
     }
     return self.window.colorSpace.CGColorSpace;
 }
@@ -94,16 +93,6 @@
 
 
 #pragma mark - Properies
-
-- (Ra::Bounds) device {
-    float scale = self.layer.contentsScale, w = self.bounds.size.width, h = self.bounds.size.height;
-    return Ra::Bounds(0.f, 0.f, ceilf(scale * w), ceilf(scale * h));
-}
-
-- (Ra::Transform) view {
-    float scale = self.layer.contentsScale;
-    return Ra::Transform(scale, 0.f, 0.f, scale, 0.f, 0.f).concat(_ctm);
-}
 
 - (void)setUseCG:(bool)useCG {
     _useCG = useCG;
