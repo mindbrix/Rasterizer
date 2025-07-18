@@ -171,7 +171,7 @@ struct RasterizerDemo {
         if (animating)
             clock += timeScale / 60.0;
         if (mouseMove)
-            indices = RasterizerWinding::indicesForPoint(list, getView(), Ra::Bounds(0.f, 0.f, ceilf(s * w), ceilf(s * h)), s * mx, s * my);
+            indices = RasterizerWinding::indicesForPoint(list, ctm, bounds, mx, my);
     }
    
 #pragma mark - Properties
