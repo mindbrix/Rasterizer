@@ -44,7 +44,7 @@ struct RasterizerDemo {
         if (pastedString.size) {
             if (pasted.scenes.size() == 0) {
                 Ra::Scene glyphs;
-                RasterizerFont::layoutGlyphs(font, pointSize, 0.f, textColor, bounds, false, false, false, pastedString.addr, glyphs);
+                font.layoutGlyphs(pointSize, 0.f, textColor, bounds, false, false, false, pastedString.addr, glyphs);
                 pasted.addScene(glyphs);
             }
             list.addList(pasted);
@@ -201,11 +201,11 @@ struct RasterizerDemo {
                 || (*item.key == 'T' && showTime)
                 || (*item.key == 'C' && useCurves))
                 color = activeColor;
-            RasterizerFont::layoutGlyphs(font, emSize, 0, textColor, Ra::Bounds(text.lx, text.ly, text.ux, uy), false, true, false, item.key, hud);
+            font.layoutGlyphs(emSize, 0, textColor, Ra::Bounds(text.lx, text.ly, text.ux, uy), false, true, false, item.key, hud);
             char const *label = item.text;
             if (*item.key == '0' && !gpu)
                 label = item.alt;
-            RasterizerFont::layoutGlyphs(font, emSize, 0, color, Ra::Bounds(text.lx + 2 * emSize, text.ly, text.ux, uy), false, true, false, label, hud);
+            font.layoutGlyphs(emSize, 0, color, Ra::Bounds(text.lx + 2 * emSize, text.ly, text.ux, uy), false, true, false, label, hud);
         }
         hud.addPath(p, Ra::Transform(), textColor, kHudBorder, 0);
         return hud;

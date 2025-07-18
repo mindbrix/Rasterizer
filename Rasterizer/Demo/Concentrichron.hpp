@@ -107,7 +107,7 @@ struct Concentrichron {
                         bzero(strbuf, sizeof(strbuf)), snprintf(strbuf, 32, "%d", j);
                         strcpy(str.alloc(strlen(strbuf) + 1), strbuf);
                     }
-                    Ra::Scene glyphs;  Ra::Bounds gb = RasterizerFont::layoutGlyphs(font, inset * 0.666f, 0.f, black, b, false, false, false, str.base, glyphs);
+                    Ra::Scene glyphs;  Ra::Bounds gb = font.layoutGlyphs(inset * 0.666f, 0.f, black, b, false, false, false, str.base, glyphs);
                     da = (gb.ux - gb.lx) / r, a0 = theta0 + j * -step - 0.5f * (step - da);
                     
                     RasterizerFont::layoutGlyphsOnArc(glyphs, cx, cy, r, a0, ring);
