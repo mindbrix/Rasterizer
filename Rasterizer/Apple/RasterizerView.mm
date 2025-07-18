@@ -63,7 +63,7 @@
         Ra::Bounds device(0.f, 0.f, ceilf(scale * w), ceilf(scale * h));
         Ra::Transform view = Ra::Transform(scale, 0.f, 0.f, scale, 0.f, 0.f).concat(list.ctm);
         
-        _renderer.renderList(list.list, device, device, view, buffer);
+        _renderer.renderList(list.list, device, view, buffer);
     }
     return self.window.colorSpace.CGColorSpace;
 }
