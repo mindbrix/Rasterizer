@@ -10,7 +10,7 @@
 #import "Rasterizer.hpp"
 
 @protocol ListDelegate <NSObject>
-- (Ra::DrawList)getList: (float)width height:(float) height scale:(float) scale;
+- (Ra::DrawList)getList: (float)width height:(float) height;
 @end
 
 @interface RasterizerView : NSView

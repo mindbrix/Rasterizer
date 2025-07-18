@@ -70,7 +70,6 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 - (void)timerFired:(double)time {
     if (_demo.getShouldRedraw()) {
         _demo.onRedraw(
-            self.layer.contentsScale,
             self.bounds.size.width,
             self.bounds.size.height
         );
@@ -81,8 +80,8 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 
 #pragma mark - ListDelegate
 
-- (Ra::DrawList)getList: (float)width height:(float) height scale:(float) scale {
-    return _demo.getDrawList(scale, width, height);
+- (Ra::DrawList)getList: (float)width height:(float) height {
+    return _demo.getDrawList(width, height);
 }
 
 

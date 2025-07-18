@@ -165,8 +165,8 @@ struct RasterizerDemo {
         redraw = true;
     }
     
-    void onRedraw(float s, float w, float h) {
-        scale = s, bounds = Ra::Bounds(0.f, 0.f, w, h);
+    void onRedraw(float w, float h) {
+        bounds = Ra::Bounds(0.f, 0.f, w, h);
         redraw = false;
         if (animating)
             clock += timeScale / 60.0;
@@ -210,8 +210,8 @@ struct RasterizerDemo {
         hud.addPath(p, Ra::Transform(), textColor, kHudBorder, 0);
         return hud;
     }
-    Ra::DrawList getDrawList(float s, float w, float h) {
-        scale = s, bounds = Ra::Bounds(0.f, 0.f, w, h);
+    Ra::DrawList getDrawList(float w, float h) {
+        bounds = Ra::Bounds(0.f, 0.f, w, h);
         writeList(bounds);
         runTransferFunction(list, transferFunction, this);
         Ra::DrawList draw;
@@ -270,7 +270,7 @@ struct RasterizerDemo {
     size_t pageCount, pageIndex;
     Ra::Memory<uint8_t> pdfData, svgData;
     
-    float scale;
+//    float scale;
     Ra::Transform ctm;
     Ra::Bounds bounds;
 

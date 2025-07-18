@@ -63,10 +63,9 @@
     buffer->clearColor = Ra::Colorant(0xFF, 0xFF, 0xFF, 0xFF);
     Ra::Bounds deviceClip = self.device.inset(self.clipInset, self.clipInset);
     
-    if ([self.listDelegate respondsToSelector:@selector(getList:height:scale:)]) {
+    if ([self.listDelegate respondsToSelector:@selector(getList:height:)]) {
         Ra::DrawList list = [self.listDelegate getList: self.bounds.size.width
-                                                 height: self.bounds.size.height
-                                                  scale: self.layer.contentsScale];
+                                                 height: self.bounds.size.height];
         buffer->useCurves = list.useCurves;
         self.ctm = list.ctm;
         _renderer.renderList(list.list, self.device, deviceClip, self.view, buffer);
@@ -84,10 +83,9 @@
     
     CGContextClipToRect(ctx, CGRectApplyAffineTransform(RaCG::CGRectFromBounds(deviceClip), CGAffineTransformMakeScale(scale, scale)) );
     
-    if ([self.listDelegate respondsToSelector:@selector(getList:height:scale:)]) {
+    if ([self.listDelegate respondsToSelector:@selector(getList:height:)]) {
         Ra::DrawList list = [self.listDelegate getList: self.bounds.size.width
-                                                 height: self.bounds.size.height
-                                                  scale: self.layer.contentsScale];
+                                                 height: self.bounds.size.height];
         if (!list.useCurves)
             CGContextSetFlatness(ctx, 20 * self.layer.contentsScale);
         self.ctm = list.ctm;
