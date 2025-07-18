@@ -13,16 +13,29 @@
 
 struct RasterizerFont {
     static const char nl = '\n', sp = ' ', tab = '\t';
-    RasterizerFont() { empty(); }
-    void empty() { monospace = space = ascent = descent = lineGap = unitsPerEm = 0, bzero(& info, sizeof(info)), cache.clear(); }
-    bool isEmpty() { return info.numGlyphs == 0 || space == 0; }
+    RasterizerFont() {
+        empty();
+    }
+    
+    void empty() {
+        monospace = space = ascent = descent = lineGap = unitsPerEm = 0;
+        bzero(& info, sizeof(info)), cache.clear();
+    }
+    
+    bool isEmpty() {
+        return info.numGlyphs == 0 || space == 0;
+    }
+    
     bool load(const char *filename, const char *name) {
         if (filename == nullptr || name == nullptr)
             return false;
+        
         int fd;  struct stat st;
         if ((fd = open(filename, O_RDONLY)) == -1 || fstat(fd, & st) == -1)
             return false;
-        empty(), bytes->resize(st.st_size), read(fd, bytes->addr, st.st_size), close(fd);
+        
+        empty(), bytes->resize(st.st_size);
+        read(fd, bytes->addr, st.st_size), close(fd);
         
         const unsigned char *ttf_buffer = (const unsigned char *)bytes->addr;
         int numfonts = stbtt_GetNumberOfFonts(ttf_buffer), numchars = (int)strlen(name), length, offset;
