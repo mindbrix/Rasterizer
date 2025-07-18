@@ -211,20 +211,17 @@ struct RasterizerDemo {
         return hud;
     }
     Ra::DrawList getDrawList(float s, float w, float h) {
-        Ra::DrawList draw;
         scale = s, bounds = Ra::Bounds(0.f, 0.f, w, h);
         writeList(bounds);
         runTransferFunction(list, transferFunction, this);
-        draw.list = getList(), draw.ctm = ctm, draw.useCurves = useCurves;
+        Ra::DrawList draw;
+        draw.list = list, draw.ctm = ctm, draw.useCurves = useCurves;
+        if (showHud) {
+            Ra::Bounds clip = Ra::Bounds(0, 0, kHudWidth, kHudHeight);
+            Ra::Transform m = ctm.invert().concat(Ra::Transform(1, 0, 0, 1, kHudInset, bounds.uy - kHudInset - kHudHeight));
+            draw.list.addScene(getHUD(), m, clip);
+        }
         return draw;
-    }
-    Ra::SceneList getList() {
-        if (!showHud)
-            return list;
-        
-        Ra::SceneList dst = list;
-        Ra::Bounds clip = Ra::Bounds(0, 0, kHudWidth, kHudHeight);
-        return dst.addScene(getHUD(), ctm.invert().concat(Ra::Transform(1, 0, 0, 1, kHudInset, bounds.uy - kHudInset - kHudHeight)), clip);
     }
     Ra::Transform getView() const {
         return Ra::Transform(scale, 0.f, 0.f, scale, 0.f, 0.f).concat(ctm);
