@@ -21,32 +21,11 @@
 @implementation RasterizerView
 
 - (nullable instancetype)initWithCoder:(NSCoder *)decoder {
-   self = [super initWithCoder:decoder];
-   if (! self)
-       return nil;
+    self = [super initWithCoder:decoder];
+    if (! self)
+        return nil;
     self.useCG = false;
-   return self;
-}
-
-- (void)initLayer {
-    [self setWantsLayer:YES];
-    CGFloat scale = self.layer.contentsScale ?: [self convertSizeToBacking:NSMakeSize(1.f, 1.f)].width;
-    if (self.useCG) {
-        [self setLayer:[CALayer layer]];
-        self.layer.contentsFormat = kCAContentsFormatRGBA8Uint;
-        self.layer.delegate = self;
-        self.layer.magnificationFilter = kCAFilterNearest;
-    } else {
-        [self setLayer:[RasterizerLayer layer]];
-        ((RasterizerLayer *)self.layer).layerDelegate = self;
-    }
-    _renderer.reset();
-    self.layer.contentsScale = scale;
-    self.layer.bounds = self.bounds;
-    self.layer.opaque = YES;
-    self.layer.needsDisplayOnBoundsChange = YES;
-    self.layer.actions = @{ @"onOrderIn": [NSNull null], @"onOrderOut": [NSNull null], @"sublayers": [NSNull null], @"contents": [NSNull null], @"backgroundColor": [NSNull null], @"bounds": [NSNull null] };
-    [self.layer setNeedsDisplay];
+    return self;
 }
 
 
@@ -89,7 +68,25 @@
 
 - (void)setUseCG:(bool)useCG {
     _useCG = useCG;
-    [self initLayer];
+    
+    [self setWantsLayer:YES];
+    CGFloat scale = self.layer.contentsScale ?: [self convertSizeToBacking:NSMakeSize(1.f, 1.f)].width;
+    if (self.useCG) {
+        [self setLayer:[CALayer layer]];
+        self.layer.contentsFormat = kCAContentsFormatRGBA8Uint;
+        self.layer.delegate = self;
+        self.layer.magnificationFilter = kCAFilterNearest;
+    } else {
+        [self setLayer:[RasterizerLayer layer]];
+        ((RasterizerLayer *)self.layer).layerDelegate = self;
+    }
+    _renderer.reset();
+    self.layer.contentsScale = scale;
+    self.layer.bounds = self.bounds;
+    self.layer.opaque = YES;
+    self.layer.needsDisplayOnBoundsChange = YES;
+    self.layer.actions = @{ @"onOrderIn": [NSNull null], @"onOrderOut": [NSNull null], @"sublayers": [NSNull null], @"contents": [NSNull null], @"backgroundColor": [NSNull null], @"bounds": [NSNull null] };
+    [self.layer setNeedsDisplay];
 }
 
 
