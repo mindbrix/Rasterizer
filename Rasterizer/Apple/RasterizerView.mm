@@ -14,7 +14,6 @@
 @interface RasterizerView () <CALayerDelegate, LayerDelegate>
 
 @property(nonatomic) RasterizerRenderer renderer;
-@property(nonatomic) Ra::SceneList sceneList;
 @property(nonatomic) Ra::Transform ctm;
 @property(nonatomic, readonly) Ra::Bounds device;
 @property(nonatomic, readonly) Ra::Transform view;
@@ -78,19 +77,18 @@
 - (void)drawLayer:(CALayer *)layer inContext:(CGContextRef)ctx {
     Ra::Colorant color = Ra::Colorant(0xFF, 0xFF, 0xFF, 0xFF);
     memset_pattern4(CGBitmapContextGetData(ctx), & color.b, CGBitmapContextGetBytesPerRow(ctx) * CGBitmapContextGetHeight(ctx));
-    Ra::Bounds deviceClip = self.device.inset(self.clipInset, self.clipInset);
+    Ra::Bounds bounds = RaCG::BoundsFromCGRect(self.bounds);
     CGFloat scale = 1.0 / self.layer.contentsScale;
-    
-    CGContextClipToRect(ctx, CGRectApplyAffineTransform(RaCG::CGRectFromBounds(deviceClip), CGAffineTransformMakeScale(scale, scale)) );
+    Ra::Bounds clip = bounds.inset(scale * self.clipInset, scale * self.clipInset);
+    CGContextClipToRect(ctx, RaCG::CGRectFromBounds(clip));
     
     if ([self.listDelegate respondsToSelector:@selector(getList:height:)]) {
         Ra::DrawList list = [self.listDelegate getList: self.bounds.size.width
                                                  height: self.bounds.size.height];
         if (!list.useCurves)
             CGContextSetFlatness(ctx, 20 * self.layer.contentsScale);
-        self.ctm = list.ctm;
         CGContextConcatCTM(ctx, RaCG::CGFromTransform(list.ctm));
-        RaCG::drawList(list.list, self.view, self.device, deviceClip, 0.f, ctx);
+        RaCG::drawList(list.list, list.ctm, RaCG::BoundsFromCGRect(self.bounds), clip, 0.f, ctx);
     }
 }
 
