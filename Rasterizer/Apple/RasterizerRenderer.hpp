@@ -8,16 +8,16 @@
 
 
 struct RasterizerRenderer {
-    void renderList(Ra::SceneList& list, Ra::Bounds device, Ra::Bounds deviceClip, Ra::Transform view, Ra::Buffer *buffer) {
+    void renderList(Ra::SceneList& list, Ra::Bounds device, Ra::Transform view, Ra::Buffer *buffer) {
         assert(sizeof(uint32_t) == sizeof(Ra::Colorant));
         buffer->prepare(list);
         buffer->device = device;
-        buffer->clip = deviceClip;
+        buffer->clip = device;
          
         size_t divisions[kContextCount + 1], *pdivs = divisions;
         writeBalancedWeightDivisions(list, pdivs);
         dispatch_apply(kContextCount, DISPATCH_APPLY_AUTO, ^(size_t i) {
-            contexts[i].drawList(list, device, deviceClip, view, pdivs[i], pdivs[i + 1], buffer);
+            contexts[i].drawList(list, device, device, view, pdivs[i], pdivs[i + 1], buffer);
         });
         size_t begins[kContextCount], *pbegins = begins, size;
         size = Ra::resizeBuffer(list, contexts, kContextCount, pbegins, *buffer);
