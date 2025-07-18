@@ -225,11 +225,6 @@
                 [commandEncoder endEncoding];
                 commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:drawableDescriptor];
                 [commandEncoder setDepthStencilState:_instancesDepthState];
-                [commandEncoder setScissorRect:(MTLScissorRect){
-                    NSUInteger(buffer->clip.lx),
-                    NSUInteger((buffer->device.uy - buffer->device.ly) - buffer->clip.uy),
-                    NSUInteger(buffer->clip.ux - buffer->clip.lx),
-                    NSUInteger(buffer->clip.uy - buffer->clip.ly) }];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->ctms atIndex:4];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->clips atIndex:5];

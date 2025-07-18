@@ -506,7 +506,7 @@ struct Rasterizer {
             }
         }
         uint8_t *base = nullptr;  Row<Entry> entries;
-        bool useCurves = false;  Bounds device, clip;  Colorant clearColor = Colorant(255, 255, 255, 255);
+        bool useCurves = false;   Colorant clearColor = Colorant(255, 255, 255, 255);
         size_t colors, ctms, clips, widths, bounds, idxs, pathsCount, headerSize, size = 0, allocation = 0;
     };
     struct Allocator {
