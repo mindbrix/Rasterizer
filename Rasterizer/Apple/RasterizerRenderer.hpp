@@ -17,7 +17,7 @@ struct RasterizerRenderer {
         size_t divisions[kContextCount + 1], *pdivs = divisions;
         writeBalancedWeightDivisions(list, pdivs);
         dispatch_apply(kContextCount, DISPATCH_APPLY_AUTO, ^(size_t i) {
-            contexts[i].drawList(list, device, device, view, pdivs[i], pdivs[i + 1], buffer);
+            contexts[i].drawList(list, device, view, pdivs[i], pdivs[i + 1], buffer);
         });
         size_t begins[kContextCount], *pbegins = begins, size;
         size = Ra::resizeBuffer(list, contexts, kContextCount, pbegins, *buffer);

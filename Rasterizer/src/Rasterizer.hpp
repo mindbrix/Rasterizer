@@ -539,7 +539,7 @@ struct Rasterizer {
     };
     
     struct Context {
-        void drawList(SceneList& list, Bounds device, Bounds deviceClip, Transform view, size_t slz, size_t suz, Buffer *buffer) {
+        void drawList(SceneList& list, Bounds device, Transform view, size_t slz, size_t suz, Buffer *buffer) {
             empty(), allocator.empty(device);
             size_t fatlines = 1.f + ceilf((device.uy - device.ly) * krfh);
             if (samples.size() != fatlines)
@@ -573,7 +573,7 @@ struct Rasterizer {
                         clipquad = clipActive ? sceneclip.intersect(*scn->clipCache->entryAt(is)).quad(ctm) : Transform(1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f);
                         softclipMargin = 0.5f + 1e-1f / fmaxf(1.f, clipquad.scale());
                         invclip = clipquad.invert(), invclip.tx -= 0.5f, invclip.ty -= 0.5f;
-                        clipBounds = Bounds(clipquad).integral().intersect(deviceClip);
+                        clipBounds = Bounds(clipquad).integral().intersect(device);
                     }
                     bnds = & scn->bnds.base[is], quad = bnds->quad(m), dev = Bounds(quad).inset(-width, -width);
                     clip = dev.integral().intersect(clipBounds);
