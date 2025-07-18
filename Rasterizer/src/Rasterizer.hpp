@@ -437,6 +437,11 @@ struct Rasterizer {
         }
         size_t pathsCount = 0;  std::vector<Scene> scenes;  std::vector<Transform> ctms;  std::vector<Bounds> clips;
     };
+    struct DrawList {
+        SceneList list;
+        Transform ctm;
+        bool useCurves;
+    };
     struct Segment {
         inline Segment(float x0, float y0, float x1, float y1, bool curve) : ix0((*((uint32_t *)& x0) & ~1) | curve), y0(y0), x1(x1), y1(y1) {}
         union { float x0; uint32_t ix0; };  float y0, x1, y1;

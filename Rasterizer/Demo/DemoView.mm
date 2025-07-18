@@ -9,7 +9,7 @@
 #import "RasterizerCG.hpp"
 #import "RasterizerDemo.hpp"
 
-@interface DemoView () <NSFontChanging>
+@interface DemoView () <NSFontChanging, ListDelegate>
 
 @property(nonatomic) CVDisplayLinkRef displayLink;
 @property(nonatomic) dispatch_semaphore_t inflight_semaphore;
@@ -41,9 +41,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     self = [super initWithCoder:decoder];
     if (! self)
         return nil;
-    self.postsBoundsChangedNotifications = TRUE;
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(boundsDidChange:) name:nil object:nil];
-    
+    self.listDelegate = self;
     self.font = nil;
     _demo.setUseGPU(!self.useCG);
     [self startTimer];
@@ -76,15 +74,18 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
             self.bounds.size.width,
             self.bounds.size.height
         );
-        [self drawList:_demo.getList() ctm:_demo.ctm useCurves:_demo.useCurves];
+        [self.layer setNeedsDisplay];
     }
 }
 
 
-#pragma mark - NSNotificationCenter
-- (void)boundsDidChange:(NSNotification *)notification {
-    _demo.redraw = true;
+#pragma mark - ListDelegate
+
+- (Ra::DrawList)getList: (float)width height:(float) height scale:(float) scale {
+    return _demo.getDrawList(scale, width, height);
 }
+
+
 #pragma mark - NSFontManager
 
 - (void)changeFont:(id)sender {

@@ -167,11 +167,9 @@ struct RasterizerDemo {
     
     void onRedraw(float s, float w, float h) {
         scale = s, bounds = Ra::Bounds(0.f, 0.f, w, h);
-        writeList(bounds);
         redraw = false;
         if (animating)
             clock += timeScale / 60.0;
-        runTransferFunction(list, transferFunction, this);
         if (mouseMove)
             indices = RasterizerWinding::indicesForPoint(list, getView(), Ra::Bounds(0.f, 0.f, ceilf(s * w), ceilf(s * h)), s * mx, s * my);
     }
@@ -211,6 +209,14 @@ struct RasterizerDemo {
         }
         hud.addPath(p, Ra::Transform(), textColor, kHudBorder, 0);
         return hud;
+    }
+    Ra::DrawList getDrawList(float s, float w, float h) {
+        Ra::DrawList draw;
+        scale = s, bounds = Ra::Bounds(0.f, 0.f, w, h);
+        writeList(bounds);
+        runTransferFunction(list, transferFunction, this);
+        draw.list = getList(), draw.ctm = ctm, draw.useCurves = useCurves;
+        return draw;
     }
     Ra::SceneList getList() {
         if (!showHud)

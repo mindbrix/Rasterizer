@@ -9,10 +9,14 @@
 #import <Cocoa/Cocoa.h>
 #import "Rasterizer.hpp"
 
+@protocol ListDelegate <NSObject>
+- (Ra::DrawList)getList: (float)width height:(float) height scale:(float) scale;
+@end
+
 @interface RasterizerView : NSView
 
+@property(weak) id <ListDelegate> listDelegate;
 @property(nonatomic) bool useCG;
 
-- (void)drawList: (Ra::SceneList)sceneList ctm:(Ra::Transform) ctm useCurves:(bool) useCurves;
 
 @end
