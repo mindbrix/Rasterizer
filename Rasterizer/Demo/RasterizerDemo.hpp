@@ -345,5 +345,3 @@ struct RasterizerDemo {
         }
     }
 };
-
-typedef RasterizerDemo RaSt;
