@@ -9,6 +9,7 @@
 #import <QuartzCore/QuartzCore.h>
 #import "RasterizerCG.hpp"
 
+
 @protocol LayerDelegate <NSObject>
 - (CGColorSpaceRef)writeBuffer:(Ra::Buffer *)buffer forLayer:(CALayer *)layer;
 @end
