@@ -1,9 +1,5 @@
 //
-//  Rasterizer.h
-//  Rasterizer
-//
-//  Created by Nigel Barber on 15/12/2018.
-//  Copyright © 2018 @mindbrix. All rights reserved.
+//  Copyright 2025 Nigel Timothy Barber
 //
 
 #define kTau 6.283185307179586f

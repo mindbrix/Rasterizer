@@ -1,10 +1,7 @@
 //
-//  Rasterizer.hpp
-//  Rasterizer
+//  Copyright 2025 Nigel Timothy Barber
 //
-//  Created by Nigel Barber on 17/10/2018.
-//  Copyright © 2018 @mindbrix. All rights reserved.
-//
+
 #import "Rasterizer.h"
 #import "xxhash.h"
 #import <unordered_map>

@@ -1,10 +1,7 @@
 //
-//  DemoView.mm
-//  Rasterizer
+//  Copyright 2025 Nigel Timothy Barber
 //
-//  Created by Nigel Barber on 16/10/2018.
-//  Copyright © 2018 @mindbrix. All rights reserved.
-//
+
 #import "DemoView.h"
 #import "RasterizerCG.hpp"
 #import "RasterizerDemo.hpp"

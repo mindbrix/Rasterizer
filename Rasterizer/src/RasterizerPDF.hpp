@@ -1,10 +1,7 @@
 //
-//  RasterizerPDF.hpp
-//  Rasterizer
+//  Copyright 2025 Nigel Timothy Barber
 //
-//  Created by Nigel Barber on 07/03/2022.
-//  Copyright © 2022 @mindbrix. All rights reserved.
-//
+
 #import "Rasterizer.hpp"
 #import "xxhash.h"
 #import "fpdfview.h"

@@ -1,10 +1,7 @@
 //
-//  RasterizerDemo.hpp
-//  Rasterizer
+//  Copyright 2025 Nigel Timothy Barber
 //
-//  Created by Nigel Barber on 20/03/2019.
-//  Copyright © 2019 @mindbrix. All rights reserved.
-//
+
 #import "Rasterizer.hpp"
 #import "RasterizerPDF.hpp"
 #import "RasterizerSVG.hpp"

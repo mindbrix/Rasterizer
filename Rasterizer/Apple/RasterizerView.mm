@@ -1,9 +1,5 @@
 //
-//  RasterizerView.mm
-//  Rasterizer
-//
-//  Created by Nigel Barber on 29/11/2023.
-//  Copyright © 2023 @mindbrix. All rights reserved.
+//  Copyright 2025 Nigel Timothy Barber
 //
 
 #import "RasterizerView.h"

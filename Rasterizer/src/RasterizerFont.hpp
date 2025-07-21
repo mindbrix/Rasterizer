@@ -1,10 +1,7 @@
 //
-//  RasterizerFont.hpp
-//  Rasterizer
+//  Copyright 2025 Nigel Timothy Barber
 //
-//  Created by Nigel Barber on 04/01/2019.
-//  Copyright © 2019 @mindbrix. All rights reserved.
-//
+
 #import <fcntl.h>
 #import <sys/stat.h>
 #import <unordered_map>

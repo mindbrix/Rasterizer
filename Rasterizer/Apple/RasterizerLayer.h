@@ -1,9 +1,5 @@
 //
-//  MetalLayer.h
-//  Rasterizer
-//
-//  Created by Nigel Barber on 13/12/2018.
-//  Copyright © 2018 @mindbrix. All rights reserved.
+//  Copyright 2025 Nigel Timothy Barber
 //
 
 #import <QuartzCore/QuartzCore.h>

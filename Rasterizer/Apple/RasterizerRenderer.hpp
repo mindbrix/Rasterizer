@@ -1,11 +1,6 @@
 //
-//  RasterizerRenderer.hpp
-//  Rasterizer
+//  Copyright 2025 Nigel Timothy Barber
 //
-//  Created by Nigel Barber on 10/05/2020.
-//  Copyright © 2020 @mindbrix. All rights reserved.
-//
-
 
 struct RasterizerRenderer {
     void renderList(Ra::SceneList& list, Ra::Bounds device, Ra::Transform view, Ra::Buffer *buffer) {

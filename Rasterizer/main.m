@@ -1,9 +1,5 @@
 //
-//  main.m
-//  Rasterizer
-//
-//  Created by Nigel Barber on 16/10/2018.
-//  Copyright © 2018 @mindbrix. All rights reserved.
+//  Copyright 2025 Nigel Timothy Barber
 //
 
 #import <Cocoa/Cocoa.h>

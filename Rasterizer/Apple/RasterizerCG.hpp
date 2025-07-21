@@ -1,10 +1,7 @@
 //
-//  RasterizerCG.hpp
-//  Rasterizer
+//  Copyright 2025 Nigel Timothy Barber
 //
-//  Created by Nigel Barber on 23/10/2018.
-//  Copyright © 2018 @mindbrix. All rights reserved.
-//
+
 #import "Rasterizer.hpp"
 #import <Accelerate/Accelerate.h>
 #import <CoreGraphics/CoreGraphics.h>
