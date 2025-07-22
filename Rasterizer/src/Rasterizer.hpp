@@ -742,7 +742,7 @@ struct Rasterizer {
         return roots;
     }
     static void clipQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, Bounds clip, float lx, float ly, float ux, float uy, bool polygon, GeometryWriter& writer) {
-        float ax, bx, ay, by, roots[10], *root = roots, *r, s, w0, w1, w2, mt, mx, my, vx, sx0, sy0, sx2, sy2;
+        float ax, bx, ay, by, roots[10], *root = roots, *r, t, mt, mx, my, vx, sx0, sy0, sx2, sy2;
         ax = x2 - x1, bx = x1 - x0, ax -= bx, bx *= 2.f, ay = y2 - y1, by = y1 - y0, ay -= by, by *= 2.f;
         *root++ = 0.f;
         if (clip.ly > ly && clip.ly < uy)
@@ -763,10 +763,11 @@ struct Rasterizer {
         } else {
             std::sort(roots + 1, root), *root = 1.f;
             for (sx0 = x0, sy0 = y0, r = roots; r < root; r++, sx0 = sx2, sy0 = sy2) {
-                s = 1.f - r[1], w0 = s * s, w1 = 2.f * s * r[1], w2 = r[1] * r[1];
-                sx2 = w0 * x0 + w1 * x1 + w2 * x2;
-                sy2 = w0 * y0 + w1 * y1 + w2 * y2;
-                mt = 0.5f * (r[0] + r[1]), mx = (ax * mt + bx) * mt + x0, my = (ay * mt + by) * mt + y0;
+                t = r[1], mt = 0.5f * (r[0] + r[1]);
+                sx2 = t == 1.f ? x2 : (ax * t + bx) * t + x0;
+                sy2 = t == 1.f ? y2 : (ay * t + by) * t + y0;
+                mx = (ax * mt + bx) * mt + x0;
+                my = (ay * mt + by) * mt + y0;
                 if (my >= clip.ly && my < clip.uy) {
                     if (mx >= clip.lx && mx < clip.ux)
                         writer.Quadratic(sx0, sy0, 2.f * mx - 0.5f * (sx0 + sx2), 2.f * my - 0.5f * (sy0 + sy2), sx2, sy2);
@@ -803,7 +804,7 @@ struct Rasterizer {
         return roots;
     }
     static void clipCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Bounds clip, float lx, float ly, float ux, float uy, bool polygon, GeometryWriter& writer) {
-        float cx, bx, ax, cy, by, ay, roots[14], *root = roots, *r, t, s, w0, w1, w2, w3, mt, mx, my, vx, x0t, y0t, x1t, y1t, x2t, y2t, x3t, y3t, fx, gx, fy, gy;
+        float cx, bx, ax, cy, by, ay, roots[14], *root = roots, *r, t, mt, mx, my, vx, x0t, y0t, x1t, y1t, x2t, y2t, x3t, y3t, fx, gx, fy, gy;
         cx = 3.f * (x1 - x0), bx = 3.f * (x2 - x1), ax = x3 - x0 - bx, bx -= cx;
         cy = 3.f * (y1 - y0), by = 3.f * (y2 - y1), ay = y3 - y0 - by, by -= cy;
         *root++ = 0.f;
@@ -825,11 +826,11 @@ struct Rasterizer {
         } else {
             std::sort(roots + 1, root), *root = 1.f;
             for (x0t = x0, y0t = y0, r = roots; r < root; r++, x0t = x3t, y0t = y3t) {
-                t = r[1], s = 1.f - t;
-                w0 = s * s, w1 = 3.f * w0 * t, w3 = t * t, w2 = 3.f * s * w3, w0 *= s, w3 *= t;
-                x3t = w0 * x0 + w1 * x1 + w2 * x2 + w3 * x3;
-                y3t = w0 * y0 + w1 * y1 + w2 * y2 + w3 * y3;
-                mt = 0.5f * (r[0] + r[1]), mx = ((ax * mt + bx) * mt + cx) * mt + x0, my = ((ay * mt + by) * mt + cy) * mt + y0;
+                t = r[1], mt = 0.5f * (r[0] + r[1]);
+                x3t = t == 1.f ? x3 : ((ax * t + bx) * t + cx) * t + x0;
+                y3t = t == 1.f ? y3 : ((ay * t + by) * t + cy) * t + y0;
+                mx = ((ax * mt + bx) * mt + cx) * mt + x0;
+                my = ((ay * mt + by) * mt + cy) * mt + y0;
                 if (my >= clip.ly && my < clip.uy) {
                     if (mx >= clip.lx && mx < clip.ux) {
                         const float u = 1.f / 3.f, v = 2.f / 3.f, u3 = 1.f / 27.f, v3 = 8.f / 27.f;
