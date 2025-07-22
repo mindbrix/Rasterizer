@@ -39,26 +39,26 @@ struct RasterizerDemo {
     void writeList(Ra::Bounds bounds) {
         list.empty();
         if (pastedString.size) {
-            if (pasted.scenes.size() == 0) {
+            if (pasted.pathsCount == 0) {
                 Ra::Scene glyphs;
                 font.layoutGlyphs(pointSize, 0.f, textColor, bounds, false, false, false, pastedString.addr, glyphs);
                 pasted.addScene(glyphs);
             }
             list.addList(pasted);
         } else if (showGlyphGrid) {
-            if (text.scenes.size() == 0)
+            if (text.pathsCount == 0)
                 text.addScene(font.writeGlyphGrid(pointSize, textColor));
             list.addList(text);
         } else if (showTime) {
             Ra::SceneList time = concentrichron.writeList(font);
             list.addList(time);
         } else if (svgData.size) {
-            if (document.scenes.size() == 0)
-                document.addScene(RasterizerSVG::createScene(svgData.addr, svgData.size));
+            if (document.pathsCount == 0)
+                document.addScene(RasterizerSVG::createScene(svgData.addr, svgData.size)), fit = true;
             list.addList(document);
         } else if (pdfData.size) {
-            if (document.scenes.size() == 0)
-                document.addList(RasterizerPDF::writeSceneList(pdfData.addr, pdfData.size, pageIndex));
+            if (document.pathsCount == 0)
+                document.addList(RasterizerPDF::writeSceneList(pdfData.addr, pdfData.size, pageIndex)), fit = true;
             list.addList(document);
         }
     }
@@ -211,6 +211,8 @@ struct RasterizerDemo {
         bounds = Ra::Bounds(0.f, 0.f, w, h);
         writeList(bounds);
         runTransferFunction(list, transferFunction, this);
+        if (fit)
+            ctm = bounds.fit(list.bounds()), fit = false;
         Ra::DrawList draw;
         draw.list = list, draw.ctm = ctm, draw.useCurves = useCurves;
         if (showHud) {
@@ -270,7 +272,7 @@ struct RasterizerDemo {
     Ra::Transform ctm;
     Ra::Bounds bounds;
 
-    bool gpu = true, redraw = false, mouseDown = false, mouseMove = false, useCurves = true, animating = false, opaque = false;
+    bool gpu = true, redraw = false, fit = false, mouseDown = false, mouseMove = false, useCurves = true, animating = false, opaque = false;
     double clock = 0.0, timeScale = 0.333;
     float mx, my, outlineWidth = 0.f;
     Ra::Range indices = Ra::Range(INT_MAX, INT_MAX), locked = Ra::Range(INT_MAX, INT_MAX);
