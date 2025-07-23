@@ -76,9 +76,11 @@ struct RasterizerDemo {
         flags = keyFlags;
         redraw = true;
     }
-    bool onKeyDown(unsigned short keyCode) {
-        bool keyUsed = false;
+    bool onKeyDown(unsigned short keyCode, size_t keyFlags) {
+        if (keyFlags)
+            return false;
         
+        bool keyUsed = false;
         if (keyCode == KeyCode::kA)
             animating = !animating, clock = 0.0, keyUsed = true;
         else if (keyCode == KeyCode::kC)

@@ -101,12 +101,12 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 }
 
 - (void)flagsChanged:(NSEvent *)event {
-    _demo.onFlags(event.modifierFlags);
+    _demo.onFlags(event.modifierFlags & NSEventModifierFlagDeviceIndependentFlagsMask);
 }
 - (void)keyDown:(NSEvent *)event {
 //    NSLog(@"%d", event.keyCode);
     int keyCode = event.keyCode;
-    if (_demo.onKeyDown(event.keyCode))
+    if (_demo.onKeyDown(event.keyCode, event.modifierFlags & NSEventModifierFlagDeviceIndependentFlagsMask))
         ;
     else if (keyCode == 29) {  // 0
         self.useCG = !self.useCG;
