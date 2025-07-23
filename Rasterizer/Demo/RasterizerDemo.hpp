@@ -50,8 +50,7 @@ struct RasterizerDemo {
                 text.addScene(font.writeGlyphGrid(pointSize, textColor));
             list.addList(text);
         } else if (showTime) {
-            Ra::SceneList time = concentrichron.writeList(font);
-            list.addList(time);
+            list.addList(concentrichron.writeList(font));
         } else if (svgData.size) {
             if (document.pathsCount == 0)
                 document.addScene(RasterizerSVG::createScene(svgData.addr, svgData.size)), fit = true;
