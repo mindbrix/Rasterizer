@@ -521,14 +521,7 @@ struct Rasterizer {
         }
         inline void alloc(float lx, float ly, float ux, float uy, size_t idx, Cell *cell, int type, size_t count) {
             float w = ux - lx, h = uy - ly;
-//            size_t i = fmaxf(0.f, ceilf(log2f(h / kStripHeight))), hght = (1 << i) * kStripHeight;
-            
-            float f0 = ceilf(h / kStripHeight);
-            int f = *(int*)& f0;
-            int n = (f >> 23) - 127 + (f << 9 != 0);
-            size_t i = n, hght = (1 << i) * kStripHeight;
-
-//            assert(i == n);
+            size_t i = fmaxf(0.f, ceilf(log2f(h / kStripHeight))), hght = (1 << i) * kStripHeight;
             Bounds *strip = strips + i;
             if (strip->ux - strip->lx < w) {
                 if (sheet.uy - sheet.ly < hght)
