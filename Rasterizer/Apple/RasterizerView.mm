@@ -44,13 +44,10 @@
     Ra::Colorant color = Ra::Colorant(0xFF, 0xFF, 0xFF, 0xFF);
     memset_pattern4(CGBitmapContextGetData(ctx), & color.b, CGBitmapContextGetBytesPerRow(ctx) * CGBitmapContextGetHeight(ctx));
     if ([self.listDelegate respondsToSelector:@selector(getList:height:)]) {
-        Ra::Bounds bounds = RaCG::BoundsFromCGRect(self.bounds);
-        Ra::DrawList list = [self.listDelegate getList: bounds.width()
-                                                 height: bounds.height()];
-        if (!list.useCurves)
-            CGContextSetFlatness(ctx, 20 * self.layer.contentsScale);
-        CGContextConcatCTM(ctx, RaCG::CGFromTransform(list.ctm));
-        RaCG::drawList(list.list, list.ctm, bounds, ctx);
+        float scale = self.layer.contentsScale, w = self.bounds.size.width, h = self.bounds.size.height;
+        Ra::DrawList list = [self.listDelegate getList: w
+                                                height: h];
+        RaCG::renderList(list, scale, w, h, ctx);
     }
 }
 

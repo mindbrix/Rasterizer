@@ -59,7 +59,16 @@ struct RasterizerCG {
         return dev.lx < dev.ux && dev.ly < dev.uy && soft.lx < 1.f && soft.ux > 0.f && soft.ly < 1.f && soft.uy > 0.f;
     }
     
-    static void drawList(Ra::SceneList& list, Ra::Transform view, Ra::Bounds bounds, CGContextRef ctx) {
+    static void renderList(Ra::DrawList& drawList, float scale, float w, float h, CGContextRef ctx) {
+        Ra::Transform& view = drawList.ctm;
+        Ra::Bounds bounds(0, 0, w, h);
+        CGContextConcatCTM(ctx, CGFromTransform(view));
+        if (!drawList.useCurves)
+            CGContextSetFlatness(ctx, 20 * scale);
+        renderList(drawList.list, view, bounds, ctx);
+    }
+    
+    static void renderList(Ra::SceneList& list, Ra::Transform view, Ra::Bounds bounds, CGContextRef ctx) {
         uint32_t ip, lastip = ~0;
         for (int j = 0; j < list.scenes.size(); j++) {
             Ra::Scene& scn = list.scenes[j];
@@ -161,7 +170,7 @@ struct RasterizerCG {
         CGContextRef ctx = CGPDFContextCreateWithURL((__bridge CFURLRef)fileURL, & mediaBox, NULL);
         CGPDFContextBeginPage(ctx, NULL);
         CGContextConcatCTM(ctx, CGFromTransform(ctm));
-        drawList(list, ctm, bounds, ctx);
+        renderList(list, ctm, bounds, ctx);
         CGPDFContextEndPage(ctx);
         CGPDFContextClose(ctx);
         CGContextRelease(ctx);
