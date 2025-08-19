@@ -314,9 +314,6 @@ struct RasterizerDemo {
         float ftime = demo.clock - floor(demo.clock);
         float t = sinf(kTau * ftime), s = 1.f - t;
         float scale = s * kScaleMin + t * kScaleMax, outlineWidth = demo.outlineWidth;
-        if (0 && outlineWidth) {
-            black = Ra::Colorant(0, 0, 0, 64), red = Ra::Colorant(0, 0, 255, 64), outlineWidth = -20.f;
-        }
         if (ftime == 0.f)
             memcpy(dstCtms + li, srcCtms + li, count * sizeof(srcCtms[0]));
         else {
