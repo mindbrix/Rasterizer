@@ -30,15 +30,10 @@
 - (CGColorSpaceRef)writeBuffer:(Ra::Buffer *)buffer forLayer:(CALayer *)layer {
     buffer->clearColor = Ra::Colorant(0xFF, 0xFF, 0xFF, 0xFF);
     if ([self.listDelegate respondsToSelector:@selector(getList:height:)]) {
-        Ra::DrawList list = [self.listDelegate getList: self.bounds.size.width
-                                                 height: self.bounds.size.height];
-        buffer->useCurves = list.useCurves;
-        
         float scale = self.layer.contentsScale, w = self.bounds.size.width, h = self.bounds.size.height;
-        Ra::Bounds device(0.f, 0.f, ceilf(scale * w), ceilf(scale * h));
-        Ra::Transform view = Ra::Transform(scale, 0.f, 0.f, scale, 0.f, 0.f).concat(list.ctm);
-        
-        _renderer.renderList(list.list, device, view, buffer);
+        Ra::DrawList list = [self.listDelegate getList: w
+                                                height: h];
+        _renderer.renderList(list, scale, w, h, buffer);
     }
     return self.window.colorSpace.CGColorSpace;
 }
