@@ -93,7 +93,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 
 #pragma mark - ListDelegate
 
-- (Ra::DrawList)getList: (float)width height:(float) height {
+- (Ra::SceneList)getList: (float)width height:(float) height {
     return _demo.getDrawList(width, height);
 }
 

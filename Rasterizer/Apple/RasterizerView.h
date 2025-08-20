@@ -23,7 +23,7 @@
 
 
 @protocol ListDelegate <NSObject>
-- (Ra::DrawList)getList: (float)width height:(float) height;
+- (Ra::SceneList)getList: (float)width height:(float) height;
 @end
 
 

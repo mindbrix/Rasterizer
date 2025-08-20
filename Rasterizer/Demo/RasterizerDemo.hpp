@@ -225,18 +225,18 @@ struct RasterizerDemo {
         hud.addPath(p, Ra::Transform(), textColor, kHudBorder, 0);
         return hud;
     }
-    Ra::DrawList getDrawList(float w, float h) {
+    Ra::SceneList getDrawList(float w, float h) {
         bounds = Ra::Bounds(0.f, 0.f, w, h);
         writeList(bounds);
         runTransferFunction(list, transferFunction, this);
         if (fit)
             ctm = bounds.fit(list.bounds()), fit = false;
-        Ra::DrawList draw;
-        draw.list = list, draw.ctm = ctm, draw.useCurves = useCurves;
+        Ra::SceneList draw = list;
+        draw.ctm = ctm, draw.useCurves = useCurves;
         if (showHud) {
             Ra::Bounds clip = Ra::Bounds(0, 0, kHudWidth, kHudHeight);
             Ra::Transform m = ctm.invert().concat(Ra::Transform(1, 0, 0, 1, kHudInset, bounds.uy - kHudInset - kHudHeight));
-            draw.list.addScene(getHUD(), m, clip);
+            draw.addScene(getHUD(), m, clip);
         }
         return draw;
     }

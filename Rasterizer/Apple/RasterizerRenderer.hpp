@@ -20,13 +20,11 @@
 
 struct RasterizerRenderer {
     
-    void renderList(Ra::DrawList& drawList, float scale, float w, float h, Ra::Buffer *buffer) {
+    void renderList(Ra::SceneList& list, float scale, float w, float h, Ra::Buffer *buffer) {
         Ra::Bounds device(0.f, 0.f, ceilf(scale * w), ceilf(scale * h));
-        Ra::Transform view = Ra::Transform(scale, 0.f, 0.f, scale, 0.f, 0.f).concat(drawList.ctm);
+        Ra::Transform view = Ra::Transform(scale, 0.f, 0.f, scale, 0.f, 0.f).concat(list.ctm);
         
-        buffer->useCurves = drawList.useCurves;
-        Ra::SceneList& list = drawList.list;
-
+        buffer->useCurves = list.useCurves;
         buffer->prepare(list);
          
         size_t divisions[kContextCount + 1], *pdivs = divisions;

@@ -75,13 +75,13 @@ struct RasterizerCG {
         return dev.lx < dev.ux && dev.ly < dev.uy && soft.lx < 1.f && soft.ux > 0.f && soft.ly < 1.f && soft.uy > 0.f;
     }
     
-    static void renderList(Ra::DrawList& drawList, float scale, float w, float h, CGContextRef ctx) {
-        Ra::Transform& view = drawList.ctm;
+    static void renderList(Ra::SceneList& list, float scale, float w, float h, CGContextRef ctx) {
+        Ra::Transform& view = list.ctm;
         Ra::Bounds bounds(0, 0, w, h);
         CGContextConcatCTM(ctx, CGFromTransform(view));
-        if (!drawList.useCurves)
+        if (!list.useCurves)
             CGContextSetFlatness(ctx, 20 * scale);
-        renderList(drawList.list, view, bounds, ctx);
+        renderList(list, view, bounds, ctx);
     }
     
     static void renderList(Ra::SceneList& list, Ra::Transform view, Ra::Bounds bounds, CGContextRef ctx) {
