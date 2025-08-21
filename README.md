@@ -23,17 +23,25 @@ The demo app supports viewing SVG and PDF files, plus font grids.
 Architecture
 --------
 
-Paths follow the Postscript model, with the same even-odd and non-zero fill rules. Stroking is also supported.
+`Path` objects follow the Postscript model, with the same even-odd and non-zero fill rules. Stroking is also supported.
 
-Paths are collected into Scenes, which are then collected into a SceneList.
+`Scene` objects group `Path` objects together with their draw parameters: color, affine transform, stroke width, flags & optional clip bounds.
 
-The CPU stages make extensive use of highly-efficient and simple batch parallelism.
+For rendering, `SceneList` objects group `Scene` objects together with their draw parameters: affine transform & optional clip bounds.
 
-Filled paths are rasterized in 2 stages: first to a float mask buffer, and then to the color buffer. Small screen space fills (e.g. glyphs) have the optimal CPU path. Larger fills use a fat scanlines algorithm. Pixel area coverage is calculated using a novel windowed-inverse-lerp algorithm that can be trivially extended for zero-cost box blurs.
+Filled paths are rasterized in 2 stages: first to a float mask buffer, and then to the color buffer. 
+
+Small screen space fills (e.g. glyphs) are optimal, as raw `Path` geometry can be `memcpy`ed into GPU memory. 
+
+Larger fills use a fat scanlines algorithm on clipped, device-space `Path` geometry. 
+
+Pixel area coverage is calculated using a novel windowed-inverse-lerp algorithm.
 
 Stroked paths are rasterized straight to the color buffer using GPU triangulation.
 
-Quadratic Beziér curves are first-class GPU primitives, so no expensive, scale-variant path flattening is necessary.
+Quadratic Beziér curves are first-class GPU primitives, enabling very coarse geometry.
+
+The CPU stages make extensive use of highly-efficient and simple batch parallelism.
 
 
 Credits
