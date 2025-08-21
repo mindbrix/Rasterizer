@@ -9,13 +9,15 @@ The current implementation targets macOS using C++ 11 and Metal, but it will wor
 Building
 --------
 
-The Xcode demo app project builds out of the box as all dependencies are included. 
+The Xcode demo app project builds out of the box as all dependencies are included. For best performance, select the Run Rasterizer scheme.
 
 
 Demo App
 -------
 
-The demo app supports viewing SVG and PDF files, plus font grids.
+The demo app can open SVG and PDF files. Use to -/+ keys to select PDF pages. Other key mappings are shown on the HUD.
+
+A single font is used, settable via the fonts panel (`<Cmd>T`).
 
 ![image](https://github.com/mindbrix/Rasterizer/blob/master/Screenshot.png)
 
@@ -25,9 +27,9 @@ Architecture
 
 `Path` objects follow the Postscript model, with the same even-odd and non-zero fill rules. Stroking is also supported.
 
-`Scene` objects group `Path` objects together with their draw parameters: color, affine transform, stroke width, flags & optional clip bounds.
+`Scene` objects group `Path` objects together with their draw parameters: color, affine transform, stroke width (0 for a fill, +ve for user space, -ve for device space), flags (fill rule, end caps etc.) & an optional clip bounds.
 
-For rendering, `SceneList` objects group `Scene` objects together with their draw parameters: affine transform & optional clip bounds.
+For rendering, `SceneList` objects group `Scene` objects together with their draw parameters: affine transform & an optional clip bounds.
 
 Filled paths are rasterized in 2 stages: first to a float mask buffer, and then to the color buffer. 
 
@@ -41,7 +43,7 @@ Stroked paths are rasterized straight to the color buffer using GPU triangulatio
 
 Quadratic Beziér curves are first-class GPU primitives, enabling very coarse geometry.
 
-The CPU stages make extensive use of highly-efficient and simple batch parallelism.
+The CPU stages use simple batch parallelism for efficiency.
 
 
 Credits
