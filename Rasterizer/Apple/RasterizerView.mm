@@ -44,7 +44,6 @@
 #pragma mark - LayerDelegate
 
 - (CGColorSpaceRef)writeBuffer:(Ra::Buffer *)buffer forLayer:(CALayer *)layer {
-    buffer->clearColor = Ra::Colorant(0xFF, 0xFF, 0xFF, 0xFF);
     if ([self.listDelegate respondsToSelector:@selector(getList:height:)]) {
         float scale = self.layer.contentsScale, w = self.bounds.size.width, h = self.bounds.size.height;
         Ra::SceneList list = [self.listDelegate getList: w
@@ -57,8 +56,6 @@
 #pragma mark - CALayerDelegate
 
 - (void)drawLayer:(CALayer *)layer inContext:(CGContextRef)ctx {
-    Ra::Colorant color = Ra::Colorant(0xFF, 0xFF, 0xFF, 0xFF);
-    memset_pattern4(CGBitmapContextGetData(ctx), & color.b, CGBitmapContextGetBytesPerRow(ctx) * CGBitmapContextGetHeight(ctx));
     if ([self.listDelegate respondsToSelector:@selector(getList:height:)]) {
         float scale = self.layer.contentsScale, w = self.bounds.size.width, h = self.bounds.size.height;
         Ra::SceneList list = [self.listDelegate getList: w

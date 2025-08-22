@@ -76,6 +76,8 @@ struct RasterizerCG {
     }
     
     static void renderList(Ra::SceneList& list, float scale, float w, float h, CGContextRef ctx) {
+        memset_pattern4(CGBitmapContextGetData(ctx), & list.clearColor.b, CGBitmapContextGetBytesPerRow(ctx) * CGBitmapContextGetHeight(ctx));
+        
         Ra::Transform& view = list.ctm;
         Ra::Bounds bounds(0, 0, w, h);
         CGContextConcatCTM(ctx, CGFromTransform(view));

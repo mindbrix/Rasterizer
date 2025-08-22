@@ -25,6 +25,7 @@ struct RasterizerRenderer {
         Ra::Transform view = Ra::Transform(scale, 0.f, 0.f, scale, 0.f, 0.f).concat(list.ctm);
         
         buffer->useCurves = list.useCurves;
+        buffer->clearColor = list.clearColor;
         buffer->prepare(list);
          
         size_t divisions[kContextCount + 1], *pdivs = divisions;

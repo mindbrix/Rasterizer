@@ -448,7 +448,7 @@ struct Rasterizer {
                 pathsCount += scene.count, scenes.emplace_back(scene), ctms.emplace_back(ctm), clips.emplace_back(clip);
             return *this;
         }
-        Transform ctm;  bool useCurves = true;
+        Transform ctm;  bool useCurves = true;  Colorant clearColor = { 0xFF, 0xFF, 0xFF, 0xFF };
         size_t pathsCount = 0;  std::vector<Scene> scenes;  std::vector<Transform> ctms;  std::vector<Bounds> clips;
     };
     struct Segment {
