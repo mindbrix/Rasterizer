@@ -434,10 +434,6 @@ struct Rasterizer {
                 b.extend(Bounds(clips[i].intersect(scenes[i].bounds()).quad(ctms[i])));
             return b;
         }
-        SceneList& empty() {
-            pathsCount = 0, scenes.resize(0), ctms.resize(0), clips.resize(0);
-            return *this;
-        }
         SceneList& addList(SceneList list) {
             for (int i = 0; i < list.scenes.size(); i++)
                 addScene(list.scenes[i], list.ctms[i], list.clips[i]);

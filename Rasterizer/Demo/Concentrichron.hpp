@@ -25,7 +25,7 @@ struct Concentrichron {
     Ra::SceneList face;
     
     void resetFace() {
-        face.empty();
+        face = Ra::SceneList();
     }
     
     Ra::SceneList writeList(RasterizerFont& font) {

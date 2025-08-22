@@ -53,7 +53,7 @@ struct RasterizerDemo {
     enum Flags { kCapsLock = 1 << 16, kShift = 1 << 17, kControl = 1 << 18, kOption = 1 << 19, kCommand = 1 << 20, kNumericPad = 1 << 21, kHelp = 1 << 22, kFunction = 1 << 23 };
     
     void writeList(Ra::Bounds bounds) {
-        list.empty();
+        list = Ra::SceneList();
         if (pastedString.size) {
             if (pasted.pathsCount == 0) {
                 Ra::Scene glyphs;
@@ -129,14 +129,14 @@ struct RasterizerDemo {
         } else if (keyCode == KeyCode::kMinus) {
             if (pageIndex > 0) {
                 pageIndex--;
-                document.empty();
+                document = Ra::SceneList();
                 keyUsed = true;
             }
             
         } else if (keyCode == KeyCode::kPlus) {
             if (pageIndex < pageCount - 1) {
                 pageIndex++;
-                document.empty();
+                document = Ra::SceneList();
                 keyUsed = true;
             }
         }
@@ -247,8 +247,8 @@ struct RasterizerDemo {
         pointSize = size;
         font.load(url, name);
         concentrichron.resetFace();
-        pasted.empty();
-        text.empty();
+        pasted = Ra::SceneList();
+        text = Ra::SceneList();
         redraw = true;
     }
     void setPastedString(const char *string) {
@@ -256,7 +256,7 @@ struct RasterizerDemo {
             strcpy((char *)pastedString.resize(strlen(string) + 1), string);
         else
             pastedString = Ra::Memory<char>();
-        pasted.empty();
+        pasted = Ra::SceneList();
         redraw = true;
     }
     void setPdfData(const void *data, size_t size) {
