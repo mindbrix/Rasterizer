@@ -15,7 +15,9 @@ The Xcode demo app project builds out of the box as all dependencies are include
 Demo App
 -------
 
-The demo app can open SVG and PDF files. Use to -/+ keys to select PDF pages. Other key mappings are shown on the HUD.
+The demo app can open SVG and PDF files. Use to -/+ keys to select PDF pages. Other key mappings are shown on the HUD top left.
+
+Use the trackpad and/or mouse to drag and zoom/rotate the canvas around its center. Hold the `Shift` key to zoom/rotate around the pointer.
 
 A single font is used, settable via the fonts panel (`<Cmd>T`).
 
