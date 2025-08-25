@@ -24,21 +24,21 @@ struct RasterizerWinding {
     static Ra::Range indicesForPoint(Ra::SceneList& list, Ra::Transform view, Ra::Bounds bounds, float px, float py, uint64_t tag = ~0) {
         if (px >= bounds.lx && px < bounds.ux && py >= bounds.ly && py < bounds.uy)
             for (int li = int(list.scenes.size()) - 1; li >= 0; li--) {
-                uint32_t ip, lastip = ~0;
                 Ra::Scene& scene = list.scenes[li];
                 if ((scene.tag & tag) == 0)
                     continue;
                 Ra::Transform ctm = view.concat(list.ctms[li]), nullinv = Ra::Bounds::huge().quad(Ra::Transform()).invert(), inv = nullinv;
-                Ra::Bounds sceneclip = list.clips[li];
+                Ra::Bounds sceneclip = list.clips[li], lastClip;
                 for (int si = int(scene.count) - 1; si >= 0; si--) {
                     if (scene.flags->base[si] & Ra::Scene::kInvisible)
                         continue;
-                    ip = scene.clipCache->ips.base[si];
-                    if (ip != lastip) {
-                        lastip = ip;
-                        Ra::Bounds *pclip = ip || !sceneclip.isHuge() ? scene.clipCache->entryAt(si) : nullptr;
-                        if (pclip)
-                            inv = sceneclip.intersect(*pclip).quad(ctm).invert();
+                    
+                    bool newClip = memcmp(scene.clips.base + si, & lastClip, sizeof(Ra::Bounds)) != 0;
+                    if (newClip) {
+                        lastClip = scene.clips.base[si];
+                        
+                        if (!lastClip.isHuge() || !sceneclip.isHuge())
+                            inv = sceneclip.intersect(lastClip).quad(ctm).invert();
                         else
                             inv = nullinv;
                     }

@@ -87,10 +87,10 @@ struct RasterizerCG {
     }
     
     static void renderList(Ra::SceneList& list, Ra::Transform view, Ra::Bounds bounds, CGContextRef ctx) {
-        uint32_t ip, lastip = ~0;
         for (int j = 0; j < list.scenes.size(); j++) {
             Ra::Scene& scn = list.scenes[j];
             Ra::Transform ctm = list.ctms[j], clip, m;
+            Ra::Bounds lastClip;
             CGContextSaveGState(ctx);
             CGContextConcatCTM(ctx, CGFromTransform(ctm));
             CGContextClipToRect(ctx, CGRectFromBounds(list.clips[j]));
@@ -105,15 +105,17 @@ struct RasterizerCG {
                 Ra::Geometry *g = scn.paths->base[i].ptr;
                 Ra::Transform t = scn.ctms->base[i];
                 m = view.concat(ctm).concat(t);
-                ip = scn.clipCache->ips.base[i];
-                if (ip != lastip) {
-                    lastip = ip;
+                
+                bool newClip = memcmp(scn.clips.base + i, & lastClip, sizeof(Ra::Bounds)) != 0;
+                if (newClip) {
+                    lastClip = scn.clips.base[i];
+
                     CGContextRestoreGState(ctx);
                     CGContextSaveGState(ctx);
-                    Ra::Bounds *pclip = ip ? scn.clipCache->entryAt(i) : nullptr;
-                    if (pclip)
-                        CGContextClipToRect(ctx, CGRectFromBounds(*pclip));
-                    clip = ip && pclip ? pclip->quad(view.concat(ctm)) : Ra::Transform(1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f);
+                    if (!lastClip.isHuge())
+                        CGContextClipToRect(ctx, CGRectFromBounds(lastClip));
+                    
+                    clip = !lastClip.isHuge() ? lastClip.quad(view.concat(ctm)) : Ra::Transform(1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f);
                 }
                 
                 if (isVisible(g->bounds, m, clip, bounds, scn.widths->base[i])) {
