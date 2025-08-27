@@ -27,22 +27,15 @@ struct RasterizerWinding {
                 Ra::Scene& scene = list.scenes[li];
                 if ((scene.tag & tag) == 0)
                     continue;
-                Ra::Transform ctm = view.concat(list.ctms[li]), nullinv = Ra::Bounds::huge().quad(Ra::Transform()).invert(), inv = nullinv;
-                Ra::Bounds sceneclip = list.clips[li], lastClip;
+                Ra::Transform ctm = view.concat(list.ctms[li]);
+                Ra::Bounds sceneclip = list.clips[li];
                 for (int si = int(scene.count) - 1; si >= 0; si--) {
                     if (scene.flags->base[si] & Ra::Scene::kInvisible)
                         continue;
                     
-                    bool newClip = memcmp(scene.clips.base + si, & lastClip, sizeof(Ra::Bounds)) != 0;
-                    if (newClip) {
-                        lastClip = scene.clips.base[si];
-                        
-                        if (!lastClip.isHuge() || !sceneclip.isHuge())
-                            inv = sceneclip.intersect(lastClip).quad(ctm).invert();
-                        else
-                            inv = nullinv;
-                    }
+                    Ra::Transform inv = sceneclip.intersect(scene.clips.base[si]).quad(ctm).invert();
                     float ux = inv.a * px + inv.c * py + inv.tx, uy = inv.b * px + inv.d * py + inv.ty;
+                    
                     if (ux >= 0.f && ux < 1.f && uy >= 0.f && uy < 1.f) {
                         int winding = pointWinding(scene.paths->base[si].ptr, scene.bnds.base[si], ctm.concat(scene.ctms->base[si]), px, py, scene.widths->base[si], scene.flags->base[si]);
                         bool even = scene.flags->base[si] & Ra::Scene::kFillEvenOdd;
