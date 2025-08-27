@@ -109,13 +109,10 @@ struct RasterizerCG {
                 bool newClip = memcmp(scn.clips.base + i, & lastClip, sizeof(Ra::Bounds)) != 0;
                 if (newClip) {
                     lastClip = scn.clips.base[i];
-
+                    clip = lastClip.quad(view.concat(ctm));
                     CGContextRestoreGState(ctx);
                     CGContextSaveGState(ctx);
-                    if (!lastClip.isHuge())
-                        CGContextClipToRect(ctx, CGRectFromBounds(lastClip));
-                    
-                    clip = !lastClip.isHuge() ? lastClip.quad(view.concat(ctm)) : Ra::Transform(1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f);
+                    CGContextClipToRect(ctx, CGRectFromBounds(lastClip));
                 }
                 
                 if (isVisible(g->bounds, m, clip, bounds, scn.widths->base[i])) {
