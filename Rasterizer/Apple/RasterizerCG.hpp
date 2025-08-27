@@ -75,18 +75,18 @@ struct RasterizerCG {
         return dev.lx < dev.ux && dev.ly < dev.uy && soft.lx < 1.f && soft.ux > 0.f && soft.ly < 1.f && soft.uy > 0.f;
     }
     
-    static void renderList(Ra::SceneList& list, float scale, float w, float h, CGContextRef ctx) {
+    static void renderListToBitmap(Ra::SceneList& list, float scale, float w, float h, CGContextRef ctx) {
         memset_pattern4(CGBitmapContextGetData(ctx), & list.clearColor.b, CGBitmapContextGetBytesPerRow(ctx) * CGBitmapContextGetHeight(ctx));
         
-        Ra::Transform& view = list.ctm;
-        Ra::Bounds bounds(0, 0, w, h);
-        CGContextConcatCTM(ctx, CGFromTransform(view));
         if (!list.useCurves)
             CGContextSetFlatness(ctx, 20 * scale);
-        renderList(list, view, bounds, ctx);
+        renderList(list, Ra::Bounds(0, 0, w, h), ctx);
     }
     
-    static void renderList(Ra::SceneList& list, Ra::Transform view, Ra::Bounds bounds, CGContextRef ctx) {
+    static void renderList(Ra::SceneList& list, Ra::Bounds bounds, CGContextRef ctx) {
+        Ra::Transform& view = list.ctm;
+        CGContextConcatCTM(ctx, CGFromTransform(view));
+        
         for (int j = 0; j < list.scenes.size(); j++) {
             Ra::Scene& scn = list.scenes[j];
             Ra::Transform ctm = list.ctms[j], clip, m;
@@ -180,14 +180,13 @@ struct RasterizerCG {
             }
         }
     }
-    static void screenGrabToPDF(Ra::SceneList& list, Ra::Transform ctm, Ra::Bounds bounds) {
+    static void screenGrabToPDF(Ra::SceneList& list, Ra::Bounds bounds) {
         NSArray *downloads = [NSFileManager.defaultManager URLsForDirectory: NSDownloadsDirectory inDomains:NSUserDomainMask];
         NSURL *fileURL = [downloads.firstObject URLByAppendingPathComponent:@"screenGrab.pdf"];
         CGRect mediaBox = CGRectFromBounds(bounds);
         CGContextRef ctx = CGPDFContextCreateWithURL((__bridge CFURLRef)fileURL, & mediaBox, NULL);
         CGPDFContextBeginPage(ctx, NULL);
-        CGContextConcatCTM(ctx, CGFromTransform(ctm));
-        renderList(list, ctm, bounds, ctx);
+        renderList(list, bounds, ctx);
         CGPDFContextEndPage(ctx);
         CGPDFContextClose(ctx);
         CGContextRelease(ctx);

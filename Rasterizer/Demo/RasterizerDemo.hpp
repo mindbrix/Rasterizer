@@ -114,8 +114,10 @@ struct RasterizerDemo {
             mouseMove = !mouseMove, indices = mouseMove ? indices : Ra::Range(INT_MAX, INT_MAX), keyUsed = true;
         else if (keyCode == KeyCode::kL)
             locked = locked.begin != INT_MAX ? Ra::Range(INT_MAX, INT_MAX) : indices, keyUsed = true;
-        else if (keyCode == KeyCode::kS)
-            RaCG::screenGrabToPDF(list, ctm, bounds), keyUsed = true;
+        else if (keyCode == KeyCode::kS) {
+            list.ctm = ctm;
+            RaCG::screenGrabToPDF(list, bounds), keyUsed = true;
+        }
         else if (keyCode == KeyCode::kT) {
             showGlyphGrid = false;
             showTime = !showTime;

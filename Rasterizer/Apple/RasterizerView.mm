@@ -60,7 +60,7 @@
         float scale = self.layer.contentsScale, w = self.bounds.size.width, h = self.bounds.size.height;
         Ra::SceneList list = [self.listDelegate getList: w
                                                 height: h];
-        RaCG::renderList(list, scale, w, h, ctx);
+        RaCG::renderListToBitmap(list, scale, w, h, ctx);
     }
 }
 
