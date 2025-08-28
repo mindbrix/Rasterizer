@@ -187,8 +187,10 @@ struct RasterizerDemo {
         redraw = false;
         if (animating)
             clock += timeScale / 60.0;
-        if (mouseMove)
-            indices = RasterizerWinding::indicesForPoint(list, ctm, bounds, mx, my);
+        if (mouseMove) {
+            list.ctm = ctm;
+            indices = RasterizerWinding::indicesForPoint(list, bounds, mx, my);
+        }
     }
    
 #pragma mark - Properties

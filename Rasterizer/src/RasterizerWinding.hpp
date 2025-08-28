@@ -21,11 +21,11 @@
 #import "Rasterizer.hpp"
 
 struct RasterizerWinding {
-    static Ra::Range indicesForPoint(Ra::SceneList& list, Ra::Transform view, Ra::Bounds bounds, float px, float py) {
+    static Ra::Range indicesForPoint(Ra::SceneList& list, Ra::Bounds bounds, float px, float py) {
         if (px >= bounds.lx && px < bounds.ux && py >= bounds.ly && py < bounds.uy)
             for (int li = int(list.scenes.size()) - 1; li >= 0; li--) {
                 Ra::Scene& scene = list.scenes[li];
-                Ra::Transform ctm = view.concat(list.ctms[li]);
+                Ra::Transform ctm = list.ctm.concat(list.ctms[li]);
                 Ra::Bounds sceneclip = list.clips[li];
                 for (int si = int(scene.count) - 1; si >= 0; si--) {
                     if (scene.flags->base[si] & Ra::Scene::kInvisible)
