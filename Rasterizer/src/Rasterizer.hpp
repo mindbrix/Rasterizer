@@ -395,8 +395,10 @@ struct Rasterizer {
         Bounds bounds() {
             Bounds b;
             for (int i = 0; i < count; i++)
-                if ((flags->base[i] & kInvisible) == 0)
-                    b.extend(Bounds(bnds.base[i].inset(-0.5f * widths->base[i], -0.5f * widths->base[i]).quad(ctms->base[i])).intersect(clips.base[i]));
+                if ((flags->base[i] & kInvisible) == 0) {
+                    float inset = -0.5f * widths->base[i];
+                    b.extend(Bounds(bnds.base[i].inset(inset, inset).quad(ctms->base[i])).intersect(clips.base[i]));
+                }
             return b;
         }
         size_t count = 0, weight = 0;
