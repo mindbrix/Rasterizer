@@ -84,38 +84,33 @@ struct RasterizerCG {
     }
     
     static void renderList(Ra::SceneList& list, Ra::Bounds bounds, CGContextRef ctx) {
-        Ra::Transform& view = list.ctm;
-        CGContextConcatCTM(ctx, CGFromTransform(view));
+        CGContextConcatCTM(ctx, CGFromTransform(list.ctm));
         
         for (int j = 0; j < list.scenes.size(); j++) {
-            Ra::Scene& scn = list.scenes[j];
-            Ra::Transform ctm = list.ctms[j], clip, m;
+            Ra::Transform ctm = list.ctm.concat(list.ctms[j]), clip;
             Ra::Bounds lastClip;
             CGContextSaveGState(ctx);
-            CGContextConcatCTM(ctx, CGFromTransform(ctm));
+            CGContextConcatCTM(ctx, CGFromTransform(list.ctms[j]));
             CGContextClipToRect(ctx, CGRectFromBounds(list.clips[j]));
             CGContextSaveGState(ctx);
             
-            clip = view.concat(Ra::Transform(1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f));
-            
+            Ra::Scene& scn = list.scenes[j];
             for (size_t i = 0; i < scn.count; i++) {
                 if (scn.flags->base[i] & Ra::Scene::Flags::kInvisible)
                     continue;
                 
-                Ra::Geometry *g = scn.paths->base[i].ptr;
-                Ra::Transform t = scn.ctms->base[i];
-                m = view.concat(ctm).concat(t);
-                
                 bool newClip = memcmp(scn.clips.base + i, & lastClip, sizeof(Ra::Bounds)) != 0;
                 if (newClip) {
                     lastClip = scn.clips.base[i];
-                    clip = lastClip.quad(view.concat(ctm));
+                    clip = lastClip.quad(ctm);
                     CGContextRestoreGState(ctx);
                     CGContextSaveGState(ctx);
                     CGContextClipToRect(ctx, CGRectFromBounds(lastClip));
                 }
+                Ra::Geometry *g = scn.paths->base[i].ptr;
+                Ra::Transform t = scn.ctms->base[i];
                 
-                if (isVisible(g->bounds, m, clip, bounds, scn.widths->base[i])) {
+                if (isVisible(g->bounds, ctm.concat(t), clip, bounds, scn.widths->base[i])) {
                     CGContextSaveGState(ctx);
                     CGContextConcatCTM(ctx, CGFromTransform(t));
                     writePathToCGContext(g, ctx);
