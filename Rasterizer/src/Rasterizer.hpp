@@ -104,7 +104,7 @@ struct Rasterizer {
                 lx * t.a + ly * t.c + t.tx, lx * t.b + ly * t.d + t.ty
             };
         }
-        inline Transform fit(Bounds b) const {
+        inline Transform fitTransform(const Bounds b) const {
             float w = width(), h = height(), bw = b.width(), bh = b.height(), s = fminf(w / bw, h / bh);
             return {
                 s, 0.f,

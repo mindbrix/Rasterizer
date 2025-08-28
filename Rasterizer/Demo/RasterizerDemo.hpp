@@ -101,7 +101,7 @@ struct RasterizerDemo {
         else if (keyCode == KeyCode::kC)
             useCurves = !useCurves, keyUsed = true;
         else if (keyCode == KeyCode::kF) {
-            Ra::Transform fit = bounds.fit(list.bounds());
+            Ra::Transform fit = bounds.fitTransform(list.bounds());
             ctm = memcmp(& ctm, & fit, sizeof(ctm)) == 0 ? Ra::Transform() : fit;
             keyUsed = true;
         } else if (keyCode == KeyCode::kH)
@@ -234,7 +234,7 @@ struct RasterizerDemo {
         writeList(bounds);
         runTransferFunction(list, transferFunction, this);
         if (fit)
-            ctm = bounds.fit(list.bounds()), fit = false;
+            ctm = bounds.fitTransform(list.bounds()), fit = false;
         Ra::SceneList draw = list;
         draw.ctm = ctm, draw.useCurves = useCurves;
         if (showHud) {
