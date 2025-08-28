@@ -399,7 +399,7 @@ struct Rasterizer {
                     b.extend(Bounds(bnds.base[i].inset(-0.5f * widths->base[i], -0.5f * widths->base[i]).quad(ctms->base[i])).intersect(clips.base[i]));
             return b;
         }
-        size_t count = 0, weight = 0;  uint64_t tag = 1;
+        size_t count = 0, weight = 0;
         Ref<Vector<Path>> paths;  Row<Bounds> bnds, clips;
         Ref<RowPair<Transform>> ctms;  Ref<RowPair<Colorant>> colors;  Ref<RowPair<float>> widths;  Ref<RowPair<uint8_t>> flags;
     };
