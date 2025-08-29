@@ -30,6 +30,9 @@ struct RasterizerDemo {
     constexpr static float kHudWidth = 240, kHudHeight = 240, kHudInset = 20, kHudBorder = 0.5;
     constexpr static size_t kHudItemCount = 11;
     
+    enum KeyCode { kA = 0, kC = 8, kF = 3, kG = 5, kH = 4, kI = 34, kL = 37, kO = 31, kP = 35, kS = 1, kT = 17, k1 = 18, k0 = 29, kMinus = 27, kPlus = 24 };
+    enum Flags { kCapsLock = 1 << 16, kShift = 1 << 17, kControl = 1 << 18, kOption = 1 << 19, kCommand = 1 << 20, kNumericPad = 1 << 21, kHelp = 1 << 22, kFunction = 1 << 23 };
+    
     struct HudItem {
         HudItem(char const *key, char const *text, char const *alt = nullptr) : key(key), text(text), alt(alt) {}
         char const *key, *text, *alt;
@@ -48,9 +51,6 @@ struct RasterizerDemo {
         HudItem("S", "PDF screenshot"),
         HudItem("T", "Time"),
     };
-    
-    enum KeyCode { kA = 0, kC = 8, kF = 3, kG = 5, kH = 4, kI = 34, kL = 37, kO = 31, kP = 35, kS = 1, kT = 17, k1 = 18, k0 = 29, kMinus = 27, kPlus = 24 };
-    enum Flags { kCapsLock = 1 << 16, kShift = 1 << 17, kControl = 1 << 18, kOption = 1 << 19, kCommand = 1 << 20, kNumericPad = 1 << 21, kHelp = 1 << 22, kFunction = 1 << 23 };
     
     void writeList(Ra::Bounds bounds) {
         list = Ra::SceneList();
