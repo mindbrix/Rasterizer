@@ -230,28 +230,9 @@ struct Rasterizer {
         void prealloc(size_t count) {
             points.prealloc(2 * count), types.prealloc(count);
         }
-        void update(Type type, size_t size, float *p) {
-            counts[type]++;  memset(types.alloc(size), type, size);
-            for (int i = 0; i < size; i++)
-                molecules.back().extend(p[i * 2], p[i * 2 + 1]);
-            bounds.extend(molecules.back());
+        void addBounds(Bounds b) {
+            moveTo(b.lx, b.ly), lineTo(b.ux, b.ly), lineTo(b.ux, b.uy), lineTo(b.lx, b.uy), lineTo(b.lx, b.ly);
         }
-        void validate() {
-            Bounds *b = molecules.end ? & molecules.back() : nullptr;
-            if (b && b->lx == b->ux && b->ly == b->uy) {
-                for (uint8_t *type = types.base + points.idx / 2, *end = types.base + points.end / 2; type < end;)
-                    counts[*type]--, type += *type == kMove || *type == kLine || *type == kClose ? 1 : *type == kQuadratic ? 2 : 3;
-                molecules.end--, types.end = points.idx / 2, points.end = points.idx, bounds = Bounds();
-                for (int i = 0; i < molecules.end; i++)
-                    bounds.extend(molecules.base[i]);
-            }
-        }
-        size_t upperBound(float det) {
-            float s = sqrtf(sqrtf(det < 1e-2f ? 1e-2f : det));
-            size_t cubics = cubicSums == 0 ? 0 : (det < 1.f ? ceilf(s * (cubicSums + 2.f)) : ceilf(s) * cubicSums);
-            return cubics + 2 * (molecules.end + counts[kLine] + counts[kQuadratic] + counts[kCubic]);
-        }
-        void addBounds(Bounds b) { moveTo(b.lx, b.ly), lineTo(b.ux, b.ly), lineTo(b.ux, b.uy), lineTo(b.lx, b.uy), lineTo(b.lx, b.ly); }
         void addEllipse(Bounds b) {
             const float t = 0.5f - 2.f / 3.f * (M_SQRT2 - 1.f), s = 1.f - t, mx = 0.5f * (b.lx + b.ux), my = 0.5f * (b.ly + b.uy);
             moveTo(b.ux, my);
@@ -306,9 +287,31 @@ struct Rasterizer {
         void close() {
             float *pts = points.alloc(2);  pts[0] = x0, pts[1] = y0, update(kClose, 1, pts);
         }
+        
+        void update(Type type, size_t size, float *p) {
+            counts[type]++;  memset(types.alloc(size), type, size);
+            for (int i = 0; i < size; i++)
+                molecules.back().extend(p[i * 2], p[i * 2 + 1]);
+            bounds.extend(molecules.back());
+        }
+        void validate() {
+            Bounds *b = molecules.end ? & molecules.back() : nullptr;
+            if (b && b->lx == b->ux && b->ly == b->uy) {
+                for (uint8_t *type = types.base + points.idx / 2, *end = types.base + points.end / 2; type < end;)
+                    counts[*type]--, type += *type == kMove || *type == kLine || *type == kClose ? 1 : *type == kQuadratic ? 2 : 3;
+                molecules.end--, types.end = points.idx / 2, points.end = points.idx, bounds = Bounds();
+                for (int i = 0; i < molecules.end; i++)
+                    bounds.extend(molecules.base[i]);
+            }
+        }
         bool isValid() {
             validate();
             return types.end > 1 && *types.base == Geometry::kMove && (bounds.lx != bounds.ux || bounds.ly != bounds.uy);
+        }
+        size_t upperBound(float det) {
+            float s = sqrtf(sqrtf(det < 1e-2f ? 1e-2f : det));
+            size_t cubics = cubicSums == 0 ? 0 : (det < 1.f ? ceilf(s * (cubicSums + 2.f)) : ceilf(s) * cubicSums);
+            return cubics + 2 * (molecules.end + counts[kLine] + counts[kQuadratic] + counts[kCubic]);
         }
         size_t hash() {
             xxhash = xxhash ?: XXH64(points.base, points.end * sizeof(float), XXH64(types.base, types.end * sizeof(uint8_t), 0));
@@ -334,18 +337,20 @@ struct Rasterizer {
             divideGeometry(g, m, Bounds(), true, true, *this);
         }
         void writeSegment(float x0, float y0, float x1, float y1) {
+            (atoms->alloc(1))->i = uint32_t(p16s->end);
+            
             Point16 *p = p16s->alloc(1);
             p->x = fmaxf(0.f, fminf(kMoleculesRange, x0));
             p->y = fmaxf(0.f, fminf(kMoleculesRange, y0));
-            (atoms->alloc(1))->i = uint32_t(p16s->end - 1);
         }
         void Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
+            (atoms->alloc(1))->i = uint32_t(p16s->end);
+            
             Point16 *p = p16s->alloc(2);
             p[0].x = uint16_t(fmaxf(0.f, fminf(kMoleculesRange, x0))) | Point16::isCurve;
             p[0].y = fmaxf(0.f, fminf(kMoleculesRange, y0));
             p[1].x = fmaxf(0.f, fminf(kMoleculesRange, 0.5f * x1 + 0.25f * (x0 + x2)));
             p[1].y = fmaxf(0.f, fminf(kMoleculesRange, 0.5f * y1 + 0.25f * (y0 + y2)));
-            (atoms->alloc(1))->i = uint32_t(p16s->end - 2);
         }
         void EndSubpath(float x0, float y0, float x1, float y1, bool closed) {
             Point16 *p = p16s->alloc(1);
