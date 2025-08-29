@@ -202,8 +202,8 @@ struct RasterizerDemo {
         float padding = 0.666 * bnds.height() / (kHudItemCount + 2);
         Ra::Bounds text = bnds.inset(padding, 0.666 * padding);
         
-        Ra::Path p;  p->addBounds(bnds.inset(0.5 * kHudBorder, 0.5 * kHudBorder)), p->close();
-        hud.addPath(p, Ra::Transform(), bgColor, 0, 0);
+        Ra::Path bgPath;  bgPath->addBounds(bnds.inset(0.5 * kHudBorder, 0.5 * kHudBorder)), bgPath->close();
+        hud.addPath(bgPath, Ra::Transform(), bgColor, 0, 0);
         
         float lineHeight = text.height() / kHudItemCount, uy;
         float emSize = lineHeight * float(font.unitsPerEm) / (font.ascent - font.descent + font.lineGap);
@@ -226,7 +226,7 @@ struct RasterizerDemo {
                 label = item.alt;
             font.layoutGlyphs(emSize, 0, color, Ra::Bounds(text.lx + 2 * emSize, text.ly, text.ux, uy), false, true, false, label, hud);
         }
-        hud.addPath(p, Ra::Transform(), textColor, kHudBorder, 0);
+        hud.addPath(bgPath, Ra::Transform(), textColor, kHudBorder, 0);
         return hud;
     }
     Ra::SceneList getDrawList(float w, float h) {
