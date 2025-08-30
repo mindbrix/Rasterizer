@@ -290,7 +290,6 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
     const float ix0 = p->x & Point16::kMask, iy0 = p->y & Point16::kMask;
     const float ix1 = (p + 1)->x & Point16::kMask, iy1 = (p + 1)->y & Point16::kMask;
     const float ix2 = (p + 2)->x & Point16::kMask, iy2 = (p + 2)->y & Point16::kMask;
-    const float offset = 0.5;
     float tx, ty, scale, ma, mb, mc, md, x0, y0, x1, y1, x2, y2, slx, sux, sly, suy;
     tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
     scale = max(b.ux - b.lx, b.uy - b.ly) / kMoleculesRange;
@@ -313,8 +312,8 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
     sux = edge.ux;
     float dx = clamp(select(floor(slx), ceil(sux), vid & 1), float(cell.lx), float(cell.ux));
     float dy = clamp(select(floor(sly), ceil(suy), vid >> 1), float(cell.ly), float(cell.uy));
-    float x = (cell.ox - cell.lx + dx) / *width * 2.0 - 1.0, offx = offset - dx;
-    float y = (cell.oy - cell.ly + dy) / *height * 2.0 - 1.0, offy = offset - dy;
+    float x = (cell.ox - cell.lx + dx) / *width * 2.0 - 1.0, offx = 0.5 - dx;
+    float y = (cell.oy - cell.ly + dy) / *height * 2.0 - 1.0, offy = 0.5 - dy;
     
     vert.position = float4(x, y, 1.0, 1.0);
     vert.x0 = x0 + offx, vert.y0 = y0 + offy;
