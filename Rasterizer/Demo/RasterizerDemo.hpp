@@ -169,14 +169,13 @@ struct RasterizerDemo {
    
 #pragma mark - Properties
     
-    Ra::Scene getHUD() {
+    Ra::Scene getHUD(Ra::Bounds hudBounds) {
         Ra::Scene hud;
+
+        float padding = 0.666 * hudBounds.height() / (kHudItemCount + 2);
+        Ra::Bounds text = hudBounds.inset(padding, 0.666 * padding);
         
-        Ra::Bounds bnds = Ra::Bounds(0, 0, kHudWidth, kHudHeight);
-        float padding = 0.666 * bnds.height() / (kHudItemCount + 2);
-        Ra::Bounds text = bnds.inset(padding, 0.666 * padding);
-        
-        Ra::Path bgPath;  bgPath->addBounds(bnds.inset(0.5 * kHudBorder, 0.5 * kHudBorder)), bgPath->close();
+        Ra::Path bgPath;  bgPath->addBounds(hudBounds.inset(0.5 * kHudBorder, 0.5 * kHudBorder)), bgPath->close();
         hud.addPath(bgPath, Ra::Transform(), bgColor, 0, 0);
         
         float lineHeight = text.height() / kHudItemCount, uy;
@@ -234,9 +233,9 @@ struct RasterizerDemo {
         Ra::SceneList draw = list;
         draw.ctm = ctm, draw.useCurves = useCurves;
         if (showHud) {
-            Ra::Bounds clip = Ra::Bounds(0, 0, kHudWidth, kHudHeight);
+            Ra::Bounds hudBounds = Ra::Bounds(0, 0, kHudWidth, kHudHeight);
             Ra::Transform m = ctm.invert().concat(Ra::Transform(1, 0, 0, 1, kHudInset, bounds.uy - kHudInset - kHudHeight));
-            draw.addScene(getHUD(), m, clip);
+            draw.addScene(getHUD(hudBounds), m, hudBounds);
         }
         return draw;
     }
