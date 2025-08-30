@@ -240,11 +240,11 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
         dst[0] = x0, dst[1] = y0;
     }
     
-    float ux = edge.ux, offset = 0.5;
+    float ux = edge.ux;
     float dx = clamp(select(floor(slx), ux, vid & 1), float(cell.lx), float(cell.ux));
     float dy = clamp(select(floor(sly), ceil(suy), vid >> 1), float(cell.ly), float(cell.uy));
-    float x = (cell.ox - cell.lx + dx) / *width * 2.0 - 1.0, offx = offset - dx;
-    float y = (cell.oy - cell.ly + dy) / *height * 2.0 - 1.0, offy = offset - dy;
+    float x = (cell.ox - cell.lx + dx) / *width * 2.0 - 1.0, offx = 0.5 - dx;
+    float y = (cell.oy - cell.ly + dy) / *height * 2.0 - 1.0, offy = 0.5 - dy;
     vert.position = float4(x, y, 1.0, slx == sux && sly == suy ? 0.0 : 1.0);
     for (dst = & vert.x0, i = 0; i < kFastSegments + 1; i++, dst += 2)
         dst[0] += offx, dst[1] += offy;
