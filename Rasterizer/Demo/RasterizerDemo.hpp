@@ -52,32 +52,6 @@ struct RasterizerDemo {
         HudItem("T", "Time"),
     };
     
-    void writeList(Ra::Bounds bounds) {
-        list = Ra::SceneList();
-        if (pastedString.size) {
-            if (pasted.pathsCount == 0) {
-                Ra::Scene glyphs;
-                font.layoutGlyphs(pointSize, 0.f, textColor, bounds, false, false, false, pastedString.addr, glyphs);
-                pasted.addScene(glyphs);
-            }
-            list.addList(pasted);
-        } else if (showGlyphGrid) {
-            if (text.pathsCount == 0)
-                text.addScene(font.writeGlyphGrid(pointSize, textColor));
-            list.addList(text);
-        } else if (showTime) {
-            list.addList(concentrichron.writeList(font));
-        } else if (svgData.size) {
-            if (document.pathsCount == 0)
-                document.addScene(RasterizerSVG::createScene(svgData.addr, svgData.size)), fit = true;
-            list.addList(document);
-        } else if (pdfData.size) {
-            if (document.pathsCount == 0)
-                document.addList(RasterizerPDF::writeSceneList(pdfData.addr, pdfData.size, pageIndex)), fit = true;
-            list.addList(document);
-        }
-    }
-    
 #pragma mark - Event handlers
 
     void onPaste(const char *string, Ra::Bounds bounds) {
@@ -231,7 +205,29 @@ struct RasterizerDemo {
     }
     Ra::SceneList getDrawList(float w, float h) {
         bounds = Ra::Bounds(0.f, 0.f, w, h);
-        writeList(bounds);
+        list = Ra::SceneList();
+        if (pastedString.size) {
+            if (pasted.pathsCount == 0) {
+                Ra::Scene glyphs;
+                font.layoutGlyphs(pointSize, 0.f, textColor, bounds, false, false, false, pastedString.addr, glyphs);
+                pasted.addScene(glyphs);
+            }
+            list.addList(pasted);
+        } else if (showGlyphGrid) {
+            if (text.pathsCount == 0)
+                text.addScene(font.writeGlyphGrid(pointSize, textColor));
+            list.addList(text);
+        } else if (showTime) {
+            list.addList(concentrichron.writeList(font));
+        } else if (svgData.size) {
+            if (document.pathsCount == 0)
+                document.addScene(RasterizerSVG::createScene(svgData.addr, svgData.size)), fit = true;
+            list.addList(document);
+        } else if (pdfData.size) {
+            if (document.pathsCount == 0)
+                document.addList(RasterizerPDF::writeSceneList(pdfData.addr, pdfData.size, pageIndex)), fit = true;
+            list.addList(document);
+        }
         runTransferFunction(list, transferFunction, this);
         if (fit)
             ctm = bounds.fitTransform(list.bounds()), fit = false;
