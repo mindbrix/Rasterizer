@@ -43,7 +43,7 @@ Pixel area coverage is calculated using a novel windowed-inverse-lerp algorithm.
 
 Stroked paths are rasterized straight to the color buffer using GPU triangulation.
 
-Quadratic Beziér curves are solved on the GPU, enabling coarse curve geometry.
+Quadratic Bézier curves are solved on the GPU, enabling coarse curve geometry.
 
 The CPU stages use simple batch parallelism for efficiency.
 
