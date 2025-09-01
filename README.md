@@ -1,9 +1,11 @@
 Rasterizer
 ========
 
-Rasterizer is a GPU-accelerated 2D vector graphics engine designed for simplicity, efficiency and portability. 
+Inspired by my love of Adobe Flash, I started to work on a GPU-accelerated 2D vector graphics engine for the original iPhone, and then the Mac. Three iterations, and many years later, I have finally released `Rasterizer`. It is up to 60x faster than the CPU, making it ideal for vector animated UI (press the `T` key in the demo app to see an example).
 
 The current implementation targets macOS using C++ 11 and Metal, but it will work on any GPU that supports instancing and floating point render targets.
+
+An iOS port is in the pipelline.
 
 
 Building
