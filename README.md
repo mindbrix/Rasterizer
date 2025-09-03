@@ -72,3 +72,9 @@ License
 -------
 
 This library is licensed under a [personal use zlib license](LICENSE.txt)
+
+
+Tips
+------
+
+You can show appreciation for my work [here](https://paypal.me/mindbrix)
