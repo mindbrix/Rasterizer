@@ -14,9 +14,10 @@
 - (void)lineTo:(float)x y:(float)y;
 - (void)quadTo:(float)x1 y1:(float)y1 x2:(float)x2 y2:(float)y2;
 - (void)cubicTo:(float)x1 y1:(float)y1 x2:(float)x2 y2:(float)y2 x3:(float)x3 y3:(float)y3;
+- (void)close;
+- (void)addCGPath:(CGPathRef)path;
 - (void)addRect:(CGRect)rect;
 - (void)addEllipse:(CGRect)rect;
-- (void)close;
 @end
 
 enum SceneFlags {
@@ -25,11 +26,13 @@ enum SceneFlags {
 
 @interface RasterizerScene: NSObject
 - (void)addPath:(RasterizerPath *)path ctm:(CGAffineTransform)ctm color:(CGColorRef)color width:(float)width flags:(NSUInteger)flags;
+- (void)addCGPath:(CGPathRef)cgPath ctm:(CGAffineTransform)ctm color:(CGColorRef)color width:(float)width flags:(NSUInteger)flags;
 @end
 
 @interface RasterizerSceneList: NSObject
 - (void)addList:(RasterizerSceneList *)list;
-- (void)addScene:(RasterizerScene *)scene;// ctm:(CGAffineTransform)ctm clip:(CGRect)clip;
+- (void)addScene:(RasterizerScene *)scene ctm:(CGAffineTransform)ctm;
+- (void)addScene:(RasterizerScene *)scene ctm:(CGAffineTransform)ctm clip:(CGRect)clip;
 @end
 
 

@@ -36,6 +36,29 @@
 - (void)addEllipse:(CGRect)rect {
     _path->addEllipse(RaCG::BoundsFromCGRect(rect));
 }
+- (void)addCGPath:(CGPathRef)path {
+    CGPathApplyWithBlock(path, ^(const CGPathElement *element){
+        switch (element->type) {
+            case kCGPathElementMoveToPoint:
+                _path->moveTo(element->points[0].x, element->points[0].y);
+                break;
+            case kCGPathElementAddLineToPoint:
+                _path->lineTo(element->points[0].x, element->points[0].y);
+                break;
+            case kCGPathElementAddQuadCurveToPoint:
+                _path->quadTo(element->points[0].x, element->points[0].y, element->points[1].x, element->points[1].y);
+                break;
+            case kCGPathElementAddCurveToPoint:
+                _path->cubicTo(element->points[0].x, element->points[0].y, element->points[1].x, element->points[1].y, element->points[2].x, element->points[2].y);
+                break;
+            case kCGPathElementCloseSubpath:
+                _path->close();
+                break;
+            default:
+                break;
+        }
+    });
+}
 
 @end
 
@@ -51,6 +74,11 @@
                    width,
                    flags);
 }
+- (void)addCGPath:(CGPathRef)cgPath ctm:(CGAffineTransform)ctm color:(CGColorRef)color width:(float)width flags:(NSUInteger)flags {
+    RasterizerPath *path = [RasterizerPath new];
+    [path addCGPath:cgPath];
+    [self addPath:path ctm:ctm color:color width:width flags:flags];
+}
 
 @end
 
@@ -62,8 +90,11 @@
 - (void)addList:(RasterizerSceneList *)list {
     _list.addList(list.list);
 }
-- (void)addScene:(RasterizerScene *)scene {
-    _list.addScene(scene.scene);
+- (void)addScene:(RasterizerScene *)scene ctm:(CGAffineTransform)ctm {
+    _list.addScene(scene.scene, RaCG::transformFromCG(ctm));
+}
+- (void)addScene:(RasterizerScene *)scene ctm:(CGAffineTransform)ctm clip:(CGRect)clip {
+    _list.addScene(scene.scene, RaCG::transformFromCG(ctm), RaCG::BoundsFromCGRect(clip));
 }
 
 @end
@@ -74,17 +105,25 @@
 @implementation RasterizerObjCTest: NSObject
 
 - (RasterizerSceneList *)test0 {
+    CGRect rect = CGRectMake(0, 0, 100, 100);
+    CGMutablePathRef cgPath = CGPathCreateMutable();
+    CGPathAddEllipseInRect(cgPath, NULL, rect);
+    
     RasterizerPath *path = [RasterizerPath new];
-    [path addEllipse:CGRectMake(0, 0, 100, 100)];
+    [path addCGPath:cgPath];
+    CGPathRelease(cgPath);
     
     CGFloat components[] = { 1, 0, 0, 1 };
-    CGColorRef color = CGColorCreate(CGColorSpaceCreateDeviceRGB(), components);
+    CGColorSpaceRef rgb = CGColorSpaceCreateDeviceRGB();
+    CGColorRef color = CGColorCreate(rgb, components);
     
     RasterizerScene *scene = [RasterizerScene new];
     [scene addPath:path ctm:CGAffineTransformIdentity color:color width:0 flags:0];
+    CGColorRelease(color);
+    CGColorSpaceRelease(rgb);
     
     RasterizerSceneList *list = [RasterizerSceneList new];
-    [list addScene:scene];
+    [list addScene:scene ctm:CGAffineTransformMakeScale(4, 4)];
     return list;
 }
 
