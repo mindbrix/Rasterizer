@@ -23,6 +23,7 @@
 		E971DB2D218495AA005AE5E5 /* Rasterizer.icns in Resources */ = {isa = PBXBuildFile; fileRef = E971DB2C218495AA005AE5E5 /* Rasterizer.icns */; };
 		E990649221C2E11500D2DBF2 /* RasterizerLayer.mm in Sources */ = {isa = PBXBuildFile; fileRef = E990649121C2E11500D2DBF2 /* RasterizerLayer.mm */; };
 		E990649421C2FE3600D2DBF2 /* Shaders.metal in Sources */ = {isa = PBXBuildFile; fileRef = E990649321C2FE3600D2DBF2 /* Shaders.metal */; };
+		E9D983FB2E68B4A10053A2C8 /* RasterizerObjC.mm in Sources */ = {isa = PBXBuildFile; fileRef = E9D983FA2E68B4A10053A2C8 /* RasterizerObjC.mm */; };
 		E9E8285B2B17555800FABD81 /* RasterizerView.mm in Sources */ = {isa = PBXBuildFile; fileRef = E9E8285A2B17555800FABD81 /* RasterizerView.mm */; };
 		E9E9600727D65BF800E06451 /* RasterizerPDF.hpp in Sources */ = {isa = PBXBuildFile; fileRef = E9E9600627D65BF800E06451 /* RasterizerPDF.hpp */; };
 /* End PBXBuildFile section */
@@ -84,6 +85,9 @@
 		E9CB3A1827D601FB00A02A2D /* fpdf_progressive.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fpdf_progressive.h; sourceTree = "<group>"; };
 		E9CB3A1927D601FB00A02A2D /* fpdf_dataavail.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fpdf_dataavail.h; sourceTree = "<group>"; };
 		E9CB3A1A27D601FB00A02A2D /* fpdf_thumbnail.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fpdf_thumbnail.h; sourceTree = "<group>"; };
+		E9D983FA2E68B4A10053A2C8 /* RasterizerObjC.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = RasterizerObjC.mm; sourceTree = "<group>"; };
+		E9D983FC2E68B4D80053A2C8 /* RasterizerObjC.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = RasterizerObjC.h; sourceTree = "<group>"; };
+		E9D983FD2E6985B60053A2C8 /* RasterizerObjC+Internal.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "RasterizerObjC+Internal.h"; sourceTree = "<group>"; };
 		E9E36F08223A722100F6533A /* Concentrichron.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Concentrichron.hpp; sourceTree = "<group>"; };
 		E9E8285A2B17555800FABD81 /* RasterizerView.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = RasterizerView.mm; sourceTree = "<group>"; };
 		E9E8285C2B17559600FABD81 /* RasterizerView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = RasterizerView.h; sourceTree = "<group>"; };
@@ -184,6 +188,9 @@
 		E970B9092E17DD6A00E9A7B1 /* Apple */ = {
 			isa = PBXGroup;
 			children = (
+				E9D983FC2E68B4D80053A2C8 /* RasterizerObjC.h */,
+				E9D983FD2E6985B60053A2C8 /* RasterizerObjC+Internal.h */,
+				E9D983FA2E68B4A10053A2C8 /* RasterizerObjC.mm */,
 				E946C9D1217F0F8B004582CC /* RasterizerCG.hpp */,
 				E9AAAF1224689BCC00EFB51B /* RasterizerRenderer.hpp */,
 				E990649021C2E11500D2DBF2 /* RasterizerLayer.h */,
@@ -335,6 +342,7 @@
 				E91ADF9422425C3000729DA0 /* stb_truetype.c in Sources */,
 				E990649221C2E11500D2DBF2 /* RasterizerLayer.mm in Sources */,
 				E9E8285B2B17555800FABD81 /* RasterizerView.mm in Sources */,
+				E9D983FB2E68B4A10053A2C8 /* RasterizerObjC.mm in Sources */,
 				E920A5AC21762BCE00F52C25 /* main.m in Sources */,
 				E9710C4C24CF975B00F31953 /* xxhash.c in Sources */,
 				E920A59E21762BCD00F52C25 /* AppDelegate.m in Sources */,

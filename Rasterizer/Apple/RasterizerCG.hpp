@@ -136,6 +136,21 @@ struct RasterizerCG {
         }
     }
     
+    static Ra::Colorant colorantFromCG(CGColorRef color) {
+        size_t count = CGColorGetNumberOfComponents(color);
+        const CGFloat *components = CGColorGetComponents(color);
+        uint8_t b = 0, g = 0, r = 0, a = 255;
+        if (count == 2) {
+            b = g = r = 255 * components[0];
+            a = 255 * components[1];
+        } else if (count == 4) {
+            b = 255 * components[2];
+            g = 255 * components[1];
+            r = 255 * components[0];
+            a = 255 * components[3];
+        }
+        return Ra::Colorant(b, g, r, a);
+    }
     static Ra::Transform transformFromCG(CGAffineTransform t) {
         return Ra::Transform(float(t.a), float(t.b), float(t.c), float(t.d), float(t.tx), float(t.ty));
     }

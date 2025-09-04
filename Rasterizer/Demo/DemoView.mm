@@ -21,6 +21,7 @@
 #import "DemoView.h"
 #import "RasterizerCG.hpp"
 #import "RasterizerDemo.hpp"
+#import "RasterizerObjC+Internal.h"
 
 @interface DemoView () <NSFontChanging, ListDelegate>
 
@@ -94,7 +95,9 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 #pragma mark - ListDelegate
 
 - (Ra::SceneList)getList: (float)width height:(float) height {
-    return _demo.getDrawList(width, height);
+    RasterizerObjCTest *test = [RasterizerObjCTest new];
+    return test.test0.list;
+//    return _demo.getDrawList(width, height);
 }
 
 
