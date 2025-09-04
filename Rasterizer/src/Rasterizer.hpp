@@ -470,7 +470,7 @@ struct Rasterizer {
         };
         ~Buffer() { if (base) free(base); }
         
-        void prepare(SceneList& list) {
+        void prepare(const SceneList& list) {
             pathsCount = list.pathsCount;
             size_t i, sizes[] = { sizeof(Colorant), sizeof(Transform), sizeof(Transform), sizeof(float), sizeof(Bounds) };
             size_t count = sizeof(sizes) / sizeof(*sizes), base = 0, bases[count];
@@ -528,7 +528,7 @@ struct Rasterizer {
     };
     
     struct Context {
-        void drawList(SceneList& list, Bounds device, Transform view, size_t slz, size_t suz, Buffer *buffer) {
+        void drawList(const SceneList& list, Bounds device, Transform view, size_t slz, size_t suz, Buffer *buffer) {
             empty(), allocator.empty(device);
             size_t fatlines = 1.f + ceilf((device.uy - device.ly) * krfh);
             if (samples.size() != fatlines)
@@ -545,7 +545,7 @@ struct Rasterizer {
             size_t lz, uz, i, clz, cuz, iz, is, size, cnt;  uint8_t flags;
             float det, width, uw, softclipMargin = 0.5f;
             for (lz = uz = i = 0; i < list.scenes.size(); i++, lz = uz) {
-                Scene *scn = & list.scenes[i];
+                const Scene *scn = & list.scenes[i];
                 uz = lz + scn->count, clz = lz < slz ? slz : lz > suz ? suz : lz, cuz = uz < slz ? slz : uz > suz ? suz : uz;
                 Transform ctm = view.concat(list.ctms[i]), clipquad, m, quad, invclip;
                 Bounds dev, clip, *bnds, clipBounds, sceneclip = list.clips[i], lastClip;
@@ -1041,7 +1041,7 @@ struct Rasterizer {
         }
         uint32_t iz;  Instance *dst0, *dst;
     };
-    static size_t resizeBuffer(SceneList& list, Context *contexts, size_t count, size_t *begins, Buffer& buffer) {
+    static size_t resizeBuffer(const SceneList& list, Context *contexts, size_t count, size_t *begins, Buffer& buffer) {
         size_t size = buffer.headerSize, begin = buffer.headerSize, end = begin, sz, i, j, instances;
         for (i = 0; i < count; i++)
             size += contexts[i].opaques.end * sizeof(Instance);
@@ -1059,7 +1059,7 @@ struct Rasterizer {
             new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::kOpaques, begin, end);
         return size;
     }
-    static void writeContextToBuffer(SceneList& list, Context *ctx, size_t begin, Buffer& buffer) {
+    static void writeContextToBuffer(const SceneList& list, Context *ctx, size_t begin, Buffer& buffer) {
         size_t i, j, count, size, ip, iz, is, lz, ic, end, pbase = 0, instbegin, passsize;
         if (ctx->segments.end || ctx->p16total) {
             size = ctx->segments.end * sizeof(Segment), end = begin + size;

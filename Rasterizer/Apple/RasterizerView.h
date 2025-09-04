@@ -19,11 +19,11 @@
 //
 
 #import <Cocoa/Cocoa.h>
-#import "Rasterizer.hpp"
+#import "RasterizerObjC.h"
 
 
 @protocol ListDelegate <NSObject>
-- (Ra::SceneList)getList: (float)width height:(float) height;
+- (RasterizerSceneList *)getList: (float)width height:(float) height;
 @end
 
 

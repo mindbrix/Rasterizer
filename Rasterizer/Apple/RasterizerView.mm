@@ -21,6 +21,7 @@
 #import "RasterizerView.h"
 #import "RasterizerLayer.h"
 #import "RasterizerRenderer.hpp"
+#import "RasterizerObjC+Internal.h"
 
 
 @interface RasterizerView () <CALayerDelegate, LayerDelegate>
@@ -46,9 +47,9 @@
 - (CGColorSpaceRef)writeBuffer:(Ra::Buffer *)buffer forLayer:(CALayer *)layer {
     if ([self.listDelegate respondsToSelector:@selector(getList:height:)]) {
         float scale = self.layer.contentsScale, w = self.bounds.size.width, h = self.bounds.size.height;
-        Ra::SceneList list = [self.listDelegate getList: w
-                                                height: h];
-        _renderer.renderList(list, scale, w, h, buffer);
+        RasterizerSceneList *list = [self.listDelegate getList: w
+                                                        height: h];
+        _renderer.renderList(list.list, scale, w, h, buffer);
     }
     return self.window.colorSpace.CGColorSpace;
 }
@@ -58,9 +59,9 @@
 - (void)drawLayer:(CALayer *)layer inContext:(CGContextRef)ctx {
     if ([self.listDelegate respondsToSelector:@selector(getList:height:)]) {
         float scale = self.layer.contentsScale, w = self.bounds.size.width, h = self.bounds.size.height;
-        Ra::SceneList list = [self.listDelegate getList: w
-                                                height: h];
-        RaCG::renderListToBitmap(list, scale, w, h, ctx);
+        RasterizerSceneList *list = [self.listDelegate getList: w
+                                                        height: h];
+        RaCG::renderListToBitmap(list.list, scale, w, h, ctx);
     }
 }
 

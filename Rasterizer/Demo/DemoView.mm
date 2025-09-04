@@ -94,10 +94,10 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 
 #pragma mark - ListDelegate
 
-- (Ra::SceneList)getList: (float)width height:(float) height {
-    RasterizerObjCTest *test = [RasterizerObjCTest new];
-    return test.test0.list;
-//    return _demo.getDrawList(width, height);
+- (RasterizerSceneList *)getList: (float)width height:(float) height {
+    RasterizerSceneList *list = [RasterizerSceneList new];
+    list.list = _demo.getDrawList(width, height);
+    return list;
 }
 
 

@@ -20,7 +20,7 @@
 
 struct RasterizerRenderer {
     
-    void renderList(Ra::SceneList& list, float scale, float w, float h, Ra::Buffer *buffer) {
+    void renderList(const Ra::SceneList& list, float scale, float w, float h, Ra::Buffer *buffer) {
         Ra::Bounds device(0.f, 0.f, ceilf(scale * w), ceilf(scale * h));
         Ra::Transform view = Ra::Transform(scale, 0.f, 0.f, scale, 0.f, 0.f).concat(list.ctm);
         
@@ -45,7 +45,7 @@ struct RasterizerRenderer {
         assert(size >= end);
     }
     
-    void writeBalancedWeightDivisions(Ra::SceneList& list, size_t *divisions) {
+    void writeBalancedWeightDivisions(const Ra::SceneList& list, size_t *divisions) {
         size_t total = 0, count, si, i, iz, target;
         for (int j = 0; j < list.scenes.size(); j++)
             total += list.scenes[j].weight;

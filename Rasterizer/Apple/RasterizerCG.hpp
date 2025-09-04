@@ -75,7 +75,7 @@ struct RasterizerCG {
         return dev.lx < dev.ux && dev.ly < dev.uy && soft.lx < 1.f && soft.ux > 0.f && soft.ly < 1.f && soft.uy > 0.f;
     }
     
-    static void renderListToBitmap(Ra::SceneList& list, float scale, float w, float h, CGContextRef ctx) {
+    static void renderListToBitmap(const Ra::SceneList& list, float scale, float w, float h, CGContextRef ctx) {
         memset_pattern4(CGBitmapContextGetData(ctx), & list.clearColor.b, CGBitmapContextGetBytesPerRow(ctx) * CGBitmapContextGetHeight(ctx));
         
         if (!list.useCurves)
@@ -83,7 +83,7 @@ struct RasterizerCG {
         renderList(list, Ra::Bounds(0, 0, w, h), ctx);
     }
     
-    static void renderList(Ra::SceneList& list, Ra::Bounds bounds, CGContextRef ctx) {
+    static void renderList(const Ra::SceneList& list, Ra::Bounds bounds, CGContextRef ctx) {
         CGContextConcatCTM(ctx, CGFromTransform(list.ctm));
         
         for (int j = 0; j < list.scenes.size(); j++) {
@@ -94,7 +94,7 @@ struct RasterizerCG {
             CGContextClipToRect(ctx, CGRectFromBounds(list.clips[j]));
             CGContextSaveGState(ctx);
             
-            Ra::Scene& scn = list.scenes[j];
+            const Ra::Scene& scn = list.scenes[j];
             for (size_t i = 0; i < scn.count; i++) {
                 if (scn.flags->base[i] & Ra::Scene::Flags::kInvisible)
                     continue;
