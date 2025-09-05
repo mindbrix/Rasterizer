@@ -67,6 +67,10 @@
 
 @implementation RasterizerScene: NSObject
 
+- (CGRect)bounds {
+    return RaCG::CGRectFromBounds(_scene.bounds());
+}
+
 - (void)addPath:(RasterizerPath *)path ctm:(CGAffineTransform)ctm color:(CGColorRef)color width:(float)width flags:(NSUInteger)flags {
     _scene.addPath(path.path,
                    RaCG::transformFromCG(ctm),
@@ -86,6 +90,18 @@
 #pragma mark - RasterizerScene
 
 @implementation RasterizerSceneList: NSObject
+
+- (CGRect)bounds {
+    return RaCG::CGRectFromBounds(_list.bounds());
+}
+
+- (CGAffineTransform)ctm {
+    return RaCG::CGFromTransform(_list.ctm);
+}
+
+- (void)setCtm:(CGAffineTransform)ctm {
+    _list.ctm = RaCG::transformFromCG(ctm);
+}
 
 - (void)addList:(RasterizerSceneList *)list {
     _list.addList(list.list);

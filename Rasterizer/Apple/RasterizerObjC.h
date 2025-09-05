@@ -25,11 +25,16 @@ enum SceneFlags {
 };
 
 @interface RasterizerScene: NSObject
+@property(nonatomic, readonly) CGRect bounds;
+
 - (void)addPath:(RasterizerPath *)path ctm:(CGAffineTransform)ctm color:(CGColorRef)color width:(float)width flags:(NSUInteger)flags;
 - (void)addCGPath:(CGPathRef)cgPath ctm:(CGAffineTransform)ctm color:(CGColorRef)color width:(float)width flags:(NSUInteger)flags;
 @end
 
 @interface RasterizerSceneList: NSObject
+@property(nonatomic, readonly) CGRect bounds;
+@property(nonatomic) CGAffineTransform ctm;
+
 - (void)addList:(RasterizerSceneList *)list;
 - (void)addScene:(RasterizerScene *)scene ctm:(CGAffineTransform)ctm;
 - (void)addScene:(RasterizerScene *)scene ctm:(CGAffineTransform)ctm clip:(CGRect)clip;
