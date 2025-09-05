@@ -36,28 +36,8 @@
 - (void)addEllipse:(CGRect)rect {
     _path->addEllipse(RaCG::BoundsFromCGRect(rect));
 }
-- (void)addCGPath:(CGPathRef)path {
-    CGPathApplyWithBlock(path, ^(const CGPathElement *element){
-        switch (element->type) {
-            case kCGPathElementMoveToPoint:
-                _path->moveTo(element->points[0].x, element->points[0].y);
-                break;
-            case kCGPathElementAddLineToPoint:
-                _path->lineTo(element->points[0].x, element->points[0].y);
-                break;
-            case kCGPathElementAddQuadCurveToPoint:
-                _path->quadTo(element->points[0].x, element->points[0].y, element->points[1].x, element->points[1].y);
-                break;
-            case kCGPathElementAddCurveToPoint:
-                _path->cubicTo(element->points[0].x, element->points[0].y, element->points[1].x, element->points[1].y, element->points[2].x, element->points[2].y);
-                break;
-            case kCGPathElementCloseSubpath:
-                _path->close();
-                break;
-            default:
-                break;
-        }
-    });
+- (void)addCGPath:(CGPathRef)cgPath {
+    RaCG::writeCGPathToPath(cgPath, _path);
 }
 
 @end
@@ -139,7 +119,8 @@
     CGColorSpaceRelease(rgb);
     
     RasterizerSceneList *list = [RasterizerSceneList new];
-    [list addScene:scene ctm:CGAffineTransformMakeScale(4, 4)];
+    [list addScene:scene ctm:CGAffineTransformIdentity clip:CGRectInset(rect, 10, 10)];
+    list.ctm = CGAffineTransformMakeScale(4, 4);
     return list;
 }
 

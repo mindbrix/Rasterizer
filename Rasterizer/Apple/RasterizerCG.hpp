@@ -163,6 +163,29 @@ struct RasterizerCG {
     static CGRect CGRectFromBounds(Ra::Bounds bounds) {
         return CGRectMake(bounds.lx, bounds.ly, bounds.ux - bounds.lx, bounds.uy - bounds.ly);
     }
+    static void writeCGPathToPath(CGPathRef cgPath, Ra::Path path) {
+        CGPathApplyWithBlock(cgPath, ^(const CGPathElement *element){
+            switch (element->type) {
+                case kCGPathElementMoveToPoint:
+                    path->moveTo(element->points[0].x, element->points[0].y);
+                    break;
+                case kCGPathElementAddLineToPoint:
+                    path->lineTo(element->points[0].x, element->points[0].y);
+                    break;
+                case kCGPathElementAddQuadCurveToPoint:
+                    path->quadTo(element->points[0].x, element->points[0].y, element->points[1].x, element->points[1].y);
+                    break;
+                case kCGPathElementAddCurveToPoint:
+                    path->cubicTo(element->points[0].x, element->points[0].y, element->points[1].x, element->points[1].y, element->points[2].x, element->points[2].y);
+                    break;
+                case kCGPathElementCloseSubpath:
+                    path->close();
+                    break;
+                default:
+                    break;
+            }
+        });
+    }
     static void writePathToCGContext(Ra::Geometry *g, CGContextRef ctx) {
         for (size_t index = 0; index < g->types.end; ) {
             float *p = g->points.base + index * 2;
