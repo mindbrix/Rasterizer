@@ -188,7 +188,11 @@ struct RasterizerPDF {
         FPDF_InitLibraryWithConfig(&config);
         
         FPDF_DOCUMENT doc = FPDF_LoadMemDocument(bytes, int(size), NULL);
-        return doc ? FPDF_GetPageCount(doc) : 0;
+        int count = doc ? FPDF_GetPageCount(doc) : 0;
+        FPDF_CloseDocument(doc);
+        FPDF_DestroyLibrary();
+        
+        return count;
     }
     
     static Ra::SceneList writeSceneList(const void *bytes, size_t size, size_t pageIndex) {
