@@ -76,6 +76,9 @@ struct Edge {
 
 // https://www.shadertoy.com/view/4dsfRS
 
+// Squared distance to a quadratic Bézier curve using Cardano's formula
+// Algorithm: Solves the cubic equation to find the closest point on the curve
+// Uses numerical stabilization for degenerate cases near inflection points
 float sqBezier(float2 p0, float2 p1, float2 p2) {
     // Calculate roots.
     float2 vb = p1 - p0, va, vc = { p0.y - p2.y, p2.x - p0.x }, rp1;
@@ -106,6 +109,9 @@ float sqBezier(float2 p0, float2 p1, float2 p2) {
     return min(dot(pt0, pt0), dot(pt1, pt1));
 }
 
+// Distance-based winding contribution calculation
+// Algorithm: Computes anti-aliased coverage using distance from line to pixel center
+// Uses normalized distance to line segment with coverage scaling by window height
 float dwinding(float x0, float y0, float x1, float y1, float w0, float w1) {
     float cover, s, wm, dx, ax, dy, ay, dist;
     cover = w1 - w0, s = 1.0 / cover, wm = 0.5 * (w0 + w1);
@@ -167,6 +173,9 @@ struct OpaquesVertex
     float4 color;
 };
 
+// Vertex shader for rendering solid filled shapes without anti-aliasing
+// Algorithm: Simple quad rendering with depth sorting for overlapping paths
+// Transforms instance cells to screen space and assigns colors by path index
 vertex OpaquesVertex opaques_vertex_main(const device Colorant *colors [[buffer(0)]],
                                          const device Instance *instances [[buffer(1)]],
                                          constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
@@ -187,6 +196,8 @@ vertex OpaquesVertex opaques_vertex_main(const device Colorant *colors [[buffer(
     return vert;
 }
 
+// Fragment shader for opaque shape rendering
+// Algorithm: Direct color output without blending or anti-aliasing
 fragment float4 opaques_fragment_main(OpaquesVertex vert [[stage_in]])
 {
     return vert.color;
@@ -200,6 +211,10 @@ struct FastMoleculesVertex
     float x0, y0, x1, y1, x2, y2, x3, y3, x4, y4;
 };
 
+// Vertex shader for fast linear segment molecules (small path segments)
+// Algorithm: Transforms up to 4 line segments from path space to screen space
+// Optimizes small fills by batch-processing multiple segments per instance
+// Computes tight bounding boxes and applies coordinate transformations
 vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [[buffer(1)]],
                                 const device Segment *segments [[buffer(2)]],
                                 const device Transform *ctms [[buffer(4)]],
@@ -251,6 +266,9 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
     return vert;
 }
 
+// Fragment shader for fast molecule anti-aliasing
+// Algorithm: Sums winding contributions from up to 4 linear segments
+// Uses the lineWinding function for sub-pixel accurate coverage calculation
 fragment float4 fast_molecules_fragment_main(FastMoleculesVertex vert [[stage_in]])
 {
     return lineWinding(vert.x0, vert.y0, vert.x1, vert.y1)
@@ -269,6 +287,10 @@ struct QuadMoleculesVertex
     bool isCurve;
 };
 
+// Vertex shader for quadratic curve molecules
+// Algorithm: Processes single quadratic Bézier curve or linear segment
+// Converts curve control points to proper quadratic form with midpoint adjustment
+// Transforms from compressed 16-bit coordinates to screen space
 vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [[buffer(1)]],
                                 const device Segment *segments [[buffer(2)]],
                                 const device Transform *ctms [[buffer(4)]],
@@ -323,6 +345,9 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
     return vert;
 }
 
+// Fragment shader for quadratic curve anti-aliasing
+// Algorithm: Computes exact winding contribution for quadratic Bézier curves
+// Uses analytical quadratic winding calculation for sub-pixel accuracy
 fragment float4 quad_molecules_fragment_main(QuadMoleculesVertex vert [[stage_in]])
 {
     return quadraticWinding(vert.x0, vert.y0, vert.x1, vert.y1, vert.x2, vert.y2);
@@ -337,6 +362,10 @@ struct EdgesVertex
     uint32_t idx0, idx1;
 };
 
+// Vertex shader for edge-based rendering (fat scanlines algorithm)
+// Algorithm: Processes pairs of path segments that span cell boundaries
+// Computes optimal bounding rectangles for segments, handling both linear and quadratic curves
+// Used for larger fills where molecule approach becomes inefficient
 vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
                                      const device Segment *segments [[buffer(2)]],
                                      const device Transform *ctms [[buffer(4)]],
@@ -396,6 +425,9 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
     return vert;
 }
 
+// Fragment shader for fast edge rendering (linear segments only)
+// Algorithm: Processes up to 2 line segments per pixel for scanline rendering
+// Part of the fat scanlines algorithm for efficient large area filling
 fragment float4 fast_edges_fragment_main(
                                          EdgesVertex vert [[stage_in]],
                                          const device Segment *segments [[buffer(2)]],
@@ -419,6 +451,9 @@ fragment float4 fast_edges_fragment_main(
     return winding;
 }
 
+// Fragment shader for quadratic edge rendering
+// Algorithm: Handles both linear and quadratic segments in scanline rendering
+// Uses appropriate winding calculation based on segment type
 fragment float4 quad_edges_fragment_main(
                                          EdgesVertex vert [[stage_in]],
                                          const device Segment *segments [[buffer(2)]],
@@ -450,6 +485,11 @@ struct InstancesVertex
     uint32_t iz, iid;
 };
 
+// Main vertex shader for path instance rendering
+// Algorithm: Handles both filled shapes and stroked outlines with complex geometry
+// For strokes: Computes miter joints, end caps, and curve thickness compensation
+// For fills: Transforms cell quads and prepares for mask buffer sampling
+// Implements sophisticated stroke geometry with proper joins and caps
 vertex InstancesVertex instances_vertex_main(
             const device Instance *instances [[buffer(1)]],
             const device Transform *ctms [[buffer(4)]],
@@ -551,6 +591,11 @@ vertex InstancesVertex instances_vertex_main(
     return vert;
 }
 
+// Main fragment shader for final path rendering
+// Algorithm: Combines stroke and fill rendering with clipping and blending
+// For strokes: Uses distance fields and caps for anti-aliased edges
+// For fills: Samples mask buffer and applies even-odd or non-zero winding rules
+// Implements analytical clipping with sub-pixel accuracy
 fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
                                         const device Colorant *colors [[buffer(0)]],
                                         const device Instance *instances [[buffer(1)]],
