@@ -24,7 +24,8 @@ public class SwiftDemoView: RasterizerView, ListDelegate {
 
 struct SwiftDemo {
     var test0: RasterizerSceneList {
-        let dim = 100
+        let dim = 100.0
+        let inset = 0.1 * dim
         let rect = CGRect(x: 0, y: 0, width: dim, height: dim)
         let path = RasterizerPath()
         path.addEllipse(rect)
@@ -34,7 +35,7 @@ struct SwiftDemo {
         scene.add(path, ctm: .identity, color: color, width: 0, flags: 0)
         
         let list = RasterizerSceneList()
-        list.add(scene, ctm: .identity)
+        list.add(scene, ctm: .identity, clip: rect.insetBy(dx: inset, dy: inset))
         list.ctm = CGAffineTransform(scaleX: 4, y: 4)
         
         return list
