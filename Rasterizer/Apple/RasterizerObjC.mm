@@ -23,6 +23,9 @@
     return self;
 }
 
+- (CGRect)bounds {
+    return RaCG::CGRectFromBounds(_path->bounds);
+}
 - (void)moveTo:(float)x y:(float)y {
     _path->moveTo(x, y);
 }

@@ -24,6 +24,8 @@ public class SwiftDemoView: RasterizerView, ListDelegate {
 
 struct SwiftDemo {
     var test0: RasterizerSceneList {
+        let time = 0.1 * Date.timeIntervalSinceReferenceDate
+        let t = time - floor(time)
         let dim = 100.0
         let inset = 0.1 * dim
         let rect = CGRect(x: 0, y: 0, width: dim, height: dim)
@@ -32,12 +34,11 @@ struct SwiftDemo {
         
         let color = CGColor(red: 1, green: 0, blue: 0, alpha: 1)
         let scene = RasterizerScene()
-        scene.add(path, ctm: .identity, color: color, width: 0, flags: 0)
+        scene.add(path, ctm: CGAffineTransform(rotationAngle: t * 2 * Double.pi), color: color, width: 0, flags: 0)
         
         let list = RasterizerSceneList()
         list.add(scene, ctm: .identity, clip: rect.insetBy(dx: inset, dy: inset))
         list.ctm = CGAffineTransform(scaleX: 4, y: 4)
-        
         return list
     }
 }

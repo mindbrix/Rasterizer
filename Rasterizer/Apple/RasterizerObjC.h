@@ -10,6 +10,7 @@
 
 
 @interface RasterizerPath: NSObject
+@property(nonatomic, readonly) CGRect bounds;
 
 - (id)initWithCGPath:(CGPathRef)cgPath;
 - (void)moveTo:(float)x y:(float)y;
