@@ -10,6 +10,8 @@
 
 
 @interface RasterizerPath: NSObject
+
+- (id)initWithCGPath:(CGPathRef)cgPath;
 - (void)moveTo:(float)x y:(float)y;
 - (void)lineTo:(float)x y:(float)y;
 - (void)quadTo:(float)x1 y1:(float)y1 x2:(float)x2 y2:(float)y2;

@@ -15,6 +15,14 @@
 
 @implementation RasterizerPath: NSObject
 
+- (id)initWithCGPath:(CGPathRef)cgPath {
+    self = [super init];
+    if (!self)
+        return nil;
+    [self addCGPath:cgPath];
+    return self;
+}
+
 - (void)moveTo:(float)x y:(float)y {
     _path->moveTo(x, y);
 }
@@ -59,9 +67,11 @@
                    flags);
 }
 - (void)addCGPath:(CGPathRef)cgPath ctm:(CGAffineTransform)ctm color:(CGColorRef)color width:(float)width flags:(NSUInteger)flags {
-    RasterizerPath *path = [RasterizerPath new];
-    [path addCGPath:cgPath];
-    [self addPath:path ctm:ctm color:color width:width flags:flags];
+    [self addPath:[[RasterizerPath alloc] initWithCGPath:cgPath]
+              ctm:ctm
+            color:color
+            width:width
+            flags:flags];
 }
 
 @end
