@@ -22,12 +22,6 @@
 #import "RasterizerObjC.h"
 
 
-@protocol ListDelegate <NSObject>
-- (BOOL)shouldRedrawAtTime:(double)time;
-- (RasterizerSceneList *)getList: (float)width height:(float) height;
-@end
-
-
 @interface RasterizerView : NSView
 @property(weak) id <ListDelegate> listDelegate;
 @property(nonatomic) bool useCG;
