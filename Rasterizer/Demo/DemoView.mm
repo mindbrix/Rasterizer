@@ -60,7 +60,6 @@
 }
 
 - (RasterizerSceneList *)getList: (float)width height:(float) height {
-//    return [RasterizerObjCTest new].test0;
     RasterizerSceneList *list = [RasterizerSceneList new];
     list.list = _demo.getDrawList(width, height);
     return list;

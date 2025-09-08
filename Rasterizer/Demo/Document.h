@@ -20,12 +20,10 @@
 
 #import <Cocoa/Cocoa.h>
 #import "DemoView.h"
-#import "Rasterizer-Swift.h"
 
 @interface Document : NSDocument
 
 @property(nonatomic, strong) IBOutlet DemoView *view;
-//@property(nonatomic, strong) IBOutlet SwiftDemoView *view;
 
 @end
 
