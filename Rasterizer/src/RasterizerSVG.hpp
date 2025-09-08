@@ -38,7 +38,7 @@ struct RasterizerSVG {
         return dx * dx + dy * dy;
     }
     static void writePathFromShape(NSVGshape *shape, float height, Ra::Path& p) {
-        constexpr float tolerance = 1e-2f;  float *pts, dot;  int i;
+        constexpr float tolerance = 1e-6f;  float *pts, dot;  int i;
         size_t count = 0;
         for (NSVGpath *path = shape->paths; path != NULL; path = path->next)
             count += path->npts;
