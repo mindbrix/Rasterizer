@@ -23,6 +23,7 @@
 
 
 @protocol ListDelegate <NSObject>
+- (BOOL)shouldRedrawAtTime:(double)time;
 - (RasterizerSceneList *)getList: (float)width height:(float) height;
 @end
 

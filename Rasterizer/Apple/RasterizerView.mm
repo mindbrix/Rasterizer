@@ -26,9 +26,25 @@
 
 @interface RasterizerView () <CALayerDelegate, LayerDelegate>
 
+@property(nonatomic) CVDisplayLinkRef displayLink;
+@property(nonatomic) dispatch_semaphore_t inflight_semaphore;
 @property(nonatomic) RasterizerRenderer renderer;
+- (void)timerFired:(double)time;
 
 @end
+
+static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink, const CVTimeStamp *now, const CVTimeStamp *outputTime,
+CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
+    RasterizerView *view = (__bridge RasterizerView *)displayLinkContext;
+    @autoreleasepool {
+        if (dispatch_semaphore_wait(view.inflight_semaphore, DISPATCH_TIME_NOW) == 0)
+            dispatch_async(dispatch_get_main_queue(), ^{
+                [view timerFired:[NSDate date].timeIntervalSinceReferenceDate];
+                dispatch_semaphore_signal(view.inflight_semaphore);
+            });
+    }
+    return kCVReturnSuccess;
+}
 
 
 @implementation RasterizerView
@@ -38,9 +54,37 @@
     if (! self)
         return nil;
     self.useCG = false;
+    [self startTimer];
     return self;
 }
 
+- (void)removeFromSuperview {
+    [self stopTimer];
+    [super removeFromSuperview];
+}
+
+
+#pragma mark - CVDisplayLink
+
+- (void)startTimer {
+    _inflight_semaphore = dispatch_semaphore_create(1);
+    CVReturn cvReturn = CVDisplayLinkCreateWithCGDisplay(CGMainDisplayID(), &_displayLink);
+    cvReturn = CVDisplayLinkSetOutputCallback(_displayLink, &OnDisplayLinkFrame, (__bridge void *)self);
+    CVDisplayLinkStart(_displayLink);
+}
+
+- (void)stopTimer {
+    if (_displayLink)
+        CVDisplayLinkStop(_displayLink), CVDisplayLinkRelease(_displayLink), _displayLink = nil;
+}
+
+- (void)timerFired:(double)time {
+    if ([self.listDelegate respondsToSelector:@selector(shouldRedrawAtTime:)]) {
+        if ([self.listDelegate shouldRedrawAtTime:time]) {
+            [self.layer setNeedsDisplay];
+        }
+    }
+}
 
 #pragma mark - LayerDelegate
 
