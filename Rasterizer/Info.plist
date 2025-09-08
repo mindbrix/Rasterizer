@@ -22,7 +22,7 @@
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>
 			<key>NSDocumentClass</key>
-			<string>Document</string>
+			<string>TestDocument</string>
 		</dict>
 		<dict>
 			<key>CFBundleTypeExtensions</key>
