@@ -8,6 +8,20 @@
 
 import Foundation
 
+public class SwiftDemoView: RasterizerView, ListDelegate {
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        listDelegate = self
+    }
+    nonisolated public func shouldRedraw(atTime time: Double) -> Bool {
+        true
+    }
+    
+    nonisolated public func getList(_ width: Float, height: Float) -> RasterizerSceneList! {
+        SwiftDemo().test0
+    }
+}
+
 struct SwiftDemo {
     var test0: RasterizerSceneList {
         let dim = 100

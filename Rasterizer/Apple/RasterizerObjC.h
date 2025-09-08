@@ -43,11 +43,6 @@ enum SceneFlags {
 @end
 
 
-@interface RasterizerObjCTest: NSObject
-@property(nonatomic, readonly) RasterizerSceneList *test0;
-@end
-
-
 @protocol ListDelegate <NSObject>
 - (BOOL)shouldRedrawAtTime:(double)time;
 - (RasterizerSceneList *)getList: (float)width height:(float) height;

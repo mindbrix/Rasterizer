@@ -104,34 +104,3 @@
 }
 
 @end
-
-
-#pragma mark - RasterizerObjCTest
-
-@implementation RasterizerObjCTest: NSObject
-
-- (RasterizerSceneList *)test0 {
-    CGRect rect = CGRectMake(0, 0, 100, 100);
-    CGMutablePathRef cgPath = CGPathCreateMutable();
-    CGPathAddEllipseInRect(cgPath, NULL, rect);
-    
-    RasterizerPath *path = [RasterizerPath new];
-    [path addCGPath:cgPath];
-    CGPathRelease(cgPath);
-    
-    CGFloat components[] = { 1, 0, 0, 1 };
-    CGColorSpaceRef rgb = CGColorSpaceCreateDeviceRGB();
-    CGColorRef color = CGColorCreate(rgb, components);
-    
-    RasterizerScene *scene = [RasterizerScene new];
-    [scene addPath:path ctm:CGAffineTransformIdentity color:color width:0 flags:0];
-    CGColorRelease(color);
-    CGColorSpaceRelease(rgb);
-    
-    RasterizerSceneList *list = [RasterizerSceneList new];
-    [list addScene:scene ctm:CGAffineTransformIdentity clip:CGRectInset(rect, 10, 10)];
-    list.ctm = CGAffineTransformMakeScale(4, 4);
-    return list;
-}
-
-@end
