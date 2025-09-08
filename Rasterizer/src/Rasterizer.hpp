@@ -308,7 +308,7 @@ struct Rasterizer {
             validate();
             return types.end > 1 && *types.base == Geometry::kMove && (bounds.lx != bounds.ux || bounds.ly != bounds.uy);
         }
-        size_t upperBound(float det) {
+        size_t upperBound(float det) const {
             float s = sqrtf(sqrtf(det < 1e-2f ? 1e-2f : det));
             size_t cubics = cubicSums == 0 ? 0 : (det < 1.f ? ceilf(s * (cubicSums + 2.f)) : ceilf(s) * cubicSums);
             return cubics + 2 * (molecules.end + counts[kLine] + counts[kQuadratic] + counts[kCubic]);
@@ -397,7 +397,7 @@ struct Rasterizer {
                 *clips.alloc(1) = clipBounds ? *clipBounds : Bounds::huge();
             }
         }
-        Bounds bounds() {
+        Bounds bounds() const {
             Bounds b;
             for (int i = 0; i < count; i++)
                 if ((flags->base[i] & kInvisible) == 0) {
@@ -412,7 +412,7 @@ struct Rasterizer {
     };
     
     struct SceneList {
-        Bounds bounds() {
+        Bounds bounds() const {
             Bounds b;
             for (int i = 0; i < scenes.size(); i++)
                 b.extend(Bounds(clips[i].intersect(scenes[i].bounds()).quad(ctms[i])));
@@ -502,7 +502,7 @@ struct Rasterizer {
         enum CountType { kFastEdges, kQuadEdges, kFastMolecules, kQuadMolecules };
         struct Pass {
             Pass(size_t idx) : idx(idx) {}
-            size_t count() { return counts[0] + counts[1] + counts[2] + counts[3]; }
+            size_t count() const { return counts[0] + counts[1] + counts[2] + counts[3]; }
             size_t idx, counts[4] = { 0, 0, 0, 0 };
         };
         void empty(Bounds device) {
