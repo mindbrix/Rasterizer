@@ -567,13 +567,14 @@ struct Rasterizer {
                     bnds = & scn->bnds.base[is], quad = bnds->quad(m), dev = Bounds(quad).inset(-width, -width);
                     clip = dev.integral().intersect(clipBounds);
                     if (clip.lx < clip.ux && clip.ly < clip.uy) {
+                        bool unclipped = clip.contains(dev);
+                        bool useMolecules = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight;
                         colors[iz] = scn->colors->base[is];
                         ctms[iz] = m, widths[iz] = width, clips[iz] = invclip;
                         Geometry *g = scn->paths->base[is].ptr;
-                        bool useMolecules = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight;
                         if (width) {
                             Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kOutlines | bool(flags & Scene::kRoundCap) * Instance::kRoundCap | bool(flags & Scene::kSquareCap) * Instance::kSquareCap);
-                            inst->g = g, inst->clip = clip.contains(dev) ? Bounds::huge() : clip.inset(-width, -width);
+                            inst->g = g, inst->clip = unclipped ? Bounds::huge() : clip.inset(-width, -width);
                             if (det > 1e2f) {
                                 SegmentCounter counter;
                                 divideGeometry(g, m, inst->clip, false, false, counter);
@@ -594,7 +595,6 @@ struct Rasterizer {
                             CurveIndexer idxr;
                             idxr.clip = clip, idxr.samples = & samples[0], idxr.fast = fast;
                             idxr.dst = idxr.dst0 = segments.alloc(2 * (det < kMinUpperDet ? g->minUpper : g->upperBound(det)));
-                            bool unclipped = clip.contains(dev);
                             divideGeometry(g, m, clip, unclipped, true, idxr);
                             bool softunclipped = true;
                             if (clipActive) {
