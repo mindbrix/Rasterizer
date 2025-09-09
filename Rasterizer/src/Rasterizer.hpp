@@ -309,8 +309,11 @@ struct Rasterizer {
             return types.end > 1 && *types.base == Geometry::kMove && (bounds.lx != bounds.ux || bounds.ly != bounds.uy);
         }
         size_t upperBound(float det) const {
-            float s = sqrtf(sqrtf(det < 1e-2f ? 1e-2f : det));
-            size_t cubics = cubicSums == 0 ? 0 : (det < 1.f ? ceilf(s * (cubicSums + 2.f)) : ceilf(s) * cubicSums);
+            size_t cubics = 0;
+            if (cubicSums != 0) {
+                float s = sqrtf(sqrtf(fmaxf(1e-2f, det)));
+                cubics = det < 1.f ? ceilf(s * (cubicSums + 2.f)) : ceilf(s) * cubicSums;
+            }
             return cubics + 2 * (molecules.end + counts[kLine] + counts[kQuadratic] + counts[kCubic]);
         }
         size_t hash() {
