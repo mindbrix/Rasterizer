@@ -8,21 +8,23 @@
 
 import Foundation
 
-public class SwiftDemoView: RasterizerView, ListDelegate {
+public class SwiftDemoView: RasterizerView {
+    let demo = SwiftDemo()
+    
     required init?(coder: NSCoder) {
         super.init(coder: coder)
-        listDelegate = self
-    }
-    nonisolated public func shouldRedraw(atTime time: Double) -> Bool {
-        true
-    }
-    
-    nonisolated public func getList(_ width: Float, height: Float) -> RasterizerSceneList! {
-        SwiftDemo().test0
+        listDelegate = demo
     }
 }
 
-struct SwiftDemo {
+class SwiftDemo: NSObject, ListDelegate {
+    nonisolated public func shouldRedraw(atTime time: Double) -> Bool {
+        true
+    }
+    nonisolated public func getList(_ width: Float, height: Float) -> RasterizerSceneList! {
+       test0
+    }
+    
     var test0: RasterizerSceneList {
         let time = 0.1 * Date.timeIntervalSinceReferenceDate
         let t = time - floor(time)
