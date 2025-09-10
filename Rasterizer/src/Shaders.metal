@@ -569,8 +569,8 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
         bool f0 = vert.iz & Instance::kPCurve, f1 = vert.iz & Instance::kNCurve;
         dw = vert.cover;
         x0 = o.x0, y0 = o.y0, x2 = o.x1, y2 = o.y1;
-        x1 = !isCurve || inst.outline.cx == FLT_MAX ? 0.5 * (x0 + x2) : inst.outline.cx;
-        y1 = !isCurve || inst.outline.cy == FLT_MAX ? 0.5 * (y0 + y2) : inst.outline.cy;
+        x1 = isCurve ? inst.outline.cx : 0.5 * (x0 + x2);
+        y1 = isCurve ? inst.outline.cy : 0.5 * (y0 + y2);
         x0 -= vert.u, y0 -= vert.v, x1 -= vert.u, y1 -= vert.v, x2 -= vert.u, y2 -= vert.v;
         
         float bx = x0 - x1, by = y0 - y1, bdot = bx * bx + by * by, rb = rsqrt(bdot);
