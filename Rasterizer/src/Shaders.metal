@@ -603,8 +603,8 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
     }
     Colorant color = colors[vert.iz & kPathIndexMask];
     float clx = vert.clip.x, cly = vert.clip.y, a = dfdx(clx), b = dfdy(clx), c = dfdx(cly), d = dfdy(cly);
-    float s0 = rsqrt(a * a + b * b), s1 = rsqrt(c * c + d * d);
-    float clip = saturate(0.5 + clx * s0) * saturate(0.5 + (1.0 - clx) * s0) * saturate(0.5 + cly * s1) * saturate(0.5 + (1.0 - cly) * s1);
+    float sx = rsqrt(a * a + b * b), sy = rsqrt(c * c + d * d);
+    float clip = saturate(0.5 + clx * sx) * saturate(0.5 + (1.0 - clx) * sx) * saturate(0.5 + cly * sy) * saturate(0.5 + (1.0 - cly) * sy);
     float ma = 0.003921568627 * alpha * vert.alpha * clip;
     return { color.r * ma, color.g * ma, color.b * ma, color.a * ma };
 }
