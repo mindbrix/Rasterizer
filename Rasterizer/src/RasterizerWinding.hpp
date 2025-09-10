@@ -33,8 +33,8 @@ struct RasterizerWinding {
                     
                     Ra::Transform inv = sceneclip.intersect(scene.clips.base[si]).quad(ctm).invert();
                     float ux = inv.a * px + inv.c * py + inv.tx, uy = inv.b * px + inv.d * py + inv.ty;
-                    
-                    if (ux >= 0.f && ux < 1.f && uy >= 0.f && uy < 1.f) {
+                    bool inBounds = fmaxf(fabsf(ux - 0.5f), fabsf(uy - 0.5f)) <= 0.5f;
+                    if (inBounds) {
                         int winding = pointWinding(scene.paths->base[si].ptr, scene.bnds.base[si], ctm.concat(scene.ctms->base[si]), px, py, scene.widths->base[si], scene.flags->base[si]);
                         bool even = scene.flags->base[si] & Ra::Scene::kFillEvenOdd;
                         if ((even && (winding & 1)) || (!even && winding))
@@ -81,7 +81,8 @@ struct RasterizerWinding {
             ay *= dt * dt, f2y = 2.f * ay, f1y = ay + 2.f * (y1 - y0) * dt, y1 = y0;
             while (--count) {
                 x1 += f1x, f1x += f2x, y1 += f1y, f1y += f2y;
-                writeSegment(x0, y0, x1, y1), x0 = x1, y0 = y1;
+                writeSegment(x0, y0, x1, y1);
+                x0 = x1, y0 = y1;
             }
             writeSegment(x0, y0, x2, y2);
         }
@@ -93,8 +94,10 @@ struct RasterizerWinding {
         cntr.quadraticScale = cntr.cubicScale = 1.f;
         Ra::Transform unit = bounds.inset(-uw, -uw).quad(m), inv = unit.invert();
         Ra::Bounds clip = Ra::Bounds(unit);
+        bool visible = clip.lx < clip.ux && clip.ly < clip.uy;
         float ux = inv.a * dx + inv.c * dy + inv.tx, uy = inv.b * dx + inv.d * dy + inv.ty;
-        if (clip.lx < clip.ux && clip.ly < clip.uy && ux >= 0.f && ux <= 1.f && uy >= 0.f && uy <= 1.f) {
+        bool inBounds = fmaxf(fabsf(ux - 0.5f), fabsf(uy - 0.5f)) <= 0.5f;
+        if (visible && inBounds) {
             bool polygon = w != 0.f;
             Ra::divideGeometry(g, m, clip, false, polygon, cntr);
         }
