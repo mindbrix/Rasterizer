@@ -22,7 +22,7 @@
 #import "nanosvg.h"
 
 struct RasterizerSVG {
-    static const bool kWriteOneBigPath = true;
+    static const bool kWriteOneBigPath = false;
     
     static inline Ra::Colorant colorFromSVGColor(int color) {
         return Ra::Colorant((color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF, color >> 24);
