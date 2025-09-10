@@ -170,8 +170,10 @@
     drawableDescriptor.depthAttachment.storeAction = MTLStoreActionStore;
     drawableDescriptor.depthAttachment.clearDepth = 0;
     id <MTLRenderCommandEncoder> commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:drawableDescriptor];
+    
     drawableDescriptor.colorAttachments[0].loadAction = MTLLoadActionLoad;
     drawableDescriptor.depthAttachment.loadAction = MTLLoadActionLoad;
+    
     MTLRenderPassDescriptor *edgesDescriptor = [MTLRenderPassDescriptor renderPassDescriptor];
     edgesDescriptor.colorAttachments[0].texture = _accumulationTexture;
     edgesDescriptor.colorAttachments[0].storeAction = MTLStoreActionStore;
