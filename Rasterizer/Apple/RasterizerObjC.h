@@ -6,6 +6,7 @@
 //  Copyright © 2025 @mindbrix. All rights reserved.
 //
 
+#import <Foundation/Foundation.h>
 #import <CoreGraphics/CoreGraphics.h>
 
 
@@ -23,8 +24,11 @@
 - (void)addEllipse:(CGRect)rect;
 @end
 
-enum SceneFlags {
-    kInvisible = 1 << 0, kFillEvenOdd = 1 << 1, kRoundCap = 1 << 2, kSquareCap = 1 << 3
+typedef NS_ENUM(NSUInteger, SceneFlags) {
+    kInvisible = 1 << 0,
+    kFillEvenOdd = 1 << 1,
+    kRoundCap = 1 << 2,
+    kSquareCap = 1 << 3
 };
 
 @interface RasterizerScene: NSObject
