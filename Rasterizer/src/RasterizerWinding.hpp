@@ -88,14 +88,14 @@ struct RasterizerWinding {
         }
     };
     
-    static int pointWinding(Ra::Geometry *g, Ra::Bounds bounds, Ra::Transform m, float dx, float dy, float w, uint8_t flags) {
+    static int pointWinding(Ra::Geometry *g, Ra::Bounds bounds, Ra::Transform m, float px, float py, float w, uint8_t flags) {
         float ws = m.scale(), uw = w < 0.f ? -w / ws : w;
-        Counter cntr;  cntr.dx = dx, cntr.dy = dy, cntr.dw = w * (w < 0.f ? -1.f : ws), cntr.flags = flags;
+        Counter cntr;  cntr.dx = px, cntr.dy = py, cntr.dw = w * (w < 0.f ? -1.f : ws), cntr.flags = flags;
         cntr.quadraticScale = cntr.cubicScale = 1.f;
         Ra::Transform unit = bounds.inset(-uw, -uw).quad(m), inv = unit.invert();
         Ra::Bounds clip = Ra::Bounds(unit);
         bool visible = clip.lx < clip.ux && clip.ly < clip.uy;
-        float ux = inv.a * dx + inv.c * dy + inv.tx, uy = inv.b * dx + inv.d * dy + inv.ty;
+        float ux = inv.a * px + inv.c * py + inv.tx, uy = inv.b * px + inv.d * py + inv.ty;
         bool inBounds = fmaxf(fabsf(ux - 0.5f), fabsf(uy - 0.5f)) <= 0.5f;
         if (visible && inBounds) {
             bool polygon = w != 0.f;
