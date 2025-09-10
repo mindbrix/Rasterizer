@@ -37,7 +37,9 @@ struct RasterizerWinding {
                     if (inBounds) {
                         int winding = pointWinding(scene.paths->base[si].ptr, scene.bnds.base[si], ctm.concat(scene.ctms->base[si]), px, py, scene.widths->base[si], scene.flags->base[si]);
                         bool even = scene.flags->base[si] & Ra::Scene::kFillEvenOdd;
-                        if ((even && (winding & 1)) || (!even && winding))
+                        int mask = even ? 1 : ~0;
+                        bool inside = (winding & mask) != 0;
+                        if (inside)
                             return Ra::Range(li, si);
                     }
                 }
