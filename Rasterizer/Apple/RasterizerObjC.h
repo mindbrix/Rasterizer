@@ -35,7 +35,9 @@ typedef NS_ENUM(NSUInteger, SceneFlags) {
 @property(nonatomic, readonly) CGRect bounds;
 
 - (void)addPath:(RasterizerPath *)path ctm:(CGAffineTransform)ctm color:(CGColorRef)color width:(float)width flags:(NSUInteger)flags;
+- (void)addPath:(RasterizerPath *)path ctm:(CGAffineTransform)ctm color:(CGColorRef)color width:(float)width flags:(NSUInteger)flags clip:(CGRect)clip;
 - (void)addCGPath:(CGPathRef)cgPath ctm:(CGAffineTransform)ctm color:(CGColorRef)color width:(float)width flags:(NSUInteger)flags;
+- (void)addCGPath:(CGPathRef)cgPath ctm:(CGAffineTransform)ctm color:(CGColorRef)color width:(float)width flags:(NSUInteger)flags clip:(CGRect)clip;
 @end
 
 @interface RasterizerSceneList: NSObject

@@ -26,6 +26,7 @@
 - (CGRect)bounds {
     return RaCG::CGRectFromBounds(_path->bounds);
 }
+
 - (void)moveTo:(float)x y:(float)y {
     _path->moveTo(x, y);
 }
@@ -69,12 +70,29 @@
                    width,
                    flags);
 }
+- (void)addPath:(RasterizerPath *)path ctm:(CGAffineTransform)ctm color:(CGColorRef)color width:(float)width flags:(NSUInteger)flags clip:(CGRect)clip {
+    Ra::Bounds clipBounds = RaCG::BoundsFromCGRect(clip);
+    _scene.addPath(path.path,
+                   RaCG::transformFromCG(ctm),
+                   RaCG::colorantFromCG(color),
+                   width,
+                   flags,
+                   & clipBounds);
+}
 - (void)addCGPath:(CGPathRef)cgPath ctm:(CGAffineTransform)ctm color:(CGColorRef)color width:(float)width flags:(NSUInteger)flags {
     [self addPath:[[RasterizerPath alloc] initWithCGPath:cgPath]
               ctm:ctm
             color:color
             width:width
             flags:flags];
+}
+- (void)addCGPath:(CGPathRef)cgPath ctm:(CGAffineTransform)ctm color:(CGColorRef)color width:(float)width flags:(NSUInteger)flags clip:(CGRect)clip {
+    [self addPath:[[RasterizerPath alloc] initWithCGPath:cgPath]
+              ctm:ctm
+            color:color
+            width:width
+            flags:flags
+             clip:clip];
 }
 
 @end
@@ -87,11 +105,9 @@
 - (CGRect)bounds {
     return RaCG::CGRectFromBounds(_list.bounds());
 }
-
 - (CGAffineTransform)ctm {
     return RaCG::CGFromTransform(_list.ctm);
 }
-
 - (void)setCtm:(CGAffineTransform)ctm {
     _list.ctm = RaCG::transformFromCG(ctm);
 }
