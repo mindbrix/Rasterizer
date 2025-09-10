@@ -563,7 +563,7 @@ struct Rasterizer {
                         clipActive = !lastClip.isHuge() || !sceneclip.isHuge();
                         clipquad = clipActive ? sceneclip.intersect(lastClip).quad(ctm) : Transform(1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f);
                         softclipMargin = 0.5f + 1e-1f / fmaxf(1.f, clipquad.scale());
-                        invclip = clipquad.invert(), invclip.tx -= 0.5f, invclip.ty -= 0.5f;
+                        invclip = clipquad.invert();
                         clipBounds = Bounds(clipquad).integral().intersect(device);
                     }
                     bnds = & scn->bnds.base[is], quad = bnds->quad(m), dev = Bounds(quad).inset(-width, -width);
@@ -601,7 +601,7 @@ struct Rasterizer {
                             bool softunclipped = true;
                             if (clipActive) {
                                 Bounds soft = Bounds(invclip.concat(quad));
-                                softunclipped = fmaxf(fmaxf(fabsf(soft.lx), fabsf(soft.ux)), fmaxf(fabsf(soft.ly), fabsf(soft.uy))) < softclipMargin;
+                                softunclipped = fmaxf(fmaxf(fabsf(soft.lx - 0.5f), fabsf(soft.ux - 0.5f)), fmaxf(fabsf(soft.ly - 0.5f), fabsf(soft.uy - 0.5f))) < softclipMargin;
                             }
                             bool opaque = colors[iz].a == 255 && softunclipped;
                             writeSegmentInstances(clip, flags & Scene::kFillEvenOdd, iz, opaque, fast, *this);

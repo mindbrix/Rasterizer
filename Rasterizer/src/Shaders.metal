@@ -545,7 +545,7 @@ vertex InstancesVertex instances_vertex_main(
     float x = dx / *width * 2.0 - 1.0, y = dy / *height * 2.0 - 1.0;
     float z = kDepthRange * float(iz + 1) / float(*pathCount);
     vert.position = float4(x, y, z, 1.0);
-    vert.clip = 0.5 + float2(dx * clip.a + dy * clip.c + clip.tx, dx * clip.b + dy * clip.d + clip.ty);
+    vert.clip = float2(dx * clip.a + dy * clip.c + clip.tx, dx * clip.b + dy * clip.d + clip.ty);
     vert.alpha = alpha;
     vert.iz = iz | flags;
     return vert;
