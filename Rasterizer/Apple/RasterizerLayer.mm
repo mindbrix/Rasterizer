@@ -154,8 +154,12 @@
     drawableDescriptor.colorAttachments[0].texture = drawable.texture;
     drawableDescriptor.colorAttachments[0].storeAction = MTLStoreActionStore;
     drawableDescriptor.colorAttachments[0].loadAction = MTLLoadActionClear;
-    MTLClearColor clear = MTLClearColorMake(buffer->clearColor.r / 255.0, buffer->clearColor.g / 255.0, buffer->clearColor.b / 255.0, buffer->clearColor.a / 255.0);
-    drawableDescriptor.colorAttachments[0].clearColor = clear;
+    drawableDescriptor.colorAttachments[0].clearColor = MTLClearColorMake(
+        buffer->clearColor.r / 255.0,
+        buffer->clearColor.g / 255.0,
+        buffer->clearColor.b / 255.0,
+        buffer->clearColor.a / 255.0
+    );
     drawableDescriptor.depthAttachment.texture = _depthTexture;
     drawableDescriptor.depthAttachment.loadAction = MTLLoadActionClear;
     drawableDescriptor.depthAttachment.storeAction = MTLStoreActionStore;
