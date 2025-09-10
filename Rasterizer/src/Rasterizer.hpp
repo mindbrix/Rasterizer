@@ -314,13 +314,13 @@ struct Rasterizer {
                 float s = sqrtf(sqrtf(fmaxf(1e-2f, det)));
                 cubics = det < 1.f ? ceilf(s * (cubicSums + 2.f)) : ceilf(s) * cubicSums;
             }
-            return cubics + 2 * (molecules.end + counts[kLine] + counts[kQuadratic] + counts[kCubic]);
+            return cubics + 2 * (counts[kMove] + counts[kLine] + counts[kQuadratic] + counts[kCubic]);
         }
         size_t hash() {
             xxhash = xxhash ?: XXH64(points.base, points.end * sizeof(float), XXH64(types.base, types.end * sizeof(uint8_t), 0));
             return xxhash;
         }
-        size_t refCount, xxhash = 0, minUpper = 0, cubicSums = 0, counts[kCountSize] = { 0, 0, 0, 0, 0 };
+        size_t refCount, xxhash = 0, cubicSums = 0, counts[kCountSize] = { 0, 0, 0, 0, 0 };
         float x0 = 0.f, y0 = 0.f, maxCurve = 0.f;  Row<uint8_t> types;  Row<float> points;
         Bounds bounds;  Row<Bounds> molecules;
         Row<Point16> p16s;  Row<uint8_t> p16cnts;  Row<Atom> atoms;
@@ -395,7 +395,6 @@ struct Rasterizer {
                 count++, weight += g->types.end;
                 if (kMoleculesHeight && g->p16s.end == 0)
                     P16Writer().writeGeometry(g);
-                g->minUpper = g->minUpper ?: g->upperBound(kMinUpperDet);
                 paths->add(path), *bnds.alloc(1) = g->bounds, ctms->add(ctm), colors->add(color), widths->add(width), flags->add(flag);
                 *clips.alloc(1) = clipBounds ? *clipBounds : Bounds::huge();
             }
@@ -583,7 +582,7 @@ struct Rasterizer {
                                 divideGeometry(g, m, inst->clip, false, false, counter);
                                 outlineInstances += counter.count;
                             } else
-                                outlineInstances += (det < kMinUpperDet ? g->minUpper : g->upperBound(det));
+                                outlineInstances += g->upperBound(det);
                         } else if (useMolecules) {
                             bounds[iz] = *bnds, fasts.base[iz]++;
                             bool fast = !buffer->useCurves || g->maxCurve * det < 16.f;
@@ -597,7 +596,7 @@ struct Rasterizer {
                             bool fast = !buffer->useCurves || g->maxCurve * det < 4.f;
                             CurveIndexer idxr;
                             idxr.clip = clip, idxr.samples = & samples[0], idxr.fast = fast;
-                            idxr.dst = idxr.dst0 = segments.alloc(2 * (det < kMinUpperDet ? g->minUpper : g->upperBound(det)));
+                            idxr.dst = idxr.dst0 = segments.alloc(2 * g->upperBound(det));
                             divideGeometry(g, m, clip, unclipped, true, idxr);
                             bool softunclipped = true;
                             if (clipActive) {

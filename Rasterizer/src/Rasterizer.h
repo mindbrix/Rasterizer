@@ -33,7 +33,6 @@
 #define kFastSegments 4
 #define kNullIndex 0xFFFF
 #define kPathIndexMask 0xFFFFFF
-#define kMinUpperDet 16.f
 #define kPageSize 4096
 #define kMiterLimit 1.5
 #define kCubicSolverLimit 5e-2f
