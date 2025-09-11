@@ -199,17 +199,13 @@
 		E970B9092E17DD6A00E9A7B1 /* Apple */ = {
 			isa = PBXGroup;
 			children = (
-				E9D983FC2E68B4D80053A2C8 /* RasterizerObjC.h */,
-				E9D983FD2E6985B60053A2C8 /* RasterizerObjC+Internal.h */,
-				E9D983FA2E68B4A10053A2C8 /* RasterizerObjC.mm */,
+				E9DA7E192E73202C00D209DA /* API */,
 				E946C9D1217F0F8B004582CC /* RasterizerCG.hpp */,
 				E9AAAF1224689BCC00EFB51B /* RasterizerRenderer.hpp */,
 				E990649021C2E11500D2DBF2 /* RasterizerLayer.h */,
 				E990649121C2E11500D2DBF2 /* RasterizerLayer.mm */,
 				E9E8285C2B17559600FABD81 /* RasterizerView.h */,
 				E9E8285A2B17555800FABD81 /* RasterizerView.mm */,
-				E9D983FF2E69998A0053A2C8 /* SwiftDemoView.swift */,
-				E9D983FE2E69998A0053A2C8 /* Rasterizer-Bridging-Header.h */,
 			);
 			path = Apple;
 			sourceTree = "<group>";
@@ -273,6 +269,18 @@
 				E9CB3A1627D601FB00A02A2D /* fpdf_deleters.h */,
 			);
 			path = cpp;
+			sourceTree = "<group>";
+		};
+		E9DA7E192E73202C00D209DA /* API */ = {
+			isa = PBXGroup;
+			children = (
+				E9D983FC2E68B4D80053A2C8 /* RasterizerObjC.h */,
+				E9D983FD2E6985B60053A2C8 /* RasterizerObjC+Internal.h */,
+				E9D983FA2E68B4A10053A2C8 /* RasterizerObjC.mm */,
+				E9D983FF2E69998A0053A2C8 /* SwiftDemoView.swift */,
+				E9D983FE2E69998A0053A2C8 /* Rasterizer-Bridging-Header.h */,
+			);
+			path = API;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -523,7 +531,7 @@
 				MTL_LANGUAGE_REVISION = Metal20;
 				PRODUCT_BUNDLE_IDENTIFIER = uk.co.mindbrix.Rasterizer;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_OBJC_BRIDGING_HEADER = "Rasterizer/Apple/Rasterizer-Bridging-Header.h";
+				SWIFT_OBJC_BRIDGING_HEADER = "Rasterizer/Apple/API/Rasterizer-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 6.0;
 			};
@@ -555,7 +563,7 @@
 				MTL_LANGUAGE_REVISION = Metal20;
 				PRODUCT_BUNDLE_IDENTIFIER = uk.co.mindbrix.Rasterizer;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_OBJC_BRIDGING_HEADER = "Rasterizer/Apple/Rasterizer-Bridging-Header.h";
+				SWIFT_OBJC_BRIDGING_HEADER = "Rasterizer/Apple/API/Rasterizer-Bridging-Header.h";
 				SWIFT_VERSION = 6.0;
 			};
 			name = Release;
