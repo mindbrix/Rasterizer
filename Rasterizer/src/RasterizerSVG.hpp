@@ -76,10 +76,24 @@ struct RasterizerSVG {
                 for (NSVGshape *shape = image->shapes; shape != NULL; shape = shape->next) {
                     Ra::Path path;
                     writePathFromShape(shape, image->height, path);
-                    if (shape->fill.type != NSVG_PAINT_NONE)
-                        scene.addPath(path, Ra::Transform(), colorFromPaint(shape->fill), 0.f, 0);
-                    if (shape->stroke.type != NSVG_PAINT_NONE && shape->strokeWidth)
-                        scene.addPath(path, Ra::Transform(), colorFromPaint(shape->stroke), shape->strokeWidth, 0);
+                    if (shape->fill.type != NSVG_PAINT_NONE) {
+                        int flags = shape->fillRule == NSVG_FILLRULE_EVENODD ? Ra::Scene::kFillEvenOdd : 0;
+                        scene.addPath(path, Ra::Transform(), colorFromPaint(shape->fill), 0.f, flags);
+                    }
+                    if (shape->stroke.type != NSVG_PAINT_NONE && shape->strokeWidth) {
+                        int flags = 0;
+                        switch (shape->strokeLineCap) {
+                            case NSVG_CAP_ROUND:
+                                flags |= Ra::Scene::kRoundCap;
+                                break;
+                            case NSVG_CAP_SQUARE:
+                                flags |= Ra::Scene::kSquareCap;
+                                break;
+                            default:
+                                break;
+                        }
+                        scene.addPath(path, Ra::Transform(), colorFromPaint(shape->stroke), shape->strokeWidth, flags);
+                    }
                 }
             }
             nsvgDelete(image);
