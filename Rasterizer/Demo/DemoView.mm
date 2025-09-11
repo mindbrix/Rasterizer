@@ -23,7 +23,7 @@
 #import "RasterizerDemo.hpp"
 #import "RasterizerObjC+Internal.h"
 
-@interface DemoView () <NSFontChanging, ListDelegate>
+@interface DemoView () <NSFontChanging, SceneListDelegate>
 
 @property(nonatomic) RasterizerDemo demo;
 @property(nonatomic) NSFont *font;
@@ -46,7 +46,7 @@
 }
 
 
-#pragma mark - ListDelegate
+#pragma mark - SceneListDelegate
 
 - (BOOL)shouldRedrawAtTime:(double)time {
     if (_demo.getShouldRedraw()) {

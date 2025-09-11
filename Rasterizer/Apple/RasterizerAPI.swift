@@ -17,7 +17,7 @@ public class SwiftDemoView: RasterizerView {
     }
 }
 
-class SwiftDemo: NSObject, ListDelegate {
+class SwiftDemo: NSObject, SceneListDelegate {
     func shouldRedraw(atTime time: Double) -> Bool {
         true
     }
