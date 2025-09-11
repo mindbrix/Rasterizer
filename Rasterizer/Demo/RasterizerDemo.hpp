@@ -329,7 +329,7 @@ struct RasterizerDemo {
         float ftime = demo.clock - floor(demo.clock);
         float t = sinf(kTau * ftime), s = 1.f - t;
         float scale = s * kScaleMin + t * kScaleMax, outlineWidth = demo.outlineWidth;
-        if (ftime == 0.f)
+        if (!demo.animating)
             memcpy(dstCtms + li, srcCtms + li, count * sizeof(srcCtms[0]));
         else {
             float cx, cy, cos0 = cosf(M_PI * t), sin0 = sinf(M_PI * t), cos1 = cosf(M_PI * -t), sin1 = sinf(M_PI * -t);

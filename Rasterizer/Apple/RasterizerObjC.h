@@ -52,5 +52,5 @@ typedef NS_ENUM(NSUInteger, SceneFlags) {
 
 @protocol ListDelegate <NSObject>
 - (BOOL)shouldRedrawAtTime:(double)time;
-- (RasterizerSceneList *)getList: (float)width height:(float) height;
+- (RasterizerSceneList *)getListAtTime:(double)time width:(float)width height:(float) height;
 @end

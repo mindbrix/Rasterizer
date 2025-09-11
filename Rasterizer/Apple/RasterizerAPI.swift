@@ -18,15 +18,14 @@ public class SwiftDemoView: RasterizerView {
 }
 
 class SwiftDemo: NSObject, ListDelegate {
-    nonisolated public func shouldRedraw(atTime time: Double) -> Bool {
+    func shouldRedraw(atTime time: Double) -> Bool {
         true
     }
-    nonisolated public func getList(_ width: Float, height: Float) -> RasterizerSceneList! {
-       test0
+    func getListAtTime(_ time: Double, width: Float, height: Float) -> RasterizerSceneList! {
+        test0(time: time)
     }
     
-    var test0: RasterizerSceneList {
-        let time = 0.1 * Date.timeIntervalSinceReferenceDate
+    func test0(time: Double) -> RasterizerSceneList {
         let t = time - floor(time)
         let dim = 100.0
         let rect = CGRect(x: 0, y: 0, width: dim, height: dim)
