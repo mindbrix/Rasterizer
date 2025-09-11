@@ -63,14 +63,14 @@
     return RaCG::CGRectFromBounds(_scene.bounds());
 }
 
-- (void)addPath:(RasterizerPath *)path ctm:(CGAffineTransform)ctm color:(CGColorRef)color width:(float)width flags:(NSUInteger)flags {
+- (void)addPath:(RasterizerPath *)path ctm:(CGAffineTransform)ctm color:(CGColorRef)color width:(double)width flags:(NSUInteger)flags {
     _scene.addPath(path.path,
                    RaCG::transformFromCG(ctm),
                    RaCG::colorantFromCG(color),
                    width,
                    flags);
 }
-- (void)addPath:(RasterizerPath *)path ctm:(CGAffineTransform)ctm color:(CGColorRef)color width:(float)width flags:(NSUInteger)flags clip:(CGRect)clip {
+- (void)addPath:(RasterizerPath *)path ctm:(CGAffineTransform)ctm color:(CGColorRef)color width:(double)width flags:(NSUInteger)flags clip:(CGRect)clip {
     Ra::Bounds clipBounds = RaCG::BoundsFromCGRect(clip);
     _scene.addPath(path.path,
                    RaCG::transformFromCG(ctm),
@@ -79,14 +79,14 @@
                    flags,
                    & clipBounds);
 }
-- (void)addCGPath:(CGPathRef)cgPath ctm:(CGAffineTransform)ctm color:(CGColorRef)color width:(float)width flags:(NSUInteger)flags {
+- (void)addCGPath:(CGPathRef)cgPath ctm:(CGAffineTransform)ctm color:(CGColorRef)color width:(double)width flags:(NSUInteger)flags {
     [self addPath:[[RasterizerPath alloc] initWithCGPath:cgPath]
               ctm:ctm
             color:color
             width:width
             flags:flags];
 }
-- (void)addCGPath:(CGPathRef)cgPath ctm:(CGAffineTransform)ctm color:(CGColorRef)color width:(float)width flags:(NSUInteger)flags clip:(CGRect)clip {
+- (void)addCGPath:(CGPathRef)cgPath ctm:(CGAffineTransform)ctm color:(CGColorRef)color width:(double)width flags:(NSUInteger)flags clip:(CGRect)clip {
     [self addPath:[[RasterizerPath alloc] initWithCGPath:cgPath]
               ctm:ctm
             color:color

@@ -59,7 +59,7 @@
     return NO;
 }
 
-- (RasterizerSceneList *)getListAtTime:(double)time width:(float)width height:(float)height {
+- (RasterizerSceneList *)getListAtTime:(double)time width:(double)width height:(double)height {
     RasterizerSceneList *list = [RasterizerSceneList new];
     list.list = _demo.getDrawList(time, width, height);
     return list;

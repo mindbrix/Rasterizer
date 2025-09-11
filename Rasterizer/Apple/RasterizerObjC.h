@@ -34,10 +34,10 @@ typedef NS_ENUM(NSUInteger, SceneFlags) {
 @interface RasterizerScene: NSObject
 @property(nonatomic, readonly) CGRect bounds;
 
-- (void)addPath:(RasterizerPath *)path ctm:(CGAffineTransform)ctm color:(CGColorRef)color width:(float)width flags:(NSUInteger)flags;
-- (void)addPath:(RasterizerPath *)path ctm:(CGAffineTransform)ctm color:(CGColorRef)color width:(float)width flags:(NSUInteger)flags clip:(CGRect)clip;
-- (void)addCGPath:(CGPathRef)cgPath ctm:(CGAffineTransform)ctm color:(CGColorRef)color width:(float)width flags:(NSUInteger)flags;
-- (void)addCGPath:(CGPathRef)cgPath ctm:(CGAffineTransform)ctm color:(CGColorRef)color width:(float)width flags:(NSUInteger)flags clip:(CGRect)clip;
+- (void)addPath:(RasterizerPath *)path ctm:(CGAffineTransform)ctm color:(CGColorRef)color width:(double)width flags:(NSUInteger)flags;
+- (void)addPath:(RasterizerPath *)path ctm:(CGAffineTransform)ctm color:(CGColorRef)color width:(double)width flags:(NSUInteger)flags clip:(CGRect)clip;
+- (void)addCGPath:(CGPathRef)cgPath ctm:(CGAffineTransform)ctm color:(CGColorRef)color width:(double)width flags:(NSUInteger)flags;
+- (void)addCGPath:(CGPathRef)cgPath ctm:(CGAffineTransform)ctm color:(CGColorRef)color width:(double)width flags:(NSUInteger)flags clip:(CGRect)clip;
 @end
 
 @interface RasterizerSceneList: NSObject
@@ -52,5 +52,5 @@ typedef NS_ENUM(NSUInteger, SceneFlags) {
 
 @protocol SceneListDelegate <NSObject>
 - (BOOL)shouldRedrawAtTime:(double)time;
-- (RasterizerSceneList *)getListAtTime:(double)time width:(float)width height:(float) height;
+- (RasterizerSceneList *)getListAtTime:(double)time width:(double)width height:(double)height;
 @end

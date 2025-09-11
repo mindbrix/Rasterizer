@@ -21,13 +21,13 @@ class SwiftDemo: NSObject, SceneListDelegate {
     func shouldRedraw(atTime time: Double) -> Bool {
         true
     }
-    func getListAtTime(_ time: Double, width: Float, height: Float) -> RasterizerSceneList! {
-        test0(time: time)
+    func getListAtTime(_ time: Double, width: Double, height: Double) -> RasterizerSceneList! {
+        test0(time, width: width, height: height)
     }
     
-    func test0(time: Double) -> RasterizerSceneList {
+    func test0(_ time: Double, width: Double, height: Double) -> RasterizerSceneList {
         let t = time - floor(time)
-        let dim = 100.0
+        let dim = min(width, height)
         let rect = CGRect(x: 0, y: 0, width: dim, height: dim)
         let path = RasterizerPath()
         path.add(rect)
@@ -43,7 +43,6 @@ class SwiftDemo: NSObject, SceneListDelegate {
         
         let list = RasterizerSceneList()
         list.add(scene, ctm: .identity)
-        list.ctm = CGAffineTransform(scaleX: 4, y: 4)
         return list
     }
 }
