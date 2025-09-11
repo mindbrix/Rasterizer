@@ -6,7 +6,7 @@
 //  Copyright © 2025 @mindbrix. All rights reserved.
 //
 
-#import "RasterizerObjC.h"
+#import "RasterizerAPI.h"
 #import "Rasterizer.hpp"
 
 @interface RasterizerPath ()

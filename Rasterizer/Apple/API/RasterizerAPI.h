@@ -1,5 +1,5 @@
 //
-//  RasterizerObjC.h
+//  RasterizerAPI.h
 //  Rasterizer
 //
 //  Created by Nigel Barber on 03/09/2025.

@@ -7,7 +7,7 @@
 //
 
 #import <Foundation/Foundation.h>
-#import "RasterizerObjC+Internal.h"
+#import "RasterizerAPI+Internal.h"
 #import "RasterizerCG.hpp"
 
 

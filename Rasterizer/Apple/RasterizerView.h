@@ -19,7 +19,7 @@
 //
 
 #import <Cocoa/Cocoa.h>
-#import "RasterizerObjC.h"
+#import "RasterizerAPI.h"
 
 
 @interface RasterizerView : NSView

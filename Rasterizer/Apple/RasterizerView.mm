@@ -21,7 +21,7 @@
 #import "RasterizerView.h"
 #import "RasterizerLayer.h"
 #import "RasterizerRenderer.hpp"
-#import "RasterizerObjC+Internal.h"
+#import "RasterizerAPI+Internal.h"
 
 
 @interface RasterizerView () <CALayerDelegate, LayerDelegate>

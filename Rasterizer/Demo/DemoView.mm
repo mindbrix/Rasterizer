@@ -21,7 +21,7 @@
 #import "DemoView.h"
 #import "RasterizerCG.hpp"
 #import "RasterizerDemo.hpp"
-#import "RasterizerObjC+Internal.h"
+#import "RasterizerAPI+Internal.h"
 
 @interface DemoView () <NSFontChanging, SceneListDelegate>
 

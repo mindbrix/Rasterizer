@@ -25,7 +25,7 @@
 		E971DB2D218495AA005AE5E5 /* Rasterizer.icns in Resources */ = {isa = PBXBuildFile; fileRef = E971DB2C218495AA005AE5E5 /* Rasterizer.icns */; };
 		E990649221C2E11500D2DBF2 /* RasterizerLayer.mm in Sources */ = {isa = PBXBuildFile; fileRef = E990649121C2E11500D2DBF2 /* RasterizerLayer.mm */; };
 		E990649421C2FE3600D2DBF2 /* Shaders.metal in Sources */ = {isa = PBXBuildFile; fileRef = E990649321C2FE3600D2DBF2 /* Shaders.metal */; };
-		E9D983FB2E68B4A10053A2C8 /* RasterizerObjC.mm in Sources */ = {isa = PBXBuildFile; fileRef = E9D983FA2E68B4A10053A2C8 /* RasterizerObjC.mm */; };
+		E9D983FB2E68B4A10053A2C8 /* RasterizerAPI.mm in Sources */ = {isa = PBXBuildFile; fileRef = E9D983FA2E68B4A10053A2C8 /* RasterizerAPI.mm */; };
 		E9D984002E69998A0053A2C8 /* SwiftDemoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9D983FF2E69998A0053A2C8 /* SwiftDemoView.swift */; };
 		E9E8285B2B17555800FABD81 /* RasterizerView.mm in Sources */ = {isa = PBXBuildFile; fileRef = E9E8285A2B17555800FABD81 /* RasterizerView.mm */; };
 		E9E9600727D65BF800E06451 /* RasterizerPDF.hpp in Sources */ = {isa = PBXBuildFile; fileRef = E9E9600627D65BF800E06451 /* RasterizerPDF.hpp */; };
@@ -91,9 +91,9 @@
 		E9CB3A1827D601FB00A02A2D /* fpdf_progressive.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fpdf_progressive.h; sourceTree = "<group>"; };
 		E9CB3A1927D601FB00A02A2D /* fpdf_dataavail.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fpdf_dataavail.h; sourceTree = "<group>"; };
 		E9CB3A1A27D601FB00A02A2D /* fpdf_thumbnail.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fpdf_thumbnail.h; sourceTree = "<group>"; };
-		E9D983FA2E68B4A10053A2C8 /* RasterizerObjC.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = RasterizerObjC.mm; sourceTree = "<group>"; };
-		E9D983FC2E68B4D80053A2C8 /* RasterizerObjC.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = RasterizerObjC.h; sourceTree = "<group>"; };
-		E9D983FD2E6985B60053A2C8 /* RasterizerObjC+Internal.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "RasterizerObjC+Internal.h"; sourceTree = "<group>"; };
+		E9D983FA2E68B4A10053A2C8 /* RasterizerAPI.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = RasterizerAPI.mm; sourceTree = "<group>"; };
+		E9D983FC2E68B4D80053A2C8 /* RasterizerAPI.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = RasterizerAPI.h; sourceTree = "<group>"; };
+		E9D983FD2E6985B60053A2C8 /* RasterizerAPI+Internal.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "RasterizerAPI+Internal.h"; sourceTree = "<group>"; };
 		E9D983FE2E69998A0053A2C8 /* Rasterizer-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Rasterizer-Bridging-Header.h"; sourceTree = "<group>"; };
 		E9D983FF2E69998A0053A2C8 /* SwiftDemoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwiftDemoView.swift; sourceTree = "<group>"; };
 		E9E36F08223A722100F6533A /* Concentrichron.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Concentrichron.hpp; sourceTree = "<group>"; };
@@ -274,11 +274,11 @@
 		E9DA7E192E73202C00D209DA /* API */ = {
 			isa = PBXGroup;
 			children = (
-				E9D983FC2E68B4D80053A2C8 /* RasterizerObjC.h */,
-				E9D983FD2E6985B60053A2C8 /* RasterizerObjC+Internal.h */,
-				E9D983FA2E68B4A10053A2C8 /* RasterizerObjC.mm */,
-				E9D983FF2E69998A0053A2C8 /* SwiftDemoView.swift */,
+				E9D983FC2E68B4D80053A2C8 /* RasterizerAPI.h */,
+				E9D983FD2E6985B60053A2C8 /* RasterizerAPI+Internal.h */,
+				E9D983FA2E68B4A10053A2C8 /* RasterizerAPI.mm */,
 				E9D983FE2E69998A0053A2C8 /* Rasterizer-Bridging-Header.h */,
+				E9D983FF2E69998A0053A2C8 /* SwiftDemoView.swift */,
 			);
 			path = API;
 			sourceTree = "<group>";
@@ -366,7 +366,7 @@
 				E91ADF9422425C3000729DA0 /* stb_truetype.c in Sources */,
 				E990649221C2E11500D2DBF2 /* RasterizerLayer.mm in Sources */,
 				E9E8285B2B17555800FABD81 /* RasterizerView.mm in Sources */,
-				E9D983FB2E68B4A10053A2C8 /* RasterizerObjC.mm in Sources */,
+				E9D983FB2E68B4A10053A2C8 /* RasterizerAPI.mm in Sources */,
 				E920A5AC21762BCE00F52C25 /* main.m in Sources */,
 				E9D984002E69998A0053A2C8 /* SwiftDemoView.swift in Sources */,
 				E9710C4C24CF975B00F31953 /* xxhash.c in Sources */,
