@@ -202,7 +202,8 @@ struct RasterizerDemo {
         hud.addPath(bgPath, Ra::Transform(), textColor, kHudBorder, 0);
         return hud;
     }
-    Ra::SceneList getDrawList(float w, float h) {
+    Ra::SceneList getDrawList(double time, float w, float h) {
+        clock = time * timeScale;
         bounds = Ra::Bounds(0.f, 0.f, w, h);
         list = Ra::SceneList();
         if (pastedString.size) {
@@ -345,7 +346,7 @@ struct RasterizerDemo {
         if (outlineWidth) {
             for (size_t j = li; j < ui; j++)
                 dstWidths[j] = outlineWidth;
-        } else if (ftime == 0.f)
+        } else if (!demo.animating)
             memcpy(dstWidths + li, srcWidths + li, count * sizeof(srcWidths[0]));
         else
             for (size_t j = li; j < ui; j++)
