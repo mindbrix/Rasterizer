@@ -329,7 +329,7 @@ struct RasterizerDemo {
         const float kScaleMin = 1.0f, kScaleMax = 1.2f;
         float ftime = demo.clock - floor(demo.clock);
         float t = sinf(kTau * ftime), s = 1.f - t;
-        float scale = s * kScaleMin + t * kScaleMax, outlineWidth = demo.outlineWidth;
+        float scale = s * kScaleMin + t * kScaleMax;
         if (!demo.animating)
             memcpy(dstCtms + li, srcCtms + li, count * sizeof(srcCtms[0]));
         else {
@@ -343,9 +343,8 @@ struct RasterizerDemo {
                 dstCtms[j] = m->preconcat(rsts[j & 1], cx * m->a + cy * m->c + m->tx, cx * m->b + cy * m->d + m->ty);
             }
         }
-        if (outlineWidth) {
-            for (size_t j = li; j < ui; j++)
-                dstWidths[j] = outlineWidth;
+        if (demo.outlineWidth) {
+            memset_pattern4(dstWidths + li, & demo.outlineWidth, count * sizeof(srcWidths[0]));
         } else if (!demo.animating)
             memcpy(dstWidths + li, srcWidths + li, count * sizeof(srcWidths[0]));
         else
