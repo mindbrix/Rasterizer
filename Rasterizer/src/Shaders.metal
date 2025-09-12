@@ -508,7 +508,7 @@ vertex InstancesVertex instances_vertex_main(
         prev = rsqrt(pdot) * float2(px0, py0);
         next = normalize({ (isCurve ? x1 : x2) - x0, (isCurve ? y1 : y2) - y0 });
         
-        pcap = pcap || pdot < 1e-3 || dot(prev, next) < caplimit;
+        pcap = pcap || pdot < 1e-6 || dot(prev, next) < caplimit;
         tangent = pcap ? no : normalize(prev + next);
         miter0 = (dw + ow) / abs(dot(no, tangent)) * float2(-tangent.y, tangent.x);
         
@@ -518,7 +518,7 @@ vertex InstancesVertex instances_vertex_main(
         ndot = nx1 * nx1 + ny1 * ny1;
         next = rsqrt(ndot) * float2(nx1, ny1);
         
-        ncap = ncap || ndot < 1e-3 || dot(prev, next) < caplimit;
+        ncap = ncap || ndot < 1e-6 || dot(prev, next) < caplimit;
         tangent = ncap ? no : normalize(prev + next);
         miter1 = (dw + ow) / abs(dot(no, tangent)) * float2(-tangent.y, tangent.x);
                 

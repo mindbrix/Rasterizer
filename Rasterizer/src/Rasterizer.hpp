@@ -196,7 +196,6 @@ struct Rasterizer {
             else {
                 float N = sqrtf(adot) / (fabsf(cubicScale) * kCubicMultiplier);
                 count = N <= 1.f ? 1.f : ceilf(cbrtf(N));
-                count = (1.f - oddCubics) * count + oddCubics * (1.f + 2.f * ceilf(0.5f * (count - 1.f)));
                 dt = 0.5f / count, dt2 = dt * dt;
                 x = x0, bx *= dt2, ax *= dt2 * dt, f3x = 6.f * ax, f2x = f3x + 2.f * bx, f1x = ax + bx + cx * dt;
                 y = y0, by *= dt2, ay *= dt2 * dt, f3y = 6.f * ay, f2y = f3y + 2.f * by, f1y = ay + by + cy * dt;
@@ -212,7 +211,7 @@ struct Rasterizer {
         }
         virtual void EndSubpath(float x0, float y0, float x1, float y1, bool closed) {}
         
-        float quadraticScale = 1.f, cubicScale = kCubicPrecision, oddCubics = 0.f;
+        float quadraticScale = 1.f, cubicScale = kCubicPrecision;
     };
     struct Point16 {
         enum Flags { isCurve = 1 << 15, kMask = ~isCurve };
@@ -1106,7 +1105,7 @@ struct Rasterizer {
                 iz = inst->iz & kPathIndexMask;
                 Geometry *g = inst->g;
                 if (inst->iz & Instance::kOutlines) {
-                    outliner.iz = inst->iz, outliner.dst = outliner.dst0 = dst, outliner.oddCubics = 1.f;
+                    outliner.iz = inst->iz, outliner.dst = outliner.dst0 = dst;
                     divideGeometry(g, ctms[iz], inst->clip, inst->clip.isHuge(), false, outliner);
                     dst = outliner.dst;
                 } else {
