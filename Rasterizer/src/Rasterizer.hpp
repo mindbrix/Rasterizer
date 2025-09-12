@@ -336,14 +336,14 @@ struct Rasterizer {
             cubicScale = -kCubicPrecision * (kMoleculesRange / kMoleculesHeight);
             divideGeometry(g, m, Bounds(), true, true, *this);
         }
-        void writeSegment(float x0, float y0, float x1, float y1) {
+        void writeSegment(float x0, float y0, float x1, float y1) override {
             (atoms->alloc(1))->i = uint32_t(p16s->end);
             
             Point16 *p = p16s->alloc(1);
             p->x = fmaxf(0.f, fminf(kMoleculesRange, x0));
             p->y = fmaxf(0.f, fminf(kMoleculesRange, y0));
         }
-        void Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
+        void Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) override {
             (atoms->alloc(1))->i = uint32_t(p16s->end);
             
             Point16 *p = p16s->alloc(2);
@@ -352,7 +352,7 @@ struct Rasterizer {
             p[1].x = fmaxf(0.f, fminf(kMoleculesRange, 0.5f * x1 + 0.25f * (x0 + x2)));
             p[1].y = fmaxf(0.f, fminf(kMoleculesRange, 0.5f * y1 + 0.25f * (y0 + y2)));
         }
-        void EndSubpath(float x0, float y0, float x1, float y1, bool closed) {
+        void EndSubpath(float x0, float y0, float x1, float y1, bool closed) override {
             Point16 *p = p16s->alloc(1);
             p->x = fmaxf(0.f, fminf(kMoleculesRange, x1));
             p->y = fmaxf(0.f, fminf(kMoleculesRange, y1));
