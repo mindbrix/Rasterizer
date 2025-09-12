@@ -22,6 +22,9 @@
 #import <metal_stdlib>
 using namespace metal;
 
+#define SQRT_3 1.732050808
+#define SIN_60 0.866025403784439
+
 constexpr sampler s = sampler(coord::normalized, address::clamp_to_zero, mag_filter::nearest, min_filter::nearest, mip_filter::linear);
 
 struct Transform {
@@ -99,7 +102,7 @@ float sqBezier(float2 p0, float2 p1, float2 p2) {
         return dot(pt, pt);
     }
     float v = acos(-sqrt(-27.0 / p3) * 0.5 * q) * third;
-    float m = cos(v), n = sin(v) * 1.732050808;
+    float m = cos(v), n = sin(v) * SQRT_3;
     float2 ts = saturate(float2(m + m, -n - m) * sqrt(-p * third) - a);
     float2 pt0 = fma(fma(va, ts.x, vb), ts.x, p0);
     float2 pt1 = fma(fma(va, ts.y, vb), ts.y, p0);
@@ -125,7 +128,7 @@ float awinding(float x0, float y0, float x1, float y1, float w0, float w1) {
     float dx, dy, a0, t, b, f, cover = w1 - w0;
     dx = x1 - x0, dy = y1 - y0, a0 = dx * ((dx > 0.0 ? w0 : w1) - y0) - dy * (1.0 - x0);
     dx = abs(dx), t = -a0 / fma(dx, cover, dy), dy = abs(dy);
-    b = max(dx, dy), f = b / (b - min(dx, dy) * 0.4142135624);
+    b = max(dx, dy), f = b / (b - min(dx, dy) * (M_SQRT2_F-1));
     return saturate((t - 0.5) * f + 0.5) * cover;
 }
 
@@ -496,8 +499,8 @@ vertex InstancesVertex instances_vertex_main(
         
         ow = isCurve ? 0.5 * abs(tc / rc) : 0.0;
         lcap = (isCurve ? 0.41 * dw : 0.0) + (squareCap || roundCap ? dw : 0.5);
-        float caplimit = dw == 1.0 ? 0.0 : -0.866025403784439;
-        
+        float caplimit = dw == 1.0 ? 0.0 : -SIN_60;
+
         float px0, py0, pdot, nx1, ny1, ndot;
         float2 no, prev, next, tangent, miter0, miter1;
         no = float2(cx, cy) * rc;
