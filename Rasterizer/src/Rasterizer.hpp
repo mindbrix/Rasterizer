@@ -20,7 +20,6 @@
 
 #import "Rasterizer.h"
 #import "xxhash.h"
-#import <unordered_map>
 #import <vector>
 #pragma clang diagnostic ignored "-Wcomma"
 
