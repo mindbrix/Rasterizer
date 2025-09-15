@@ -8,6 +8,17 @@
 
 import Foundation
 
+
+extension CGAffineTransform {
+    init(rotation: Double, scale: Double, cx: Double, cy: Double) {
+        self = CGAffineTransform(translationX: -cx, y: -cy)
+            .concatenating(CGAffineTransform(rotationAngle: rotation))
+            .concatenating(CGAffineTransform(scaleX: scale, y: scale))
+            .concatenating(CGAffineTransform(translationX: cx, y: cy))
+    }
+}
+
+
 public class SwiftDemoView: RasterizerView {
     let demo = SwiftDemo()
     
@@ -33,16 +44,24 @@ class SwiftDemo: NSObject, SceneListDelegate {
         path.add(rect)
         path.addEllipse(rect)
         
-        let tx = rect.midX
-        let ty = rect.midY
-        let rotation = CGAffineTransform(rotationAngle: t * 2 * Double.pi)
-        let ctm = CGAffineTransform(translationX: -tx, y: -ty).concatenating(rotation).concatenating(CGAffineTransform(translationX: tx, y: ty))
+        let ctm = CGAffineTransform(
+            rotation: t * 2 * Double.pi,
+            scale: 0.5,
+            cx: rect.midX,
+            cy: rect.midY
+        )
         let color = CGColor(red: 1, green: 0, blue: 0, alpha: 1)
         let scene = RasterizerScene()
-        scene.add(path, ctm: ctm, color: color, width: 0, flags: SceneFlags.fillEvenOdd.rawValue)
-        
+        scene.add(path,
+            ctm: ctm,
+            color: color,
+            width: 0,
+            flags: SceneFlags.fillEvenOdd.rawValue
+        )
         let list = RasterizerSceneList()
-        list.add(scene, ctm: .identity)
+        list.add(scene,
+            ctm: .identity
+        )
         return list
     }
 }
