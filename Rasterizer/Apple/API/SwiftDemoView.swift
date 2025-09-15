@@ -10,10 +10,10 @@ import Foundation
 
 
 extension CGAffineTransform {
-    init(rotation: Double, scale: Double, cx: Double, cy: Double) {
+    init(rotation: Double, sx: Double, sy: Double, cx: Double, cy: Double) {
         self = CGAffineTransform(translationX: -cx, y: -cy)
             .concatenating(CGAffineTransform(rotationAngle: rotation))
-            .concatenating(CGAffineTransform(scaleX: scale, y: scale))
+            .concatenating(CGAffineTransform(scaleX: sx, y: sy))
             .concatenating(CGAffineTransform(translationX: cx, y: cy))
     }
 }
@@ -46,15 +46,16 @@ class SwiftDemo: NSObject, SceneListDelegate {
         
         let ctm = CGAffineTransform(
             rotation: t * 2 * Double.pi,
-            scale: 0.5,
+            sx: 0.5,
+            sy: 0.5,
             cx: rect.midX,
             cy: rect.midY
         )
-        let color = CGColor(red: 1, green: 0, blue: 0, alpha: 1)
+        let hsv = NSColor.init(hue: t, saturation: 1, brightness: 1, alpha: 1).cgColor
         let scene = RasterizerScene()
         scene.add(path,
             ctm: ctm,
-            color: color,
+            color: hsv,
             width: 0,
             flags: SceneFlags.fillEvenOdd.rawValue
         )
