@@ -10,14 +10,19 @@ import Foundation
 
 
 extension CGAffineTransform {
-    init(rotation: Double, sx: Double, sy: Double, cx: Double, cy: Double) {
-        self = CGAffineTransform(translationX: -cx, y: -cy)
+    init(center: CGPoint, rotation: Double, scale: CGSize, translation: CGVector) {
+        self = CGAffineTransform(translationX: -center.x, y: -center.y)
             .concatenating(CGAffineTransform(rotationAngle: rotation))
-            .concatenating(CGAffineTransform(scaleX: sx, y: sy))
-            .concatenating(CGAffineTransform(translationX: cx, y: cy))
+            .concatenating(CGAffineTransform(scaleX: scale.width, y: scale.height))
+            .concatenating(CGAffineTransform(translationX: center.x + translation.dx, y: center.y + translation.dy))
     }
 }
 
+extension CGPoint {
+    init(center: CGPoint, r: Double, theta: Double) {
+        self = CGPoint(x: center.x + r * cos(theta), y: center.y + r * sin(theta))
+    }
+}
 
 public class SwiftDemoView: RasterizerView {
     let demo = SwiftDemo()
@@ -39,29 +44,46 @@ class SwiftDemo: NSObject, SceneListDelegate {
     func test0(_ time: Double, width: Double, height: Double) -> RasterizerSceneList {
         let t = time - floor(time)
         let dim = min(width, height)
-        let rect = CGRect(x: 0, y: 0, width: dim, height: dim)
+        let unitRect = CGRect(x: 0, y: 0, width: 1, height: 1)
+        let unitCenter = CGPoint(x: unitRect.midX, y: unitRect.midY)
         let path = RasterizerPath()
-        path.add(rect)
-        path.addEllipse(rect)
+        path.add(unitRect)
+        path.close()
+//        path.addEllipse(unitRect)
+        
+        let scene = RasterizerScene()
+        let count = 200
+        let r = 0.5 * dim
+        let center = CGPoint(x: r, y: r)
+        let scale = 0.125 * dim
+        for i in 0 ..< count {
+            let ti = Double(i) / Double(count)
+            let hsv = NSColor(hue: ti, saturation: 1, brightness: 1, alpha: 1).cgColor
+            let radial = CGPoint(center: center, r: r, theta: ti * 2 * Double.pi)
+            
+            let ctm = CGAffineTransform(
+                center: unitCenter,
+                rotation: t * 2 * Double.pi,
+                scale: CGSize(width: scale, height: scale),
+                translation: CGVector(dx: radial.x - unitCenter.x, dy: radial.y - unitCenter.y)
+            )
+            scene.add(path,
+                ctm: ctm,
+                color: hsv,
+                      width: 0.1,
+                flags: SceneFlags.fillEvenOdd.rawValue
+            )
+        }
         
         let ctm = CGAffineTransform(
-            rotation: t * 2 * Double.pi,
-            sx: 0.5,
-            sy: 0.5,
-            cx: rect.midX,
-            cy: rect.midY
-        )
-        let hsv = NSColor.init(hue: t, saturation: 1, brightness: 1, alpha: 1).cgColor
-        let scene = RasterizerScene()
-        scene.add(path,
-            ctm: ctm,
-            color: hsv,
-            width: 0,
-            flags: SceneFlags.fillEvenOdd.rawValue
+            center: center,
+            rotation: 0,
+            scale: CGSize(width: 0.9, height: 0.9),
+            translation: .zero
         )
         let list = RasterizerSceneList()
         list.add(scene,
-            ctm: .identity
+            ctm: ctm
         )
         return list
     }
