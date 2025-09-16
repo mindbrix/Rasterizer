@@ -531,9 +531,17 @@ vertex InstancesVertex instances_vertex_main(
         dx = isTop ? fma(miter1.x, dt, cx1) : fma(miter0.x, dt, cx0);
         dy = isTop ? fma(miter1.y, dt, cy1) : fma(miter0.y, dt, cy0);
         
-        vert.u = dx, vert.v = dy;
+        if (!isCurve && !(pcap && ncap)) {
+            vert.u = (dx - x0) * -no.y + (dy - y0) * no.x;
+            float d0 = pcap ? -((dx - x0) * no.x + (dy - y0) * no.y) : ((dx - x2) * no.x + (dy - y2) * no.y);
+            vert.v = d0;
+        } else
+        {
+            vert.u = dx, vert.v = dy;
+        }
+        
         vert.cover = dw;
-        flags = flags | pcap * Instance::kPCap | ncap * Instance::kNCap | isCurve * Instance::kIsCurve | f0 * Instance::kPCurve | f1 * Instance::kNCurve;
+        flags = flags | pcap * Instance::kPCap | ncap * Instance::kNCap | isCurve * Instance::kIsCurve | f0 * Instance::kPCurve | f1 * Instance::kNCurve | roundCap * Instance::kEvenOdd;
     } else {
         const device Cell& cell = inst.quad.cell;
         dx = isRight ? cell.ux : cell.lx;
@@ -559,43 +567,57 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
 {
     float alpha = 1.0;
     if (vert.iz & Instance::kOutlines) {
-        const device Instance& inst = instances[vert.iid];
-        const device Segment& o = inst.outline.s;
-        
-        float x0, y0, x1, y1, x2, y2, dw, d0, dm0, d1, dm1, sqdist, sd0, sd1, cap, cap0, cap1;
         bool isCurve = vert.iz & Instance::kIsCurve;
         bool squareCap = vert.iz & Instance::kSquareCap;
+        bool roundCap = vert.iz & Instance::kEvenOdd;
         bool pcap = vert.iz & Instance::kPCap, ncap = vert.iz & Instance::kNCap;
         bool f0 = vert.iz & Instance::kPCurve, f1 = vert.iz & Instance::kNCurve;
-        dw = vert.cover;
-        x0 = o.x0, y0 = o.y0, x2 = o.x1, y2 = o.y1;
-        x1 = isCurve ? inst.outline.cx : 0.5 * (x0 + x2);
-        y1 = isCurve ? inst.outline.cy : 0.5 * (y0 + y2);
-        x0 -= vert.u, y0 -= vert.v, x1 -= vert.u, y1 -= vert.v, x2 -= vert.u, y2 -= vert.v;
+        const float dw = vert.cover;
         
-        float bx = x0 - x1, by = y0 - y1, bdot = bx * bx + by * by, rb = rsqrt(bdot);
-        float ax = x2 - x1, ay = y2 - y1, adot = ax * ax + ay * ay, ra = rsqrt(adot);
-        d0 = (x0 * bx + y0 * by) * rb;
-        dm0 = (x0 * -by + y0 * bx) * rb;
-        d1 = (x2 * ax + y2 * ay) * ra;
-        dm1 = (x2 * -ay + y2 * ax) * ra;
-        
-        if (isCurve) {
-            sqdist = sqBezier(float2(x0, y0), float2(x1, y1), float2(x2, y2));
-        } else {
-            float dx = d0 - clamp(d0, 0.0, d0 + d1);
-            sqdist = dx * dx + dm0 * dm0;
+        if (!isCurve && !(pcap && ncap)) {
+            float line = saturate(dw - abs(vert.u));
+            float cap0 = saturate((squareCap || roundCap ? dw : 0.5) - sqrt((roundCap ? vert.u * vert.u : 0.0) + vert.v * vert.v));
+            float cap = !(pcap || ncap) ? 1.0 : (vert.v <= 0.0 ? 1.0 : cap0);
+//            float round = saturate(dw - sqrt(vert.u * vert.u + vert.v * vert.v));
+//            float square = saturate((squareCap ? dw : 0.5) - vert.v);
+//            float cap = !(pcap || ncap) ? 1.0 : (vert.v <= 0.0 ? 1.0 : (roundCap ? round : square));
+            
+            alpha = line * cap;
+        } else
+        {
+            const device Instance& inst = instances[vert.iid];
+            const device Segment& o = inst.outline.s;
+            float x0, y0, x1, y1, x2, y2, d0, dm0, d1, dm1, sqdist, sd0, sd1, cap, cap0, cap1;
+            
+            x0 = o.x0, y0 = o.y0, x2 = o.x1, y2 = o.y1;
+            x1 = isCurve ? inst.outline.cx : 0.5 * (x0 + x2);
+            y1 = isCurve ? inst.outline.cy : 0.5 * (y0 + y2);
+            x0 -= vert.u, y0 -= vert.v, x1 -= vert.u, y1 -= vert.v, x2 -= vert.u, y2 -= vert.v;
+            
+            float bx = x0 - x1, by = y0 - y1, bdot = bx * bx + by * by, rb = rsqrt(bdot);
+            float ax = x2 - x1, ay = y2 - y1, adot = ax * ax + ay * ay, ra = rsqrt(adot);
+            d0 = (x0 * bx + y0 * by) * rb;
+            dm0 = (x0 * -by + y0 * bx) * rb;
+            d1 = (x2 * ax + y2 * ay) * ra;
+            dm1 = (x2 * -ay + y2 * ax) * ra;
+            
+            if (isCurve) {
+                sqdist = sqBezier(float2(x0, y0), float2(x1, y1), float2(x2, y2));
+            } else {
+                float dx = d0 - clamp(d0, 0.0, d0 + d1);
+                sqdist = dx * dx + dm0 * dm0;
+            }
+            float outline = saturate(dw - sqrt(sqdist));
+            
+            cap = squareCap ? dw : 0.5;
+            cap0 = (pcap ? saturate(cap + d0) : 1.0) * saturate(dw - abs(dm0));
+            cap1 = (ncap ? saturate(cap + d1) : 1.0) * saturate(dw - abs(dm1));
+            
+            sd0 = f0 ? saturate(d0) : 1.0;
+            sd1 = f1 ? saturate(d1) : 1.0;
+            
+            alpha = cap0 * (1.0 - sd0) + cap1 * (1.0 - sd1) + (sd0 + sd1 - 1.0) * outline;
         }
-        float outline = saturate(dw - sqrt(sqdist));
-        
-        cap = squareCap ? dw : 0.5;
-        cap0 = (pcap ? saturate(cap + d0) : 1.0) * saturate(dw - abs(dm0));
-        cap1 = (ncap ? saturate(cap + d1) : 1.0) * saturate(dw - abs(dm1));
-        
-        sd0 = f0 ? saturate(d0) : 1.0;
-        sd1 = f1 ? saturate(d1) : 1.0;
-
-        alpha = cap0 * (1.0 - sd0) + cap1 * (1.0 - sd1) + (sd0 + sd1 - 1.0) * outline;
     } else
     if (vert.u != FLT_MAX) {
         float cover = abs(vert.cover + accumulation.sample(s, float2(vert.u, vert.v)).x);

@@ -42,7 +42,8 @@ class SwiftDemo: NSObject, SceneListDelegate {
     }
     
     func test0(_ time: Double, width: Double, height: Double) -> RasterizerSceneList {
-        let t = time - floor(time)
+        let ts = 0.1 * time
+        let t = ts - floor(ts)
         let dim = min(width, height)
         let unitRect = CGRect(x: 0, y: 0, width: 1, height: 1)
         let unitCenter = CGPoint(x: unitRect.midX, y: unitRect.midY)
@@ -70,7 +71,7 @@ class SwiftDemo: NSObject, SceneListDelegate {
             scene.add(path,
                 ctm: ctm,
                 color: hsv,
-                      width: 0.1,
+                width: 0.1,
                 flags: SceneFlags.fillEvenOdd.rawValue
             )
         }
