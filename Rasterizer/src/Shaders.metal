@@ -531,10 +531,13 @@ vertex InstancesVertex instances_vertex_main(
         dx = isTop ? fma(miter1.x, dt, cx1) : fma(miter0.x, dt, cx0);
         dy = isTop ? fma(miter1.y, dt, cy1) : fma(miter0.y, dt, cy0);
         
-        if (!isCurve && !(pcap && ncap)) {
+        if (!isCurve) { //} && !(pcap && ncap)) {
             vert.u = (dx - x0) * -no.y + (dy - y0) * no.x;
-            float d0 = pcap ? -((dx - x0) * no.x + (dy - y0) * no.y) : ((dx - x2) * no.x + (dy - y2) * no.y);
-            vert.v = d0;
+            float t = ((dx - x0) * cx + (dy - y0) * cy) / cdot, s = 1.0 - t;
+            vert.v = s * (pcap ? -1.0 : 0.0) + t * (ncap ? 1.0 : 0.0);
+//            vert.v = 2.0 * t - 1.0;
+//            float d0 = pcap ? -((dx - x0) * no.x + (dy - y0) * no.y) : ((dx - x2) * no.x + (dy - y2) * no.y);
+//            vert.v = d0;
         } else
         {
             vert.u = dx, vert.v = dy;
@@ -574,15 +577,24 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
         bool f0 = vert.iz & Instance::kPCurve, f1 = vert.iz & Instance::kNCurve;
         const float dw = vert.cover;
         
-        if (!isCurve && !(pcap && ncap)) {
+        if (!isCurve) { //} && !(pcap && ncap)) {
             float line = saturate(dw - abs(vert.u));
-            float cap0 = saturate((squareCap || roundCap ? dw : 0.5) - sqrt((roundCap ? vert.u * vert.u : 0.0) + vert.v * vert.v));
-            float cap = !(pcap || ncap) ? 1.0 : (vert.v <= 0.0 ? 1.0 : cap0);
+
+            float v = max(1.0, abs(vert.v)) - 1.0;
+            float a = dfdx(v), b = dfdy(v), abdot = (a * a + b * b);
+            
+            float end = (squareCap || roundCap ? dw : 0.5) - sqrt((roundCap ? vert.u * vert.u : 0.0) + v * v / abdot);
+            end = saturate(end);
+            end *= roundCap ? 1.0 : line;
+            
+            //float cap = abs(vert.v) <= 1.0 ? 1.0 : cap0;
+//            float cap0 = saturate((squareCap || roundCap ? dw : 0.5) - sqrt((roundCap ? vert.u * vert.u : 0.0) + vert.v * vert.v));
+//            float cap = !(pcap || ncap) ? 1.0 : (vert.v <= 0.0 ? 1.0 : cap0);
 //            float round = saturate(dw - sqrt(vert.u * vert.u + vert.v * vert.v));
 //            float square = saturate((squareCap ? dw : 0.5) - vert.v);
 //            float cap = !(pcap || ncap) ? 1.0 : (vert.v <= 0.0 ? 1.0 : (roundCap ? round : square));
             
-            alpha = line * cap;
+            alpha = (abs(vert.v) > 1.0 ? end : line);// * line;// * cap;
         } else
         {
             const device Instance& inst = instances[vert.iid];
