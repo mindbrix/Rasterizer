@@ -533,11 +533,13 @@ vertex InstancesVertex instances_vertex_main(
         
         if (!isCurve) {
             vert.u = (dx - x0) * -no.y + (dy - y0) * no.x;
-            
-            float cx = cx1 - cx0, cy = cy1 - cy0;
-            float t = ((dx - cx0) * cx + (dy - cy0) * cy) / (cx * cx + cy * cy);
-            float s = 1.0 - t;
-            vert.v = s * (pcap ? -1.0 : 0.0) + t * (ncap ? 1.0 : 0.0);
+            if (!roundCap) {
+                cx = cx1 - cx0, cy = cy1 - cy0;
+            } else {
+                cx0 = x0, cy0 = y0;
+            }
+            float t = ((dx - cx0) * cx + (dy - cy0) * cy) / (cx * cx + cy * cy), s = 1.0 - t;
+            vert.v = s * (pcap ? -1.0 : -0.1) + t * (ncap ? 1.0 : 0.1);
         } else
         {
             vert.u = dx, vert.v = dy;
@@ -578,38 +580,12 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
         const float dw = vert.cover;
         
         if (!isCurve) {
-            float dx = dw - abs(vert.u), dy = 1.0 - abs(vert.v), c = dfdx(dy), d = dfdy(dy);
+            float dx = abs(vert.u), dy = abs(vert.v), c = dfdx(dy), d = dfdy(dy);
             float sy = rsqrt(c * c + d * d);
-            
-            alpha = saturate(dx) * saturate(sy * dy);
-            
-            /*
-            float corner = roundCap ? 0.5 * dw : 1.0;
-//            dx = max(0.5, dx);
-//            dy = max(0.5, dy);
-            float tx = 1.0 - corner / sx;
-            float ty = 1.0 - corner / sy;
-            dx = sx * (max(dx, tx) - tx);
-            dy = sy * (max(dy, ty) - ty);
-            alpha = saturate(corner - sqrt(dx * dx + dy * dy));
-            */
-//            dx = max(1.0 - corner / sx, dx) - dx;
-//            dy = max(1.0 - corner / sy, dy) - dy;
-//            dx *= sx;
-//            dy *= sy;
-//            alpha = saturate(dw - sqrt(dx * dx + dy * dy));
-            /*
-            float line = saturate(dw - abs(vert.u));
-
-            float v = max(1.0, abs(vert.v)) - 1.0;
-            float a = dfdx(v), b = dfdy(v), abdot = (a * a + b * b);
-            
-            float end = (squareCap || roundCap ? dw : 0.5) - sqrt((roundCap ? vert.u * vert.u : 0.0) + v * v / abdot);
-            end = saturate(end);
-            end *= roundCap ? 1.0 : line;
-            
-            alpha = (abs(vert.v) > 1.0 ? end : line);
-             */
+            float rect = saturate(dw - dx) * saturate(sy * (1.0 - dy));
+            float ry = sy * min(0.0, 1.0 - dy);
+            float lozenge = saturate(dw - sqrt(dx * dx + ry * ry));
+            alpha = roundCap ? lozenge : rect;
         } else
         {
             const device Instance& inst = instances[vert.iid];
