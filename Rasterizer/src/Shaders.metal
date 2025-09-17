@@ -487,14 +487,14 @@ vertex InstancesVertex instances_vertex_main(
         float cdot = cx * cx + cy * cy, rc = rsqrt(cdot);
         alpha *= min(1.0, cdot * 1e3);
         float area = cx * by - cy * bx;
-        float tc = area / cdot;
+        float tc = abs(area / cdot);
         
-        const bool isCurve = *useCurves && x1 != FLT_MAX && abs(tc) > 1e-3;
+        const bool isCurve = *useCurves && x1 != FLT_MAX && tc > 1e-3;
         const bool pcurve = *useCurves && pinst.outline.cx != FLT_MAX, ncurve = *useCurves && ninst.outline.cx != FLT_MAX;
         const bool f0 = pcap ? !roundCap : !isCurve || !pcurve;
         const bool f1 = ncap ? !roundCap : !isCurve || !ncurve;
         
-        ow = isCurve ? 0.5 * abs(tc / rc) : 0.0;
+        ow = isCurve ? 0.5 * tc / rc : 0.0;
         lcap = (isCurve ? 0.41 * dw : 0.0) + (squareCap || roundCap ? dw : 0.5);
         float caplimit = dw == 1.0 ? 0.0 : -0.866025403784439;
         
@@ -539,7 +539,7 @@ vertex InstancesVertex instances_vertex_main(
                 cx0 = x0, cy0 = y0;
             }
             float t = ((dx - cx0) * cx + (dy - cy0) * cy) / (cx * cx + cy * cy), s = 1.0 - t;
-            vert.v = s * (pcap ? -1.0 : -0.1) + t * (ncap ? 1.0 : 0.1);
+            vert.v = s * (pcap ? -1.0 : -1e-3) + t * (ncap ? 1.0 : 1e-3);
         } else
         {
             vert.u = dx, vert.v = dy;
