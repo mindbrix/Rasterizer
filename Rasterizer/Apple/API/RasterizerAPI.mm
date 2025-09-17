@@ -27,16 +27,16 @@
     return RaCG::CGRectFromBounds(_path->bounds);
 }
 
-- (void)moveTo:(float)x y:(float)y {
+- (void)moveTo:(double)x y:(double)y {
     _path->moveTo(x, y);
 }
-- (void)lineTo:(float)x y:(float)y {
+- (void)lineTo:(double)x y:(double)y {
     _path->lineTo(x, y);
 }
-- (void)quadTo:(float)x1 y1:(float)y1 x2:(float)x2 y2:(float)y2 {
+- (void)quadTo:(double)x1 y1:(double)y1 x2:(double)x2 y2:(double)y2 {
     _path->quadTo(x1, y1, x2, y2);
 }
-- (void)cubicTo:(float)x1 y1:(float)y1 x2:(float)x2 y2:(float)y2 x3:(float)x3 y3:(float)y3 {
+- (void)cubicTo:(double)x1 y1:(double)y1 x2:(double)x2 y2:(double)y2 x3:(double)x3 y3:(double)y3 {
     _path->cubicTo(x1, y1, x2, y2, x3, y3);
 }
 - (void)close {

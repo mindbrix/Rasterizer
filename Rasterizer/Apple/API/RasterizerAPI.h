@@ -14,10 +14,10 @@
 @property(nonatomic, readonly) CGRect bounds;
 
 - (id)initWithCGPath:(CGPathRef)cgPath;
-- (void)moveTo:(float)x y:(float)y;
-- (void)lineTo:(float)x y:(float)y;
-- (void)quadTo:(float)x1 y1:(float)y1 x2:(float)x2 y2:(float)y2;
-- (void)cubicTo:(float)x1 y1:(float)y1 x2:(float)x2 y2:(float)y2 x3:(float)x3 y3:(float)y3;
+- (void)moveTo:(double)x y:(double)y;
+- (void)lineTo:(double)x y:(double)y;
+- (void)quadTo:(double)x1 y1:(double)y1 x2:(double)x2 y2:(double)y2;
+- (void)cubicTo:(double)x1 y1:(double)y1 x2:(double)x2 y2:(double)y2 x3:(double)x3 y3:(double)y3;
 - (void)close;
 - (void)addCGPath:(CGPathRef)path;
 - (void)addRect:(CGRect)rect;
