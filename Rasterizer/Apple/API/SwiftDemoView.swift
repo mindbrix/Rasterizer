@@ -12,8 +12,8 @@ import Foundation
 extension CGAffineTransform {
     init(center: CGPoint, rotation: Double, scale: CGSize, translation: CGVector) {
         self = CGAffineTransform(translationX: -center.x, y: -center.y)
-            .concatenating(CGAffineTransform(rotationAngle: rotation))
             .concatenating(CGAffineTransform(scaleX: scale.width, y: scale.height))
+            .concatenating(CGAffineTransform(rotationAngle: rotation))
             .concatenating(CGAffineTransform(translationX: center.x + translation.dx, y: center.y + translation.dy))
     }
 }
@@ -34,6 +34,8 @@ public class SwiftDemoView: RasterizerView {
 }
 
 class SwiftDemo: NSObject, SceneListDelegate {
+    let typeface = RasterizerTypeface(name: "HelveticaNeue-Medium")
+    
     func shouldRedraw(atTime time: Double) -> Bool {
         true
     }
@@ -76,10 +78,18 @@ class SwiftDemo: NSObject, SceneListDelegate {
             )
         }
         
+        let textCTM = CGAffineTransform(
+            center: .zero,
+            rotation: t * 2 * Double.pi,
+            scale: CGSize(width: 1, height: 1),
+            translation: CGVector(dx: r, dy: r)
+        )
+        scene.addText("Hello", typeface: typeface, pointSize: 32, ctm: textCTM, color: CGColor(gray: 0, alpha: 1))
+        
         let ctm = CGAffineTransform(
             center: center,
             rotation: 0,
-            scale: CGSize(width: 0.9, height: 0.9),
+            scale: CGSize(width: 1, height: 1),
             translation: .zero
         )
         let list = RasterizerSceneList()

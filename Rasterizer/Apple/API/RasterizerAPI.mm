@@ -55,6 +55,22 @@
 @end
 
 
+#pragma mark - RasterizerTypeface
+
+@implementation RasterizerTypeface: NSObject
+
+- (id)initWithName:(NSString *)name {
+    self = [super init];
+    if (!self)
+        return nil;
+    NSURL *url = RaCG::fontURL(name);
+    _font.load(url.path.UTF8String, name.UTF8String);
+    return self;
+}
+
+@end
+
+
 #pragma mark - RasterizerScene
 
 @implementation RasterizerScene: NSObject
@@ -93,6 +109,10 @@
             width:width
             flags:flags
              clip:clip];
+}
+
+- (void)addText:(NSString *)text typeface:(RasterizerTypeface *)typeface pointSize:(double)pointSize ctm:(CGAffineTransform)ctm color:(CGColorRef)color {
+    typeface.font.layoutGlyphs(pointSize, 0, RaCG::colorantFromCG(color), Ra::Bounds(0, 0, 1e3, pointSize), RaCG::transformFromCG(ctm), false, true, false, text.UTF8String, _scene);
 }
 
 @end

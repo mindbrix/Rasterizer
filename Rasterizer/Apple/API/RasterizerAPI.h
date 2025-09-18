@@ -24,6 +24,12 @@
 - (void)addEllipse:(CGRect)rect;
 @end
 
+
+@interface RasterizerTypeface: NSObject
+- (id)initWithName:(NSString *)name;
+@end
+
+
 typedef NS_ENUM(NSUInteger, SceneFlags) {
     kInvisible = 1 << 0,
     kFillEvenOdd = 1 << 1,
@@ -38,6 +44,7 @@ typedef NS_ENUM(NSUInteger, SceneFlags) {
 - (void)addPath:(RasterizerPath *)path ctm:(CGAffineTransform)ctm color:(CGColorRef)color width:(double)width flags:(NSUInteger)flags clip:(CGRect)clip;
 - (void)addCGPath:(CGPathRef)cgPath ctm:(CGAffineTransform)ctm color:(CGColorRef)color width:(double)width flags:(NSUInteger)flags;
 - (void)addCGPath:(CGPathRef)cgPath ctm:(CGAffineTransform)ctm color:(CGColorRef)color width:(double)width flags:(NSUInteger)flags clip:(CGRect)clip;
+- (void)addText:(NSString *)text typeface:(RasterizerTypeface *)typeface pointSize:(double)pointSize ctm:(CGAffineTransform)ctm color:(CGColorRef)color;
 @end
 
 @interface RasterizerSceneList: NSObject
