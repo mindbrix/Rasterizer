@@ -580,10 +580,9 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
         const float dw = vert.cover;
         
         if (!isCurve) {
-            float dx = abs(vert.u), dy = abs(vert.v), c = dfdx(dy), d = dfdy(dy);
-            float sy = rsqrt(c * c + d * d);
-            float rect = saturate(dw - dx) * saturate(sy * (1.0 - dy));
-            float ry = sy * min(0.0, 1.0 - dy);
+            float c = dfdx(vert.v), d = dfdy(vert.v), sy = rsqrt(c * c + d * d);
+            float dx = abs(vert.u), dy = sy * (1.0 - abs(vert.v)), ry = min(0.0, dy);
+            float rect = saturate(dw - dx) * saturate(dy);
             float lozenge = saturate(dw - sqrt(dx * dx + ry * ry));
             alpha = roundCap ? lozenge : rect;
         } else
