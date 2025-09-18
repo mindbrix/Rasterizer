@@ -49,8 +49,8 @@ class SwiftDemo: NSObject, SceneListDelegate {
         let unitCenter = CGPoint(x: unitRect.midX, y: unitRect.midY)
         let path = RasterizerPath()
         path.add(unitRect)
-        path.close()
 //        path.addEllipse(unitRect)
+        path.close()
         
         let scene = RasterizerScene()
         let count = 200

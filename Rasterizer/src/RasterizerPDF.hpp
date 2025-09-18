@@ -279,7 +279,8 @@ struct RasterizerPDF {
                             for (int j = 0; j < clipCount; j++) {
                                 Ra::Path clip = PathWriter().createPathFromClipPath(clipPath, j);
                                 clipPaths.emplace_back(clip);
-                                clipBounds = clipBounds.intersect(clip->bounds);
+                                if (clip->isValid())
+                                    clipBounds = clipBounds.intersect(clip->bounds);
                             }
                             clipPtr = & clipBounds;
                         }
