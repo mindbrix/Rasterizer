@@ -13,7 +13,7 @@
 
 #pragma mark - RasterizerPath
 
-@implementation RasterizerPath: NSObject
+@implementation RAPath: NSObject
 
 - (id)initWithCGPath:(CGPathRef)cgPath {
     self = [super init];
@@ -57,7 +57,7 @@
 
 #pragma mark - RasterizerTypeface
 
-@implementation RasterizerTypeface: NSObject
+@implementation RAFont: NSObject
 
 - (id)initWithName:(NSString *)name {
     self = [super init];
@@ -73,20 +73,20 @@
 
 #pragma mark - RasterizerScene
 
-@implementation RasterizerScene: NSObject
+@implementation RAScene: NSObject
 
 - (CGRect)bounds {
     return RaCG::CGRectFromBounds(_scene.bounds());
 }
 
-- (void)addPath:(RasterizerPath *)path ctm:(CGAffineTransform)ctm color:(CGColorRef)color width:(double)width flags:(NSUInteger)flags {
+- (void)addPath:(RAPath *)path ctm:(CGAffineTransform)ctm color:(CGColorRef)color width:(double)width flags:(NSUInteger)flags {
     _scene.addPath(path.path,
                    RaCG::transformFromCG(ctm),
                    RaCG::colorantFromCG(color),
                    width,
                    flags);
 }
-- (void)addPath:(RasterizerPath *)path ctm:(CGAffineTransform)ctm color:(CGColorRef)color width:(double)width flags:(NSUInteger)flags clip:(CGRect)clip {
+- (void)addPath:(RAPath *)path ctm:(CGAffineTransform)ctm color:(CGColorRef)color width:(double)width flags:(NSUInteger)flags clip:(CGRect)clip {
     Ra::Bounds clipBounds = RaCG::BoundsFromCGRect(clip);
     _scene.addPath(path.path,
                    RaCG::transformFromCG(ctm),
@@ -96,14 +96,14 @@
                    & clipBounds);
 }
 - (void)addCGPath:(CGPathRef)cgPath ctm:(CGAffineTransform)ctm color:(CGColorRef)color width:(double)width flags:(NSUInteger)flags {
-    [self addPath:[[RasterizerPath alloc] initWithCGPath:cgPath]
+    [self addPath:[[RAPath alloc] initWithCGPath:cgPath]
               ctm:ctm
             color:color
             width:width
             flags:flags];
 }
 - (void)addCGPath:(CGPathRef)cgPath ctm:(CGAffineTransform)ctm color:(CGColorRef)color width:(double)width flags:(NSUInteger)flags clip:(CGRect)clip {
-    [self addPath:[[RasterizerPath alloc] initWithCGPath:cgPath]
+    [self addPath:[[RAPath alloc] initWithCGPath:cgPath]
               ctm:ctm
             color:color
             width:width
@@ -111,7 +111,7 @@
              clip:clip];
 }
 
-- (void)addText:(NSString *)text typeface:(RasterizerTypeface *)typeface pointSize:(double)pointSize ctm:(CGAffineTransform)ctm color:(CGColorRef)color {
+- (void)addText:(NSString *)text font:(RAFont *)typeface pointSize:(double)pointSize ctm:(CGAffineTransform)ctm color:(CGColorRef)color {
     typeface.font.layoutGlyphs(pointSize, 0, RaCG::colorantFromCG(color), Ra::Bounds(0, 0, 1e3, pointSize), RaCG::transformFromCG(ctm), false, true, false, text.UTF8String, _scene);
 }
 
@@ -120,7 +120,7 @@
 
 #pragma mark - RasterizerScene
 
-@implementation RasterizerSceneList: NSObject
+@implementation RASceneList: NSObject
 
 - (CGRect)bounds {
     return RaCG::CGRectFromBounds(_list.bounds());
@@ -132,13 +132,13 @@
     _list.ctm = RaCG::transformFromCG(ctm);
 }
 
-- (void)addList:(RasterizerSceneList *)list {
+- (void)addList:(RASceneList *)list {
     _list.addList(list.list);
 }
-- (void)addScene:(RasterizerScene *)scene ctm:(CGAffineTransform)ctm {
+- (void)addScene:(RAScene *)scene ctm:(CGAffineTransform)ctm {
     _list.addScene(scene.scene, RaCG::transformFromCG(ctm));
 }
-- (void)addScene:(RasterizerScene *)scene ctm:(CGAffineTransform)ctm clip:(CGRect)clip {
+- (void)addScene:(RAScene *)scene ctm:(CGAffineTransform)ctm clip:(CGRect)clip {
     _list.addScene(scene.scene, RaCG::transformFromCG(ctm), RaCG::BoundsFromCGRect(clip));
 }
 

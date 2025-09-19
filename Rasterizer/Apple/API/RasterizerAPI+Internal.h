@@ -10,21 +10,21 @@
 #import "Rasterizer.hpp"
 #import "RasterizerFont.hpp"
 
-@interface RasterizerPath ()
+@interface RAPath ()
 @property(nonatomic) Ra::Path path;
 @end
 
 
-@interface RasterizerTypeface ()
+@interface RAFont ()
 @property(nonatomic) RasterizerFont font;
 @end
 
 
-@interface RasterizerScene ()
+@interface RAScene ()
 @property(nonatomic) Ra::Scene scene;
 @end
 
 
-@interface RasterizerSceneList ()
+@interface RASceneList ()
 @property(nonatomic) Ra::SceneList list;
 @end

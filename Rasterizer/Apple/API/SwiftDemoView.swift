@@ -33,28 +33,28 @@ public class SwiftDemoView: RasterizerView {
     }
 }
 
-class SwiftDemo: NSObject, SceneListDelegate {
-    let typeface = RasterizerTypeface(name: "HelveticaNeue-Medium")
+class SwiftDemo: NSObject, RASceneListDelegate {
+    let typeface = RAFont(name: "HelveticaNeue-Medium")
     
     func shouldRedraw(atTime time: Double) -> Bool {
         true
     }
-    func getListAtTime(_ time: Double, width: Double, height: Double) -> RasterizerSceneList! {
+    func getListAtTime(_ time: Double, width: Double, height: Double) -> RASceneList! {
         test0(time, width: width, height: height)
     }
     
-    func test0(_ time: Double, width: Double, height: Double) -> RasterizerSceneList {
+    func test0(_ time: Double, width: Double, height: Double) -> RASceneList {
         let ts = 0.1 * time
         let t = ts - floor(ts)
         let dim = min(width, height)
         let unitRect = CGRect(x: 0, y: 0, width: 1, height: 1)
         let unitCenter = CGPoint(x: unitRect.midX, y: unitRect.midY)
-        let path = RasterizerPath()
+        let path = RAPath()
         path.add(unitRect)
 //        path.addEllipse(unitRect)
         path.close()
         
-        let scene = RasterizerScene()
+        let scene = RAScene()
         let count = 200
         let r = 0.5 * dim
         let center = CGPoint(x: r, y: r)
@@ -74,7 +74,7 @@ class SwiftDemo: NSObject, SceneListDelegate {
                 ctm: ctm,
                 color: hsv,
                 width: 0.1,
-                flags: SceneFlags.fillEvenOdd.rawValue
+                flags: RASceneFlags.fillEvenOdd.rawValue
             )
         }
         
@@ -84,7 +84,7 @@ class SwiftDemo: NSObject, SceneListDelegate {
             scale: CGSize(width: 1, height: 1),
             translation: CGVector(dx: r, dy: r)
         )
-        scene.addText("Hello", typeface: typeface, pointSize: 32, ctm: textCTM, color: CGColor(gray: 0, alpha: 1))
+        scene.addText("Hello", font: typeface, pointSize: 32, ctm: textCTM, color: CGColor(gray: 0, alpha: 1))
         
         let ctm = CGAffineTransform(
             center: center,
@@ -92,7 +92,7 @@ class SwiftDemo: NSObject, SceneListDelegate {
             scale: CGSize(width: 1, height: 1),
             translation: .zero
         )
-        let list = RasterizerSceneList()
+        let list = RASceneList()
         list.add(scene,
             ctm: ctm
         )

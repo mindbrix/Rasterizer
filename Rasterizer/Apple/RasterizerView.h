@@ -23,6 +23,6 @@
 
 
 @interface RasterizerView : NSView
-@property(weak) id <SceneListDelegate> listDelegate;
+@property(weak) id <RASceneListDelegate> listDelegate;
 @property(nonatomic) bool useCG;
 @end

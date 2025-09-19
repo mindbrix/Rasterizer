@@ -23,7 +23,7 @@
 #import "RasterizerDemo.hpp"
 #import "RasterizerAPI+Internal.h"
 
-@interface DemoView () <NSFontChanging, SceneListDelegate>
+@interface DemoView () <NSFontChanging, RASceneListDelegate>
 
 @property(nonatomic) RasterizerDemo demo;
 @property(nonatomic) NSFont *font;
@@ -59,8 +59,8 @@
     return NO;
 }
 
-- (RasterizerSceneList *)getListAtTime:(double)time width:(double)width height:(double)height {
-    RasterizerSceneList *list = [RasterizerSceneList new];
+- (RASceneList *)getListAtTime:(double)time width:(double)width height:(double)height {
+    RASceneList *list = [RASceneList new];
     list.list = _demo.getDrawList(time, width, height);
     return list;
 }

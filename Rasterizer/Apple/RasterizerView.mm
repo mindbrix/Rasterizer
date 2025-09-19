@@ -91,7 +91,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 - (CGColorSpaceRef)writeBuffer:(Ra::Buffer *)buffer forLayer:(CALayer *)layer {
     if ([self.listDelegate respondsToSelector:@selector(getListAtTime:width:height:)]) {
         float scale = self.layer.contentsScale, w = self.bounds.size.width, h = self.bounds.size.height;
-        RasterizerSceneList *list = [self.listDelegate getListAtTime: NSDate.timeIntervalSinceReferenceDate
+        RASceneList *list = [self.listDelegate getListAtTime: NSDate.timeIntervalSinceReferenceDate
                                                                width: w
                                                               height: h];
         _renderer.renderList(list.list, scale, w, h, buffer);
@@ -104,7 +104,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 - (void)drawLayer:(CALayer *)layer inContext:(CGContextRef)ctx {
     if ([self.listDelegate respondsToSelector:@selector(getListAtTime:width:height:)]) {
         float scale = self.layer.contentsScale, w = self.bounds.size.width, h = self.bounds.size.height;
-        RasterizerSceneList *list = [self.listDelegate getListAtTime: NSDate.timeIntervalSinceReferenceDate
+        RASceneList *list = [self.listDelegate getListAtTime: NSDate.timeIntervalSinceReferenceDate
                                                                width: w
                                                               height: h];
         RaCG::renderListToBitmap(list.list, scale, w, h, ctx);

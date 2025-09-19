@@ -10,7 +10,7 @@
 #import <CoreGraphics/CoreGraphics.h>
 
 
-@interface RasterizerPath: NSObject
+@interface RAPath: NSObject
 @property(nonatomic, readonly) CGRect bounds;
 
 - (id)initWithCGPath:(CGPathRef)cgPath;
@@ -25,39 +25,39 @@
 @end
 
 
-@interface RasterizerTypeface: NSObject
+@interface RAFont: NSObject
 - (id)initWithName:(NSString *)name;
 @end
 
 
-typedef NS_ENUM(NSUInteger, SceneFlags) {
+typedef NS_ENUM(NSUInteger, RASceneFlags) {
     kInvisible = 1 << 0,
     kFillEvenOdd = 1 << 1,
     kRoundCap = 1 << 2,
     kSquareCap = 1 << 3
 };
 
-@interface RasterizerScene: NSObject
+@interface RAScene: NSObject
 @property(nonatomic, readonly) CGRect bounds;
 
-- (void)addPath:(RasterizerPath *)path ctm:(CGAffineTransform)ctm color:(CGColorRef)color width:(double)width flags:(NSUInteger)flags;
-- (void)addPath:(RasterizerPath *)path ctm:(CGAffineTransform)ctm color:(CGColorRef)color width:(double)width flags:(NSUInteger)flags clip:(CGRect)clip;
+- (void)addPath:(RAPath *)path ctm:(CGAffineTransform)ctm color:(CGColorRef)color width:(double)width flags:(NSUInteger)flags;
+- (void)addPath:(RAPath *)path ctm:(CGAffineTransform)ctm color:(CGColorRef)color width:(double)width flags:(NSUInteger)flags clip:(CGRect)clip;
 - (void)addCGPath:(CGPathRef)cgPath ctm:(CGAffineTransform)ctm color:(CGColorRef)color width:(double)width flags:(NSUInteger)flags;
 - (void)addCGPath:(CGPathRef)cgPath ctm:(CGAffineTransform)ctm color:(CGColorRef)color width:(double)width flags:(NSUInteger)flags clip:(CGRect)clip;
-- (void)addText:(NSString *)text typeface:(RasterizerTypeface *)typeface pointSize:(double)pointSize ctm:(CGAffineTransform)ctm color:(CGColorRef)color;
+- (void)addText:(NSString *)text font:(RAFont *)font pointSize:(double)pointSize ctm:(CGAffineTransform)ctm color:(CGColorRef)color;
 @end
 
-@interface RasterizerSceneList: NSObject
+@interface RASceneList: NSObject
 @property(nonatomic, readonly) CGRect bounds;
 @property(nonatomic) CGAffineTransform ctm;
 
-- (void)addList:(RasterizerSceneList *)list;
-- (void)addScene:(RasterizerScene *)scene ctm:(CGAffineTransform)ctm;
-- (void)addScene:(RasterizerScene *)scene ctm:(CGAffineTransform)ctm clip:(CGRect)clip;
+- (void)addList:(RASceneList *)list;
+- (void)addScene:(RAScene *)scene ctm:(CGAffineTransform)ctm;
+- (void)addScene:(RAScene *)scene ctm:(CGAffineTransform)ctm clip:(CGRect)clip;
 @end
 
 
-@protocol SceneListDelegate <NSObject>
+@protocol RASceneListDelegate <NSObject>
 - (BOOL)shouldRedrawAtTime:(double)time;
-- (RasterizerSceneList *)getListAtTime:(double)time width:(double)width height:(double)height;
+- (RASceneList *)getListAtTime:(double)time width:(double)width height:(double)height;
 @end
