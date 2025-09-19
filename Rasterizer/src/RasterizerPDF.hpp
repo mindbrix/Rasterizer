@@ -100,10 +100,12 @@ struct RasterizerPDF {
     static void writeTextBoxesToScene(FPDF_TEXTPAGE text_page, Ra::Scene& scene) {
         int charCount = FPDFText_CountChars(text_page);
         double left = 0, bottom = 0, right = 0, top = 0;
-        Ra::Colorant color(0, 0, 255, 255);  Ra::Path rect;  rect->addBounds(Ra::Bounds(0, 0, 1, 1));
+        Ra::Colorant red(0, 0, 255, 255);
+        float hairline = -1.f;
+        Ra::Path rect;  rect->addBounds(Ra::Bounds(0, 0, 1, 1)), rect->close();
         for (int i = 0; i < charCount; i++)
             if (FPDFText_GetUnicode(text_page, i) > 32 && FPDFText_GetCharBox(text_page, i, & left, & right, & bottom, & top))
-                scene.addPath(rect, Ra::Transform(right - left, 0, 0, top - bottom, left, bottom), color, -1.f, 0);
+                scene.addPath(rect, Ra::Transform(right - left, 0, 0, top - bottom, left, bottom), red, hairline, 0);
     }
     
    static void writeTextToScene(FPDF_PAGEOBJECT pageObject, FPDF_TEXTPAGE text_page, int baseIndex, char32_t *buffer, unsigned long textSize, FS_MATRIX m, Ra::Bounds *clipBounds, Ra::Scene& scene) {
@@ -113,22 +115,27 @@ struct RasterizerPDF {
         assert(font);
         unsigned int R = 0, G = 0, B = 0, A = 255;
         FPDFPageObj_GetFillColor(pageObject, & R, & G, & B, & A);
-        double pleft = DBL_MAX;
+        Ra::Path rect;  rect->addBounds(Ra::Bounds(0, 0, 1, 1)), rect->close();
+        Ra::Colorant red(0, 0, 255, 255);
+        float hairline = -1.f;
+       
         for (int g = 0; g < textSize; g++) {
             auto glyph = buffer[g];
             double left = 0, bottom = 0, right = 0, top = 0;
             FPDFText_GetCharBox(text_page, baseIndex + g, & left, & right, & bottom, & top);
             if (glyph >= 0xFFF0) {
-                Ra::Path rect;  rect->addBounds(Ra::Bounds(0, 0, 1, 1));
-                scene.addPath(rect, Ra::Transform(right - left, 0, 0, top - bottom, left, bottom), Ra::Colorant(0, 0, 255, 255), -1.f, 0);
+                scene.addPath(rect, Ra::Transform(right - left, 0, 0, top - bottom, left, bottom), red, hairline, 0);
             } else if (glyph > 32) {
                 FPDF_GLYPHPATH path = FPDFFont_GetGlyphPath(font, glyph, fontSize);
                 Ra::Path p = PathWriter().createPathFromGlyphPath(path);
-                Ra::Transform textCTM = Ra::Transform(m.a, m.b, m.c, m.d, m.e, m.f);
-                Ra::Bounds b = p->bounds.quad(textCTM);
-                textCTM = Ra::Bounds(left, bottom, right, top).fitTransform(b).concat(textCTM);
-                scene.addPath(p, textCTM, Ra::Colorant(B, G, R, A), 0.f, 0, clipBounds);
-                pleft = left;
+                if (!p->isValid()) {
+                    scene.addPath(rect, Ra::Transform(right - left, 0, 0, top - bottom, left, bottom), red, hairline, 0);
+                } else {
+                    Ra::Transform textCTM = Ra::Transform(m.a, m.b, m.c, m.d, m.e, m.f);
+                    Ra::Bounds b = Ra::Bounds(p->bounds.quad(textCTM));
+                    textCTM = Ra::Bounds(left, bottom, right, top).fitTransform(b).concat(textCTM);
+                    scene.addPath(p, textCTM, Ra::Colorant(B, G, R, A), 0.f, 0, clipBounds);
+                }
             }
         }
     }
