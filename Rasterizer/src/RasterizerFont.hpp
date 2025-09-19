@@ -144,8 +144,8 @@ struct RasterizerFont {
     stbtt_fontinfo info;
     
     
-    Ra::Bounds layoutGlyphs(float emSize, float gap, Ra::Colorant color, Ra::Bounds bounds, Ra::Transform m, bool rtl, bool single, bool opposite, const char *str, Ra::Scene& scene) {
-        Run run = writeRun(emSize, gap, bounds, m, rtl, single, opposite, str);
+    Ra::Bounds layoutGlyphs(float emSize, Ra::Colorant color, Ra::Bounds bounds, Ra::Transform m, bool rtl, bool single, bool opposite, const char *str, Ra::Scene& scene) {
+        Run run = writeRun(emSize, bounds, m, rtl, single, opposite, str);
         
         for(size_t i = 0; i < run.ctms.end; i++) {
             scene.addPath(run.paths.base[i], run.ctms.base[i], color, 0, 0);
@@ -153,14 +153,14 @@ struct RasterizerFont {
         return run.bounds;
     }
     
-    Run writeRun(float emSize, float gap, Ra::Bounds bounds, Ra::Transform m, bool rtl, bool single, bool opposite, const char *str) {
+    Run writeRun(float emSize, Ra::Bounds bounds, Ra::Transform m, bool rtl, bool single, bool opposite, const char *str) {
         Run run;
         if (isEmpty() || str == nullptr)
             return run;
         std::vector<int> glyphs;  writeGlyphs((uint8_t *)str, glyphs);
         float scale = emSize / float(unitsPerEm);
-        int width = ceilf((bounds.ux - bounds.lx) / scale), lineGap, lineHeight;
-        lineGap = (ascent - descent) * gap + this->lineGap, lineHeight = ascent - descent + lineGap;
+        int width = ceilf((bounds.ux - bounds.lx) / scale), lineHeight;
+        lineHeight = ascent - descent + lineGap;
         int len = (int)glyphs.size(), xs[len], end = 0, l0 = 0, x = 0, y = -(ascent + lineGap / 2), begin, i;
         do {
             for (; end < len && glyphs[end] < 0; end++) {

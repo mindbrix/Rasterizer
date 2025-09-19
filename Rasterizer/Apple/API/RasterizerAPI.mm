@@ -64,7 +64,8 @@
     if (!self)
         return nil;
     NSURL *url = RaCG::fontURL(name);
-    _font.load(url.path.UTF8String, name.UTF8String);
+    if (url != nil)
+        _font.load(url.path.UTF8String, name.UTF8String);
     return self;
 }
 
@@ -111,8 +112,8 @@
              clip:clip];
 }
 
-- (void)addText:(NSString *)text font:(RAFont *)typeface pointSize:(double)pointSize ctm:(CGAffineTransform)ctm color:(CGColorRef)color {
-    typeface.font.layoutGlyphs(pointSize, 0, RaCG::colorantFromCG(color), Ra::Bounds(0, 0, 1e3, pointSize), RaCG::transformFromCG(ctm), false, true, false, text.UTF8String, _scene);
+- (void)addText:(NSString *)text font:(RAFont *)font pointSize:(double)pointSize ctm:(CGAffineTransform)ctm color:(CGColorRef)color {
+    font.font.layoutGlyphs(pointSize, RaCG::colorantFromCG(color), Ra::Bounds(0, 0, 1e3, pointSize), RaCG::transformFromCG(ctm), false, false, false, text.UTF8String, _scene);
 }
 
 @end
