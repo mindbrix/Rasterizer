@@ -25,6 +25,17 @@
 #import "stb_truetype.h"
 
 struct RasterizerFont {
+    struct Run {
+        inline void add(Ra::Path path, Ra::Transform ctm) {
+            paths.add(path);
+            ctms.add(ctm);
+            bounds.extend(Ra::Bounds(path->bounds.quad(ctm)));
+        }
+        Ra::Bounds bounds;
+        Ra::Vector<Ra::Path> paths;
+        Ra::Row<Ra::Transform> ctms;
+    };
+    
     static const char nl = '\n', sp = ' ', tab = '\t';
     RasterizerFont() {
         empty();
@@ -134,9 +145,18 @@ struct RasterizerFont {
     
     
     Ra::Bounds layoutGlyphs(float emSize, float gap, Ra::Colorant color, Ra::Bounds bounds, Ra::Transform m, bool rtl, bool single, bool opposite, const char *str, Ra::Scene& scene) {
+        Run run = writeRun(emSize, gap, bounds, m, rtl, single, opposite, str);
+        
+        for(size_t i = 0; i < run.ctms.end; i++) {
+            scene.addPath(run.paths.base[i], run.ctms.base[i], color, 0, 0);
+        }
+        return run.bounds;
+    }
+    
+    Run writeRun(float emSize, float gap, Ra::Bounds bounds, Ra::Transform m, bool rtl, bool single, bool opposite, const char *str) {
+        Run run;
         if (isEmpty() || str == nullptr)
-            return { 0.f, 0.f, 0.f, 0.f };
-        Ra::Bounds glyphBounds;
+            return run;
         std::vector<int> glyphs;  writeGlyphs((uint8_t *)str, glyphs);
         float scale = emSize / float(unitsPerEm);
         int width = ceilf((bounds.ux - bounds.lx) / scale), lineGap, lineHeight;
@@ -147,7 +167,7 @@ struct RasterizerFont {
                 if (glyphs[end] != -RasterizerFont::nl)
                     x += (glyphs[end] == -RasterizerFont::tab ? 4 : 1) * (rtl ? -space : space);
                 else if (!single) {
-                    writeLine(scale, color, bounds, m, & glyphs[0], l0, end, xs, y, rtl, opposite, scene, glyphBounds);
+                    writeLine(scale, bounds, m, & glyphs[0], l0, end, xs, y, rtl, opposite, run);
                     x = 0, y -= lineHeight, l0 = end + 1;
                 }
             }
@@ -163,7 +183,7 @@ struct RasterizerFont {
                 x1 += x0, wux = wux > x1 ? wux : x1;
             }
             if (!single && abs(x) + wux > width) {
-                writeLine(scale, color, bounds, m, & glyphs[0], l0, begin, xs, y, rtl, opposite, scene, glyphBounds);
+                writeLine(scale, bounds, m, & glyphs[0], l0, begin, xs, y, rtl, opposite, run);
                 x = 0, y -= lineHeight, l0 = begin;
             }
             x1 = rtl ? x - x0 : x;
@@ -172,10 +192,10 @@ struct RasterizerFont {
             x = rtl ? x - x0 : x + x0;
         } while (end < len);
         if (glyphs.size())
-            writeLine(scale, color, bounds, m, & glyphs[0], l0, end, xs, y, rtl, opposite, scene, glyphBounds);
-        return glyphBounds;
+            writeLine(scale, bounds, m, & glyphs[0], l0, end, xs, y, rtl, opposite, run);
+        return run;
     }
-    void writeLine(float scale, Ra::Colorant color, Ra::Bounds bounds, Ra::Transform m, int *glyphs, int l0, int l1, int *xs, int y, bool rtl, bool opposite, Ra::Scene& scene, Ra::Bounds& glyphBounds) {
+    void writeLine(float scale, Ra::Bounds bounds, Ra::Transform m, int *glyphs, int l0, int l1, int *xs, int y, bool rtl, bool opposite, Run& run) {
         if (l0 == l1)
             return;
         int dx = 0, width = ceilf((bounds.ux - bounds.lx) / scale);
@@ -199,9 +219,10 @@ struct RasterizerFont {
                 Ra::Path path = glyphPath(glyphs[j], true);
                 int x = xs[j] + dx, x0 = x + path->bounds.lx, x1 = x + path->bounds.ux;
                 if (x0 >= 0 && x1 <= width) {
-                    Ra::Transform ctm(scale, 0.f, 0.f, scale, x * scale + bounds.lx, y * scale + bounds.uy);
-                    scene.addPath(path, m.concat(ctm), color, 0.f, 0);
-                    glyphBounds.extend(Ra::Bounds(path->bounds.quad(ctm)));
+                    run.add(
+                        path,
+                        m.concat(Ra::Transform(scale, 0.f, 0.f, scale, x * scale + bounds.lx, y * scale + bounds.uy))
+                    );
                 }
             }
     }

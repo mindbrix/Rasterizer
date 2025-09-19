@@ -160,6 +160,9 @@ struct Rasterizer {
                 base = memory->resize(end * 1.5);
             return base + begin;
         }
+        inline void add(T obj) {
+            *(alloc(1)) = obj;
+        }
         inline T *prealloc(size_t n) {
             size_t begin = end;
             alloc(n), end = begin;
@@ -168,7 +171,7 @@ struct Rasterizer {
         inline T *zalloc(size_t n) {
             return (T*)memset(alloc(n), 0, n * sizeof(T));
         }
-        inline T& back() { return base[end - 1]; }
+        inline T& back() const { return base[end - 1]; }
         Row<T>& empty() { end = idx = 0; return *this; }
         void reset() { end = idx = 0, base = nullptr, memory = Ref<Memory<T>>(); }
         
@@ -375,12 +378,12 @@ struct Rasterizer {
         Row<Point16> *p16s;   Row<uint8_t> *p16cnts;  Row<Atom> *atoms;
     };
     
+    template<typename T>
+    struct Vector {
+        uint64_t refCount;  T *base;  std::vector<T> dst;
+        void add(T obj) {  dst.emplace_back(obj), base = & dst[0]; }
+    };
     struct Scene {
-        template<typename T>
-        struct Vector {
-            uint64_t refCount;  T *base;  std::vector<T> dst;
-            void add(T obj) {  dst.emplace_back(obj), base = & dst[0]; }
-        };
         template<typename T>
         struct RowPair {
             uint64_t refCount;  T *base;  Row<T> src, dst;
