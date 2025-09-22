@@ -84,7 +84,7 @@ class SwiftDemo: NSObject, RASceneListDelegate {
             scale: CGSize(width: 1, height: 1),
             translation: CGVector(dx: r, dy: r)
         )
-        scene.addText("Hello\n124", font: font, pointSize: 32, ctm: textCTM, color: CGColor(gray: 0, alpha: 1))
+        scene.addText("Hello\n123", font: font, pointSize: 32, ctm: textCTM, color: CGColor(gray: 0, alpha: 1))
         
         let ctm = CGAffineTransform(
             center: center,
