@@ -455,8 +455,8 @@ struct Rasterizer {
     };
     struct Sample {
         struct Index {
-            uint16_t x, i;
-            inline bool operator< (const Index& other) const { return x < other.x; }
+            uint16_t lx, i;
+            inline bool operator< (const Index& other) const { return lx < other.lx; }
         };
         Sample(float lx, float ux, float cover, size_t is): lx(lx), ux(ceilf(ux)), cover(int16_t(cover)), is(uint32_t(is)) {}
         int16_t lx, ux, cover;  uint32_t is;
@@ -960,7 +960,7 @@ struct Rasterizer {
             if ((size = samples->end)) {
                 for (sample = samples->base, idx = indices->alloc(size), i = 0; i < size; i++, sample++) {
                     if (sample->cover)
-                        idx->x = sample->lx, idx->i = i, idx++;
+                        idx->lx = sample->lx, idx->i = i, idx++;
                 }
                 size = idx - indices->base;
                 if (size > 32 && size < 65536)
@@ -973,8 +973,8 @@ struct Rasterizer {
                 
                 ly = iy * kfh + clip.ly, ly = ly < clip.ly ? clip.ly : ly > clip.uy ? clip.uy : ly;
                 uy = (iy + 1) * kfh + clip.ly, uy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
-                for (h = uy - ly, wscale = 0.00003051850948f * kfh / h, cover = winding = 0.f, index = indices->base, lx = ux = index->x, i = begin = 0; i < size; i++, index++) {
-                    if (index->x >= ux && fabsf((winding - floorf(winding)) - 0.5f) > 0.499f) {
+                for (h = uy - ly, wscale = 0.00003051850948f * kfh / h, cover = winding = 0.f, index = indices->base, lx = ux = index->lx, i = begin = 0; i < size; i++, index++) {
+                    if (index->lx >= ux && fabsf((winding - floorf(winding)) - 0.5f) > 0.499f) {
                         if (lx != ux) {
                             Blend *inst = new (ctx.blends.alloc(1)) Blend(edgeIz);
                             ctx.allocator.alloc(lx, ly, ux, uy, ctx.blends.end - 1, & inst->quad.cell, type, (i - begin + 1) / 2);
@@ -984,13 +984,13 @@ struct Rasterizer {
                         if ((even && (int(winding) & 1)) || (!even && winding)) {
                             if (opaque) {
                                 Cell *cell = & (new (ctx.opaques.alloc(1)) Instance(iz))->quad.cell;
-                                cell->lx = ux, cell->ly = ly, cell->ux = index->x, cell->uy = uy;
+                                cell->lx = ux, cell->ly = ly, cell->ux = index->lx, cell->uy = uy;
                             } else {
                                 Cell *cell = & (new (ctx.blends.alloc(1)) Blend(iz))->quad.cell;
-                                cell->lx = ux, cell->ly = ly, cell->ux = index->x, cell->uy = uy, cell->ox = kNullIndex;
+                                cell->lx = ux, cell->ly = ly, cell->ux = index->lx, cell->uy = uy, cell->ox = kNullIndex;
                             }
                         }
-                        begin = i, lx = ux = index->x;
+                        begin = i, lx = ux = index->lx;
                     }
                     sample = samples->base + index->i;
                     ux = sample->ux > ux ? sample->ux : ux, winding += sample->cover * wscale;
