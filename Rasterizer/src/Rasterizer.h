@@ -30,6 +30,7 @@
 #define kStripCount 8
 #define kMoleculesHeight 256
 #define kMoleculesRange 32767.f
+#define kMoleculesPixelsPerEdge 256
 #define kFastSegments 4
 #define kNullIndex 0xFFFF
 #define kPathIndexMask 0xFFFFFF

@@ -571,7 +571,8 @@ struct Rasterizer {
                     clip = dev.integral().intersect(clipBounds);
                     if (clip.lx < clip.ux && clip.ly < clip.uy) {
                         bool unclipped = clip.contains(dev);
-                        bool useMolecules = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight;
+                        float clipWidth = clip.width(), clipHeight = clip.height();
+                        bool useMolecules = clipHeight <= kMoleculesHeight && clipWidth <= kMoleculesHeight;
                         colors[iz] = scn->colors->base[is];
                         ctms[iz] = m, widths[iz] = width, clips[iz] = invclip;
                         Geometry *g = scn->paths->base[is].ptr;
@@ -584,7 +585,7 @@ struct Rasterizer {
                                 outlineInstances += counter.count;
                             } else
                                 outlineInstances += g->upperBound(det);
-                        } else if (useMolecules) {
+                        } else if (useMolecules && clipWidth * clipHeight / g->types.end < kMoleculesPixelsPerEdge) {
                             bounds[iz] = *bnds, fasts.base[iz]++;
                             bool fast = !buffer->useCurves || g->maxCurve * det < 16.f;
                             Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kMolecule | bool(flags & Scene::kFillEvenOdd) * Instance::kEvenOdd | fast * Instance::kFastEdges);
