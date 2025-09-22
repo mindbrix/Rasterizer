@@ -85,9 +85,9 @@ struct RasterizerDemo {
         else if (keyCode == KeyCode::kO)
             outlineWidth = outlineWidth ? 0.f : -1.f, keyUsed = true;
         else if (keyCode == KeyCode::kP)
-            mouseMove = !mouseMove, indices = mouseMove ? indices : Ra::Range(INT_MAX, INT_MAX), keyUsed = true;
+            mouseMove = !mouseMove, indices = mouseMove ? indices : Rw::IndexPair(INT_MAX, INT_MAX), keyUsed = true;
         else if (keyCode == KeyCode::kL)
-            locked = locked.begin != INT_MAX ? Ra::Range(INT_MAX, INT_MAX) : indices, keyUsed = true;
+            locked = locked.i0 != INT_MAX ? Rw::IndexPair(INT_MAX, INT_MAX) : indices, keyUsed = true;
         else if (keyCode == KeyCode::kS) {
             list.ctm = ctm;
             RaCG::screenGrabToPDF(list, bounds), keyUsed = true;
@@ -293,7 +293,7 @@ struct RasterizerDemo {
     bool gpu = true, redraw = false, fit = false, mouseDown = false, mouseMove = false, useCurves = true, animating = false, opaque = false;
     double clock = 0.0, timeScale = 0.333;
     float mx, my, outlineWidth = 0.f;
-    Ra::Range indices = Ra::Range(INT_MAX, INT_MAX), locked = Ra::Range(INT_MAX, INT_MAX);
+    Rw::IndexPair indices = Rw::IndexPair(INT_MAX, INT_MAX), locked = Rw::IndexPair(INT_MAX, INT_MAX);
     size_t flags = 0;
     
 #pragma mark - Static
@@ -352,12 +352,12 @@ struct RasterizerDemo {
                 dstWidths[j] = scale * srcWidths[j];
         
         for (size_t j = li; j < ui; j++) {
-            dstColors[j] = (demo.indices.begin == si && demo.indices.end == j) ? red : demo.outlineWidth != 0.f ? (srcWidths[j] ? red : black) : srcColors[j];
+            dstColors[j] = (demo.indices.i0 == si && demo.indices.i1 == j) ? red : demo.outlineWidth != 0.f ? (srcWidths[j] ? red : black) : srcColors[j];
             if (demo.opaque)
                 dstColors[j].a = 255;
         }
         for (size_t j = li; j < ui; j++) {
-            dstFlags[j] = demo.locked.begin == INT_MAX ? srcFlags[j] : si == demo.locked.begin && j == demo.locked.end ? srcFlags[j] & ~Ra::Scene::kInvisible : srcFlags[j] | Ra::Scene::kInvisible;
+            dstFlags[j] = demo.locked.i0 == INT_MAX ? srcFlags[j] : si == demo.locked.i0 && j == demo.locked.i1 ? srcFlags[j] & ~Ra::Scene::kInvisible : srcFlags[j] | Ra::Scene::kInvisible;
         }
     }
 };

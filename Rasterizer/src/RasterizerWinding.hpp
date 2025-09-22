@@ -21,7 +21,12 @@
 #import "Rasterizer.hpp"
 
 struct RasterizerWinding {
-    static Ra::Range indicesForPoint(Ra::SceneList& list, Ra::Bounds bounds, float px, float py) {
+    struct IndexPair {
+        IndexPair(size_t i0, size_t i1) : i0(int(i0)), i1(int(i1)) {}
+        int i0, i1;
+    };
+    
+    static IndexPair indicesForPoint(Ra::SceneList& list, Ra::Bounds bounds, float px, float py) {
         if (px >= bounds.lx && px < bounds.ux && py >= bounds.ly && py < bounds.uy)
             for (int li = int(list.scenes.size()) - 1; li >= 0; li--) {
                 Ra::Scene& scene = list.scenes[li];
@@ -40,11 +45,11 @@ struct RasterizerWinding {
                         int mask = evenOdd ? 1 : ~0;
                         bool inside = winding & mask;
                         if (inside)
-                            return Ra::Range(li, si);
+                            return IndexPair(li, si);
                     }
                 }
             }
-        return Ra::Range(INT_MAX, INT_MAX);
+        return IndexPair(INT_MAX, INT_MAX);
     }
     struct Counter: Ra::GeometryWriter {
         float dx, dy, dw;  int winding = 0;  uint8_t flags = 0;
@@ -106,3 +111,5 @@ struct RasterizerWinding {
         return cntr.winding;
     }
 };
+
+typedef RasterizerWinding Rw;

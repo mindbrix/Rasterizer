@@ -177,14 +177,6 @@ struct Rasterizer {
         
         T *base = nullptr;  Ref<Memory<T>> memory;  size_t end = 0, idx = 0;
     };
-    struct Range {
-        Range(size_t begin, size_t end) : begin(int(begin)), end(int(end)) {}
-        int begin, end;
-    };
-    struct Index {
-        uint16_t x, i;
-        inline bool operator< (const Index& other) const { return x < other.x; }
-    };
     struct GeometryWriter {
         virtual void writeSegment(float x0, float y0, float x1, float y1) = 0;
         virtual void Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) = 0;
@@ -462,6 +454,10 @@ struct Rasterizer {
         uint16_t i0, ux;
     };
     struct Sample {
+        struct Index {
+            uint16_t x, i;
+            inline bool operator< (const Index& other) const { return x < other.x; }
+        };
         Sample(float lx, float ux, float cover, size_t is): lx(lx), ux(ceilf(ux)), cover(int16_t(cover)), is(uint32_t(is)) {}
         int16_t lx, ux, cover;  uint32_t is;
     };
@@ -623,7 +619,7 @@ struct Rasterizer {
         size_t outlinePaths = 0, outlineInstances = 0, p16total;
         Allocator allocator;  std::vector<Buffer::Entry> entries;
         Row<uint32_t> fasts;  Row<Blend> blends;  Row<Instance> opaques;  Row<Segment> segments;
-        Row<Index> indices;  std::vector<Row<Sample>> samples;  Row<uint32_t> segmentsIndices;
+        Row<Sample::Index> indices;  std::vector<Row<Sample>> samples;  Row<uint32_t> segmentsIndices;
     };
     static void divideGeometry(Geometry *g, Transform m, Bounds clip, bool unclipped, bool polygon, GeometryWriter& writer) {
         bool closed, closeSubpath = false;  float *p = g->points.base, sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3, ly, uy, lx, ux;
@@ -955,9 +951,9 @@ struct Rasterizer {
         size_t ily = 0, iuy = ceilf(clip.height() * krfh), iy, i, begin, size, edgeIz = iz | Instance::kEdge | even * Instance::kEvenOdd | fast * Instance::kFastEdges;
         uint16_t counts[256], ly, uy, lx, ux;  float h, cover, winding, wscale;
         Allocator::CountType type = fast ? Allocator::kFastEdges : Allocator::kQuadEdges;
-        bool single = clip.ux - clip.lx < 256.f;  Index *index;
+        bool single = clip.ux - clip.lx < 256.f;  Sample::Index *index;
         uint32_t range = single ? powf(2.f, ceilf(log2f(clip.ux - clip.lx + 1.f))) : 256;
-        Row<Index> *indices = & ctx.indices;  Index *idx;
+        Row<Sample::Index> *indices = & ctx.indices;  Sample::Index *idx;
         Row<Sample> *samples = & ctx.samples[0];  Sample *sample;
         
         for (iy = ily; iy < iuy; iy++, samples->empty(), samples++, indices->empty()) {
