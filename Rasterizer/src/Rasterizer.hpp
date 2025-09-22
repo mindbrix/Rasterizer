@@ -948,12 +948,14 @@ struct Rasterizer {
         }
     }
     static void writeSegmentInstances(Bounds clip, bool even, size_t iz, bool opaque, bool fast, Context& ctx) {
-        size_t ily = 0, iuy = ceilf(clip.height() * krfh), iy, i, begin, size, edgeIz = iz | Instance::kEdge | even * Instance::kEvenOdd | fast * Instance::kFastEdges;
-        uint16_t counts[256], ly, uy, lx, ux;  float h, cover, winding, wscale;
+        size_t ily = 0, iuy = ceilf(clip.height() * krfh), iy, i, begin, size;
+        size_t edgeIz = iz | Instance::kEdge | even * Instance::kEvenOdd | fast * Instance::kFastEdges;
+        uint16_t counts[256], ly, uy, lx, ux;
+        float h, cover, winding, wscale;
         Allocator::CountType type = fast ? Allocator::kFastEdges : Allocator::kQuadEdges;
-        bool single = clip.ux - clip.lx < 256.f;  Sample::Index *index;
-        uint32_t range = single ? powf(2.f, ceilf(log2f(clip.ux - clip.lx + 1.f))) : 256;
-        Row<Sample::Index> *indices = & ctx.indices;  Sample::Index *idx;
+        bool single = clip.ux - clip.lx < 256.f;
+        uint32_t range = single ? 1 << uint32_t(ceilf(log2f(clip.ux - clip.lx + 1.f))) : 256;
+        Row<Sample::Index> *indices = & ctx.indices;  Sample::Index *index, *idx;
         Row<Sample> *samples = & ctx.samples[0];  Sample *sample;
         
         for (iy = ily; iy < iuy; iy++, samples->empty(), samples++, indices->empty()) {
