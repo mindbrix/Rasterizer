@@ -16,6 +16,10 @@ extension CGAffineTransform {
             .concatenating(CGAffineTransform(rotationAngle: rotation))
             .concatenating(CGAffineTransform(translationX: center.x + translation.dx, y: center.y + translation.dy))
     }
+    
+    func preconcat(t: CGAffineTransform, cx: Double, cy: Double) -> CGAffineTransform {
+        CGAffineTransform(a, b, c, d, tx - cx, ty - cy).concatenating(CGAffineTransform(t.a, t.b, t.c, t.d, t.tx + cx, t.ty + cy))
+    }
 }
 
 extension CGPoint {
@@ -24,6 +28,7 @@ extension CGPoint {
     }
 }
 
+
 public class SwiftDemoView: RasterizerView {
     let demo = SwiftDemo()
     
@@ -31,16 +36,82 @@ public class SwiftDemoView: RasterizerView {
         super.init(coder: coder)
         listDelegate = demo
     }
+    
+    override public var acceptsFirstResponder: Bool {
+        true
+    }
+    override public func becomeFirstResponder() -> Bool {
+        true
+    }
+    override public func keyDown(with event: NSEvent) {
+        if !demo.handleEvent(.keyDown(keyCode: event.keyCode)) {
+            super.keyDown(with: event)
+        }
+    }
+    override public func magnify(with event: NSEvent) {
+        _ = demo.handleEvent(.magnify(scale: 1.0 + event.magnification))
+    }
+    override public func rotate(with event: NSEvent) {
+        _ = demo.handleEvent(.rotate(angle: 0.1 * event.rotation))
+    }
+    override public func scrollWheel(with event: NSEvent) {
+        let inversion = event.isDirectionInvertedFromDevice ? -1.0 : 1.0
+        _ = demo.handleEvent(.translate(tx: event.deltaX, ty: inversion * event.deltaY))
+    }
 }
 
+
 class SwiftDemo: NSObject, RASceneListDelegate {
+    enum KeyCode: UInt16 {
+        case kA = 0
+        case kC = 8
+        case kF = 3
+        case kG = 5
+        case kH = 4
+        //, kI = 34, kL = 37, kO = 31, kP = 35, kS = 1, kT = 17, k1 = 18, k0 = 29, kMinus = 27, kPlus = 24 }
+    }
+    enum Event {
+        case keyDown(keyCode: UInt16)
+        case magnify(scale: Double)
+        case rotate(angle: Float)
+        case translate(tx: Double, ty: Double)
+    }
+    
     let font = RAFont(name: "HelveticaNeue-Medium")
+    var flag = false
+    var ctm = CGAffineTransform.identity
+    var bounds = CGRect.zero
+    
+    func handleEvent(_ event: Event) -> Bool {
+        switch event {
+        case .keyDown(let keyCode):
+            switch keyCode {
+            case KeyCode.kA.rawValue:
+                flag.toggle()
+            case KeyCode.kC.rawValue:
+                ctm = .identity
+            default:
+                return false
+            }
+            break
+        case .magnify(let scale):
+            ctm = ctm.preconcat(t: CGAffineTransform(scaleX: scale, y: scale), cx: bounds.midX, cy: bounds.midY)
+        case .rotate(let angle):
+            ctm = ctm.preconcat(t: CGAffineTransform(rotationAngle: CGFloat(angle)), cx: bounds.midX, cy: bounds.midY)
+        case .translate(let tx, let ty):
+            ctm.tx += tx
+            ctm.ty += ty
+        }
+        return true
+    }
     
     func shouldRedraw(atTime time: Double) -> Bool {
         true
     }
     func getListAtTime(_ time: Double, width: Double, height: Double) -> RASceneList! {
-        test0(time, width: width, height: height)
+        bounds = CGRect(x: 0, y: 0, width: width, height: height)
+        
+        return test0(time, width: width, height: height)
     }
     
     func test0(_ time: Double, width: Double, height: Double) -> RASceneList {
@@ -55,7 +126,7 @@ class SwiftDemo: NSObject, RASceneListDelegate {
         path.close()
         
         let scene = RAScene()
-        let count = 200
+        let count = flag ? 2000 : 200
         let r = 0.5 * dim
         let center = CGPoint(x: r, y: r)
         let scale = 0.125 * dim
@@ -86,12 +157,6 @@ class SwiftDemo: NSObject, RASceneListDelegate {
         )
         scene.addText("Hello\n123", font: font, pointSize: 32, ctm: textCTM, color: CGColor(gray: 0, alpha: 1))
         
-        let ctm = CGAffineTransform(
-            center: center,
-            rotation: 0,
-            scale: CGSize(width: 1, height: 1),
-            translation: .zero
-        )
         let list = RASceneList()
         list.add(scene,
             ctm: ctm
