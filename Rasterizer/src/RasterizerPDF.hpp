@@ -133,7 +133,7 @@ struct RasterizerPDF {
                 } else {
                     Ra::Transform textCTM = Ra::Transform(m.a, m.b, m.c, m.d, m.e, m.f);
                     Ra::Bounds b = Ra::Bounds(p->bounds.quad(textCTM));
-                    textCTM = Ra::Bounds(left, bottom, right, top).fitTransform(b).concat(textCTM);
+                    textCTM = textCTM.concat(Ra::Bounds(left, bottom, right, top).fitTransform(b));
                     scene.addPath(p, textCTM, Ra::Colorant(B, G, R, A), 0.f, 0, clipBounds);
                 }
             }
@@ -180,7 +180,7 @@ struct RasterizerPDF {
         ty = rot == 1 ? right - left : rot == 2 ? top - bottom : ty;
         Ra::Transform originCTM(1.f, 0.f, 0.f, 1.f, -left, -bottom);
         Ra::Transform pageCTM(cosine, sine, -sine, cosine, tx, ty);
-        return originCTM.concat(pageCTM);
+        return pageCTM.concat(originCTM);
     }
 
     static int getPageCount(const void *bytes, size_t size) {

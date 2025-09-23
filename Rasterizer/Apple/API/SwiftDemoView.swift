@@ -17,7 +17,7 @@ extension CGAffineTransform {
             .concatenating(CGAffineTransform(translationX: center.x + translation.dx, y: center.y + translation.dy))
     }
     
-    func preconcat(t: CGAffineTransform, cx: Double, cy: Double) -> CGAffineTransform {
+    func concatAroundCenter(t: CGAffineTransform, cx: Double, cy: Double) -> CGAffineTransform {
         CGAffineTransform(a, b, c, d, tx - cx, ty - cy).concatenating(CGAffineTransform(t.a, t.b, t.c, t.d, t.tx + cx, t.ty + cy))
     }
 }
@@ -95,9 +95,9 @@ class SwiftDemo: NSObject, RASceneListDelegate {
             }
             break
         case .magnify(let scale):
-            ctm = ctm.preconcat(t: CGAffineTransform(scaleX: scale, y: scale), cx: bounds.midX, cy: bounds.midY)
+            ctm = ctm.concatAroundCenter(t: CGAffineTransform(scaleX: scale, y: scale), cx: bounds.midX, cy: bounds.midY)
         case .rotate(let angle):
-            ctm = ctm.preconcat(t: CGAffineTransform(rotationAngle: CGFloat(angle)), cx: bounds.midX, cy: bounds.midY)
+            ctm = ctm.concatAroundCenter(t: CGAffineTransform(rotationAngle: CGFloat(angle)), cx: bounds.midX, cy: bounds.midY)
         case .translate(let tx, let ty):
             ctm.tx += tx
             ctm.ty += ty

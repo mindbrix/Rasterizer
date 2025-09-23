@@ -22,7 +22,7 @@ struct RasterizerRenderer {
     
     void renderList(const Ra::SceneList& list, float scale, float w, float h, Ra::Buffer *buffer) {
         Ra::Bounds device(0.f, 0.f, ceilf(scale * w), ceilf(scale * h));
-        Ra::Transform view = Ra::Transform(scale, 0.f, 0.f, scale, 0.f, 0.f).concat(list.ctm);
+        Ra::Transform view = list.ctm.concat(Ra::Transform(scale, 0.f, 0.f, scale, 0.f, 0.f));
         
         buffer->useCurves = list.useCurves;
         buffer->clearColor = list.clearColor;

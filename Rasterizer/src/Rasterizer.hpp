@@ -29,13 +29,13 @@ struct Rasterizer {
         Transform(float a, float b, float c, float d, float tx, float ty) : a(a), b(b), c(c), d(d), tx(tx), ty(ty) {}
         inline Transform concat(const Transform t) const {
             return {
-                t.a * a + t.b * c, t.a * b + t.b * d,
-                t.c * a + t.d * c, t.c * b + t.d * d,
-                t.tx * a + t.ty * c + tx, t.tx * b + t.ty * d + ty
+                a * t.a + b * t.c, a * t.b + b * t.d,
+                c * t.a + d * t.c, c * t.b + d * t.d,
+                tx * t.a + ty * t.c + t.tx, tx * t.b + ty * t.d + t.ty
             };
         }
-        inline Transform preconcat(const Transform t, float cx, float cy) const {
-            return Transform(t.a, t.b, t.c, t.d, t.tx + cx, t.ty + cy).concat(Transform(a, b, c, d, tx - cx, ty - cy));
+        inline Transform concatAroundCenter(const Transform t, float cx, float cy) const {
+            return Transform(a, b, c, d, tx - cx, ty - cy).concat(Transform(t.a, t.b, t.c, t.d, t.tx + cx, t.ty + cy));
         }
         inline Transform invert() const {
             float det = a * d - b * c, recip = 1.f / det;
@@ -546,12 +546,12 @@ struct Rasterizer {
             for (lz = uz = i = 0; i < list.scenes.size(); i++, lz = uz) {
                 const Scene *scn = & list.scenes[i];
                 uz = lz + scn->count, clz = lz < slz ? slz : lz > suz ? suz : lz, cuz = uz < slz ? slz : uz > suz ? suz : uz;
-                Transform ctm = view.concat(list.ctms[i]), clipquad, m, quad, invclip;
+                Transform ctm = list.ctms[i].concat(view), clipquad, m, quad, invclip;
                 Bounds dev, clip, *bnds, clipBounds, sceneclip = list.clips[i], lastClip;
                 for (is = clz - lz, iz = clz; iz < cuz; iz++, is++) {
                     if ((flags = scn->flags->base[is]) & Scene::Flags::kInvisible)
                         continue;
-                    m = ctm.concat(scn->ctms->base[is]), det = fabsf(m.a * m.d - m.b * m.c);
+                    m = scn->ctms->base[is].concat(ctm), det = fabsf(m.a * m.d - m.b * m.c);
                     uw = scn->widths->base[is], width = uw * (uw > 0.f ? sqrtf(det) : -1.f);
                     
                     bool newClip = memcmp(scn->clips.base + is, & lastClip, sizeof(Bounds)) != 0;
@@ -598,7 +598,7 @@ struct Rasterizer {
                             divideGeometry(g, m, clip, unclipped, true, idxr);
                             bool softunclipped = true;
                             if (clipActive) {
-                                Bounds soft = Bounds(invclip.concat(quad));
+                                Bounds soft = Bounds(quad.concat(invclip));
                                 softunclipped = fmaxf(fmaxf(fabsf(soft.lx - 0.5f), fabsf(soft.ux - 0.5f)), fmaxf(fabsf(soft.ly - 0.5f), fabsf(soft.uy - 0.5f))) < softclipMargin;
                             }
                             bool opaque = colors[iz].a == 255 && softunclipped;

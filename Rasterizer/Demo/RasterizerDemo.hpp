@@ -136,14 +136,14 @@ struct RasterizerDemo {
     void onMagnify(float s) {
         float cx = (flags & Flags::kShift) ? mx : bounds.cx();
         float cy = (flags & Flags::kShift) ? my : bounds.cy();
-        ctm = ctm.preconcat(Ra::Transform(s, 0.f, 0.f, s, 0.f, 0.f), cx, cy);
+        ctm = ctm.concatAroundCenter(Ra::Transform(s, 0.f, 0.f, s, 0.f, 0.f), cx, cy);
         redraw = true;
     }
     void onRotate(float a) {
         float cx = (flags & Flags::kShift) ? mx : bounds.cx();
         float cy = (flags & Flags::kShift) ? my : bounds.cy();
         float sine, cosine;  __sincosf(a, & sine, & cosine);
-        ctm = ctm.preconcat(Ra::Transform(cosine, sine, - sine, cosine, 0, 0), cx, cy);
+        ctm = ctm.concatAroundCenter(Ra::Transform(cosine, sine, - sine, cosine, 0, 0), cx, cy);
         redraw = true;
     }
     void onDrag(float dx, float dy) {
@@ -235,7 +235,7 @@ struct RasterizerDemo {
         draw.ctm = ctm, draw.useCurves = useCurves;
         if (showHud) {
             Ra::Bounds hudBounds = Ra::Bounds(0, 0, kHudWidth, kHudHeight);
-            Ra::Transform m = ctm.invert().concat(Ra::Transform(1, 0, 0, 1, kHudInset, bounds.uy - kHudInset - kHudHeight));
+            Ra::Transform m = Ra::Transform(1, 0, 0, 1, kHudInset, bounds.uy - kHudInset - kHudHeight).concat(ctm.invert());
             draw.addScene(getHUD(hudBounds), m, hudBounds);
         }
         return draw;
@@ -340,7 +340,7 @@ struct RasterizerDemo {
             Ra::Transform *m = srcCtms + li;  Ra::Bounds *b = bounds + li;
             for (size_t j = li; j < ui; j++, m++, b++) {
                 cx = 0.5f * (b->lx + b->ux), cy = 0.5f * (b->ly + b->uy);
-                dstCtms[j] = m->preconcat(rsts[j & 1], cx * m->a + cy * m->c + m->tx, cx * m->b + cy * m->d + m->ty);
+                dstCtms[j] = m->concatAroundCenter(rsts[j & 1], cx * m->a + cy * m->c + m->tx, cx * m->b + cy * m->d + m->ty);
             }
         }
         if (demo.outlineWidth) {

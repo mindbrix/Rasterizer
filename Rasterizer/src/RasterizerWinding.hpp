@@ -30,7 +30,7 @@ struct RasterizerWinding {
         if (px >= bounds.lx && px < bounds.ux && py >= bounds.ly && py < bounds.uy)
             for (int li = int(list.scenes.size()) - 1; li >= 0; li--) {
                 Ra::Scene& scene = list.scenes[li];
-                Ra::Transform ctm = list.ctm.concat(list.ctms[li]);
+                Ra::Transform ctm = list.ctms[li].concat(list.ctm);
                 Ra::Bounds sceneclip = list.clips[li];
                 for (int si = int(scene.count) - 1; si >= 0; si--) {
                     if (scene.flags->base[si] & Ra::Scene::kInvisible)
@@ -40,7 +40,7 @@ struct RasterizerWinding {
                     float ux = inv.a * px + inv.c * py + inv.tx, uy = inv.b * px + inv.d * py + inv.ty;
                     bool inBounds = fmaxf(fabsf(ux - 0.5f), fabsf(uy - 0.5f)) <= 0.5f;
                     if (inBounds) {
-                        int winding = pointWinding(scene.paths->base[si].ptr, scene.bnds.base[si], ctm.concat(scene.ctms->base[si]), px, py, scene.widths->base[si], scene.flags->base[si]);
+                        int winding = pointWinding(scene.paths->base[si].ptr, scene.bnds.base[si], scene.ctms->base[si].concat(ctm), px, py, scene.widths->base[si], scene.flags->base[si]);
                         bool evenOdd = scene.flags->base[si] & Ra::Scene::kFillEvenOdd;
                         int mask = evenOdd ? 1 : ~0;
                         bool inside = winding & mask;

@@ -71,7 +71,7 @@ struct RasterizerCG {
         float uw = width < 0.f ? -width / ctm.scale() : width;
         Ra::Transform quad = user.inset(-uw, -uw).quad(ctm);
         Ra::Bounds dev = Ra::Bounds(quad).intersect(Ra::Bounds(clip)).intersect(deviceClip);
-        Ra::Bounds soft = Ra::Bounds(clip.invert().concat(quad));
+        Ra::Bounds soft = Ra::Bounds(quad.concat(clip.invert()));
         return dev.lx < dev.ux && dev.ly < dev.uy && soft.lx < 1.f && soft.ux > 0.f && soft.ly < 1.f && soft.uy > 0.f;
     }
     
@@ -87,7 +87,7 @@ struct RasterizerCG {
         CGContextConcatCTM(ctx, CGFromTransform(list.ctm));
         
         for (int j = 0; j < list.scenes.size(); j++) {
-            Ra::Transform ctm = list.ctm.concat(list.ctms[j]), clip;
+            Ra::Transform ctm = list.ctms[j].concat(list.ctm), clip;
             Ra::Bounds lastClip;
             CGContextSaveGState(ctx);
             CGContextConcatCTM(ctx, CGFromTransform(list.ctms[j]));
@@ -110,7 +110,7 @@ struct RasterizerCG {
                 Ra::Geometry *g = scn.paths->base[i].ptr;
                 Ra::Transform t = scn.ctms->base[i];
                 
-                if (isVisible(g->bounds, ctm.concat(t), clip, bounds, scn.widths->base[i])) {
+                if (isVisible(g->bounds, t.concat(ctm), clip, bounds, scn.widths->base[i])) {
                     CGContextSaveGState(ctx);
                     CGContextConcatCTM(ctx, CGFromTransform(t));
                     writePathToCGContext(g, ctx);
