@@ -27,13 +27,13 @@
 struct RasterizerFont {
     struct Run {
         inline void add(Ra::Path path, Ra::Transform ctm) {
-            paths.add(path);
-            ctms.add(ctm);
+            paths->add(path);
+            ctms->add(ctm);
             bounds.extend(Ra::Bounds(path->bounds.quad(ctm)));
         }
         Ra::Bounds bounds;
-        Ra::Vector<Ra::Path> paths;
-        Ra::Row<Ra::Transform> ctms;
+        Ra::Ref<Ra::Memory<Ra::Path, true>> paths;
+        Ra::Ref<Ra::Memory<Ra::Transform>> ctms;
     };
     
     static const char nl = '\n', sp = ' ', tab = '\t';
@@ -147,8 +147,8 @@ struct RasterizerFont {
     Ra::Bounds layoutGlyphs(float emSize, Ra::Colorant color, Ra::Bounds bounds, Ra::Transform m, bool rtl, bool single, bool opposite, const char *str, Ra::Scene& scene) {
         Run run = writeRun(emSize, bounds, m, rtl, single, opposite, str);
         
-        for(size_t i = 0; i < run.ctms.end; i++) {
-            scene.addPath(run.paths.base[i], run.ctms.base[i], color, 0, 0);
+        for(size_t i = 0; i < run.ctms->end; i++) {
+            scene.addPath(run.paths->addr[i], run.ctms->addr[i], color, 0, 0);
         }
         return run.bounds;
     }
@@ -241,7 +241,7 @@ struct RasterizerFont {
     static void layoutGlyphsOnArc(Ra::Scene& glyphs, float cx, float cy, float r, float theta, Ra::Scene& scene) {
         Ra::Path path;  Ra::Transform m, ctm;  Ra::Bounds b;  float lx = 0.f, bx, by, rot, px, py, sine, cosine;
         for (int i = 0; i < glyphs.count; i++) {
-            path = glyphs.paths->base[i], m = glyphs.ctms->base[i], b = Ra::Bounds(path->bounds.quad(m));
+            path = glyphs.paths->addr[i], m = glyphs.ctms->base[i], b = Ra::Bounds(path->bounds.quad(m));
             lx = i == 0 ? b.lx : lx;
             bx = 0.5f * (b.lx + b.ux), by = m.ty, rot = theta - (bx - lx) / r;
             px = cx + r * cosf(rot), py = cy + r * sinf(rot);

@@ -58,7 +58,7 @@ struct RasterizerRenderer {
                 for (target = total * i / kContextCount; count < target; iz++, si++) {
                     if (si == scene->count)
                         scene++, si = 0;
-                    count += scene->paths->base[si]->types.end;
+                    count += scene->paths->addr[si]->types.end;
                 }
                 divisions[i] = iz;
             }

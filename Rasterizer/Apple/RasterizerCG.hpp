@@ -99,15 +99,15 @@ struct RasterizerCG {
                 if (scn.flags->base[i] & Ra::Scene::Flags::kInvisible)
                     continue;
                 
-                bool newClip = memcmp(scn.clips.base + i, & lastClip, sizeof(Ra::Bounds)) != 0;
+                bool newClip = memcmp(scn.clips->addr + i, & lastClip, sizeof(Ra::Bounds)) != 0;
                 if (newClip) {
-                    lastClip = scn.clips.base[i];
+                    lastClip = scn.clips->addr[i];
                     clip = lastClip.quad(ctm);
                     CGContextRestoreGState(ctx);
                     CGContextSaveGState(ctx);
                     CGContextClipToRect(ctx, CGRectFromBounds(lastClip));
                 }
-                Ra::Geometry *g = scn.paths->base[i].ptr;
+                Ra::Geometry *g = scn.paths->addr[i].ptr;
                 Ra::Transform t = scn.ctms->base[i];
                 
                 if (isVisible(g->bounds, t.concat(ctm), clip, bounds, scn.widths->base[i])) {

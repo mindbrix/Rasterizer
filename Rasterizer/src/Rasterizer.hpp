@@ -139,17 +139,32 @@ struct Rasterizer {
         T* operator->() const { return ptr; }
         T *ptr = nullptr;
     };
-    template<typename T>
+    template<typename T, bool isRef = false>
     struct Memory {
         ~Memory() {
-            if (addr)
+            if (addr) {
+                if (isRef) {
+                    for (size_t i = 0; i < end; i++)
+                        addr[i].~T();
+                }
                 free(addr);
+            }
+        }
+        inline void add(T obj) {
+            size_t begin = end;
+            end += 1;
+            if (size < end)
+                resize(end * 1.5);
+            addr[begin] = obj;
         }
         T *resize(size_t n) {
+            size_t begin = size;
             size = n, addr = (T *)realloc(addr, n * sizeof(T));
+            if (isRef)
+                bzero(addr + begin, (size - begin) * sizeof(T));
             return addr;
         }
-        size_t refCount, size = 0;  T *addr = nullptr;
+        size_t refCount, size = 0, end = 0;  T *addr = nullptr;
     };
     template<typename T>
     struct Row {
@@ -218,6 +233,9 @@ struct Rasterizer {
     };
     
     struct Geometry {
+        ~Geometry() {
+            int i = 1 + 2;
+        }
         enum Type { kMove, kLine, kQuadratic, kCubic, kClose, kCountSize };
 
         void prealloc(size_t count) {
@@ -370,12 +388,10 @@ struct Rasterizer {
         Row<Point16> *p16s;   Row<uint8_t> *p16cnts;  Row<Atom> *atoms;
     };
     
-    template<typename T>
-    struct Vector {
-        uint64_t refCount;  T *base;  std::vector<T> dst;
-        void add(T obj) {  dst.emplace_back(obj), base = & dst[0]; }
-    };
     struct Scene {
+        ~Scene() {
+            int i = 0;
+        }
         template<typename T>
         struct RowPair {
             uint64_t refCount;  T *base;  Row<T> src, dst;
@@ -388,8 +404,8 @@ struct Rasterizer {
                 count++, weight += g->types.end;
                 if (kMoleculesHeight && g->p16s.end == 0)
                     P16Writer().writeGeometry(g);
-                paths->add(path), *bnds.alloc(1) = g->bounds, ctms->add(ctm), colors->add(color), widths->add(width), flags->add(flag);
-                *clips.alloc(1) = clipBounds ? *clipBounds : Bounds::huge();
+                paths->add(path), bnds->add(g->bounds), ctms->add(ctm), colors->add(color), widths->add(width), flags->add(flag);
+                clips->add(clipBounds ? *clipBounds : Bounds::huge());
             }
         }
         Bounds bounds() const {
@@ -397,12 +413,12 @@ struct Rasterizer {
             for (int i = 0; i < count; i++)
                 if ((flags->base[i] & kInvisible) == 0) {
                     float inset = -0.5f * widths->base[i];
-                    b.extend(Bounds(bnds.base[i].inset(inset, inset).quad(ctms->base[i])).intersect(clips.base[i]));
+                    b.extend(Bounds(bnds->addr[i].inset(inset, inset).quad(ctms->base[i])).intersect(clips->addr[i]));
                 }
             return b;
         }
         size_t count = 0, weight = 0;
-        Ref<Vector<Path>> paths;  Row<Bounds> bnds, clips;
+        Ref<Memory<Path, true>> paths;  Ref<Memory<Bounds>> bnds, clips;
         Ref<RowPair<Transform>> ctms;  Ref<RowPair<Colorant>> colors;  Ref<RowPair<float>> widths;  Ref<RowPair<uint8_t>> flags;
     };
     
@@ -554,16 +570,16 @@ struct Rasterizer {
                     m = scn->ctms->base[is].concat(ctm), det = fabsf(m.a * m.d - m.b * m.c);
                     uw = scn->widths->base[is], width = uw * (uw > 0.f ? sqrtf(det) : -1.f);
                     
-                    bool newClip = memcmp(scn->clips.base + is, & lastClip, sizeof(Bounds)) != 0;
+                    bool newClip = memcmp(scn->clips->addr + is, & lastClip, sizeof(Bounds)) != 0;
                     if (newClip) {
-                        lastClip = scn->clips.base[is];
+                        lastClip = scn->clips->addr[is];
                         clipActive = !lastClip.isHuge() || !sceneclip.isHuge();
                         clipquad = clipActive ? sceneclip.intersect(lastClip).quad(ctm) : Transform(1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f);
                         softclipMargin = 0.5f + 1e-1f / fmaxf(1.f, clipquad.scale());
                         invclip = clipquad.invert();
                         clipBounds = Bounds(clipquad).integral().intersect(device);
                     }
-                    bnds = & scn->bnds.base[is], quad = bnds->quad(m), dev = Bounds(quad).inset(-width, -width);
+                    bnds = & scn->bnds->addr[is], quad = bnds->quad(m), dev = Bounds(quad).inset(-width, -width);
                     clip = dev.integral().intersect(clipBounds);
                     if (clip.lx < clip.ux && clip.ly < clip.uy) {
                         bool unclipped = clip.contains(dev);
@@ -571,7 +587,7 @@ struct Rasterizer {
                         bool useMolecules = clipHeight <= kMoleculesHeight && clipWidth <= kMoleculesHeight;
                         colors[iz] = scn->colors->base[is];
                         ctms[iz] = m, widths[iz] = width, clips[iz] = invclip;
-                        Geometry *g = scn->paths->base[is].ptr;
+                        Geometry *g = scn->paths->addr[is].ptr;
                         if (width) {
                             Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kOutlines | bool(flags & Scene::kRoundCap) * Instance::kRoundCap | bool(flags & Scene::kSquareCap) * Instance::kSquareCap);
                             inst->g = g, inst->clip = unclipped ? Bounds::huge() : clip.inset(-width, -width);
@@ -1071,7 +1087,7 @@ struct Rasterizer {
             for (pbase = 0, i = lz = 0; i < list.scenes.size(); lz += list.scenes[i].count, i++)
                 for (count = list.scenes[i].count, is = 0; is < count; is++)
                     if (ctx->fasts.base[lz + is]) {
-                        Geometry *g = list.scenes[i].paths->base[is].ptr;
+                        Geometry *g = list.scenes[i].paths->addr[is].ptr;
                         size = g->p16s.end * sizeof(Point16);
                         memcpy(buffer.base + end, g->p16s.base, size);
                         end += size, ctx->fasts.base[lz + is] = uint32_t(pbase), pbase += g->p16s.end;
