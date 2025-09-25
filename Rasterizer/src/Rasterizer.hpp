@@ -426,7 +426,7 @@ struct Rasterizer {
         Bounds bounds() const {
             Bounds b;
             for (int i = 0; i < scenes.size(); i++)
-                b.extend(Bounds(clips[i].intersect(scenes[i].bounds()).quad(ctms[i])));
+                b.extend(clips[i].intersect(scenes[i].bounds().quad(ctms[i])));
             return b;
         }
         SceneList& addList(SceneList list) {
