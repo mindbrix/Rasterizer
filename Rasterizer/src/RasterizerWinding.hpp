@@ -40,7 +40,7 @@ struct RasterizerWinding {
                     float ux = inv.a * px + inv.c * py + inv.tx, uy = inv.b * px + inv.d * py + inv.ty;
                     bool inBounds = fmaxf(fabsf(ux - 0.5f), fabsf(uy - 0.5f)) <= 0.5f;
                     if (inBounds) {
-                        int winding = pointWinding(scene.paths->addr[si].ptr, scene.bnds->addr[si], scene.ctms->base[si].concat(ctm), px, py, scene.widths->base[si], scene.flags->base[si]);
+                        int winding = pointWinding(scene.paths[si].ptr, scene.bnds->addr[si], scene.ctms->base[si].concat(ctm), px, py, scene.widths->base[si], scene.flags->base[si]);
                         bool evenOdd = scene.flags->base[si] & Ra::Scene::kFillEvenOdd;
                         int mask = evenOdd ? 1 : ~0;
                         bool inside = winding & mask;

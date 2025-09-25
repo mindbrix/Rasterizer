@@ -107,7 +107,7 @@ struct RasterizerCG {
                     CGContextSaveGState(ctx);
                     CGContextClipToRect(ctx, CGRectFromBounds(lastClip));
                 }
-                Ra::Geometry *g = scn.paths->addr[i].ptr;
+                Ra::Geometry *g = scn.paths[i].ptr;
                 Ra::Transform t = scn.ctms->base[i];
                 
                 if (isVisible(g->bounds, t.concat(ctm), clip, bounds, scn.widths->base[i])) {

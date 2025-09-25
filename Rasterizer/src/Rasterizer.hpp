@@ -166,6 +166,22 @@ struct Rasterizer {
         }
         size_t refCount, size = 0, end = 0;  T *addr = nullptr;
     };
+    template<typename T, bool isRef = false>
+    struct Vector {
+        inline void add(T obj) {
+            memory->add(obj);
+        }
+        inline size_t size() const {
+            return memory->end;
+        }
+        inline T& operator[](size_t i) const {
+            return memory->addr[i];
+        }
+        Ref<Memory<T, isRef>> memory;
+    };
+    template<typename T>
+    struct RefVector: Vector<T, true> {};
+    
     template<typename T>
     struct Row {
         inline T *alloc(size_t n) {
@@ -404,7 +420,7 @@ struct Rasterizer {
                 count++, weight += g->types.end;
                 if (kMoleculesHeight && g->p16s.end == 0)
                     P16Writer().writeGeometry(g);
-                paths->add(path), bnds->add(g->bounds), ctms->add(ctm), colors->add(color), widths->add(width), flags->add(flag);
+                paths.add(path), bnds->add(g->bounds), ctms->add(ctm), colors->add(color), widths->add(width), flags->add(flag);
                 clips->add(clipBounds ? *clipBounds : Bounds::huge());
             }
         }
@@ -418,7 +434,9 @@ struct Rasterizer {
             return b;
         }
         size_t count = 0, weight = 0;
-        Ref<Memory<Path, true>> paths;  Ref<Memory<Bounds>> bnds, clips;
+        RefVector<Path> paths;
+//        Ref<Memory<Path, true>> paths;
+        Ref<Memory<Bounds>> bnds, clips;
         Ref<RowPair<Transform>> ctms;  Ref<RowPair<Colorant>> colors;  Ref<RowPair<float>> widths;  Ref<RowPair<uint8_t>> flags;
     };
     
@@ -587,7 +605,7 @@ struct Rasterizer {
                         bool useMolecules = clipHeight <= kMoleculesHeight && clipWidth <= kMoleculesHeight;
                         colors[iz] = scn->colors->base[is];
                         ctms[iz] = m, widths[iz] = width, clips[iz] = invclip;
-                        Geometry *g = scn->paths->addr[is].ptr;
+                        Geometry *g = scn->paths[is].ptr;
                         if (width) {
                             Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kOutlines | bool(flags & Scene::kRoundCap) * Instance::kRoundCap | bool(flags & Scene::kSquareCap) * Instance::kSquareCap);
                             inst->g = g, inst->clip = unclipped ? Bounds::huge() : clip.inset(-width, -width);
@@ -1087,7 +1105,7 @@ struct Rasterizer {
             for (pbase = 0, i = lz = 0; i < list.scenes.size(); lz += list.scenes[i].count, i++)
                 for (count = list.scenes[i].count, is = 0; is < count; is++)
                     if (ctx->fasts.base[lz + is]) {
-                        Geometry *g = list.scenes[i].paths->addr[is].ptr;
+                        Geometry *g = list.scenes[i].paths[is].ptr;
                         size = g->p16s.end * sizeof(Point16);
                         memcpy(buffer.base + end, g->p16s.base, size);
                         end += size, ctx->fasts.base[lz + is] = uint32_t(pbase), pbase += g->p16s.end;
