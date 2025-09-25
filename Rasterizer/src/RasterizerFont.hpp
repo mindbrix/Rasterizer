@@ -27,13 +27,13 @@
 struct RasterizerFont {
     struct Run {
         inline void add(Ra::Path path, Ra::Transform ctm) {
-            paths->add(path);
-            ctms->add(ctm);
+            paths.add(path);
+            ctms.add(ctm);
             bounds.extend(Ra::Bounds(path->bounds.quad(ctm)));
         }
         Ra::Bounds bounds;
-        Ra::Ref<Ra::Memory<Ra::Path, true>> paths;
-        Ra::Ref<Ra::Memory<Ra::Transform>> ctms;
+        Ra::RefVector<Ra::Path> paths;
+        Ra::Vector<Ra::Transform> ctms;
     };
     
     static const char nl = '\n', sp = ' ', tab = '\t';
@@ -147,8 +147,8 @@ struct RasterizerFont {
     Ra::Bounds layoutGlyphs(float emSize, Ra::Colorant color, Ra::Bounds bounds, Ra::Transform m, bool rtl, bool single, bool opposite, const char *str, Ra::Scene& scene) {
         Run run = writeRun(emSize, bounds, m, rtl, single, opposite, str);
         
-        for(size_t i = 0; i < run.ctms->end; i++) {
-            scene.addPath(run.paths->addr[i], run.ctms->addr[i], color, 0, 0);
+        for(size_t i = 0; i < run.ctms.size(); i++) {
+            scene.addPath(run.paths[i], run.ctms[i], color, 0, 0);
         }
         return run.bounds;
     }
