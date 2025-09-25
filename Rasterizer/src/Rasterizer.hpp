@@ -420,8 +420,8 @@ struct Rasterizer {
                 count++, weight += g->types.end;
                 if (kMoleculesHeight && g->p16s.end == 0)
                     P16Writer().writeGeometry(g);
-                paths.add(path), bnds->add(g->bounds), ctms->add(ctm), colors->add(color), widths->add(width), flags->add(flag);
-                clips->add(clipBounds ? *clipBounds : Bounds::huge());
+                paths.add(path), bnds.add(g->bounds), ctms->add(ctm), colors->add(color), widths->add(width), flags->add(flag);
+                clips.add(clipBounds ? *clipBounds : Bounds::huge());
             }
         }
         Bounds bounds() const {
@@ -429,14 +429,12 @@ struct Rasterizer {
             for (int i = 0; i < count; i++)
                 if ((flags->base[i] & kInvisible) == 0) {
                     float inset = -0.5f * widths->base[i];
-                    b.extend(Bounds(bnds->addr[i].inset(inset, inset).quad(ctms->base[i])).intersect(clips->addr[i]));
+                    b.extend(Bounds(bnds[i].inset(inset, inset).quad(ctms->base[i])).intersect(clips[i]));
                 }
             return b;
         }
         size_t count = 0, weight = 0;
-        RefVector<Path> paths;
-//        Ref<Memory<Path, true>> paths;
-        Ref<Memory<Bounds>> bnds, clips;
+        RefVector<Path> paths;  Vector<Bounds> bnds, clips;
         Ref<RowPair<Transform>> ctms;  Ref<RowPair<Colorant>> colors;  Ref<RowPair<float>> widths;  Ref<RowPair<uint8_t>> flags;
     };
     
@@ -588,16 +586,16 @@ struct Rasterizer {
                     m = scn->ctms->base[is].concat(ctm), det = fabsf(m.a * m.d - m.b * m.c);
                     uw = scn->widths->base[is], width = uw * (uw > 0.f ? sqrtf(det) : -1.f);
                     
-                    bool newClip = memcmp(scn->clips->addr + is, & lastClip, sizeof(Bounds)) != 0;
+                    bool newClip = memcmp(& scn->clips[is], & lastClip, sizeof(Bounds)) != 0;
                     if (newClip) {
-                        lastClip = scn->clips->addr[is];
+                        lastClip = scn->clips[is];
                         clipActive = !lastClip.isHuge() || !sceneclip.isHuge();
                         clipquad = clipActive ? sceneclip.intersect(lastClip).quad(ctm) : Transform(1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f);
                         softclipMargin = 0.5f + 1e-1f / fmaxf(1.f, clipquad.scale());
                         invclip = clipquad.invert();
                         clipBounds = Bounds(clipquad).integral().intersect(device);
                     }
-                    bnds = & scn->bnds->addr[is], quad = bnds->quad(m), dev = Bounds(quad).inset(-width, -width);
+                    bnds = & scn->bnds[is], quad = bnds->quad(m), dev = Bounds(quad).inset(-width, -width);
                     clip = dev.integral().intersect(clipBounds);
                     if (clip.lx < clip.ux && clip.ly < clip.uy) {
                         bool unclipped = clip.contains(dev);

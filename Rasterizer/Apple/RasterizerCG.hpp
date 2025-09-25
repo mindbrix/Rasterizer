@@ -99,9 +99,9 @@ struct RasterizerCG {
                 if (scn.flags->base[i] & Ra::Scene::Flags::kInvisible)
                     continue;
                 
-                bool newClip = memcmp(scn.clips->addr + i, & lastClip, sizeof(Ra::Bounds)) != 0;
+                bool newClip = memcmp(& scn.clips[i], & lastClip, sizeof(Ra::Bounds)) != 0;
                 if (newClip) {
-                    lastClip = scn.clips->addr[i];
+                    lastClip = scn.clips[i];
                     clip = lastClip.quad(ctm);
                     CGContextRestoreGState(ctx);
                     CGContextSaveGState(ctx);

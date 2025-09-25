@@ -319,7 +319,7 @@ struct RasterizerDemo {
     
     static void transferFunction(size_t li, size_t ui, size_t si, Ra::Scene *scn, Ra::Transform ctm, void *info) {
         RasterizerDemo& demo = *((RasterizerDemo *)info);
-        Ra::Bounds *bounds = scn->bnds->addr;
+        Ra::Bounds *bounds = & scn->bnds[0];
         Ra::Transform *srcCtms = scn->ctms->src.base, *dstCtms = scn->ctms->base;
         Ra::Colorant *srcColors = scn->colors->src.base, *dstColors = scn->colors->base;
         float *srcWidths = scn->widths->src.base, *dstWidths = scn->widths->base;
