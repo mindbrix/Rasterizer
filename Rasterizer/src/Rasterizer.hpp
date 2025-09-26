@@ -457,11 +457,11 @@ struct Rasterizer {
         }
         SceneList& addScene(Scene scene, Transform ctm = Transform(), Bounds clip = Bounds::huge()) {
             if (scene.weight)
-                pathsCount += scene.count, scenes.add(scene), ctms.add(ctm), clips.add(clip);
+                pathsCount += scene.count, scenes.emplace_back(scene), ctms.emplace_back(ctm), clips.emplace_back(clip);
             return *this;
         }
         Transform ctm;  bool useCurves = true;  Colorant clearColor = { 0xFF, 0xFF, 0xFF, 0xFF };
-        size_t pathsCount = 0;   RefVector<Scene> scenes;  Vector<Transform> ctms;  Vector<Bounds> clips;
+        size_t pathsCount = 0;   std::vector<Scene> scenes;  std::vector<Transform> ctms;  std::vector<Bounds> clips;
     };
     struct Segment {
         inline Segment(float x0, float y0, float x1, float y1, bool curve) : ix0((*((uint32_t *)& x0) & ~1) | curve), y0(y0), x1(x1), y1(y1) {}
