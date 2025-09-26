@@ -150,25 +150,24 @@ struct RasterizerPDF {
         if (FPDFPath_GetDrawMode(pageObject, & fillmode, & stroke)) {
             Ra::Path path = PathWriter().createPathFromObject(pageObject);
             Ra::Transform ctm = Ra::Transform(m.a, m.b, m.c, m.d, m.e, m.f);
-            float width = 0.f;
-            int cap = 0;
             unsigned int R = 0, G = 0, B = 0, A = 255;
+            float width = 0.f;
+            uint8_t flags = 0;
             if (stroke) {
                 FPDFPageObj_GetStrokeColor(pageObject, & R, & G, & B, & A);
                 FPDFPageObj_GetStrokeWidth(pageObject, & width);
                 width = width == 0.f ? -1.f : width;
-                cap = FPDFPageObj_GetLineCap(pageObject);
+                int cap = FPDFPageObj_GetLineCap(pageObject);
+                flags |= cap == FPDF_LINECAP_ROUND ? Ra::Scene::kRoundCap : 0;
+                flags |= cap == FPDF_LINECAP_PROJECTING_SQUARE ? Ra::Scene::kSquareCap : 0;
             } else {
                 FPDFPageObj_GetFillColor(pageObject, & R, & G, & B, & A);
                 if (pathIsRect(path))
                     for (auto clip : clipPaths)
                         if (!pathIsRect(clip))
                             path = clip;
+                flags |= fillmode == FPDF_FILLMODE_ALTERNATE ? Ra::Scene::kFillEvenOdd : 0;
             }
-            uint8_t flags = 0;
-            flags |= fillmode == FPDF_FILLMODE_ALTERNATE ? Ra::Scene::kFillEvenOdd : 0;
-            flags |= cap == FPDF_LINECAP_ROUND ? Ra::Scene::kRoundCap : 0;
-            flags |= cap == FPDF_LINECAP_PROJECTING_SQUARE ? Ra::Scene::kSquareCap : 0;
             scene.addPath(path, ctm, Ra::Colorant(B, G, R, A), width, flags, clipBounds);
         }
     }
