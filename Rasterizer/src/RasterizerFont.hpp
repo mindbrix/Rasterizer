@@ -118,7 +118,8 @@ struct RasterizerFont {
         }
         return path;
     }
-    void writeGlyphs(uint8_t *utf8, std::vector<int>& glyphs) {
+    Ra::Vector<int> writeGlyphs(uint8_t *utf8) {
+        Ra::Vector<int> glyphs;
         for (int glyph = 0, step = 1, codepoint = 0, i = 0; step; i += step) {
             if (utf8[i] == 0)
                 break;
@@ -133,10 +134,11 @@ struct RasterizerFont {
             else
                 assert(0);
             if (codepoint == sp || codepoint == nl || codepoint == tab)
-                glyphs.emplace_back(-codepoint);
+                glyphs.add(-codepoint);
             else if ((glyph = stbtt_FindGlyphIndex(& info, codepoint)) && stbtt_IsGlyphEmpty(& info, glyph) == 0)
-                glyphs.emplace_back(glyph);
+                glyphs.add(glyph);
         }
+        return glyphs;
     }
     Ra::Ref<Ra::Memory<uint8_t>> bytes;
     std::unordered_map<int, Ra::Path> cache;
@@ -157,7 +159,7 @@ struct RasterizerFont {
         Run run;
         if (isEmpty() || str == nullptr)
             return run;
-        std::vector<int> glyphs;  writeGlyphs((uint8_t *)str, glyphs);
+        Ra::Vector<int> glyphs = writeGlyphs((uint8_t *)str);
         float scale = emSize / float(unitsPerEm);
         int width = ceilf((bounds.ux - bounds.lx) / scale), lineHeight;
         lineHeight = ascent - descent + lineGap;
