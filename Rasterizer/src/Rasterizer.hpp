@@ -159,8 +159,12 @@ struct Rasterizer {
         }
         T *resize(size_t n) {
             size_t begin = size;
-            size = n, addr = (T *)realloc(addr, n * sizeof(T));
             if (isRef)
+                for (size_t i = n; i < end; i++)
+                    addr[i].~T();
+            size = n, end = end < n ? end : n;
+            addr = (T *)realloc(addr, n * sizeof(T));
+            if (isRef && size > begin)
                 bzero(addr + begin, (size - begin) * sizeof(T));
             return addr;
         }
@@ -564,8 +568,11 @@ struct Rasterizer {
         void drawList(const SceneList& list, Bounds device, Transform view, size_t slz, size_t suz, Buffer *buffer) {
             empty(), allocator.empty(device);
             size_t fatlines = 1.f + ceilf((device.uy - device.ly) * krfh);
-            if (samples.size() != fatlines)
-                samples.resize(fatlines);
+            if (samples.size() != fatlines) {
+                samples.memory->resize(0);
+                for (int i = 0; i < fatlines; i++)
+                    samples.add(Row<Sample>());
+            }
             fasts.zalloc(list.pathsCount);
             
             Colorant *colors = (Colorant *)(buffer->base + buffer->colors);
@@ -649,11 +656,14 @@ struct Rasterizer {
                 samples[i].empty();
             entries = Vector<Buffer::Entry>();
         }
-        void reset() { outlinePaths = outlineInstances = p16total = 0, blends.reset(), fasts.reset(), opaques.reset(), segments.reset(), segmentsIndices.reset(), indices.reset(), samples.resize(0), entries = Vector<Buffer::Entry>(); }
+        void reset() { outlinePaths = outlineInstances = p16total = 0, blends.reset(), fasts.reset(), opaques.reset(), segments.reset(), segmentsIndices.reset(), indices.reset(), entries = Vector<Buffer::Entry>();
+            samples.memory->resize(0);
+        }
+        
         size_t outlinePaths = 0, outlineInstances = 0, p16total;
         Allocator allocator;  Vector<Buffer::Entry> entries;
         Row<uint32_t> fasts;  Row<Blend> blends;  Row<Instance> opaques;  Row<Segment> segments;
-        Row<Sample::Index> indices;  std::vector<Row<Sample>> samples;  Row<uint32_t> segmentsIndices;
+        Row<Sample::Index> indices;  RefVector<Row<Sample>> samples;  Row<uint32_t> segmentsIndices;
     };
     static void divideGeometry(Geometry *g, Transform m, Bounds clip, bool unclipped, bool polygon, GeometryWriter& writer) {
         bool closed, closeSubpath = false;  float *p = g->points.base, sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3, ly, uy, lx, ux;
