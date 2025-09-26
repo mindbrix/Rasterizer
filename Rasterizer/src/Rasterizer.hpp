@@ -143,10 +143,9 @@ struct Rasterizer {
     struct Memory {
         ~Memory() {
             if (addr) {
-                if (isRef) {
+                if (isRef)
                     for (size_t i = 0; i < end; i++)
                         addr[i].~T();
-                }
                 free(addr);
             }
         }
