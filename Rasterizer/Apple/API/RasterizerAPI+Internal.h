@@ -6,12 +6,13 @@
 //  Copyright © 2025 @mindbrix. All rights reserved.
 //
 
+#include "RasterizerC_API.h"
 #import "RasterizerAPI.h"
 #import "Rasterizer.hpp"
 #import "RasterizerFont.hpp"
 
 @interface RAPath ()
-@property(nonatomic) Ra::Path path;
+@property(nonatomic) RasterizerPath path;
 @end
 
 

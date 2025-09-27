@@ -20,6 +20,7 @@
 
 #import "DemoView.h"
 #import "RasterizerCG.hpp"
+#import "RasterizerUtilities.h"
 #import "RasterizerDemo.hpp"
 #import "RasterizerAPI+Internal.h"
 
@@ -143,7 +144,7 @@
 - (void)setFont:(NSFont *)font {
     _font = font ?: [NSFont fontWithName:@"HelveticaNeue-Medium" size:14];
 
-    NSURL *url = RaCG::fontURL(_font.fontName);
+    NSURL *url = RaUtils::fontURL(_font.fontName);
     _demo.setFont(url.path.UTF8String, _font.fontName.UTF8String, _font.pointSize);
 }
 

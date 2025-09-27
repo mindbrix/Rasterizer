@@ -22,6 +22,7 @@
 #import <Accelerate/Accelerate.h>
 #import <CoreGraphics/CoreGraphics.h>
 
+
 struct RasterizerCG {
     struct Converter {
         void matchColors(Ra::Colorant *colorants, size_t size, CGColorSpaceRef destSpace) {
@@ -212,26 +213,6 @@ struct RasterizerCG {
                     break;
             }
         }
-    }
-    static void screenGrabToPDF(Ra::SceneList& list, Ra::Bounds bounds) {
-        NSArray *downloads = [NSFileManager.defaultManager URLsForDirectory: NSDownloadsDirectory inDomains:NSUserDomainMask];
-        NSURL *fileURL = [downloads.firstObject URLByAppendingPathComponent:@"screenGrab.pdf"];
-        CGRect mediaBox = CGRectFromBounds(bounds);
-        CGContextRef ctx = CGPDFContextCreateWithURL((__bridge CFURLRef)fileURL, & mediaBox, NULL);
-        CGPDFContextBeginPage(ctx, NULL);
-        renderList(list, bounds, ctx);
-        CGPDFContextEndPage(ctx);
-        CGPDFContextClose(ctx);
-        CGContextRelease(ctx);
-    }
-    
-    static NSURL *fontURL(NSString *fontName) {
-        if (fontName == nil)
-            return nil;
-        CTFontDescriptorRef fontRef = CTFontDescriptorCreateWithNameAndSize((__bridge CFStringRef)fontName, 1);
-        NSURL *URL = (__bridge_transfer NSURL *)CTFontDescriptorCopyAttribute(fontRef, kCTFontURLAttribute);
-        CFRelease(fontRef);
-        return URL;
     }
 };
 

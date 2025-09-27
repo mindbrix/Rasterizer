@@ -9,49 +9,62 @@
 #import <Foundation/Foundation.h>
 #import "RasterizerAPI+Internal.h"
 #import "RasterizerCG.hpp"
+#import "RasterizerUtilities.h"
 
 
 #pragma mark - RasterizerPath
 
 @implementation RAPath: NSObject
 
+- (id)init {
+    self = [super init];
+    if (!self)
+        return nil;
+    _path = PathAlloc();
+    return self;
+}
+
 - (id)initWithCGPath:(CGPathRef)cgPath {
     self = [super init];
     if (!self)
         return nil;
+    _path = PathAlloc();
     [self addCGPath:cgPath];
     return self;
 }
 
 - (CGRect)bounds {
-    return RaCG::CGRectFromBounds(_path->bounds);
+    return PathGetBounds(_path);
 }
 
 - (void)moveTo:(double)x y:(double)y {
-    _path->moveTo(x, y);
+    PathMoveTo(_path, x, y);
 }
 - (void)lineTo:(double)x y:(double)y {
-    _path->lineTo(x, y);
+    PathLineTo(_path, x, y);
 }
 - (void)quadTo:(double)x1 y1:(double)y1 x2:(double)x2 y2:(double)y2 {
-    _path->quadTo(x1, y1, x2, y2);
+    PathQuadTo(_path, x1, y1, x2, y2);
 }
 - (void)cubicTo:(double)x1 y1:(double)y1 x2:(double)x2 y2:(double)y2 x3:(double)x3 y3:(double)y3 {
-    _path->cubicTo(x1, y1, x2, y2, x3, y3);
+    PathCubicTo(_path, x1, y1, x2, y2, x3, y3);
 }
 - (void)close {
-    _path->close();
+    PathClose(_path);
 }
 - (void)addRect:(CGRect)rect {
-    _path->addBounds(RaCG::BoundsFromCGRect(rect));
+    PathAddRect(_path, rect);
 }
 - (void)addEllipse:(CGRect)rect {
-    _path->addEllipse(RaCG::BoundsFromCGRect(rect));
+    PathAddEllipse(_path, rect);
 }
 - (void)addCGPath:(CGPathRef)cgPath {
-    RaCG::writeCGPathToPath(cgPath, _path);
+    PathAddCGPath(_path, cgPath);
 }
 
+- (void)dealloc {
+    PathFree(_path);
+}
 @end
 
 
@@ -63,7 +76,7 @@
     self = [super init];
     if (!self)
         return nil;
-    NSURL *url = RaCG::fontURL(name);
+    NSURL *url = RaUtils::fontURL(name);
     if (url != nil)
         _font.load(url.path.UTF8String, name.UTF8String);
     return self;
@@ -81,15 +94,17 @@
 }
 
 - (void)addPath:(RAPath *)path ctm:(CGAffineTransform)ctm color:(CGColorRef)color width:(double)width flags:(NSUInteger)flags {
-    _scene.addPath(path.path,
+    Ra::Path p = *(Ra::Path *)path.path;
+    _scene.addPath(p,
                    RaCG::transformFromCG(ctm),
                    RaCG::colorantFromCG(color),
                    width,
                    flags);
 }
 - (void)addPath:(RAPath *)path ctm:(CGAffineTransform)ctm color:(CGColorRef)color width:(double)width flags:(NSUInteger)flags clip:(CGRect)clip {
+    Ra::Path p = *(Ra::Path *)path.path;
     Ra::Bounds clipBounds = RaCG::BoundsFromCGRect(clip);
-    _scene.addPath(path.path,
+    _scene.addPath(p,
                    RaCG::transformFromCG(ctm),
                    RaCG::colorantFromCG(color),
                    width,

@@ -90,7 +90,7 @@ struct RasterizerDemo {
             locked = locked.i0 != INT_MAX ? Rw::IndexPair(INT_MAX, INT_MAX) : indices, keyUsed = true;
         else if (keyCode == KeyCode::kS) {
             list.ctm = ctm;
-            RaCG::screenGrabToPDF(list, bounds), keyUsed = true;
+            RaUtils::screenGrabToPDF(list, bounds), keyUsed = true;
         }
         else if (keyCode == KeyCode::kT) {
             showGlyphGrid = false;
