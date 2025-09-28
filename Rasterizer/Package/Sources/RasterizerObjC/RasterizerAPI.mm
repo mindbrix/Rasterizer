@@ -10,7 +10,7 @@
 #import "RasterizerAPI+Internal.h"
 #import "RasterizerCG.hpp"
 #import "RasterizerUtilities.h"
-
+#import "RasterizerPDF.hpp"
 
 #pragma mark - RasterizerPath
 
