@@ -203,8 +203,8 @@ struct RasterizerPDF {
         return count;
     }
     
-    static Ra::SceneList writeSceneList(const void *bytes, size_t size, size_t pageIndex) {
-        Ra::SceneList list;
+    static Ra::Transform addPdfToScene(const void *bytes, size_t size, size_t pageIndex, Ra::Scene& scene) {
+        Ra::Transform ctm;
         FPDF_LIBRARY_CONFIG config;
             config.version = 3;
             config.m_pUserFontPaths = nullptr;
@@ -221,7 +221,6 @@ struct RasterizerPDF {
                 FPDF_PAGE page = FPDF_LoadPage(doc, int(pageIndex));
                 FPDF_TEXTPAGE text_page = FPDFText_LoadPage(page);
                 
-                Ra::Scene scene;
                 int charCount = FPDFText_CountChars(text_page);
                 int objectCount = FPDFPage_CountObjects(page);
                 char32_t text[4096], *back;
@@ -340,7 +339,7 @@ struct RasterizerPDF {
                 }
                 if (kWriteTextBoxes)
                     writeTextBoxesToScene(text_page, scene);
-                list.addScene(scene, transformForPage(page, scene));
+                ctm = transformForPage(page, scene);
                 
                 FPDFText_ClosePage(text_page);
                 FPDF_ClosePage(page);
@@ -349,6 +348,6 @@ struct RasterizerPDF {
             FPDF_CloseDocument(doc);
         }
         FPDF_DestroyLibrary();
-        return list;
+        return ctm;
     }
 };

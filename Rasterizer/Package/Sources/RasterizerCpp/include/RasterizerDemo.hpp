@@ -228,8 +228,12 @@ struct RasterizerDemo {
             }
             list.addList(document);
         } else if (pdfData.size) {
-            if (document.pathsCount == 0)
-                document.addList(RasterizerPDF::writeSceneList(pdfData.addr, pdfData.size, pageIndex)), fit = true;
+            if (document.pathsCount == 0) {
+                Ra::Scene scene;
+                Ra::Transform m = RasterizerPDF::addPdfToScene(pdfData.addr, pdfData.size, pageIndex, scene);
+                document.addScene(scene, m);
+                fit = true;
+            }
             list.addList(document);
         }
         runTransferFunction(list, transferFunction, this);
