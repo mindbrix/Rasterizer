@@ -43,6 +43,8 @@ typedef NS_ENUM(NSUInteger, RASceneFlags) {
 - (void)addPath:(RAPath *)path ctm:(CGAffineTransform)ctm color:(CGColorRef)color width:(double)width flags:(NSUInteger)flags;
 - (void)addPath:(RAPath *)path ctm:(CGAffineTransform)ctm color:(CGColorRef)color width:(double)width flags:(NSUInteger)flags clip:(CGRect)clip;
 - (void)addText:(NSString *)text font:(RAFont *)font pointSize:(double)pointSize ctm:(CGAffineTransform)ctm color:(CGColorRef)color;
+- (CGAffineTransform)addSvgFromData:(NSData *)data;
+- (CGAffineTransform)addPdfFromData:(NSData *)data pageNumber:(NSInteger)pageNumber;
 @end
 
 @interface RASceneList: NSObject

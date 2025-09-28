@@ -27,3 +27,13 @@ import Testing
     
     // Write your test here and use APIs like `#expect(...)` to check expected conditions.
 }
+
+@Test func testPDF() async throws {
+    let scene = RAScene()
+    let data = Data()
+    let ctm = scene.addPdf(from: data, pageNumber: 0)
+    
+    #expect(ctm.isIdentity)
+    
+    // Write your test here and use APIs like `#expect(...)` to check expected conditions.
+}

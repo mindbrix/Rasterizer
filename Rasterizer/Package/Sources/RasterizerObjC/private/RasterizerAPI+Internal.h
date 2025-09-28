@@ -5,8 +5,6 @@
 //  Created by Nigel Barber on 04/09/2025.
 //  Copyright © 2025 @mindbrix. All rights reserved.
 //
-
-//#include "RasterizerC_API.h"
 #import "RasterizerAPI.h"
 #import "Rasterizer.hpp"
 #import "RasterizerFont.hpp"
