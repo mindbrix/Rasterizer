@@ -99,22 +99,6 @@
                    flags,
                    & clipBounds);
 }
-- (void)addCGPath:(CGPathRef)cgPath ctm:(CGAffineTransform)ctm color:(CGColorRef)color width:(double)width flags:(NSUInteger)flags {
-    [self addPath:[[RAPath alloc] initWithCGPath:cgPath]
-              ctm:ctm
-            color:color
-            width:width
-            flags:flags];
-}
-- (void)addCGPath:(CGPathRef)cgPath ctm:(CGAffineTransform)ctm color:(CGColorRef)color width:(double)width flags:(NSUInteger)flags clip:(CGRect)clip {
-    [self addPath:[[RAPath alloc] initWithCGPath:cgPath]
-              ctm:ctm
-            color:color
-            width:width
-            flags:flags
-             clip:clip];
-}
-
 - (void)addText:(NSString *)text font:(RAFont *)font pointSize:(double)pointSize ctm:(CGAffineTransform)ctm color:(CGColorRef)color {
     font.font.layoutGlyphs(pointSize, RaCG::colorantFromCG(color), Ra::Bounds(0, 0, 1e3, pointSize), RaCG::transformFromCG(ctm), false, false, false, text.UTF8String, _scene);
 }
