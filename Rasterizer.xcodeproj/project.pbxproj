@@ -16,6 +16,7 @@
 		E920A5A921762BCE00F52C25 /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = E920A5A721762BCE00F52C25 /* MainMenu.xib */; };
 		E920A5AC21762BCE00F52C25 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = E920A5AB21762BCE00F52C25 /* main.m */; };
 		E920A5B5217631E600F52C25 /* DemoView.mm in Sources */ = {isa = PBXBuildFile; fileRef = E920A5B4217631E600F52C25 /* DemoView.mm */; };
+		E9499EA32E89484400E22F2B /* SwiftDemoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9499E922E89484400E22F2B /* SwiftDemoView.swift */; };
 		E95C47842E6F654C008D51FC /* TestDocument.m in Sources */ = {isa = PBXBuildFile; fileRef = E95C47822E6F654C008D51FC /* TestDocument.m */; };
 		E95C47852E6F654C008D51FC /* TestDocument.xib in Resources */ = {isa = PBXBuildFile; fileRef = E95C47832E6F654C008D51FC /* TestDocument.xib */; };
 		E9682E222C7F634D001046F5 /* Rasterizer Default.pdf in Resources */ = {isa = PBXBuildFile; fileRef = E9682E212C7F634D001046F5 /* Rasterizer Default.pdf */; };
@@ -41,6 +42,7 @@
 		E920A5AD21762BCE00F52C25 /* Rasterizer.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Rasterizer.entitlements; sourceTree = "<group>"; };
 		E920A5B3217631E600F52C25 /* DemoView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = DemoView.h; sourceTree = "<group>"; };
 		E920A5B4217631E600F52C25 /* DemoView.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = DemoView.mm; sourceTree = "<group>"; };
+		E9499E922E89484400E22F2B /* SwiftDemoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwiftDemoView.swift; sourceTree = "<group>"; };
 		E95C47812E6F654C008D51FC /* TestDocument.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = TestDocument.h; sourceTree = "<group>"; };
 		E95C47822E6F654C008D51FC /* TestDocument.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TestDocument.m; sourceTree = "<group>"; };
 		E95C47832E6F654C008D51FC /* TestDocument.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = TestDocument.xib; sourceTree = "<group>"; };
@@ -76,18 +78,29 @@
 		E9E9600427D645CD00E06451 /* libpdfium.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libpdfium.a; path = pdfium/libpdfium.a; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		E9499EA72E89498C00E22F2B /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Package.swift,
+				Tests/RasterizerSwiftTests/RasterizerSwiftTests.swift,
+			);
+			target = E920A59821762BCD00F52C25 /* Rasterizer */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
-		E9157C4E2E893EAD00A4101E /* PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet */ = {
+		E95542FF2E894609000E45B7 /* PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet */ = {
 			isa = PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet;
 			buildPhase = E920A59521762BCD00F52C25 /* Sources */;
 			membershipExceptions = (
-				RasterizerCpp/exclude/RasterizerPDF.hpp,
+				Sources/RasterizerCpp/exclude/RasterizerPDF.hpp,
 			);
 		};
 /* End PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		E9157C4A2E893D4700A4101E /* Sources */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (E9157C4E2E893EAD00A4101E /* PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Sources; sourceTree = "<group>"; };
+		E95542D52E8945FC000E45B7 /* Package */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (E9499EA72E89498C00E22F2B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E95542FF2E894609000E45B7 /* PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Package; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -133,7 +146,7 @@
 		E920A59B21762BCD00F52C25 /* Rasterizer */ = {
 			isa = PBXGroup;
 			children = (
-				E9157C4A2E893D4700A4101E /* Sources */,
+				E95542D52E8945FC000E45B7 /* Package */,
 				E970B90C2E18208C00E9A7B1 /* src */,
 				E970B9082E17DA5D00E9A7B1 /* lib */,
 				E970B9092E17DD6A00E9A7B1 /* Apple */,
@@ -241,6 +254,7 @@
 		E9DA7E192E73202C00D209DA /* API */ = {
 			isa = PBXGroup;
 			children = (
+				E9499E922E89484400E22F2B /* SwiftDemoView.swift */,
 				E9D983FE2E69998A0053A2C8 /* Rasterizer-Bridging-Header.h */,
 				E9157C462E8722A100A4101E /* RasterizerC_API.h */,
 				E9157C472E8724F300A4101E /* RasterizerC_API.cpp */,
@@ -264,7 +278,7 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				E9157C4A2E893D4700A4101E /* Sources */,
+				E95542D52E8945FC000E45B7 /* Package */,
 			);
 			name = Rasterizer;
 			productName = Rasterizer;
@@ -330,6 +344,7 @@
 				E95C47842E6F654C008D51FC /* TestDocument.m in Sources */,
 				E920A5B5217631E600F52C25 /* DemoView.mm in Sources */,
 				E920A5AC21762BCE00F52C25 /* main.m in Sources */,
+				E9499EA32E89484400E22F2B /* SwiftDemoView.swift in Sources */,
 				E920A59E21762BCD00F52C25 /* AppDelegate.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

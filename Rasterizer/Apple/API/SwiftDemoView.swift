@@ -8,7 +8,6 @@
 
 import Foundation
 
-
 extension CGAffineTransform {
     init(center: CGPoint, rotation: Double, scale: CGSize, translation: CGVector) {
         self = CGAffineTransform(translationX: -center.x, y: -center.y)

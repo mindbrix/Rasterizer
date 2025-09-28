@@ -16,55 +16,43 @@
 
 @implementation RAPath: NSObject
 
-- (id)init {
-    self = [super init];
-    if (!self)
-        return nil;
-    _path = PathAlloc();
-    return self;
-}
-
 - (id)initWithCGPath:(CGPathRef)cgPath {
     self = [super init];
     if (!self)
         return nil;
-    _path = PathAlloc();
     [self addCGPath:cgPath];
     return self;
 }
 
 - (CGRect)bounds {
-    return PathGetBounds(_path);
+    return RaCG::CGRectFromBounds(_path->bounds);
 }
 
 - (void)moveTo:(double)x y:(double)y {
-    PathMoveTo(_path, x, y);
+    _path->moveTo(x, y);
 }
 - (void)lineTo:(double)x y:(double)y {
-    PathLineTo(_path, x, y);
+    _path->lineTo(x, y);
 }
 - (void)quadTo:(double)x1 y1:(double)y1 x2:(double)x2 y2:(double)y2 {
-    PathQuadTo(_path, x1, y1, x2, y2);
+    _path->quadTo(x1, y1, x2, y2);
 }
 - (void)cubicTo:(double)x1 y1:(double)y1 x2:(double)x2 y2:(double)y2 x3:(double)x3 y3:(double)y3 {
-    PathCubicTo(_path, x1, y1, x2, y2, x3, y3);
+    _path->cubicTo(x1, y1, x2, y2, x3, y3);
 }
 - (void)close {
-    PathClose(_path);
+    _path->close();
 }
 - (void)addRect:(CGRect)rect {
-    PathAddRect(_path, rect);
+    _path->addBounds(RaCG::BoundsFromCGRect(rect));
 }
 - (void)addEllipse:(CGRect)rect {
-    PathAddEllipse(_path, rect);
+    _path->addEllipse(RaCG::BoundsFromCGRect(rect));
 }
 - (void)addCGPath:(CGPathRef)cgPath {
-    PathAddCGPath(_path, cgPath);
+    RaCG::writeCGPathToPath(cgPath, _path);
 }
 
-- (void)dealloc {
-    PathFree(_path);
-}
 @end
 
 
@@ -94,7 +82,7 @@
 }
 
 - (void)addPath:(RAPath *)path ctm:(CGAffineTransform)ctm color:(CGColorRef)color width:(double)width flags:(NSUInteger)flags {
-    Ra::Path p = *(Ra::Path *)path.path;
+    Ra::Path p = path.path;
     _scene.addPath(p,
                    RaCG::transformFromCG(ctm),
                    RaCG::colorantFromCG(color),
@@ -102,7 +90,7 @@
                    flags);
 }
 - (void)addPath:(RAPath *)path ctm:(CGAffineTransform)ctm color:(CGColorRef)color width:(double)width flags:(NSUInteger)flags clip:(CGRect)clip {
-    Ra::Path p = *(Ra::Path *)path.path;
+    Ra::Path p = path.path;
     Ra::Bounds clipBounds = RaCG::BoundsFromCGRect(clip);
     _scene.addPath(p,
                    RaCG::transformFromCG(ctm),
