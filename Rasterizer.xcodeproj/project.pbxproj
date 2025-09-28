@@ -15,7 +15,7 @@
 		E920A5A921762BCE00F52C25 /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = E920A5A721762BCE00F52C25 /* MainMenu.xib */; };
 		E920A5AC21762BCE00F52C25 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = E920A5AB21762BCE00F52C25 /* main.m */; };
 		E920A5B5217631E600F52C25 /* DemoView.mm in Sources */ = {isa = PBXBuildFile; fileRef = E920A5B4217631E600F52C25 /* DemoView.mm */; };
-		E9499EA32E89484400E22F2B /* SwiftDemoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9499E922E89484400E22F2B /* SwiftDemoView.swift */; };
+		E9499F5D2E89729A00E22F2B /* SwiftDemoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9499F5B2E89729A00E22F2B /* SwiftDemoView.swift */; };
 		E95C47842E6F654C008D51FC /* TestDocument.m in Sources */ = {isa = PBXBuildFile; fileRef = E95C47822E6F654C008D51FC /* TestDocument.m */; };
 		E95C47852E6F654C008D51FC /* TestDocument.xib in Resources */ = {isa = PBXBuildFile; fileRef = E95C47832E6F654C008D51FC /* TestDocument.xib */; };
 		E9682E222C7F634D001046F5 /* Rasterizer Default.pdf in Resources */ = {isa = PBXBuildFile; fileRef = E9682E212C7F634D001046F5 /* Rasterizer Default.pdf */; };
@@ -38,13 +38,13 @@
 		E920A5AD21762BCE00F52C25 /* Rasterizer.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Rasterizer.entitlements; sourceTree = "<group>"; };
 		E920A5B3217631E600F52C25 /* DemoView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = DemoView.h; sourceTree = "<group>"; };
 		E920A5B4217631E600F52C25 /* DemoView.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = DemoView.mm; sourceTree = "<group>"; };
-		E9499E922E89484400E22F2B /* SwiftDemoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwiftDemoView.swift; sourceTree = "<group>"; };
+		E9499F5A2E89729A00E22F2B /* Rasterizer-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Rasterizer-Bridging-Header.h"; sourceTree = "<group>"; };
+		E9499F5B2E89729A00E22F2B /* SwiftDemoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwiftDemoView.swift; sourceTree = "<group>"; };
 		E95C47812E6F654C008D51FC /* TestDocument.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = TestDocument.h; sourceTree = "<group>"; };
 		E95C47822E6F654C008D51FC /* TestDocument.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TestDocument.m; sourceTree = "<group>"; };
 		E95C47832E6F654C008D51FC /* TestDocument.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = TestDocument.xib; sourceTree = "<group>"; };
 		E9682E212C7F634D001046F5 /* Rasterizer Default.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; path = "Rasterizer Default.pdf"; sourceTree = "<group>"; };
 		E971DB2C218495AA005AE5E5 /* Rasterizer.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = Rasterizer.icns; sourceTree = "<group>"; };
-		E9D983FE2E69998A0053A2C8 /* Rasterizer-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Rasterizer-Bridging-Header.h"; sourceTree = "<group>"; };
 		E9E36F08223A722100F6533A /* Concentrichron.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Concentrichron.hpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -104,7 +104,6 @@
 			isa = PBXGroup;
 			children = (
 				E95542D52E8945FC000E45B7 /* Package */,
-				E970B9092E17DD6A00E9A7B1 /* Apple */,
 				E970B9072E17D99100E9A7B1 /* Demo */,
 				E9682E212C7F634D001046F5 /* Rasterizer Default.pdf */,
 				E920A59C21762BCD00F52C25 /* AppDelegate.h */,
@@ -119,9 +118,19 @@
 			path = Rasterizer;
 			sourceTree = "<group>";
 		};
+		E9499F5C2E89729A00E22F2B /* API */ = {
+			isa = PBXGroup;
+			children = (
+				E9499F5A2E89729A00E22F2B /* Rasterizer-Bridging-Header.h */,
+				E9499F5B2E89729A00E22F2B /* SwiftDemoView.swift */,
+			);
+			path = API;
+			sourceTree = "<group>";
+		};
 		E970B9072E17D99100E9A7B1 /* Demo */ = {
 			isa = PBXGroup;
 			children = (
+				E9499F5C2E89729A00E22F2B /* API */,
 				E9E36F08223A722100F6533A /* Concentrichron.hpp */,
 				E91ADF95224266A400729DA0 /* RasterizerDemo.hpp */,
 				E920A5B3217631E600F52C25 /* DemoView.h */,
@@ -134,23 +143,6 @@
 				E95C47832E6F654C008D51FC /* TestDocument.xib */,
 			);
 			path = Demo;
-			sourceTree = "<group>";
-		};
-		E970B9092E17DD6A00E9A7B1 /* Apple */ = {
-			isa = PBXGroup;
-			children = (
-				E9DA7E192E73202C00D209DA /* API */,
-			);
-			path = Apple;
-			sourceTree = "<group>";
-		};
-		E9DA7E192E73202C00D209DA /* API */ = {
-			isa = PBXGroup;
-			children = (
-				E9499E922E89484400E22F2B /* SwiftDemoView.swift */,
-				E9D983FE2E69998A0053A2C8 /* Rasterizer-Bridging-Header.h */,
-			);
-			path = API;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -234,7 +226,7 @@
 				E95C47842E6F654C008D51FC /* TestDocument.m in Sources */,
 				E920A5B5217631E600F52C25 /* DemoView.mm in Sources */,
 				E920A5AC21762BCE00F52C25 /* main.m in Sources */,
-				E9499EA32E89484400E22F2B /* SwiftDemoView.swift in Sources */,
+				E9499F5D2E89729A00E22F2B /* SwiftDemoView.swift in Sources */,
 				E920A59E21762BCD00F52C25 /* AppDelegate.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -396,7 +388,7 @@
 				MTL_LANGUAGE_REVISION = Metal20;
 				PRODUCT_BUNDLE_IDENTIFIER = uk.co.mindbrix.Rasterizer;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_OBJC_BRIDGING_HEADER = "Rasterizer/Apple/API/Rasterizer-Bridging-Header.h";
+				SWIFT_OBJC_BRIDGING_HEADER = "Rasterizer/Demo/API/Rasterizer-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 6.0;
 			};
@@ -428,7 +420,7 @@
 				MTL_LANGUAGE_REVISION = Metal20;
 				PRODUCT_BUNDLE_IDENTIFIER = uk.co.mindbrix.Rasterizer;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_OBJC_BRIDGING_HEADER = "Rasterizer/Apple/API/Rasterizer-Bridging-Header.h";
+				SWIFT_OBJC_BRIDGING_HEADER = "Rasterizer/Demo/API/Rasterizer-Bridging-Header.h";
 				SWIFT_VERSION = 6.0;
 			};
 			name = Release;
