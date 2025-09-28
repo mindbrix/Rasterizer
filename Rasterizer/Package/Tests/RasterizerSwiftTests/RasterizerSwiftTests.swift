@@ -19,3 +19,11 @@ import Testing
     
     // Write your test here and use APIs like `#expect(...)` to check expected conditions.
 }
+
+@Test func testDemoView() async throws {
+    let v = await DemoView()
+    
+    await #expect(v.useCG == false)
+    
+    // Write your test here and use APIs like `#expect(...)` to check expected conditions.
+}
