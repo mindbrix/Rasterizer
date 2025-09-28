@@ -21,7 +21,6 @@
 		E9682E222C7F634D001046F5 /* Rasterizer Default.pdf in Resources */ = {isa = PBXBuildFile; fileRef = E9682E212C7F634D001046F5 /* Rasterizer Default.pdf */; };
 		E970B90B2E181F5B00E9A7B1 /* libpdfium.a in Frameworks */ = {isa = PBXBuildFile; fileRef = E970B90A2E181F5B00E9A7B1 /* libpdfium.a */; };
 		E971DB2D218495AA005AE5E5 /* Rasterizer.icns in Resources */ = {isa = PBXBuildFile; fileRef = E971DB2C218495AA005AE5E5 /* Rasterizer.icns */; };
-		E9D984002E69998A0053A2C8 /* SwiftDemoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9D983FF2E69998A0053A2C8 /* SwiftDemoView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -73,7 +72,6 @@
 		E9CB3A1927D601FB00A02A2D /* fpdf_dataavail.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fpdf_dataavail.h; sourceTree = "<group>"; };
 		E9CB3A1A27D601FB00A02A2D /* fpdf_thumbnail.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fpdf_thumbnail.h; sourceTree = "<group>"; };
 		E9D983FE2E69998A0053A2C8 /* Rasterizer-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Rasterizer-Bridging-Header.h"; sourceTree = "<group>"; };
-		E9D983FF2E69998A0053A2C8 /* SwiftDemoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwiftDemoView.swift; sourceTree = "<group>"; };
 		E9E36F08223A722100F6533A /* Concentrichron.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Concentrichron.hpp; sourceTree = "<group>"; };
 		E9E9600427D645CD00E06451 /* libpdfium.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libpdfium.a; path = pdfium/libpdfium.a; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -244,7 +242,6 @@
 			isa = PBXGroup;
 			children = (
 				E9D983FE2E69998A0053A2C8 /* Rasterizer-Bridging-Header.h */,
-				E9D983FF2E69998A0053A2C8 /* SwiftDemoView.swift */,
 				E9157C462E8722A100A4101E /* RasterizerC_API.h */,
 				E9157C472E8724F300A4101E /* RasterizerC_API.cpp */,
 			);
@@ -333,7 +330,6 @@
 				E95C47842E6F654C008D51FC /* TestDocument.m in Sources */,
 				E920A5B5217631E600F52C25 /* DemoView.mm in Sources */,
 				E920A5AC21762BCE00F52C25 /* main.m in Sources */,
-				E9D984002E69998A0053A2C8 /* SwiftDemoView.swift in Sources */,
 				E920A59E21762BCD00F52C25 /* AppDelegate.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
