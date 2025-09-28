@@ -8,7 +8,6 @@
 
 /* Begin PBXBuildFile section */
 		E901B3872194B00F00B1AB72 /* Accelerate.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E901B3862194B00F00B1AB72 /* Accelerate.framework */; };
-		E9157C482E8724F300A4101E /* RasterizerC_API.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E9157C472E8724F300A4101E /* RasterizerC_API.cpp */; };
 		E920A59E21762BCD00F52C25 /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = E920A59D21762BCD00F52C25 /* AppDelegate.m */; };
 		E920A5A121762BCD00F52C25 /* Document.mm in Sources */ = {isa = PBXBuildFile; fileRef = E920A5A021762BCD00F52C25 /* Document.mm */; };
 		E920A5A421762BCD00F52C25 /* Document.xib in Resources */ = {isa = PBXBuildFile; fileRef = E920A5A221762BCD00F52C25 /* Document.xib */; };
@@ -26,8 +25,6 @@
 
 /* Begin PBXFileReference section */
 		E901B3862194B00F00B1AB72 /* Accelerate.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Accelerate.framework; path = System/Library/Frameworks/Accelerate.framework; sourceTree = SDKROOT; };
-		E9157C462E8722A100A4101E /* RasterizerC_API.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = RasterizerC_API.h; sourceTree = "<group>"; };
-		E9157C472E8724F300A4101E /* RasterizerC_API.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = RasterizerC_API.cpp; sourceTree = "<group>"; };
 		E91ADF95224266A400729DA0 /* RasterizerDemo.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = RasterizerDemo.hpp; sourceTree = "<group>"; };
 		E920A59921762BCD00F52C25 /* Rasterizer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Rasterizer.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E920A59C21762BCD00F52C25 /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
@@ -256,8 +253,6 @@
 			children = (
 				E9499E922E89484400E22F2B /* SwiftDemoView.swift */,
 				E9D983FE2E69998A0053A2C8 /* Rasterizer-Bridging-Header.h */,
-				E9157C462E8722A100A4101E /* RasterizerC_API.h */,
-				E9157C472E8724F300A4101E /* RasterizerC_API.cpp */,
 			);
 			path = API;
 			sourceTree = "<group>";
@@ -339,7 +334,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				E9157C482E8724F300A4101E /* RasterizerC_API.cpp in Sources */,
 				E920A5A121762BCD00F52C25 /* Document.mm in Sources */,
 				E95C47842E6F654C008D51FC /* TestDocument.m in Sources */,
 				E920A5B5217631E600F52C25 /* DemoView.mm in Sources */,
