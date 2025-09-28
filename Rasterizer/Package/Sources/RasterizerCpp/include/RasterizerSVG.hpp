@@ -49,23 +49,24 @@ struct RasterizerSVG {
                 if ((dot = lengthsq(path->pts[0], path->pts[1], path->pts[i * 2], path->pts[i * 2 + 1])) < tolerance)
                     path->pts[i * 2] = path->pts[0], path->pts[i * 2 + 1] = path->pts[1];
             }
-            for (pts = path->pts, p->moveTo(pts[0], height - pts[1]), i = 0; i < path->npts - 1; i += 3, pts += 6) {
+            for (pts = path->pts, p->moveTo(pts[0], pts[1]), i = 0; i < path->npts - 1; i += 3, pts += 6) {
                 if (lengthsq(pts[0], pts[1], pts[6], pts[7]) > tolerance) {
-                    p->cubicTo(pts[2], height - pts[3], pts[4], height - pts[5], pts[6], height - pts[7]);
+                    p->cubicTo(pts[2], pts[3], pts[4], pts[5], pts[6], pts[7]);
                 }
             }
             if (path->closed)
                 p->close();
         }
     }
-    static Ra::Scene createScene(const void *data, size_t size) {
+    static Ra::Transform addSvgToScene(const void *data, size_t size, Ra::Scene& scene) {
         char *terminated = (char *)malloc(size + 1);
         memcpy(terminated, data, size);
         terminated[size] = 0;
         
-        Ra::Scene scene;
+        Ra::Transform ctm;
         struct NSVGimage *image = terminated ? nsvgParse(terminated, "px", 96) : NULL;
         if (image) {
+            ctm = Ra::Transform(1, 0, 0, -1, 0, image->height);
             if (kWriteOneBigPath) {
                 Ra::Path path;
                 for (NSVGshape *shape = image->shapes; shape != NULL; shape = shape->next)
@@ -100,6 +101,6 @@ struct RasterizerSVG {
             nsvgDelete(image);
         }
         free(terminated);
-        return scene;
+        return ctm;
     }
 };

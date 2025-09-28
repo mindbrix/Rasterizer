@@ -220,8 +220,12 @@ struct RasterizerDemo {
         } else if (showTime) {
             list.addList(concentrichron.writeList(font));
         } else if (svgData.size) {
-            if (document.pathsCount == 0)
-                document.addScene(RasterizerSVG::createScene(svgData.addr, svgData.size)), fit = true;
+            if (document.pathsCount == 0) {
+                Ra::Scene scene;
+                Ra::Transform m = RasterizerSVG::addSvgToScene(svgData.addr, svgData.size, scene);
+                document.addScene(scene, m);
+                fit = true;
+            }
             list.addList(document);
         } else if (pdfData.size) {
             if (document.pathsCount == 0)
