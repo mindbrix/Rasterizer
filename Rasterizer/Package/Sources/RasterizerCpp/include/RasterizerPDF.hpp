@@ -19,6 +19,7 @@
 //
 
 #import "Rasterizer.hpp"
+#import "RasterizerFreetype.h"
 #import "xxhash.h"
 #import "fpdfview.h"
 #import "fpdf_edit.h"
@@ -112,10 +113,19 @@ struct RasterizerPDF {
     }
     
    static void writeTextToScene(FPDF_PAGEOBJECT pageObject, FPDF_TEXTPAGE text_page, int baseIndex, char32_t *buffer, unsigned long textSize, FS_MATRIX m, Ra::Bounds *clipBounds, Ra::Scene& scene) {
+        Ra::Vector<unsigned char> fontData;
+        RasterizerFreetype freetype;
         float fontSize = 1.f;
         FPDFTextObj_GetFontSize(pageObject, & fontSize);
         FPDF_FONT font = FPDFTextObj_GetFont(pageObject);
         assert(font);
+        size_t dataLength = 0;
+        FPDF_BOOL success = FPDFFont_GetFontData(font, nullptr, 1024, & dataLength);
+        if (success) {
+            fontData.resize(dataLength);
+            FPDFFont_GetFontData(font, & fontData[0], dataLength, & dataLength);
+            freetype.loadFace(fontData);
+        }
         unsigned int R = 0, G = 0, B = 0, A = 255;
         FPDFPageObj_GetFillColor(pageObject, & R, & G, & B, & A);
         Ra::Path rect;  rect->addBounds(Ra::Bounds(0, 0, 1, 1)), rect->close();
@@ -124,13 +134,14 @@ struct RasterizerPDF {
        
         for (int g = 0; g < textSize; g++) {
             auto glyph = buffer[g];
+            Ra::Path outlinePath = freetype.createCharPath(glyph);
             double left = 0, bottom = 0, right = 0, top = 0;
             FPDFText_GetCharBox(text_page, baseIndex + g, & left, & right, & bottom, & top);
             if (glyph >= 0xFFF0) {
                 scene.addPath(rect, Ra::Transform(right - left, 0, 0, top - bottom, left, bottom), red, hairline, 0);
             } else if (glyph > 32) {
                 FPDF_GLYPHPATH path = FPDFFont_GetGlyphPath(font, glyph, fontSize);
-                Ra::Path p = PathWriter().createPathFromGlyphPath(path);
+                Ra::Path p = outlinePath;// PathWriter().createPathFromGlyphPath(path);
                 if (!p->isValid()) {
                     scene.addPath(rect, Ra::Transform(right - left, 0, 0, top - bottom, left, bottom), red, hairline, 0, clipBounds);
                 } else {

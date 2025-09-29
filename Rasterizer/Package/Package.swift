@@ -22,7 +22,7 @@ let package = Package(
         // Targets can depend on other targets in this package and products from dependencies.
         .target(
             name: "RasterizerCpp",
-            dependencies: ["pdfium"],
+            dependencies: ["freetype", "pdfium"],
             path: "Sources/RasterizerCpp",
             exclude: [
                 "exclude"
@@ -40,6 +40,10 @@ let package = Package(
                 .linkedFramework("Accelerate"),
                 // Libraries
             ]
+        ),
+        .binaryTarget(
+            name: "freetype",
+            path: "Sources/RasterizerCpp/exclude/freetype.xcframework"
         ),
         .binaryTarget(
             name: "pdfium",

@@ -1,4 +1,4 @@
-// Copyright 2017 PDFium Authors. All rights reserved.
+// Copyright 2017 The PDFium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -171,6 +171,23 @@ FPDFAttachment_GetFile(FPDF_ATTACHMENT attachment,
                        void* buffer,
                        unsigned long buflen,
                        unsigned long* out_buflen);
+
+// Experimental API.
+// Get the MIME type (Subtype) of the embedded file |attachment|. |buffer| is
+// only modified if |buflen| is longer than the length of the MIME type string.
+// If the Subtype is not found or if there is no file stream, an empty string
+// would be copied to |buffer| and the return value would be 2. On other errors,
+// nothing would be added to |buffer| and the return value would be 0.
+//
+//   attachment - handle to an attachment.
+//   buffer     - buffer for holding the MIME type string encoded in UTF-16LE.
+//   buflen     - length of the buffer in bytes.
+//
+// Returns the length of the MIME type string in bytes.
+FPDF_EXPORT unsigned long FPDF_CALLCONV
+FPDFAttachment_GetSubtype(FPDF_ATTACHMENT attachment,
+                          FPDF_WCHAR* buffer,
+                          unsigned long buflen);
 
 #ifdef __cplusplus
 }  // extern "C"
