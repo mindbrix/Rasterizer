@@ -25,9 +25,13 @@
 #import "fpdf_edit.h"
 #import "fpdf_transformpage.h"
 #import "fpdf_text.h"
+#import <map>
+#import <vector>
 
 
 struct RasterizerPDF {
+    typedef std::map<void *, std::vector<int>> CharMap;
+    
     static const bool kWriteTextBoxes = false;
     
     struct PathWriter {
@@ -101,17 +105,83 @@ struct RasterizerPDF {
         return fabsf(t0) < 1e-3f && fabsf(t1) < 1e-3f;
     }
     
+    /*
     static void writeTextBoxesToScene(FPDF_TEXTPAGE text_page, Ra::Scene& scene) {
         int charCount = FPDFText_CountChars(text_page);
         double left = 0, bottom = 0, right = 0, top = 0;
-        Ra::Colorant red(0, 0, 255, 255);
+        Ra::Colorant red(0, 0, 255, 255), black(0, 0, 0, 255);
         float hairline = -1.f;
+        unsigned int code;
+        RasterizerFreetype freetype;
         Ra::Path rect;  rect->addBounds(Ra::Bounds(0, 0, 1, 1)), rect->close();
-        for (int i = 0; i < charCount; i++)
-            if (FPDFText_GetUnicode(text_page, i) > 32 && FPDFText_GetCharBox(text_page, i, & left, & right, & bottom, & top))
-                scene.addPath(rect, Ra::Transform(right - left, 0, 0, top - bottom, left, bottom), red, hairline, 0);
+        for (int i = 0; i < charCount; i++) {
+            code = FPDFText_GetUnicode(text_page, i);
+            if (code > 32 && FPDFText_GetCharBox(text_page, i, & left, & right, & bottom, & top)) {
+                FPDF_PAGEOBJECT textObject = FPDFText_GetTextObject(text_page, i);
+                FPDF_FONT font = FPDFTextObj_GetFont(textObject);
+                float fontSize = 1.f;
+                FPDFTextObj_GetFontSize(textObject, & fontSize);
+                assert(font);
+                Ra::Path p;
+                size_t dataLength = 0;
+                FPDF_BOOL success = FPDFFont_GetFontData(font, nullptr, 1024, & dataLength);
+                if (success) {
+                    Ra::Vector<unsigned char> fontData;
+                    fontData.resize(dataLength);
+                    FPDFFont_GetFontData(font, & fontData[0], dataLength, & dataLength);
+                    freetype.loadFace(fontData);
+                    p = freetype.createCharPath(code);
+                }
+                if (p->isValid()) {
+                    FS_MATRIX m;
+                    FPDFText_GetMatrix(text_page, i, & m);
+                    Ra::Transform textCTM = Ra::Transform(m.a, m.b, m.c, m.d, m.e, m.f);
+                    Ra::Bounds b = Ra::Bounds(p->bounds.quad(textCTM));
+                    textCTM = textCTM.concat(Ra::Bounds(left, bottom, right, top).fitTransform(b));
+                    scene.addPath(rect, Ra::Transform(right - left, 0, 0, top - bottom, left, bottom), red, hairline, 0);
+                    scene.addPath(p, textCTM, black, 0.f, 0);
+                } else
+                    scene.addPath(rect, Ra::Transform(right - left, 0, 0, top - bottom, left, bottom), red, hairline, 0);
+            }
+        }
     }
+    */
     
+    static void writeTextToScene(FPDF_PAGEOBJECT pageObject, FPDF_TEXTPAGE text_page, CharMap& charMap, FS_MATRIX m, Ra::Bounds *clipBounds, Ra::Scene& scene) {
+        auto it = charMap.find((void *)pageObject);
+        if (it != charMap.end()) {
+            double left = 0, bottom = 0, right = 0, top = 0;
+            Ra::Transform textCTM(m.a, m.b, m.c, m.d, m.e, m.f);
+            float hairline = -1.f;
+            unsigned int R = 0, G = 0, B = 0, A = 255;
+            FPDFPageObj_GetFillColor(pageObject, & R, & G, & B, & A);
+            Ra::Colorant red(0, 0, 255, 255), textColor(B, G, R, A);
+            RasterizerFreetype freetype;
+            Ra::Path rect;  rect->addBounds(Ra::Bounds(0, 0, 1, 1)), rect->close();
+            FPDF_FONT font = FPDFTextObj_GetFont(pageObject);
+            size_t dataLength = 0;
+            FPDF_BOOL success = FPDFFont_GetFontData(font, nullptr, 1024, & dataLength);
+            if (success) {
+                Ra::Vector<unsigned char> fontData;
+                fontData.resize(dataLength);
+                FPDFFont_GetFontData(font, & fontData[0], dataLength, & dataLength);
+                freetype.loadFace(fontData);
+            }
+            for(auto i : it->second) {
+                unsigned int code = FPDFText_GetUnicode(text_page, i);
+                Ra::Path p = freetype.createCharPath(code);
+                FPDFText_GetCharBox(text_page, i, & left, & right, & bottom, & top);
+                if (p->isValid()) {
+                    Ra::Bounds b = Ra::Bounds(p->bounds.quad(textCTM));
+                    Ra::Transform ctm = textCTM.concat(Ra::Bounds(left, bottom, right, top).fitTransform(b));
+                    scene.addPath(p, ctm, textColor, 0.f, 0);
+                } else
+                    scene.addPath(rect, Ra::Transform(right - left, 0, 0, top - bottom, left, bottom), red, hairline, 0);
+                    
+            }
+        }
+    }
+    /*
    static void writeTextToScene(FPDF_PAGEOBJECT pageObject, FPDF_TEXTPAGE text_page, int baseIndex, char32_t *buffer, unsigned long textSize, FS_MATRIX m, Ra::Bounds *clipBounds, Ra::Scene& scene) {
         Ra::Vector<unsigned char> fontData;
         RasterizerFreetype freetype;
@@ -153,7 +223,7 @@ struct RasterizerPDF {
             }
         }
     }
-    
+    */
     static void writePathToScene(FPDF_PAGEOBJECT pageObject, FS_MATRIX m, Ra::Bounds* clipBounds, std::vector<Ra::Path>& clipPaths, Ra::Scene& scene) {
         int fillmode;
         FPDF_BOOL stroke;
@@ -234,6 +304,20 @@ struct RasterizerPDF {
                 
                 int charCount = FPDFText_CountChars(text_page);
                 int objectCount = FPDFPage_CountObjects(page);
+                CharMap charMap;
+                for (int i = 0; i < charCount; i++) {
+                    FPDF_PAGEOBJECT textObject = FPDFText_GetTextObject(text_page, i);
+                    unsigned int code = FPDFText_GetUnicode(text_page, i);
+                    if (code > 32) {
+                        void *key = (void *)textObject;
+                        auto it = charMap.find(key);
+                        if (it == charMap.end())
+                            charMap.emplace(key, std::vector<int>({ i }));
+                        else
+                            it->second.emplace_back(i);
+                    }
+                }
+                /*
                 char32_t text[4096], *back;
                 std::vector<PointIndex> sortedPointIndices;
                 FS_MATRIX m, lastm;  lastm.e = FLT_MAX, lastm.f = FLT_MAX;
@@ -265,14 +349,16 @@ struct RasterizerPDF {
                     }
                 }
                 std::sort(sortedIndices.begin(), sortedIndices.end());
-                
+                */
                 Ra::Bounds clipBounds, *clipPtr = nullptr;
                 std::vector<Ra::Path> clipPaths;
-                
+                Ra::Bounds unitBounds(0, 0, 1, 1);
+                Ra::Path unitRectPath;  unitRectPath->addBounds(unitBounds);
                 size_t lastHash = ~0;
                 float x, y;
                 for (int i = 0; i < objectCount; i++) {
                     FPDF_PAGEOBJECT pageObject = FPDFPage_GetObject(page, i);
+                    FS_MATRIX m;
                     FPDFPageObj_GetMatrix(pageObject, & m);
                         
                     size_t hash = 0;
@@ -305,20 +391,23 @@ struct RasterizerPDF {
                     }
                     switch (FPDFPageObj_GetType(pageObject)) {
                         case FPDF_PAGEOBJ_TEXT: {
-                            int length = 0, len;
-                            if (indices[i] != -1) {
-                                auto it = std::lower_bound(sortedIndices.begin(), sortedIndices.end(), indices[i]);
-                                if (it != sortedIndices.end() && *it == indices[i]) {
-                                    length = (it + 1 == sortedIndices.end() ? charCount : it[1]) - it[0];
-                                    for (int j = 0; j < length; j++)
-                                        text[j] = FPDFText_GetUnicode(text_page, it[0] + j);
-                                    for (back = text, len = 0; len < length && *back >= 32; )
-                                        back++, len++;
-                                    for (back = text + len - 1; len && *back == 32; )
-                                        *back-- = 0, len--;
-                                    writeTextToScene(pageObject, text_page, indices[i], text, len, m, clipPtr, scene);
-                                }
-                            }
+                            writeTextToScene(pageObject, text_page, charMap, m, clipPtr, scene);
+                            
+                            
+//                            int length = 0, len;
+//                            if (!kWriteTextBoxes && indices[i] != -1) {
+//                                auto it = std::lower_bound(sortedIndices.begin(), sortedIndices.end(), indices[i]);
+//                                if (it != sortedIndices.end() && *it == indices[i]) {
+//                                    length = (it + 1 == sortedIndices.end() ? charCount : it[1]) - it[0];
+//                                    for (int j = 0; j < length; j++)
+//                                        text[j] = FPDFText_GetUnicode(text_page, it[0] + j);
+//                                    for (back = text, len = 0; len < length && *back >= 32; )
+//                                        back++, len++;
+//                                    for (back = text + len - 1; len && *back == 32; )
+//                                        *back-- = 0, len--;
+//                                    writeTextToScene(pageObject, text_page, indices[i], text, len, m, clipPtr, scene);
+//                                }
+//                            }
                             break;
                         }
                         case FPDF_PAGEOBJ_PATH:
@@ -348,13 +437,13 @@ struct RasterizerPDF {
                             break;
                     }
                 }
-                if (kWriteTextBoxes)
-                    writeTextBoxesToScene(text_page, scene);
+//                if (kWriteTextBoxes)
+//                    writeTextBoxesToScene(text_page, scene);
                 ctm = transformForPage(page, scene);
                 
                 FPDFText_ClosePage(text_page);
                 FPDF_ClosePage(page);
-                free(indices);
+//                free(indices);
             }
             FPDF_CloseDocument(doc);
         }
