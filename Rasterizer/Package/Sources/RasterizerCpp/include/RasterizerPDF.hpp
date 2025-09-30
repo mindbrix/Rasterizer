@@ -123,8 +123,11 @@ struct RasterizerPDF {
             }
             for(auto i : it->second) {
                 unsigned int code = FPDFText_GetUnicode(text_page, i);
-                Ra::Path p = freetype.createCharPath(code);
+                Ra::Path ftPath = freetype.createCharPath(code);
                 FPDFText_GetCharBox(text_page, i, & left, & right, & bottom, & top);
+                FPDF_GLYPHPATH pdfPath = FPDFFont_GetGlyphPath(font, code, 1);
+                Ra::Path p = ftPath->isValid() ? ftPath : PathWriter().createPathFromGlyphPath(pdfPath);
+                
                 if (p->isValid()) {
                     Ra::Bounds b = Ra::Bounds(p->bounds.quad(textCTM));
                     Ra::Transform ctm = textCTM.concat(Ra::Bounds(left, bottom, right, top).fitTransform(b));
