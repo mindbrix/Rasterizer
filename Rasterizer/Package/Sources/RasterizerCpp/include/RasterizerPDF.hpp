@@ -168,9 +168,8 @@ struct RasterizerPDF {
         }
     }
     
-    static inline Ra::Transform transformForPage(FPDF_PAGE page, Ra::Scene& scene) {
-        Ra::Bounds b = scene.bounds().integral();
-        float left = b.lx, bottom = b.ly, right = b.ux, top = b.uy, tx = 0.f, ty = 0.f, sine = 0.f, cosine = 1.f;
+    static inline Ra::Transform transformForPage(FPDF_PAGE page) {
+        float left, bottom, right, top, tx = 0.f, ty = 0.f, sine, cosine;
         FPDFPage_GetMediaBox(page, & left, & bottom, & right, & top);
         int rot = FPDFPage_GetRotation(page);
         __sincosf(-rot * 0.5f * M_PI, & sine, & cosine);
@@ -216,9 +215,11 @@ struct RasterizerPDF {
                 pageIndex = pageIndex > count - 1 ? count - 1 : pageIndex;
                 FPDF_PAGE page = FPDF_LoadPage(doc, int(pageIndex));
                 FPDF_TEXTPAGE text_page = FPDFText_LoadPage(page);
-                
                 int charCount = FPDFText_CountChars(text_page);
                 int objectCount = FPDFPage_CountObjects(page);
+                
+                ctm = transformForPage(page);
+                
                 CharMap charMap;
                 for (int i = 0; i < charCount; i++) {
                     FPDF_PAGEOBJECT textObject = FPDFText_GetTextObject(text_page, i);
@@ -304,8 +305,6 @@ struct RasterizerPDF {
                             break;
                     }
                 }
-                ctm = transformForPage(page, scene);
-                
                 FPDFText_ClosePage(text_page);
                 FPDF_ClosePage(page);
             }
