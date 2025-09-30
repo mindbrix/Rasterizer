@@ -141,7 +141,7 @@ struct RasterizerPDF {
                 scene.addPath(rect, Ra::Transform(right - left, 0, 0, top - bottom, left, bottom), red, hairline, 0);
             } else if (glyph > 32) {
                 FPDF_GLYPHPATH path = FPDFFont_GetGlyphPath(font, glyph, fontSize);
-                Ra::Path p = outlinePath;// PathWriter().createPathFromGlyphPath(path);
+                Ra::Path p = outlinePath->isValid() ? outlinePath : PathWriter().createPathFromGlyphPath(path);
                 if (!p->isValid()) {
                     scene.addPath(rect, Ra::Transform(right - left, 0, 0, top - bottom, left, bottom), red, hairline, 0, clipBounds);
                 } else {
