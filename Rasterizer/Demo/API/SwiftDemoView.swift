@@ -43,7 +43,7 @@ public class SwiftDemoView: RasterizerView {
         true
     }
     override public func keyDown(with event: NSEvent) {
-        if !demo.handleEvent(.keyDown(keyCode: event.keyCode)) {
+        if !demo.handleEvent(.keyDown(keyCode: event.keyCode, flags: event.modifierFlags)) {
             super.keyDown(with: event)
         }
     }
@@ -70,7 +70,7 @@ class SwiftDemo: NSObject, RASceneListDelegate {
         //, kI = 34, kL = 37, kO = 31, kP = 35, kS = 1, kT = 17, k1 = 18, k0 = 29, kMinus = 27, kPlus = 24 }
     }
     enum Event {
-        case keyDown(keyCode: UInt16)
+        case keyDown(keyCode: UInt16, flags: NSEvent.ModifierFlags)
         case magnify(scale: Double)
         case rotate(angle: Float)
         case translate(tx: Double, ty: Double)
@@ -82,10 +82,12 @@ class SwiftDemo: NSObject, RASceneListDelegate {
     
     func handleEvent(_ event: Event) -> Bool {
         switch event {
-        case .keyDown(let keyCode):
+        case .keyDown(let keyCode, let flags):
             switch keyCode {
             case KeyCode.kA.rawValue:
-                flag.toggle()
+                if (flags.contains(.shift)) {
+                    flag.toggle()
+                }
             case KeyCode.kC.rawValue:
                 ctm = .identity
             default:
