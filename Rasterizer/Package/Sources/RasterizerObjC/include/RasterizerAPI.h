@@ -25,11 +25,6 @@
 @end
 
 
-@interface RAFont: NSObject
-- (id)initWithName:(NSString *)name;
-@end
-
-
 typedef NS_ENUM(NSUInteger, RASceneFlags) {
     kInvisible = 1 << 0,
     kFillEvenOdd = 1 << 1,
@@ -46,6 +41,7 @@ typedef NS_ENUM(NSUInteger, RASceneFlags) {
 - (CGAffineTransform)addSvgFromData:(NSData *)data;
 - (CGAffineTransform)addPdfFromData:(NSData *)data pageNumber:(NSInteger)pageNumber;
 @end
+
 
 @interface RASceneList: NSObject
 @property(nonatomic, readonly) CGRect bounds;

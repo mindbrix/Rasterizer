@@ -58,23 +58,6 @@
 @end
 
 
-#pragma mark - RasterizerTypeface
-
-@implementation RAFont: NSObject
-
-- (id)initWithName:(NSString *)name {
-    self = [super init];
-    if (!self)
-        return nil;
-    NSURL *url = RaUtils::fontURL(name);
-    if (url != nil)
-        _font.load(url.path.UTF8String, name.UTF8String);
-    return self;
-}
-
-@end
-
-
 #pragma mark - RasterizerScene
 
 @implementation RAScene: NSObject

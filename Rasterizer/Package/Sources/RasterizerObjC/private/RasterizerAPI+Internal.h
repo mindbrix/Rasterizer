@@ -7,15 +7,10 @@
 //
 #import "RasterizerAPI.h"
 #import "Rasterizer.hpp"
-#import "RasterizerFont.hpp"
+
 
 @interface RAPath ()
 @property(nonatomic) Ra::Path path;
-@end
-
-
-@interface RAFont ()
-@property(nonatomic) RasterizerFont font;
 @end
 
 
