@@ -76,7 +76,6 @@ class SwiftDemo: NSObject, RASceneListDelegate {
         case translate(tx: Double, ty: Double)
     }
     
-    let font = RAFont(name: "HelveticaNeue-Medium")
     var flag = false
     var ctm = CGAffineTransform.identity
     var bounds = CGRect.zero
@@ -154,7 +153,13 @@ class SwiftDemo: NSObject, RASceneListDelegate {
             scale: CGSize(width: 1, height: 1),
             translation: CGVector(dx: r, dy: r)
         )
-        scene.addText("Hello\n123", font: font, pointSize: 32, ctm: textCTM, color: CGColor(gray: 0, alpha: 1))
+        let string = "Hello\n123"
+        let attributes: [NSAttributedString.Key: Any] = [
+            .foregroundColor: NSColor.black,
+            .font: NSFont(name: "HelveticaNeue-Medium", size: 32) as Any
+        ]
+        let attributedString = NSAttributedString(string: string, attributes: attributes)
+        scene.add(attributedString, ctm: textCTM)
         
         let list = RASceneList()
         list.add(scene,

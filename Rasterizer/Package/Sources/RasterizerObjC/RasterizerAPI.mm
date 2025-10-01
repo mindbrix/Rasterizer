@@ -7,6 +7,7 @@
 //
 
 #import <Foundation/Foundation.h>
+#import <CoreText/CoreText.h>
 #import "RasterizerAPI+Internal.h"
 #import "RasterizerCG.hpp"
 #import "RasterizerUtilities.h"
@@ -100,13 +101,29 @@
                    flags,
                    & clipBounds);
 }
-- (void)addText:(NSString *)text font:(RAFont *)font pointSize:(double)pointSize ctm:(CGAffineTransform)ctm color:(CGColorRef)color {
-    font.font.layoutGlyphs(pointSize, RaCG::colorantFromCG(color), Ra::Bounds(0, 0, 1e3, pointSize), RaCG::transformFromCG(ctm), false, false, false, text.UTF8String, _scene);
+- (void)addAttributedString:(NSAttributedString *)string ctm:(CGAffineTransform)ctm {
+    CTLineRef line = CTLineCreateWithAttributedString((__bridge CFAttributedStringRef)string);
+    NSArray *glyphRuns = (__bridge NSArray *)CTLineGetGlyphRuns(line);
+    for (int i = 0; i < glyphRuns.count; i++) {
+        CTRunRef run = (__bridge CTRunRef)glyphRuns[i];
+        CFIndex count = CTRunGetGlyphCount(run);
+        const CGGlyph *glyphs = CTRunGetGlyphsPtr(run);
+        const CGPoint *positions = CTRunGetPositionsPtr(run);
+        NSDictionary *attributes = (NSDictionary *)CTRunGetAttributes(run);
+        CTFontRef font = (__bridge CTFontRef)attributes[(__bridge NSString *)kCTFontAttributeName];
+        CGColorRef color = (__bridge CGColorRef)attributes[(__bridge NSString *)kCTForegroundColorAttributeName];
+        
+        for (int j = 0; j < count; j++) {
+            CGPathRef path = CTFontCreatePathForGlyph(font, glyphs[j], NULL);
+            [self addPath:[[RAPath alloc]initWithCGPath:path] ctm: CGAffineTransformTranslate(ctm, positions[j].x, positions[j].y) color:color width:0 flags:0];
+            CGPathRelease(path);
+        }
+    }
+    CFRelease(line);
 }
 - (CGAffineTransform)addSvgFromData:(NSData *)data {
     return RaCG::CGFromTransform(RasterizerSVG::addSvgToScene(data.bytes, data.length, _scene));
 }
-
 - (CGAffineTransform)addPdfFromData:(NSData *)data pageNumber:(NSInteger)pageNumber {
     return RaCG::CGFromTransform(RasterizerPDF::addPdfToScene(data.bytes, data.length, pageNumber, _scene));
 }
