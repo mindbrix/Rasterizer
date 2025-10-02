@@ -7,12 +7,12 @@
 //
 
 #import <Foundation/Foundation.h>
-#import <CoreText/CoreText.h>
 #import "RasterizerAPI+Internal.h"
 #import "RasterizerCG.hpp"
 #import "RasterizerUtilities.h"
 #import "RasterizerSVG.hpp"
 #import "RasterizerPDF.hpp"
+#import "RasterizerCoreText.hpp"
 
 
 #pragma mark - RasterizerPath
@@ -99,32 +99,7 @@
 }
 
 - (void)addAttributedString:(CFAttributedStringRef)string ctm:(CGAffineTransform)ctm clip:(CGRect)clip {
-    CTLineRef line = CTLineCreateWithAttributedString(string);
-    CFArrayRef glyphRuns = CTLineGetGlyphRuns(line);
-    for (int i = 0; i < CFArrayGetCount(glyphRuns); i++) {
-        CTRunRef run = (CTRunRef)CFArrayGetValueAtIndex(glyphRuns, i);
-        CFIndex count = CTRunGetGlyphCount(run);
-        CGGlyph glyphs[count];
-        CTRunGetGlyphs(run, CFRangeMake(0, count), glyphs);
-        CGPoint positions[count];
-        CTRunGetPositions(run, CFRangeMake(0, count), positions);
-        CFDictionaryRef attributes = CTRunGetAttributes(run);
-        CTFontRef font = (CTFontRef)CFDictionaryGetValue(attributes, kCTFontAttributeName);
-        CGColorRef color = (CGColorRef)CFDictionaryGetValue(attributes, kCTForegroundColorAttributeName);
-        
-        for (int j = 0; j < count; j++) {
-            CGPathRef path = CTFontCreatePathForGlyph(font, glyphs[j], NULL);
-            [self addPath:[[RAPath alloc]initWithCGPath:path]
-                      ctm:CGAffineTransformTranslate(ctm, positions[j].x, positions[j].y)
-                    color:color
-                    width:0
-                    flags:0
-                     clip:clip
-            ];
-            CGPathRelease(path);
-        }
-    }
-    CFRelease(line);
+    RasterizerCoreText::addAttributedStringToScene(string, ctm, clip, _scene);
 }
 
 - (CGAffineTransform)addSvgFromData:(NSData *)data {
