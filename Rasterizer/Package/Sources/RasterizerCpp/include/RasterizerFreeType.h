@@ -22,7 +22,7 @@
 #include FT_OUTLINE_H
 #include FT_BBOX_H
 
-struct RasterizerFreetype {
+struct RasterizerFreeType {
     static int MoveToFunction(const FT_Vector *to, void *user) {
         (*(Ra::Path *)user)->moveTo(to->x, to->y);
         return 0;
@@ -44,7 +44,7 @@ struct RasterizerFreetype {
         (*(Ra::Path *)user)->cubicTo(controlOne->x, controlOne->y, controlTwo->x, controlTwo->y, to->x, to->y);
         return 0;
     }
-    RasterizerFreetype() {
+    RasterizerFreeType() {
         error = FT_Init_FreeType(& library);
     }
     void openFace(const FT_Open_Args *openArgs, const char *fontName = nullptr) {
@@ -102,7 +102,7 @@ struct RasterizerFreetype {
         }
         return path;
     }
-    ~RasterizerFreetype() {
+    ~RasterizerFreeType() {
         if (face)
             FT_Done_Face(face);
         if (library)

@@ -7,7 +7,7 @@
 //
 #import "RasterizerAPI.h"
 #import "Rasterizer.hpp"
-#import "RasterizerFreetype.h"
+#import "RasterizerFreeType.h"
 
 
 @interface RAPath ()
@@ -16,7 +16,7 @@
 
 
 @interface RAFont ()
-@property(nonatomic) RasterizerFreetype freetype;
+@property(nonatomic) RasterizerFreeType freetype;
 @end
 
 

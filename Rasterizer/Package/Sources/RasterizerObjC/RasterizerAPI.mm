@@ -98,8 +98,8 @@
                    & clipBounds);
 }
 
-- (void)addAttributedString:(NSAttributedString *)string ctm:(CGAffineTransform)ctm clip:(CGRect)clip {
-    CTLineRef line = CTLineCreateWithAttributedString((__bridge CFAttributedStringRef)string);
+- (void)addAttributedString:(CFAttributedStringRef)string ctm:(CGAffineTransform)ctm clip:(CGRect)clip {
+    CTLineRef line = CTLineCreateWithAttributedString(string);
     CFArrayRef glyphRuns = CTLineGetGlyphRuns(line);
     for (int i = 0; i < CFArrayGetCount(glyphRuns); i++) {
         CTRunRef run = (CTRunRef)CFArrayGetValueAtIndex(glyphRuns, i);

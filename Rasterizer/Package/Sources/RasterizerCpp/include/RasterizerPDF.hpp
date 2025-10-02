@@ -19,7 +19,7 @@
 //
 
 #import "Rasterizer.hpp"
-#import "RasterizerFreetype.h"
+#import "RasterizerFreeType.h"
 #import "xxhash.h"
 #import "fpdfview.h"
 #import "fpdf_edit.h"
@@ -110,7 +110,7 @@ struct RasterizerPDF {
             unsigned int R = 0, G = 0, B = 0, A = 255;
             FPDFPageObj_GetFillColor(pageObject, & R, & G, & B, & A);
             Ra::Colorant red(0, 0, 255, 255), textColor(B, G, R, A);
-            RasterizerFreetype freetype;
+            RasterizerFreeType freetype;
             Ra::Path rect;  rect->addBounds(Ra::Bounds(0, 0, 1, 1)), rect->close();
             FPDF_FONT font = FPDFTextObj_GetFont(pageObject);
             size_t dataLength = 0;
