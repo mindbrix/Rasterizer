@@ -43,6 +43,7 @@ public class SwiftDemoView: RasterizerView {
         true
     }
     override public func keyDown(with event: NSEvent) {
+        demo.bounds = self.bounds
         if !demo.handleEvent(.keyDown(keyCode: event.keyCode, flags: event.modifierFlags)) {
             super.keyDown(with: event)
         }
@@ -79,6 +80,7 @@ class SwiftDemo: NSObject, RASceneListDelegate {
     var flag = false
     var ctm = CGAffineTransform.identity
     var bounds = CGRect.zero
+    var pastedScene: RAScene?
     
     func handleEvent(_ event: Event) -> Bool {
         switch event {
@@ -90,6 +92,13 @@ class SwiftDemo: NSObject, RASceneListDelegate {
                 }
             case KeyCode.kC.rawValue:
                 ctm = .identity
+            case KeyCode.kF.rawValue:
+                let objects = NSPasteboard.general.readObjects(forClasses: [NSAttributedString.self])
+                if let attrString = objects?.first as? NSAttributedString {
+                    let scene = RAScene()
+                    scene.add(attrString, in: bounds, ctm: .identity, clip: .zero)
+                    pastedScene = scene
+                }
             default:
                 return false
             }
@@ -149,28 +158,17 @@ class SwiftDemo: NSObject, RASceneListDelegate {
                 clip: .zero
             )
         }
-        
-        let textCTM = CGAffineTransform(
-            center: .zero,
-            rotation: t * 2 * Double.pi,
-            scale: CGSize(width: 1, height: 1),
-            translation: CGVector(dx: r, dy: r)
-        )
-        let string = "Hello\n123"
-        let attributes: [NSAttributedString.Key: Any] = [
-            .foregroundColor: NSColor.black,
-            .font: NSFont(name: "HelveticaNeue-Medium", size: 32) as Any
-        ]
-        let attributedString = NSAttributedString(string: string, attributes: attributes)
-        
-        scene.add(attributedString, in: CGRect(x: 0, y: 0, width: 0.25 * width, height: 0.25 * height), ctm: textCTM, clip: .zero)
-//        scene.add(attributedString, ctm: textCTM, clip: .zero)
-        
         let list = RASceneList()
         list.add(scene,
             ctm: ctm,
             clip: .zero
         )
+        if let pasted = pastedScene {
+            list.add(pasted,
+                ctm: ctm,
+               clip: .zero
+            )
+        }
         return list
     }
 }
