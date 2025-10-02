@@ -86,17 +86,17 @@
 }
 - (void)addAttributedString:(NSAttributedString *)string ctm:(CGAffineTransform)ctm {
     CTLineRef line = CTLineCreateWithAttributedString((__bridge CFAttributedStringRef)string);
-    NSArray *glyphRuns = (__bridge NSArray *)CTLineGetGlyphRuns(line);
-    for (int i = 0; i < glyphRuns.count; i++) {
-        CTRunRef run = (__bridge CTRunRef)glyphRuns[i];
+    CFArrayRef glyphRuns = CTLineGetGlyphRuns(line);
+    for (int i = 0; i < CFArrayGetCount(glyphRuns); i++) {
+        CTRunRef run = (CTRunRef)CFArrayGetValueAtIndex(glyphRuns, i);
         CFIndex count = CTRunGetGlyphCount(run);
         CGGlyph glyphs[count];
         CTRunGetGlyphs(run, CFRangeMake(0, count), glyphs);
         CGPoint positions[count];
         CTRunGetPositions(run, CFRangeMake(0, count), positions);
-        NSDictionary *attributes = (NSDictionary *)CTRunGetAttributes(run);
-        CTFontRef font = (__bridge CTFontRef)attributes[(__bridge NSString *)kCTFontAttributeName];
-        CGColorRef color = (__bridge CGColorRef)attributes[(__bridge NSString *)kCTForegroundColorAttributeName];
+        CFDictionaryRef attributes = CTRunGetAttributes(run);
+        CTFontRef font = (CTFontRef)CFDictionaryGetValue(attributes, kCTFontAttributeName);
+        CGColorRef color = (CGColorRef)CFDictionaryGetValue(attributes, kCTForegroundColorAttributeName);
         
         for (int j = 0; j < count; j++) {
             CGPathRef path = CTFontCreatePathForGlyph(font, glyphs[j], NULL);
