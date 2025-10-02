@@ -39,7 +39,7 @@ import Testing
 }
 
 @Test func testFreetype() async throws {
-    let font = RAFont(name: "HelveticaNeue-Medium")
+    let font = RAFont(name: "HelveticaNeue-Medium00")
     
     #expect(font != nil && font!.bounds.isEmpty)
     

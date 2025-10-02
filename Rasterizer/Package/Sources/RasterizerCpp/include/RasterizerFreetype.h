@@ -50,23 +50,17 @@ struct RasterizerFreetype {
     void openFace(const FT_Open_Args *openArgs, const char *fontName = nullptr) {
         if (face)
             FT_Done_Face(face);
-        
-        if (fontName == nullptr) {
-            error = FT_Open_Face(library, openArgs, 0, & face);
-            return;
-        }
-        
-        FT_Long  i, num_faces;
         error = FT_Open_Face(library, openArgs, -1, &face);
         if (error)
             return;
+        FT_Long  i, num_faces;
         num_faces = face->num_faces;
         FT_Done_Face(face);
         for (i = 0; i < num_faces; i++) {
             error = FT_Open_Face(library, openArgs, i, &face);
             if (error)
                 return;
-            if (strcmp(fontName, FT_Get_Postscript_Name(face)) == 0) {
+            if (fontName == nullptr || strcmp(fontName, FT_Get_Postscript_Name(face)) == 0) {
                 return;
             }
             FT_Done_Face(face);
