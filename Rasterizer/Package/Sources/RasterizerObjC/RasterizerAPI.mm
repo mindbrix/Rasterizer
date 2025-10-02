@@ -77,7 +77,7 @@
                    & clipBounds);
 }
 
-- (void)addAttributedString:(NSAttributedString *)string ctm:(CGAffineTransform)ctm {
+- (void)addAttributedString:(NSAttributedString *)string ctm:(CGAffineTransform)ctm clip:(CGRect)clip {
     CTLineRef line = CTLineCreateWithAttributedString((__bridge CFAttributedStringRef)string);
     CFArrayRef glyphRuns = CTLineGetGlyphRuns(line);
     for (int i = 0; i < CFArrayGetCount(glyphRuns); i++) {
@@ -98,7 +98,7 @@
                     color:color
                     width:0
                     flags:0
-                     clip:CGRectZero
+                     clip:clip
             ];
             CGPathRelease(path);
         }
