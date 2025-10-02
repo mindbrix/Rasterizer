@@ -90,15 +90,22 @@
     for (int i = 0; i < glyphRuns.count; i++) {
         CTRunRef run = (__bridge CTRunRef)glyphRuns[i];
         CFIndex count = CTRunGetGlyphCount(run);
-        const CGGlyph *glyphs = CTRunGetGlyphsPtr(run);
-        const CGPoint *positions = CTRunGetPositionsPtr(run);
+        CGGlyph glyphs[count];
+        CTRunGetGlyphs(run, CFRangeMake(0, count), glyphs);
+        CGPoint positions[count];
+        CTRunGetPositions(run, CFRangeMake(0, count), positions);
         NSDictionary *attributes = (NSDictionary *)CTRunGetAttributes(run);
         CTFontRef font = (__bridge CTFontRef)attributes[(__bridge NSString *)kCTFontAttributeName];
         CGColorRef color = (__bridge CGColorRef)attributes[(__bridge NSString *)kCTForegroundColorAttributeName];
         
         for (int j = 0; j < count; j++) {
             CGPathRef path = CTFontCreatePathForGlyph(font, glyphs[j], NULL);
-            [self addPath:[[RAPath alloc]initWithCGPath:path] ctm: CGAffineTransformTranslate(ctm, positions[j].x, positions[j].y) color:color width:0 flags:0];
+            [self addPath:[[RAPath alloc]initWithCGPath:path]
+                      ctm:CGAffineTransformTranslate(ctm, positions[j].x, positions[j].y)
+                    color:color
+                    width:0
+                    flags:0
+            ];
             CGPathRelease(path);
         }
     }
