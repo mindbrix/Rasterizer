@@ -35,7 +35,6 @@ typedef NS_ENUM(NSUInteger, RASceneFlags) {
 @interface RAScene: NSObject
 @property(nonatomic, readonly) CGRect bounds;
 
-- (void)addPath:(RAPath *)path ctm:(CGAffineTransform)ctm color:(CGColorRef)color width:(double)width flags:(NSUInteger)flags;
 - (void)addPath:(RAPath *)path ctm:(CGAffineTransform)ctm color:(CGColorRef)color width:(double)width flags:(NSUInteger)flags clip:(CGRect)clip;
 - (void)addAttributedString:(NSAttributedString *)string ctm:(CGAffineTransform)ctm;
 - (CGAffineTransform)addSvgFromData:(NSData *)data;
@@ -48,7 +47,6 @@ typedef NS_ENUM(NSUInteger, RASceneFlags) {
 @property(nonatomic) CGAffineTransform ctm;
 
 - (void)addList:(RASceneList *)list;
-- (void)addScene:(RAScene *)scene ctm:(CGAffineTransform)ctm;
 - (void)addScene:(RAScene *)scene ctm:(CGAffineTransform)ctm clip:(CGRect)clip;
 @end
 

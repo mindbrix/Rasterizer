@@ -66,17 +66,9 @@
     return RaCG::CGRectFromBounds(_scene.bounds());
 }
 
-- (void)addPath:(RAPath *)path ctm:(CGAffineTransform)ctm color:(CGColorRef)color width:(double)width flags:(NSUInteger)flags {
-    Ra::Path p = path.path;
-    _scene.addPath(p,
-                   RaCG::transformFromCG(ctm),
-                   RaCG::colorantFromCG(color),
-                   width,
-                   flags);
-}
 - (void)addPath:(RAPath *)path ctm:(CGAffineTransform)ctm color:(CGColorRef)color width:(double)width flags:(NSUInteger)flags clip:(CGRect)clip {
     Ra::Path p = path.path;
-    Ra::Bounds clipBounds = RaCG::BoundsFromCGRect(clip);
+    Ra::Bounds clipBounds = CGRectIsNull(clip) || CGRectIsEmpty(clip) || CGRectIsInfinite(clip) ? Ra::Bounds::huge() : RaCG::BoundsFromCGRect(clip);
     _scene.addPath(p,
                    RaCG::transformFromCG(ctm),
                    RaCG::colorantFromCG(color),
@@ -84,6 +76,7 @@
                    flags,
                    & clipBounds);
 }
+
 - (void)addAttributedString:(NSAttributedString *)string ctm:(CGAffineTransform)ctm {
     CTLineRef line = CTLineCreateWithAttributedString((__bridge CFAttributedStringRef)string);
     CFArrayRef glyphRuns = CTLineGetGlyphRuns(line);
@@ -105,15 +98,18 @@
                     color:color
                     width:0
                     flags:0
+                     clip:CGRectZero
             ];
             CGPathRelease(path);
         }
     }
     CFRelease(line);
 }
+
 - (CGAffineTransform)addSvgFromData:(NSData *)data {
     return RaCG::CGFromTransform(RasterizerSVG::addSvgToScene(data.bytes, data.length, _scene));
 }
+
 - (CGAffineTransform)addPdfFromData:(NSData *)data pageNumber:(NSInteger)pageNumber {
     return RaCG::CGFromTransform(RasterizerPDF::addPdfToScene(data.bytes, data.length, pageNumber, _scene));
 }
@@ -138,11 +134,10 @@
 - (void)addList:(RASceneList *)list {
     _list.addList(list.list);
 }
-- (void)addScene:(RAScene *)scene ctm:(CGAffineTransform)ctm {
-    _list.addScene(scene.scene, RaCG::transformFromCG(ctm));
-}
+
 - (void)addScene:(RAScene *)scene ctm:(CGAffineTransform)ctm clip:(CGRect)clip {
-    _list.addScene(scene.scene, RaCG::transformFromCG(ctm), RaCG::BoundsFromCGRect(clip));
+    Ra::Bounds clipBounds = CGRectIsNull(clip) || CGRectIsEmpty(clip) || CGRectIsInfinite(clip) ? Ra::Bounds::huge() : RaCG::BoundsFromCGRect(clip);
+    _list.addScene(scene.scene, RaCG::transformFromCG(ctm), clipBounds);
 }
 
 @end

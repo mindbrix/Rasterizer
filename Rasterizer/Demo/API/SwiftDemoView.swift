@@ -145,7 +145,8 @@ class SwiftDemo: NSObject, RASceneListDelegate {
                 ctm: ctm,
                 color: hsv,
                 width: 0.1,
-                flags: RASceneFlags.fillEvenOdd.rawValue
+                flags: RASceneFlags.fillEvenOdd.rawValue,
+                clip: .zero
             )
         }
         
@@ -165,7 +166,8 @@ class SwiftDemo: NSObject, RASceneListDelegate {
         
         let list = RASceneList()
         list.add(scene,
-            ctm: ctm
+            ctm: ctm,
+            clip: .zero
         )
         return list
     }
