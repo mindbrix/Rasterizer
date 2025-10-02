@@ -63,7 +63,7 @@
 
 @implementation RAFont: NSObject
 - (CGRect)bounds {
-    return _freetype.face != nullptr ? CGRectZero : CGRectNull;
+    return _freetype.face == nullptr ? CGRectNull : CGRectZero;
 }
 
 - (id)initWithName:(NSString *)name {
