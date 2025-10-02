@@ -14,6 +14,7 @@
 #import "RasterizerSVG.hpp"
 #import "RasterizerPDF.hpp"
 
+
 #pragma mark - RasterizerPath
 
 @implementation RAPath: NSObject
@@ -53,6 +54,26 @@
 }
 - (void)addCGPath:(CGPathRef)cgPath {
     RaCG::writeCGPathToPath(cgPath, _path);
+}
+
+@end
+
+
+#pragma mark - RasterizerTypeface
+
+@implementation RAFont: NSObject
+- (CGRect)bounds {
+    return _freetype.face != nullptr ? CGRectZero : CGRectNull;
+}
+
+- (id)initWithName:(NSString *)name {
+    self = [super init];
+    if (!self)
+        return nil;
+    NSURL *url = RaUtils::fontURL(name);
+    if (url != nil)
+        _freetype.loadFace(url.path.UTF8String, name.UTF8String);
+    return self;
 }
 
 @end

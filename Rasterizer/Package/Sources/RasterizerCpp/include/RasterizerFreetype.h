@@ -47,10 +47,50 @@ struct RasterizerFreetype {
     RasterizerFreetype() {
         error = FT_Init_FreeType(& library);
     }
-    void loadFace(Ra::Vector<unsigned char> data) {
-        error = FT_New_Memory_Face(library, & data[0], data.size(), 0, & face);
-        faceData = data;
+    void openFace(const FT_Open_Args *openArgs, const char *fontName = nullptr) {
+        if (face)
+            FT_Done_Face(face);
+        
+        if (fontName == nullptr) {
+            error = FT_Open_Face(library, openArgs, 0, & face);
+            return;
+        }
+        
+        FT_Long  i, num_faces;
+        error = FT_Open_Face(library, openArgs, -1, &face);
+        if (error)
+            return;
+        num_faces = face->num_faces;
+        FT_Done_Face(face);
+        for (i = 0; i < num_faces; i++) {
+            error = FT_Open_Face(library, openArgs, i, &face);
+            if (error)
+                return;
+            if (strcmp(fontName, FT_Get_Postscript_Name(face)) == 0) {
+                return;
+            }
+            FT_Done_Face(face);
+          }
+        face = nullptr;
     }
+    void loadFace(Ra::Vector<unsigned char> data, const char *fontName = nullptr) {
+        FT_Open_Args openArgs;
+        bzero(& openArgs, sizeof(FT_Open_Args));
+        openArgs.flags = FT_OPEN_MEMORY;
+        openArgs.memory_base = & data[0];
+        openArgs.memory_size = data.size();
+        openFace(& openArgs, fontName);
+        if (error == 0)
+            faceData = data;
+    }
+    void loadFace(const char *fileName, const char *fontName = nullptr) {
+        FT_Open_Args openArgs;
+        bzero(& openArgs, sizeof(FT_Open_Args));
+        openArgs.flags = FT_OPEN_PATHNAME;
+        openArgs.pathname = (FT_String *)fileName;
+        openFace(& openArgs, fontName);
+    }
+    
     Ra::Path createCharPath(size_t code) {
         Ra::Path path;
         error = FT_Load_Char(face, code, 0);
@@ -74,6 +114,8 @@ struct RasterizerFreetype {
         if (library)
             FT_Done_FreeType(library);
     }
+    
+    
     FT_Library    library = nullptr;
     FT_Error      error = 0;
     FT_Face       face = nullptr;

@@ -37,3 +37,11 @@ import Testing
     
     // Write your test here and use APIs like `#expect(...)` to check expected conditions.
 }
+
+@Test func testFreetype() async throws {
+    let font = RAFont(name: "HelveticaNeue-Medium")
+    
+    #expect(font != nil && font!.bounds.isEmpty)
+    
+    // Write your test here and use APIs like `#expect(...)` to check expected conditions.
+}

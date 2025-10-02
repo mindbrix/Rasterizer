@@ -25,6 +25,13 @@
 @end
 
 
+@interface RAFont: NSObject
+@property(nonatomic, readonly) CGRect bounds;
+
+- (id)initWithName:(NSString *)name;
+@end
+
+
 typedef NS_ENUM(NSUInteger, RASceneFlags) {
     kInvisible = 1 << 0,
     kFillEvenOdd = 1 << 1,
