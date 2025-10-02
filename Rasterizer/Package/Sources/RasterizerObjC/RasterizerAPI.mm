@@ -99,9 +99,11 @@
 }
 
 - (void)addAttributedString:(CFAttributedStringRef)string ctm:(CGAffineTransform)ctm clip:(CGRect)clip {
-    RasterizerCoreText::addAttributedStringToScene(string, ctm, clip, _scene);
+    RasterizerCoreText::addTextToScene(string, ctm, clip, _scene);
 }
-
+- (void)addAttributedString:(CFAttributedStringRef)string inRect:(CGRect)rect ctm:(CGAffineTransform)ctm clip:(CGRect)clip {
+    RasterizerCoreText::addTextToSceneInRect(string, rect, ctm, clip, _scene);
+}
 - (CGAffineTransform)addSvgFromData:(NSData *)data {
     return RaCG::CGFromTransform(RasterizerSVG::addSvgToScene(data.bytes, data.length, _scene));
 }

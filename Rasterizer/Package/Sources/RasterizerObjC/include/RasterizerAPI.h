@@ -44,6 +44,7 @@ typedef NS_ENUM(NSUInteger, RASceneFlags) {
 
 - (void)addPath:(RAPath *)path ctm:(CGAffineTransform)ctm color:(CGColorRef)color width:(double)width flags:(NSUInteger)flags clip:(CGRect)clip;
 - (void)addAttributedString:(CFAttributedStringRef)string ctm:(CGAffineTransform)ctm clip:(CGRect)clip;
+- (void)addAttributedString:(CFAttributedStringRef)string inRect:(CGRect)rect ctm:(CGAffineTransform)ctm clip:(CGRect)clip;
 - (CGAffineTransform)addSvgFromData:(NSData *)data;
 - (CGAffineTransform)addPdfFromData:(NSData *)data pageNumber:(NSInteger)pageNumber;
 @end

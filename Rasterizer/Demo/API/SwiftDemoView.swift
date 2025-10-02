@@ -162,7 +162,9 @@ class SwiftDemo: NSObject, RASceneListDelegate {
             .font: NSFont(name: "HelveticaNeue-Medium", size: 32) as Any
         ]
         let attributedString = NSAttributedString(string: string, attributes: attributes)
-        scene.add(attributedString, ctm: textCTM, clip: .zero)
+        
+        scene.add(attributedString, in: CGRect(x: 0, y: 0, width: 0.25 * width, height: 0.25 * height), ctm: textCTM, clip: .zero)
+//        scene.add(attributedString, ctm: textCTM, clip: .zero)
         
         let list = RASceneList()
         list.add(scene,

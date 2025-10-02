@@ -23,9 +23,8 @@
 
 
 struct RasterizerCoreText {
-    static void addAttributedStringToScene(CFAttributedStringRef string, CGAffineTransform ctm, CGRect clip, Ra::Scene& scene) {
+    static void addCTLineToScene(CTLineRef line, CGPoint origin, CGAffineTransform ctm, CGRect clip, Ra::Scene& scene) {
         Ra::Bounds clipBounds = CGRectIsNull(clip) || CGRectIsEmpty(clip) || CGRectIsInfinite(clip) ? Ra::Bounds::huge() : RaCG::BoundsFromCGRect(clip);
-        CTLineRef line = CTLineCreateWithAttributedString(string);
         CFArrayRef glyphRuns = CTLineGetGlyphRuns(line);
         for (int i = 0; i < CFArrayGetCount(glyphRuns); i++) {
             CTRunRef run = (CTRunRef)CFArrayGetValueAtIndex(glyphRuns, i);
@@ -43,11 +42,33 @@ struct RasterizerCoreText {
                 CGPathRef cgPath = CTFontCreatePathForGlyph(font, glyphs[j], NULL);
                 Ra::Path path;
                 RaCG::writeCGPathToPath(cgPath, path);
-                Ra::Transform m = RaCG::transformFromCG(CGAffineTransformTranslate(ctm, positions[j].x, positions[j].y));
+                Ra::Transform m = RaCG::transformFromCG(CGAffineTransformTranslate(ctm, origin.x + positions[j].x, origin.y + positions[j].y));
                 scene.addPath(path, m, color, 0, 0, & clipBounds);
                 CGPathRelease(cgPath);
             }
         }
+    }
+    static void addTextToScene(CFAttributedStringRef string, CGAffineTransform ctm, CGRect clip, Ra::Scene& scene) {
+        CTLineRef line = CTLineCreateWithAttributedString(string);
+        addCTLineToScene(line, CGPointZero, ctm, clip, scene);
         CFRelease(line);
+    }
+    
+    static void addTextToSceneInRect(CFAttributedStringRef string, CGRect rect, CGAffineTransform ctm, CGRect clip, Ra::Scene& scene) {
+        CTFramesetterRef framesetter = CTFramesetterCreateWithAttributedString(string);
+        CGMutablePathRef rectPath = CGPathCreateMutable();
+        CGPathAddRect(rectPath, NULL, rect);
+        CTFrameRef frame = CTFramesetterCreateFrame(framesetter, CFRangeMake(0, 0), rectPath, NULL);
+        CFArrayRef lines = CTFrameGetLines(frame);
+        CFIndex lineCount = CFArrayGetCount(lines);
+        CGPoint origins[lineCount];
+        CTFrameGetLineOrigins(frame, CFRangeMake(0, 0), origins);
+        for (int i = 0; i < lineCount; i++) {
+            CTLineRef line = (CTLineRef)CFArrayGetValueAtIndex(lines, i);
+            addCTLineToScene(line, origins[i], ctm, clip, scene);
+        }
+        CFRelease(frame);
+        CGPathRelease(rectPath);
+        CFRelease(framesetter);
     }
 };
