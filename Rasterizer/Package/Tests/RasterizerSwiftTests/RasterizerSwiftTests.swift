@@ -8,24 +8,18 @@ import Testing
     path.line(to: 100, y: 100)
     
     #expect(path.bounds == CGRect(origin: .zero, size: CGSize(width: 100, height: 100)))
-    
-    // Write your test here and use APIs like `#expect(...)` to check expected conditions.
 }
 
 @Test func testView() async throws {
     let v = await RasterizerView()
     
     await #expect(v.useCG == false)
-    
-    // Write your test here and use APIs like `#expect(...)` to check expected conditions.
 }
 
 @Test func testDemoView() async throws {
     let v = await DemoView()
     
     await #expect(v.useCG == false)
-    
-    // Write your test here and use APIs like `#expect(...)` to check expected conditions.
 }
 
 @Test func testPDF() async throws {
@@ -34,14 +28,12 @@ import Testing
     let ctm = scene.addPdf(from: data, pageNumber: 0)
     
     #expect(ctm.isIdentity)
-    
-    // Write your test here and use APIs like `#expect(...)` to check expected conditions.
 }
 
 @Test func testFreetype() async throws {
-    let font = RAFont(name: "HelveticaNeue-Medium")
-    
-    #expect(font != nil && !font!.bounds.isNull)
-    
-    // Write your test here and use APIs like `#expect(...)` to check expected conditions.
+    guard let font = RAFont(name: "HelveticaNeue-Medium") else {
+        #expect(Bool(false))
+        return
+    }
+    #expect(!font.bounds.isNull)
 }
