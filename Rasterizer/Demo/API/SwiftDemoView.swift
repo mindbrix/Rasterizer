@@ -96,7 +96,7 @@ class SwiftDemo: NSObject, RASceneListDelegate {
                 let objects = NSPasteboard.general.readObjects(forClasses: [NSAttributedString.self])
                 if let attrString = objects?.first as? NSAttributedString {
                     let scene = RAScene()
-                    scene.add(attrString, in: bounds, ctm: .identity, clip: .zero)
+                    scene.addText(attrString, in: bounds, ctm: .identity, clip: .zero)
                     pastedScene = scene
                 }
             default:

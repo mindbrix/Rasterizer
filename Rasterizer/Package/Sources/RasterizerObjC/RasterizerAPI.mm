@@ -98,10 +98,10 @@
                    & clipBounds);
 }
 
-- (void)addAttributedString:(CFAttributedStringRef)string ctm:(CGAffineTransform)ctm clip:(CGRect)clip {
+- (void)addText:(CFAttributedStringRef)string ctm:(CGAffineTransform)ctm clip:(CGRect)clip {
     RasterizerCoreText::addTextToScene(string, ctm, clip, _scene);
 }
-- (void)addAttributedString:(CFAttributedStringRef)string inRect:(CGRect)rect ctm:(CGAffineTransform)ctm clip:(CGRect)clip {
+- (void)addText:(CFAttributedStringRef)string inRect:(CGRect)rect ctm:(CGAffineTransform)ctm clip:(CGRect)clip {
     RasterizerCoreText::addTextToSceneInRect(string, rect, ctm, clip, _scene);
 }
 - (CGAffineTransform)addSvgFromData:(NSData *)data {
