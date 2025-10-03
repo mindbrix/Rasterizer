@@ -17,12 +17,24 @@
 //  misrepresented as being the original software.
 //  3. This notice may not be removed or altered from any source distribution.
 //
+#import <Cocoa/Cocoa.h>
 #import <CoreText/CoreText.h>
 #import "Rasterizer.hpp"
 #import "RasterizerCG.hpp"
 
 
 struct RasterizerCoreText {
+    static CGColorRef GetCGColor(CFDictionaryRef attributes, CFStringRef platformName, CFStringRef ctName) {
+        CGColorRef cgColor = NULL;
+        NSColor *nsColor = (__bridge NSColor *)CFDictionaryGetValue(attributes, platformName);
+        if (nsColor != nil)
+            cgColor = nsColor.CGColor;
+        else {
+            cgColor = (CGColorRef)CFDictionaryGetValue(attributes, ctName);
+        }
+        return cgColor;
+    }
+    
     static void addCTLineToScene(CTLineRef line, CGPoint origin, CGAffineTransform ctm, CGRect clip, Ra::Scene& scene) {
         Ra::Bounds clipBounds = CGRectIsNull(clip) || CGRectIsEmpty(clip) || CGRectIsInfinite(clip) ? Ra::Bounds::huge() : RaCG::BoundsFromCGRect(clip);
         CFArrayRef glyphRuns = CTLineGetGlyphRuns(line);
@@ -35,9 +47,19 @@ struct RasterizerCoreText {
             CTRunGetPositions(run, CFRangeMake(0, count), positions);
             CFDictionaryRef attributes = CTRunGetAttributes(run);
             CTFontRef font = (CTFontRef)CFDictionaryGetValue(attributes, kCTFontAttributeName);
-            CGColorRef cgColor = (CGColorRef)CFDictionaryGetValue(attributes, kCTForegroundColorAttributeName);
-            Ra::Colorant color = RaCG::colorantFromCG(cgColor);
+            CGColorRef cgColor = GetCGColor(attributes, CFSTR("NSColor"), kCTForegroundColorAttributeName);
+            CGColorRef cgBackgroundColor = GetCGColor(attributes, CFSTR("NSBackgroundColor"), kCTBackgroundColorAttributeName);
             
+            if (cgBackgroundColor) {
+                CGRect bounds = CTRunGetImageBounds(run, NULL, CFRangeMake(0, 0));
+                Ra::Path bgPath;
+                bgPath->addBounds(RaCG::BoundsFromCGRect(bounds));
+                Ra::Colorant bgColor = RaCG::colorantFromCG(cgBackgroundColor);
+                Ra::Transform m = RaCG::transformFromCG(CGAffineTransformTranslate(ctm, origin.x, origin.y));
+                scene.addPath(bgPath, m, bgColor, 0, 0, & clipBounds);
+            }
+            
+            Ra::Colorant color = RaCG::colorantFromCG(cgColor);
             for (int j = 0; j < count; j++) {
                 CGPathRef cgPath = CTFontCreatePathForGlyph(font, glyphs[j], NULL);
                 Ra::Path path;
