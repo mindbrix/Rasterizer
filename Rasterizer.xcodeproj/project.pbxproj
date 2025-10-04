@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 70;
+	objectVersion = 60;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -19,6 +19,8 @@
 		E95C47852E6F654C008D51FC /* TestDocument.xib in Resources */ = {isa = PBXBuildFile; fileRef = E95C47832E6F654C008D51FC /* TestDocument.xib */; };
 		E9682E222C7F634D001046F5 /* Rasterizer Default.pdf in Resources */ = {isa = PBXBuildFile; fileRef = E9682E212C7F634D001046F5 /* Rasterizer Default.pdf */; };
 		E971DB2D218495AA005AE5E5 /* Rasterizer.icns in Resources */ = {isa = PBXBuildFile; fileRef = E971DB2C218495AA005AE5E5 /* Rasterizer.icns */; };
+		E9AFC0452E910E5C00BAEFFE /* RasterizerCpp in Frameworks */ = {isa = PBXBuildFile; productRef = E9AFC0442E910E5C00BAEFFE /* RasterizerCpp */; };
+		E9AFC0472E910E5C00BAEFFE /* RasterizerObjC in Frameworks */ = {isa = PBXBuildFile; productRef = E9AFC0462E910E5C00BAEFFE /* RasterizerObjC */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -43,27 +45,14 @@
 		E971DB2C218495AA005AE5E5 /* Rasterizer.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = Rasterizer.icns; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
-/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		E9499EA72E89498C00E22F2B /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Package.swift,
-				Tests/RasterizerSwiftTests/RasterizerSwiftTests.swift,
-			);
-			target = E920A59821762BCD00F52C25 /* Rasterizer */;
-		};
-/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
-
-/* Begin PBXFileSystemSynchronizedRootGroup section */
-		E95542D52E8945FC000E45B7 /* Package */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (E9499EA72E89498C00E22F2B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Package; sourceTree = "<group>"; };
-/* End PBXFileSystemSynchronizedRootGroup section */
-
 /* Begin PBXFrameworksBuildPhase section */
 		E920A59621762BCD00F52C25 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 				E901B3872194B00F00B1AB72 /* Accelerate.framework in Frameworks */,
+				E9AFC0472E910E5C00BAEFFE /* RasterizerObjC in Frameworks */,
+				E9AFC0452E910E5C00BAEFFE /* RasterizerCpp in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -98,7 +87,6 @@
 		E920A59B21762BCD00F52C25 /* Rasterizer */ = {
 			isa = PBXGroup;
 			children = (
-				E95542D52E8945FC000E45B7 /* Package */,
 				E970B9072E17D99100E9A7B1 /* Demo */,
 				E9682E212C7F634D001046F5 /* Rasterizer Default.pdf */,
 				E920A59C21762BCD00F52C25 /* AppDelegate.h */,
@@ -151,9 +139,6 @@
 			);
 			dependencies = (
 			);
-			fileSystemSynchronizedGroups = (
-				E95542D52E8945FC000E45B7 /* Package */,
-			);
 			name = Rasterizer;
 			productName = Rasterizer;
 			productReference = E920A59921762BCD00F52C25 /* Rasterizer.app */;
@@ -183,6 +168,9 @@
 				Base,
 			);
 			mainGroup = E920A59021762BCD00F52C25;
+			packageReferences = (
+				E9AFC0432E910E5C00BAEFFE /* XCLocalSwiftPackageReference "Package" */,
+			);
 			productRefGroup = E920A59A21762BCD00F52C25 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -437,6 +425,24 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		E9AFC0432E910E5C00BAEFFE /* XCLocalSwiftPackageReference "Package" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Package;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		E9AFC0442E910E5C00BAEFFE /* RasterizerCpp */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = RasterizerCpp;
+		};
+		E9AFC0462E910E5C00BAEFFE /* RasterizerObjC */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = RasterizerObjC;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = E920A59121762BCD00F52C25 /* Project object */;
 }

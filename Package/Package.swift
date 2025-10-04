@@ -26,12 +26,18 @@ let package = Package(
             path: "Sources/RasterizerCpp",
             exclude: [
                 "exclude"
+            ],
+            cxxSettings: [
+                .headerSearchPath("include"),
             ]
         ),
         .target(
             name: "RasterizerObjC",
             dependencies: ["RasterizerCpp"],
             path: "Sources/RasterizerObjC",
+            resources: [
+                .copy("../../Sources/RasterizerCpp/include/Shaders.metal")
+            ],
             cxxSettings: [
                 .headerSearchPath("private"),
             ],

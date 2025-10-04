@@ -58,7 +58,13 @@
     self.magnificationFilter = kCAFilterNearest;
     self.colorspace = nil;
     self.commandQueue = [self.device newCommandQueue];
+    
+#if SWIFT_PACKAGE
+    self.defaultLibrary = [self.device newDefaultLibraryWithBundle:SWIFTPM_MODULE_BUNDLE error:nil];
+#else
     self.defaultLibrary = [self.device newDefaultLibrary];
+#endif
+
     self.inflight_semaphore = dispatch_semaphore_create(2);
     
     MTLDepthStencilDescriptor *depthStencilDescriptor = [MTLDepthStencilDescriptor new];
