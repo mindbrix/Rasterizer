@@ -78,8 +78,7 @@ struct RasterizerCoreText {
     
     static void addTextToSceneInRect(CFAttributedStringRef string, CGRect rect, CGAffineTransform ctm, CGRect clip, Ra::Scene& scene) {
         CTFramesetterRef framesetter = CTFramesetterCreateWithAttributedString(string);
-        CGMutablePathRef rectPath = CGPathCreateMutable();
-        CGPathAddRect(rectPath, NULL, rect);
+        CGPathRef rectPath = CGPathCreateWithRect(rect, NULL);
         CTFrameRef frame = CTFramesetterCreateFrame(framesetter, CFRangeMake(0, 0), rectPath, NULL);
         CFArrayRef lines = CTFrameGetLines(frame);
         CFIndex lineCount = CFArrayGetCount(lines);

@@ -12,6 +12,9 @@
 		E9AFC0C72E914AE000BAEFFE /* RasterizerCpp in Frameworks */ = {isa = PBXBuildFile; productRef = E9AFC0C62E914AE000BAEFFE /* RasterizerCpp */; };
 		E9AFC0C92E914AE000BAEFFE /* RasterizerObjC in Frameworks */ = {isa = PBXBuildFile; productRef = E9AFC0C82E914AE000BAEFFE /* RasterizerObjC */; };
 		E9AFC0CB2E914AE000BAEFFE /* RasterizerSwift in Frameworks */ = {isa = PBXBuildFile; productRef = E9AFC0CA2E914AE000BAEFFE /* RasterizerSwift */; };
+		E9AFC0CE2E9152B400BAEFFE /* RasterizerCpp in Frameworks */ = {isa = PBXBuildFile; productRef = E9AFC0CD2E9152B400BAEFFE /* RasterizerCpp */; };
+		E9AFC0D02E9152B400BAEFFE /* RasterizerObjC in Frameworks */ = {isa = PBXBuildFile; productRef = E9AFC0CF2E9152B400BAEFFE /* RasterizerObjC */; };
+		E9AFC0D22E9152B400BAEFFE /* RasterizerSwift in Frameworks */ = {isa = PBXBuildFile; productRef = E9AFC0D12E9152B400BAEFFE /* RasterizerSwift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -34,8 +37,11 @@
 				E9AFC0C22E91411400BAEFFE /* RasterizerCpp in Frameworks */,
 				E9AFC0C42E91411400BAEFFE /* RasterizerObjC in Frameworks */,
 				E9AFC0C72E914AE000BAEFFE /* RasterizerCpp in Frameworks */,
+				E9AFC0D02E9152B400BAEFFE /* RasterizerObjC in Frameworks */,
 				E9AFC0CB2E914AE000BAEFFE /* RasterizerSwift in Frameworks */,
 				E9AFC0C92E914AE000BAEFFE /* RasterizerObjC in Frameworks */,
+				E9AFC0CE2E9152B400BAEFFE /* RasterizerCpp in Frameworks */,
+				E9AFC0D22E9152B400BAEFFE /* RasterizerSwift in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -83,6 +89,9 @@
 				E9AFC0C62E914AE000BAEFFE /* RasterizerCpp */,
 				E9AFC0C82E914AE000BAEFFE /* RasterizerObjC */,
 				E9AFC0CA2E914AE000BAEFFE /* RasterizerSwift */,
+				E9AFC0CD2E9152B400BAEFFE /* RasterizerCpp */,
+				E9AFC0CF2E9152B400BAEFFE /* RasterizerObjC */,
+				E9AFC0D12E9152B400BAEFFE /* RasterizerSwift */,
 			);
 			productName = SwiftDemo;
 			productReference = E9AFC0A32E91406D00BAEFFE /* SwiftDemo.app */;
@@ -113,7 +122,7 @@
 			mainGroup = E9AFC09A2E91406D00BAEFFE;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				E9AFC0C52E914AE000BAEFFE /* XCLocalSwiftPackageReference "../Package" */,
+				E9AFC0CC2E9152B400BAEFFE /* XCLocalSwiftPackageReference "../Package" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = E9AFC0A42E91406D00BAEFFE /* Products */;
@@ -344,7 +353,7 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		E9AFC0C52E914AE000BAEFFE /* XCLocalSwiftPackageReference "../Package" */ = {
+		E9AFC0CC2E9152B400BAEFFE /* XCLocalSwiftPackageReference "../Package" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = ../Package;
 		};
@@ -368,6 +377,18 @@
 			productName = RasterizerObjC;
 		};
 		E9AFC0CA2E914AE000BAEFFE /* RasterizerSwift */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = RasterizerSwift;
+		};
+		E9AFC0CD2E9152B400BAEFFE /* RasterizerCpp */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = RasterizerCpp;
+		};
+		E9AFC0CF2E9152B400BAEFFE /* RasterizerObjC */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = RasterizerObjC;
+		};
+		E9AFC0D12E9152B400BAEFFE /* RasterizerSwift */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = RasterizerSwift;
 		};
