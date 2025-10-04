@@ -13,8 +13,6 @@
 		E920A5A621762BCE00F52C25 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E920A5A521762BCE00F52C25 /* Assets.xcassets */; };
 		E920A5A921762BCE00F52C25 /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = E920A5A721762BCE00F52C25 /* MainMenu.xib */; };
 		E920A5AC21762BCE00F52C25 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = E920A5AB21762BCE00F52C25 /* main.m */; };
-		E95C47842E6F654C008D51FC /* TestDocument.m in Sources */ = {isa = PBXBuildFile; fileRef = E95C47822E6F654C008D51FC /* TestDocument.m */; };
-		E95C47852E6F654C008D51FC /* TestDocument.xib in Resources */ = {isa = PBXBuildFile; fileRef = E95C47832E6F654C008D51FC /* TestDocument.xib */; };
 		E9682E222C7F634D001046F5 /* Rasterizer Default.pdf in Resources */ = {isa = PBXBuildFile; fileRef = E9682E212C7F634D001046F5 /* Rasterizer Default.pdf */; };
 		E971DB2D218495AA005AE5E5 /* Rasterizer.icns in Resources */ = {isa = PBXBuildFile; fileRef = E971DB2C218495AA005AE5E5 /* Rasterizer.icns */; };
 		E9AFC0452E910E5C00BAEFFE /* RasterizerCpp in Frameworks */ = {isa = PBXBuildFile; productRef = E9AFC0442E910E5C00BAEFFE /* RasterizerCpp */; };
@@ -33,9 +31,6 @@
 		E920A5AA21762BCE00F52C25 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		E920A5AB21762BCE00F52C25 /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
 		E920A5AD21762BCE00F52C25 /* Rasterizer.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Rasterizer.entitlements; sourceTree = "<group>"; };
-		E95C47812E6F654C008D51FC /* TestDocument.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = TestDocument.h; sourceTree = "<group>"; };
-		E95C47822E6F654C008D51FC /* TestDocument.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TestDocument.m; sourceTree = "<group>"; };
-		E95C47832E6F654C008D51FC /* TestDocument.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = TestDocument.xib; sourceTree = "<group>"; };
 		E9682E212C7F634D001046F5 /* Rasterizer Default.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; path = "Rasterizer Default.pdf"; sourceTree = "<group>"; };
 		E971DB2C218495AA005AE5E5 /* Rasterizer.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = Rasterizer.icns; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -100,9 +95,6 @@
 				E920A59F21762BCD00F52C25 /* Document.h */,
 				E920A5A021762BCD00F52C25 /* Document.mm */,
 				E920A5A221762BCD00F52C25 /* Document.xib */,
-				E95C47812E6F654C008D51FC /* TestDocument.h */,
-				E95C47822E6F654C008D51FC /* TestDocument.m */,
-				E95C47832E6F654C008D51FC /* TestDocument.xib */,
 			);
 			path = Demo;
 			sourceTree = "<group>";
@@ -168,7 +160,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				E95C47852E6F654C008D51FC /* TestDocument.xib in Resources */,
 				E920A5A621762BCE00F52C25 /* Assets.xcassets in Resources */,
 				E971DB2D218495AA005AE5E5 /* Rasterizer.icns in Resources */,
 				E920A5A421762BCD00F52C25 /* Document.xib in Resources */,
@@ -185,7 +176,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				E920A5A121762BCD00F52C25 /* Document.mm in Sources */,
-				E95C47842E6F654C008D51FC /* TestDocument.m in Sources */,
 				E920A5AC21762BCE00F52C25 /* main.m in Sources */,
 				E920A59E21762BCD00F52C25 /* AppDelegate.m in Sources */,
 			);
