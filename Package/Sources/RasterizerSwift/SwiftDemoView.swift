@@ -7,6 +7,8 @@
 //
 
 import Foundation
+import RasterizerObjC
+
 
 extension CGAffineTransform {
     init(center: CGPoint, rotation: Double, scale: CGSize, translation: CGVector) {

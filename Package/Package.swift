@@ -16,6 +16,9 @@ let package = Package(
         .library(
             name: "RasterizerObjC",
             targets: ["RasterizerObjC"]),
+        .library(
+            name: "RasterizerSwift",
+            targets: ["RasterizerSwift"]),
     ],
     targets: [
         // Targets are the basic building blocks of a package, defining a module or a test suite.
@@ -46,6 +49,11 @@ let package = Package(
                 .linkedFramework("Accelerate"),
                 // Libraries
             ]
+        ),
+        .target(
+            name: "RasterizerSwift",
+            dependencies: ["RasterizerObjC"],
+            path: "Sources/RasterizerSwift"
         ),
         .binaryTarget(
             name: "freetype",

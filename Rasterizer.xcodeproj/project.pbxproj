@@ -13,7 +13,6 @@
 		E920A5A621762BCE00F52C25 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E920A5A521762BCE00F52C25 /* Assets.xcassets */; };
 		E920A5A921762BCE00F52C25 /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = E920A5A721762BCE00F52C25 /* MainMenu.xib */; };
 		E920A5AC21762BCE00F52C25 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = E920A5AB21762BCE00F52C25 /* main.m */; };
-		E9499F5D2E89729A00E22F2B /* SwiftDemoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9499F5B2E89729A00E22F2B /* SwiftDemoView.swift */; };
 		E95C47842E6F654C008D51FC /* TestDocument.m in Sources */ = {isa = PBXBuildFile; fileRef = E95C47822E6F654C008D51FC /* TestDocument.m */; };
 		E95C47852E6F654C008D51FC /* TestDocument.xib in Resources */ = {isa = PBXBuildFile; fileRef = E95C47832E6F654C008D51FC /* TestDocument.xib */; };
 		E9682E222C7F634D001046F5 /* Rasterizer Default.pdf in Resources */ = {isa = PBXBuildFile; fileRef = E9682E212C7F634D001046F5 /* Rasterizer Default.pdf */; };
@@ -34,8 +33,6 @@
 		E920A5AA21762BCE00F52C25 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		E920A5AB21762BCE00F52C25 /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
 		E920A5AD21762BCE00F52C25 /* Rasterizer.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Rasterizer.entitlements; sourceTree = "<group>"; };
-		E9499F5A2E89729A00E22F2B /* Rasterizer-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Rasterizer-Bridging-Header.h"; sourceTree = "<group>"; };
-		E9499F5B2E89729A00E22F2B /* SwiftDemoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwiftDemoView.swift; sourceTree = "<group>"; };
 		E95C47812E6F654C008D51FC /* TestDocument.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = TestDocument.h; sourceTree = "<group>"; };
 		E95C47822E6F654C008D51FC /* TestDocument.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TestDocument.m; sourceTree = "<group>"; };
 		E95C47832E6F654C008D51FC /* TestDocument.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = TestDocument.xib; sourceTree = "<group>"; };
@@ -97,19 +94,9 @@
 			path = Rasterizer;
 			sourceTree = "<group>";
 		};
-		E9499F5C2E89729A00E22F2B /* API */ = {
-			isa = PBXGroup;
-			children = (
-				E9499F5A2E89729A00E22F2B /* Rasterizer-Bridging-Header.h */,
-				E9499F5B2E89729A00E22F2B /* SwiftDemoView.swift */,
-			);
-			path = API;
-			sourceTree = "<group>";
-		};
 		E970B9072E17D99100E9A7B1 /* Demo */ = {
 			isa = PBXGroup;
 			children = (
-				E9499F5C2E89729A00E22F2B /* API */,
 				E920A59F21762BCD00F52C25 /* Document.h */,
 				E920A5A021762BCD00F52C25 /* Document.mm */,
 				E920A5A221762BCD00F52C25 /* Document.xib */,
@@ -200,7 +187,6 @@
 				E920A5A121762BCD00F52C25 /* Document.mm in Sources */,
 				E95C47842E6F654C008D51FC /* TestDocument.m in Sources */,
 				E920A5AC21762BCE00F52C25 /* main.m in Sources */,
-				E9499F5D2E89729A00E22F2B /* SwiftDemoView.swift in Sources */,
 				E920A59E21762BCD00F52C25 /* AppDelegate.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
