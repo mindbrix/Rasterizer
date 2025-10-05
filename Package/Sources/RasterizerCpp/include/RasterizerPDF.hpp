@@ -32,8 +32,6 @@
 struct RasterizerPDF {
     typedef std::map<void *, std::vector<int>> CharMap;
     
-    static const bool kWriteTextBoxes = false;
-    
     struct PathWriter {
         float x, y;
         std::vector<float> bezier;
@@ -134,7 +132,6 @@ struct RasterizerPDF {
                     scene.addPath(p, ctm, textColor, 0.f, 0);
                 } else
                     scene.addPath(rect, Ra::Transform(right - left, 0, 0, top - bottom, left, bottom), red, hairline, 0);
-                    
             }
         }
     }
