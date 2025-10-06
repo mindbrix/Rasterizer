@@ -19,6 +19,8 @@
 //
 
 #import "Rasterizer.hpp"
+#import "RasterizerCG.hpp"
+#import "RasterizerCoreText.hpp"
 #import <time.h>
 
 struct Concentrichron {
@@ -28,10 +30,10 @@ struct Concentrichron {
         face = Ra::SceneList();
     }
     
-    Ra::SceneList writeList(RasterizerFont& font) {
+    Ra::SceneList writeList(const char *fontName) {
         Ra::Bounds bounds(0, 0, 800, 600);
         if (face.scenes.size() == 0)
-            face = makeFace(bounds, font);
+            face = makeFace(bounds, fontName);
         return setTime(face, bounds);
     }
     
@@ -69,7 +71,7 @@ struct Concentrichron {
         p->moveTo(sx, sx), p->cubicTo(sx - f * ay, sy + f * ax, ex + f * by, ey - f * bx, ex, ey);
     }
     
-    static Ra::SceneList makeFace(Ra::Bounds b, RasterizerFont& font) {
+    static Ra::SceneList makeFace(Ra::Bounds b, const char *fontName) {
         Ra::SceneList list;
         const char *days[7] = { "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" };
         const char *dates[31] = { "1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th", "10th", "11th", "12th", "13th", "14th", "15th", "16th", "17th", "18th", "19th", "20th", "21st", "22nd", "23rd", "24th", "25th", "26th", "27th", "28th", "29th", "30th", "31st" };
@@ -107,24 +109,28 @@ struct Concentrichron {
             }
             ring.addPath(path, Ra::Transform(), black, strokeWidth, 0);
             
-            if (!font.isEmpty()) {
-                float r = r0 + 0.25f * inset, da, a0;
-                Ra::Row<char> str;
-                char strbuf[32];
-                for (int j = 0; j < divisions[i]; j++) {
-                    if (labels[i]) {
-                        str.empty();
-                        strcpy(str.alloc(strlen(labels[i][j]) + 1), labels[i][j]);
-                    } else {
-                        str.empty();
-                        bzero(strbuf, sizeof(strbuf)), snprintf(strbuf, 32, "%d", j);
-                        strcpy(str.alloc(strlen(strbuf) + 1), strbuf);
-                    }
-                    Ra::Scene glyphs;  Ra::Bounds gb = font.layoutGlyphs(inset * 0.666f, black, b, Ra::Transform(), false, false, false, str.base, glyphs);
-                    da = (gb.ux - gb.lx) / r, a0 = theta0 + j * -step - 0.5f * (step - da);
-                    
-                    RasterizerFont::layoutGlyphsOnArc(glyphs, cx, cy, r, a0, ring);
+            float r = r0 + 0.25f * inset, da, a0;
+            Ra::Row<char> str;
+            char strbuf[32];
+            for (int j = 0; j < divisions[i]; j++) {
+                if (labels[i]) {
+                    str.empty();
+                    strcpy(str.alloc(strlen(labels[i][j]) + 1), labels[i][j]);
+                } else {
+                    str.empty();
+                    bzero(strbuf, sizeof(strbuf)), snprintf(strbuf, 32, "%d", j);
+                    strcpy(str.alloc(strlen(strbuf) + 1), strbuf);
                 }
+                Ra::Scene glyphs;
+                CGColorRef color = CGColorCreateGenericRGB(black.r / 255.0, black.g / 255.0, black.b / 255.0, black.a / 255.0);
+                CFAttributedStringRef attr = RasterizerCoreText::createAttributedString(str.base, fontName, inset * 0.666f, color);
+                RasterizerCoreText::addTextToSceneInRect(attr, RaCG::CGRectFromBounds(b), CGAffineTransformIdentity, CGRectZero, glyphs);
+                CGColorRelease(color);
+                CFRelease(attr);
+                Ra::Bounds gb = glyphs.bounds();
+                da = (gb.ux - gb.lx) / r, a0 = theta0 + j * -step - 0.5f * (step - da);
+                
+                RasterizerFont::layoutGlyphsOnArc(glyphs, cx, cy, r, a0, ring);
             }
             list.addScene(ring);
         }

@@ -223,7 +223,7 @@ struct RasterizerDemo {
                 text.addScene(font.writeGlyphGrid(fontSize, textColor));
             list.addList(text);
         } else if (showTime) {
-            list.addList(concentrichron.writeList(font));
+            list.addList(concentrichron.writeList(fontName.addr));
         } else if (svgData.size) {
             if (document.pathsCount == 0) {
                 Ra::Scene scene;
