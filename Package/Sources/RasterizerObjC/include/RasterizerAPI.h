@@ -46,7 +46,6 @@ typedef NS_ENUM(NSUInteger, RASceneFlags) {
 - (void)addText:(CFAttributedStringRef)string ctm:(CGAffineTransform)ctm clip:(CGRect)clip;
 - (void)addText:(CFAttributedStringRef)string inRect:(CGRect)rect ctm:(CGAffineTransform)ctm clip:(CGRect)clip;
 - (CGAffineTransform)addSvgFromData:(NSData *)data;
-- (CGAffineTransform)addSvgFromFile:(NSURL *)url;
 - (CGAffineTransform)addPdfFromData:(NSData *)data pageNumber:(NSInteger)pageNumber;
 @end
 

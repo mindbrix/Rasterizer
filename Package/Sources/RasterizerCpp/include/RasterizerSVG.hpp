@@ -36,14 +36,6 @@ struct RasterizerSVG {
         return ctm;
     }
     
-    static Ra::Transform addSvgFileToScene(const char *filename, Ra::Scene& scene) {
-        struct NSVGimage *image = nsvgParseFromFile(filename, "px", 96);
-        addSvgImageToScene(image, scene);
-        Ra::Transform ctm = Ra::Transform(1, 0, 0, -1, 0, image->height);
-        nsvgDelete(image);
-        return ctm;
-    }
-    
     static inline Ra::Colorant colorFromSVGColor(int color) {
         return Ra::Colorant((color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF, color >> 24);
     }
