@@ -107,7 +107,9 @@
 - (CGAffineTransform)addSvgFromData:(NSData *)data {
     return RaCG::CGFromTransform(RasterizerSVG::addSvgDataToScene(data.bytes, data.length, _scene));
 }
-
+- (CGAffineTransform)addSvgFromFile:(NSURL *)url {
+    return RaCG::CGFromTransform(RasterizerSVG::addSvgFileToScene(url.path.UTF8String, _scene));
+}
 - (CGAffineTransform)addPdfFromData:(NSData *)data pageNumber:(NSInteger)pageNumber {
     return RaCG::CGFromTransform(RasterizerPDF::addPdfToScene(data.bytes, data.length, pageNumber, _scene));
 }
