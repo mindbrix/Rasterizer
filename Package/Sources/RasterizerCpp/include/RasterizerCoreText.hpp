@@ -24,6 +24,44 @@
 
 
 struct RasterizerCoreText {
+    static CFAttributedStringRef createAttributedString(const char *string, const char *fontName, float fontSize, CGColorRef color) {
+        CFStringRef cfString = CFStringCreateWithCString(kCFAllocatorDefault, string, kCFStringEncodingUTF8);
+        CFStringRef cfFontName = CFStringCreateWithCString(kCFAllocatorDefault, fontName, kCFStringEncodingUTF8);
+        CFIndex stringLen = CFStringGetLength(cfString);
+        CFMutableAttributedStringRef attrString = CFAttributedStringCreateMutable(kCFAllocatorDefault, 0);
+        CFAttributedStringReplaceString (attrString, CFRangeMake(0, 0), cfString);
+        CFAttributedStringSetAttribute(attrString, CFRangeMake(0, stringLen), kCTForegroundColorAttributeName, color);
+        CTFontRef ctFont = CTFontCreateWithName(cfFontName, fontSize, NULL);
+        CFAttributedStringSetAttribute(attrString, CFRangeMake(0, stringLen), kCTFontAttributeName, ctFont);
+        CFRelease(ctFont);
+        CFRelease(cfString);
+        CFRelease(cfFontName);
+        return attrString;
+    }
+    
+    static void addTextToScene(CFAttributedStringRef string, CGAffineTransform ctm, CGRect clip, Ra::Scene& scene) {
+        CTLineRef line = CTLineCreateWithAttributedString(string);
+        addCTLineToScene(line, CGPointZero, ctm, clip, scene);
+        CFRelease(line);
+    }
+    
+    static void addTextToSceneInRect(CFAttributedStringRef string, CGRect rect, CGAffineTransform ctm, CGRect clip, Ra::Scene& scene) {
+        CTFramesetterRef framesetter = CTFramesetterCreateWithAttributedString(string);
+        CGPathRef rectPath = CGPathCreateWithRect(rect, NULL);
+        CTFrameRef frame = CTFramesetterCreateFrame(framesetter, CFRangeMake(0, 0), rectPath, NULL);
+        CFArrayRef lines = CTFrameGetLines(frame);
+        CFIndex lineCount = CFArrayGetCount(lines);
+        CGPoint origins[lineCount];
+        CTFrameGetLineOrigins(frame, CFRangeMake(0, 0), origins);
+        for (int i = 0; i < lineCount; i++) {
+            CTLineRef line = (CTLineRef)CFArrayGetValueAtIndex(lines, i);
+            addCTLineToScene(line, origins[i], ctm, clip, scene);
+        }
+        CFRelease(frame);
+        CGPathRelease(rectPath);
+        CFRelease(framesetter);
+    }
+    
     static CGColorRef GetCGColor(CFDictionaryRef attributes, CFStringRef platformName, CFStringRef ctName) {
         CGColorRef cgColor = NULL;
         NSColor *nsColor = (__bridge NSColor *)CFDictionaryGetValue(attributes, platformName);
@@ -69,27 +107,5 @@ struct RasterizerCoreText {
                 CGPathRelease(cgPath);
             }
         }
-    }
-    static void addTextToScene(CFAttributedStringRef string, CGAffineTransform ctm, CGRect clip, Ra::Scene& scene) {
-        CTLineRef line = CTLineCreateWithAttributedString(string);
-        addCTLineToScene(line, CGPointZero, ctm, clip, scene);
-        CFRelease(line);
-    }
-    
-    static void addTextToSceneInRect(CFAttributedStringRef string, CGRect rect, CGAffineTransform ctm, CGRect clip, Ra::Scene& scene) {
-        CTFramesetterRef framesetter = CTFramesetterCreateWithAttributedString(string);
-        CGPathRef rectPath = CGPathCreateWithRect(rect, NULL);
-        CTFrameRef frame = CTFramesetterCreateFrame(framesetter, CFRangeMake(0, 0), rectPath, NULL);
-        CFArrayRef lines = CTFrameGetLines(frame);
-        CFIndex lineCount = CFArrayGetCount(lines);
-        CGPoint origins[lineCount];
-        CTFrameGetLineOrigins(frame, CFRangeMake(0, 0), origins);
-        for (int i = 0; i < lineCount; i++) {
-            CTLineRef line = (CTLineRef)CFArrayGetValueAtIndex(lines, i);
-            addCTLineToScene(line, origins[i], ctm, clip, scene);
-        }
-        CFRelease(frame);
-        CGPathRelease(rectPath);
-        CFRelease(framesetter);
     }
 };

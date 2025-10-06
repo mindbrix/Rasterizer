@@ -24,6 +24,7 @@
 #import "RasterizerFont.hpp"
 #import "Concentrichron.hpp"
 #import "RasterizerWinding.hpp"
+#import "RasterizerCoreText.hpp"
 
 
 struct RasterizerDemo {
@@ -209,13 +210,17 @@ struct RasterizerDemo {
         if (pastedString.size) {
             if (pasted.pathsCount == 0) {
                 Ra::Scene glyphs;
-                font.layoutGlyphs(pointSize, textColor, bounds, Ra::Transform(), false, false, false, pastedString.addr, glyphs);
+                CGColorRef color = CGColorCreateGenericRGB(textColor.r / 255.0, textColor.g / 255.0, textColor.b / 255.0, textColor.a / 255.0);
+                CFAttributedStringRef attr = RasterizerCoreText::createAttributedString(pastedString.addr, fontName.addr, fontSize, color);
+                RasterizerCoreText::addTextToSceneInRect(attr, CGRectMake(0, 0, w, h), CGAffineTransformIdentity, CGRectZero, glyphs);
+                CGColorRelease(color);
+                CFRelease(attr);
                 pasted.addScene(glyphs);
             }
             list.addList(pasted);
         } else if (showGlyphGrid) {
             if (text.pathsCount == 0)
-                text.addScene(font.writeGlyphGrid(pointSize, textColor));
+                text.addScene(font.writeGlyphGrid(fontSize, textColor));
             list.addList(text);
         } else if (showTime) {
             list.addList(concentrichron.writeList(font));
@@ -252,7 +257,9 @@ struct RasterizerDemo {
         return animating || redraw || showTime;
     }
     void setFont(const char *url, const char *name, float size) {
-        pointSize = size;
+        fontSize = size;
+        if (name)
+            strcpy(fontName.resize(strlen(name) + 1), name);
         font.load(url, name);
         concentrichron.resetFace();
         pasted = Ra::SceneList();
@@ -287,10 +294,10 @@ struct RasterizerDemo {
     
     Ra::Colorant textColor = Ra::Colorant(0, 0, 0, 255), activeColor = Ra::Colorant(0, 0, 255, 255), bgColor = Ra::Colorant(255, 255, 255, 192);
     RasterizerFont font;
-    float pointSize = 14;
+    float fontSize = 14;
     Concentrichron concentrichron;
     Ra::SceneList list, document, pasted, text;
-    Ra::Memory<char> pastedString;
+    Ra::Memory<char> pastedString, fontName;
     bool showGlyphGrid = false, showTime = false, showHud = true;
     size_t pageCount, pageIndex;
     Ra::Memory<uint8_t> pdfData, svgData;
