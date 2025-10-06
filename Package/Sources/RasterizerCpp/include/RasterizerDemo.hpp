@@ -222,7 +222,7 @@ struct RasterizerDemo {
         } else if (svgData.size) {
             if (document.pathsCount == 0) {
                 Ra::Scene scene;
-                Ra::Transform m = RasterizerSVG::addSvgToScene(svgData.addr, svgData.size, scene);
+                Ra::Transform m = RasterizerSVG::addSvgDataToScene(svgData.addr, svgData.size, scene);
                 document.addScene(scene, m);
                 fit = true;
             }

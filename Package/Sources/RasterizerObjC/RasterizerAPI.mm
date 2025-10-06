@@ -105,7 +105,7 @@
     RasterizerCoreText::addTextToSceneInRect(string, rect, ctm, clip, _scene);
 }
 - (CGAffineTransform)addSvgFromData:(NSData *)data {
-    return RaCG::CGFromTransform(RasterizerSVG::addSvgToScene(data.bytes, data.length, _scene));
+    return RaCG::CGFromTransform(RasterizerSVG::addSvgDataToScene(data.bytes, data.length, _scene));
 }
 
 - (CGAffineTransform)addPdfFromData:(NSData *)data pageNumber:(NSInteger)pageNumber {
