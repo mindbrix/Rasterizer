@@ -122,7 +122,7 @@ struct Concentrichron {
                     strcpy(str.alloc(strlen(strbuf) + 1), strbuf);
                 }
                 Ra::Scene glyphs;
-                CGColorRef color = CGColorCreateGenericRGB(black.r / 255.0, black.g / 255.0, black.b / 255.0, black.a / 255.0);
+                CGColorRef color = RaCG::CGColorCreateFromColorant(black);
                 CFAttributedStringRef attr = RasterizerCoreText::createAttributedString(str.base, fontName, inset * 0.666f, color);
                 RasterizerCoreText::addTextToSceneInRect(attr, RaCG::CGRectFromBounds(b), CGAffineTransformIdentity, CGRectZero, glyphs);
                 CGColorRelease(color);

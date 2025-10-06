@@ -152,6 +152,9 @@ struct RasterizerCG {
         }
         return Ra::Colorant(b, g, r, a);
     }
+    static CGColorRef CGColorCreateFromColorant(Ra::Colorant color) {
+        return CGColorCreateGenericRGB(color.r / 255.0, color.g / 255.0, color.b / 255.0, color.a / 255.0);
+    }
     static Ra::Transform transformFromCG(CGAffineTransform t) {
         return Ra::Transform(float(t.a), float(t.b), float(t.c), float(t.d), float(t.tx), float(t.ty));
     }

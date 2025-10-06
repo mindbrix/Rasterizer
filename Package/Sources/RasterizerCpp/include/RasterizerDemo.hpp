@@ -210,7 +210,7 @@ struct RasterizerDemo {
         if (pastedString.size) {
             if (pasted.pathsCount == 0) {
                 Ra::Scene glyphs;
-                CGColorRef color = CGColorCreateGenericRGB(textColor.r / 255.0, textColor.g / 255.0, textColor.b / 255.0, textColor.a / 255.0);
+                CGColorRef color = RaCG::CGColorCreateFromColorant(textColor);
                 CFAttributedStringRef attr = RasterizerCoreText::createAttributedString(pastedString.addr, fontName.addr, fontSize, color);
                 RasterizerCoreText::addTextToSceneInRect(attr, CGRectMake(0, 0, w, h), CGAffineTransformIdentity, CGRectZero, glyphs, & sceneMap);
                 CGColorRelease(color);
