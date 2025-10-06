@@ -19,20 +19,24 @@
 //
 #import <Cocoa/Cocoa.h>
 #import <CoreText/CoreText.h>
+#import <map>
+#import "xxhash.h"
 #import "Rasterizer.hpp"
 #import "RasterizerCG.hpp"
 
 
 struct RasterizerCoreText {
+    typedef std::map<uint64_t, Ra::Scene> SceneMap;
+    
     static CFAttributedStringRef createAttributedString(const char *string, const char *fontName, float fontSize, CGColorRef color) {
-        CFStringRef cfString = CFStringCreateWithCString(kCFAllocatorDefault, string, kCFStringEncodingUTF8);
-        CFStringRef cfFontName = CFStringCreateWithCString(kCFAllocatorDefault, fontName, kCFStringEncodingUTF8);
-        CFIndex stringLen = CFStringGetLength(cfString);
         CFMutableAttributedStringRef attrString = CFAttributedStringCreateMutable(kCFAllocatorDefault, 0);
+        CFStringRef cfString = CFStringCreateWithCString(kCFAllocatorDefault, string, kCFStringEncodingUTF8);
         CFAttributedStringReplaceString (attrString, CFRangeMake(0, 0), cfString);
-        CFAttributedStringSetAttribute(attrString, CFRangeMake(0, stringLen), kCTForegroundColorAttributeName, color);
+        CFIndex stringLen = CFStringGetLength(cfString);
+        CFStringRef cfFontName = CFStringCreateWithCString(kCFAllocatorDefault, fontName, kCFStringEncodingUTF8);
         CTFontRef ctFont = CTFontCreateWithName(cfFontName, fontSize, NULL);
         CFAttributedStringSetAttribute(attrString, CFRangeMake(0, stringLen), kCTFontAttributeName, ctFont);
+        CFAttributedStringSetAttribute(attrString, CFRangeMake(0, stringLen), kCTForegroundColorAttributeName, color);
         CFRelease(ctFont);
         CFRelease(cfString);
         CFRelease(cfFontName);
@@ -45,7 +49,49 @@ struct RasterizerCoreText {
         CFRelease(line);
     }
     
-    static void addTextToSceneInRect(CFAttributedStringRef string, CGRect rect, CGAffineTransform ctm, CGRect clip, Ra::Scene& scene) {
+    static uint64_t hashForAttributedString(CFAttributedStringRef string) {
+        CFStringRef cfString = CFAttributedStringGetString(string);
+        const char *stringPtr = CFStringGetCStringPtr(cfString, kCFStringEncodingUTF8);
+        CFIndex stringLen = CFStringGetLength(cfString);
+        uint64_t stringHash = XXH64(stringPtr, stringLen, 0);
+        for (CFIndex i = 0; i < CFStringGetLength(cfString); i++) {
+            CTFontRef ctFont = (CTFontRef)CFAttributedStringGetAttribute(string, i, kCTFontAttributeName, NULL);
+            CFStringRef fontName = CTFontCopyPostScriptName(ctFont);
+            CGFloat fontSize = CTFontGetSize(ctFont);
+            CGColorRef color = (CGColorRef)CFAttributedStringGetAttribute(string, i, kCTForegroundColorAttributeName, NULL);
+            size_t componentCount = CGColorGetNumberOfComponents(color);
+            const CGFloat *components = CGColorGetComponents(color);
+            
+            stringHash = XXH64(CFStringGetCStringPtr(fontName, kCFStringEncodingUTF8), CFStringGetLength(fontName), stringHash);
+            stringHash = XXH64(& fontSize, sizeof(fontSize), stringHash);
+            stringHash = XXH64(components, componentCount * sizeof(*components), stringHash);
+            CFRelease(fontName);
+        }
+        return stringHash;
+    }
+    static uint64_t hashForParams(CFAttributedStringRef string, CGRect rect, CGAffineTransform ctm, CGRect clip) {
+        struct Params {
+            CGRect rect;  CGAffineTransform ctm;  CGRect clip;
+        };
+        Params params;
+        bzero(& params, sizeof(Params));
+        params.rect = rect;
+        params.ctm = ctm;
+        params.clip = clip;
+        uint64_t stringHash = hashForAttributedString(string);
+        return XXH64(& params, sizeof(Params), stringHash);
+    }
+    static void addTextToSceneInRect(CFAttributedStringRef string, CGRect rect, CGAffineTransform ctm, CGRect clip, Ra::Scene& scene, SceneMap *sceneMap = nullptr) {
+        
+        uint64_t hash = sceneMap ? hashForParams(string, rect, ctm, clip) : 0;
+        if (sceneMap) {
+            auto it = sceneMap->find(hash);
+            if (it != sceneMap->end()) {
+                scene.appendScene(it->second);
+                return;
+            }
+        }
+        Ra::Scene glyphs;
         CTFramesetterRef framesetter = CTFramesetterCreateWithAttributedString(string);
         CGPathRef rectPath = CGPathCreateWithRect(rect, NULL);
         CTFrameRef frame = CTFramesetterCreateFrame(framesetter, CFRangeMake(0, 0), rectPath, NULL);
@@ -55,11 +101,15 @@ struct RasterizerCoreText {
         CTFrameGetLineOrigins(frame, CFRangeMake(0, 0), origins);
         for (int i = 0; i < lineCount; i++) {
             CTLineRef line = (CTLineRef)CFArrayGetValueAtIndex(lines, i);
-            addCTLineToScene(line, origins[i], ctm, clip, scene);
+            addCTLineToScene(line, origins[i], ctm, clip, glyphs);
         }
         CFRelease(frame);
         CGPathRelease(rectPath);
         CFRelease(framesetter);
+        if (sceneMap)
+            sceneMap->emplace(hash, glyphs);
+        
+        scene.appendScene(glyphs);
     }
     
     static CGColorRef GetCGColor(CFDictionaryRef attributes, CFStringRef platformName, CFStringRef ctName) {

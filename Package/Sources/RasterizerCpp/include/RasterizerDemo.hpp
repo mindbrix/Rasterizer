@@ -212,7 +212,7 @@ struct RasterizerDemo {
                 Ra::Scene glyphs;
                 CGColorRef color = CGColorCreateGenericRGB(textColor.r / 255.0, textColor.g / 255.0, textColor.b / 255.0, textColor.a / 255.0);
                 CFAttributedStringRef attr = RasterizerCoreText::createAttributedString(pastedString.addr, fontName.addr, fontSize, color);
-                RasterizerCoreText::addTextToSceneInRect(attr, CGRectMake(0, 0, w, h), CGAffineTransformIdentity, CGRectZero, glyphs);
+                RasterizerCoreText::addTextToSceneInRect(attr, CGRectMake(0, 0, w, h), CGAffineTransformIdentity, CGRectZero, glyphs, & sceneMap);
                 CGColorRelease(color);
                 CFRelease(attr);
                 pasted.addScene(glyphs);
@@ -293,6 +293,7 @@ struct RasterizerDemo {
     }
     
     Ra::Colorant textColor = Ra::Colorant(0, 0, 0, 255), activeColor = Ra::Colorant(0, 0, 255, 255), bgColor = Ra::Colorant(255, 255, 255, 192);
+    RasterizerCoreText::SceneMap sceneMap;
     RasterizerFont font;
     float fontSize = 14;
     Concentrichron concentrichron;

@@ -434,6 +434,10 @@ struct Rasterizer {
                 clips.add(clipBounds ? *clipBounds : Bounds::huge());
             }
         }
+        void appendScene(const Scene scene) {
+            for (int i = 0; i < scene.count; i++)
+                addPath(scene.paths[i], scene.ctms->base[i], scene.colors->base[i], scene.widths->base[i], scene.flags->base[i]);
+        }
         Bounds bounds() const {
             Bounds b;
             for (int i = 0; i < count; i++)
