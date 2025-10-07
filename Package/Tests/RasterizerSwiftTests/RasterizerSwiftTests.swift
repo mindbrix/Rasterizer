@@ -38,11 +38,3 @@ import Testing
     
     #expect(ctm.isIdentity)
 }
-
-@Test func testFreetype() async throws {
-    guard let font = RAFont(name: "HelveticaNeue-Medium") else {
-        #expect(Bool(false))
-        return
-    }
-    #expect(!font.bounds.isNull)
-}

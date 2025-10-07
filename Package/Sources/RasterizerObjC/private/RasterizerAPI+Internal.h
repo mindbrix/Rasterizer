@@ -15,11 +15,6 @@
 @end
 
 
-@interface RAFont ()
-@property(nonatomic) RasterizerFreeType freetype;
-@end
-
-
 @interface RAScene ()
 @property(nonatomic) Ra::Scene scene;
 @end

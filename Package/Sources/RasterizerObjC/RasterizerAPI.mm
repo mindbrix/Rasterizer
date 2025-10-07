@@ -59,26 +59,6 @@
 @end
 
 
-#pragma mark - RasterizerTypeface
-
-@implementation RAFont: NSObject
-- (CGRect)bounds {
-    return _freetype.face == nullptr ? CGRectNull : CGRectZero;
-}
-
-- (id)initWithName:(NSString *)name {
-    self = [super init];
-    if (!self)
-        return nil;
-    NSURL *url = RaUtils::fontURL(name);
-    if (url != nil)
-        _freetype.loadFace(url.path.UTF8String, name.UTF8String);
-    return self;
-}
-
-@end
-
-
 #pragma mark - RasterizerScene
 
 @implementation RAScene: NSObject
