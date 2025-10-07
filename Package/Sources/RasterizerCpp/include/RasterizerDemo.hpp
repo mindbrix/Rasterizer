@@ -72,9 +72,9 @@ struct RasterizerDemo {
         
         bool keyUsed = false;
         if (keyCode == KeyCode::kA)
-            animating = !animating, clock = 0.0, keyUsed = true;
+            animating = !animating, clock = 0.0, keyUsed = true, clearHUD();
         else if (keyCode == KeyCode::kC)
-            useCurves = !useCurves, keyUsed = true;
+            useCurves = !useCurves, keyUsed = true, clearHUD();
         else if (keyCode == KeyCode::kF) {
             Ra::Transform fit = bounds.fitTransform(list.bounds());
             ctm = memcmp(& ctm, & fit, sizeof(ctm)) == 0 ? Ra::Transform() : fit;
@@ -82,11 +82,11 @@ struct RasterizerDemo {
         } else if (keyCode == KeyCode::kH)
             showHud = !showHud, keyUsed = true;
         else if (keyCode == KeyCode::kI)
-            opaque = !opaque, keyUsed = true;
+            opaque = !opaque, keyUsed = true, clearHUD();
         else if (keyCode == KeyCode::kO)
-            outlineWidth = outlineWidth ? 0.f : -1.f, keyUsed = true;
+            outlineWidth = outlineWidth ? 0.f : -1.f, keyUsed = true, clearHUD();
         else if (keyCode == KeyCode::kP)
-            mouseMove = !mouseMove, indices = mouseMove ? indices : Rw::IndexPair(INT_MAX, INT_MAX), keyUsed = true;
+            mouseMove = !mouseMove, indices = mouseMove ? indices : Rw::IndexPair(INT_MAX, INT_MAX), keyUsed = true, clearHUD();
         else if (keyCode == KeyCode::kL)
             locked = locked.i0 != INT_MAX ? Rw::IndexPair(INT_MAX, INT_MAX) : indices, keyUsed = true;
         else if (keyCode == KeyCode::kS) {
@@ -97,12 +97,12 @@ struct RasterizerDemo {
             showGlyphGrid = false;
             showTime = !showTime;
             setPastedString(nullptr);
-            keyUsed = true;
+            keyUsed = true, clearHUD();
         } else if (keyCode == KeyCode::kG) {
             showTime = false;
             showGlyphGrid = !showGlyphGrid;
             setPastedString(nullptr);
-            keyUsed = true;
+            keyUsed = true, clearHUD();
         } else if (keyCode == KeyCode::kMinus) {
             if (pageIndex > 0) {
                 pageIndex--;
@@ -170,6 +170,9 @@ struct RasterizerDemo {
    
 #pragma mark - Properties
     
+    void clearHUD() {
+        hud = Ra::Scene();
+    }
     Ra::Scene getHUD(Ra::Bounds hudBounds) {
         Ra::Scene hud;
 
@@ -212,7 +215,7 @@ struct RasterizerDemo {
                 Ra::Scene glyphs;
                 CGColorRef color = RaCG::CGColorCreateFromColorant(textColor);
                 CFAttributedStringRef attr = RasterizerCoreText::createAttributedString(pastedString.addr, fontName.addr, fontSize, color);
-                RasterizerCoreText::addTextToSceneInRect(attr, CGRectMake(0, 0, w, h), CGAffineTransformIdentity, CGRectZero, glyphs, & sceneMap);
+                RasterizerCoreText::addTextToSceneInRect(attr, CGRectMake(0, 0, w, h), CGAffineTransformIdentity, CGRectZero, glyphs);
                 CGColorRelease(color);
                 CFRelease(attr);
                 pasted.addScene(glyphs);
@@ -248,8 +251,10 @@ struct RasterizerDemo {
         draw.ctm = ctm, draw.useCurves = useCurves;
         if (showHud) {
             Ra::Bounds hudBounds = Ra::Bounds(0, 0, kHudWidth, kHudHeight);
+            if (hud.weight == 0)
+                hud = getHUD(hudBounds);
             Ra::Transform m = Ra::Transform(1, 0, 0, 1, kHudInset, bounds.uy - kHudInset - kHudHeight).concat(ctm.invert());
-            draw.addScene(getHUD(hudBounds), m, hudBounds);
+            draw.addScene(hud, m, hudBounds);
         }
         return draw;
     }
@@ -264,6 +269,7 @@ struct RasterizerDemo {
         concentrichron.resetFace();
         pasted = Ra::SceneList();
         text = Ra::SceneList();
+        clearHUD();
         redraw = true;
     }
     void setPastedString(const char *string) {
@@ -289,15 +295,15 @@ struct RasterizerDemo {
     }
     void setUseGPU(bool useGPU) {
         gpu = useGPU;
-        redraw = true;
+        redraw = true, clearHUD();
     }
     
     Ra::Colorant textColor = Ra::Colorant(0, 0, 0, 255), activeColor = Ra::Colorant(0, 0, 255, 255), bgColor = Ra::Colorant(255, 255, 255, 192);
-    RasterizerCoreText::SceneMap sceneMap;
     RasterizerFont font;
     float fontSize = 14;
     Concentrichron concentrichron;
     Ra::SceneList list, document, pasted, text;
+    Ra::Scene hud;
     Ra::Memory<char> pastedString, fontName;
     bool showGlyphGrid = false, showTime = false, showHud = true;
     size_t pageCount, pageIndex;
