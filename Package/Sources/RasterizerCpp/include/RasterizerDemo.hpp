@@ -213,11 +213,7 @@ struct RasterizerDemo {
         if (pastedString.size) {
             if (pasted.pathsCount == 0) {
                 Ra::Scene glyphs;
-                CGColorRef color = RaCG::CGColorCreateFromColorant(textColor);
-                CFAttributedStringRef attr = RasterizerCoreText::createAttributedString(pastedString.addr, fontName.addr, fontSize, color);
-                RasterizerCoreText::addTextToSceneInRect(attr, CGRectMake(0, 0, w, h), CGAffineTransformIdentity, CGRectZero, glyphs);
-                CGColorRelease(color);
-                CFRelease(attr);
+                RasterizerCoreText::addCStringToSceneInRect(pastedString.addr, fontName.addr, fontSize, textColor, bounds, Ra::Transform(), Ra::Bounds(), glyphs);
                 pasted.addScene(glyphs);
             }
             list.addList(pasted);

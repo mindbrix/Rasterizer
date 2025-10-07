@@ -24,6 +24,15 @@
 
 
 struct RasterizerCoreText {
+    static Ra::Bounds addCStringToSceneInRect(const char *string, const char *fontName, float fontSize, Ra::Colorant color, Ra::Bounds rect, Ra::Transform ctm, Ra::Bounds clip, Ra::Scene& scene) {
+        CGColorRef cgColor = RaCG::CGColorCreateFromColorant(color);
+        CFAttributedStringRef attr = createAttributedString(string, fontName, fontSize, cgColor);
+        CGRect bounds = addTextToSceneInRect(attr, RaCG::CGRectFromBounds(rect), RaCG::CGFromTransform(ctm), CGRectZero, scene);
+        CGColorRelease(cgColor);
+        CFRelease(attr);
+        return RaCG::BoundsFromCGRect(bounds);
+    }
+
     static CFAttributedStringRef createAttributedString(const char *string, const char *fontName, float fontSize, CGColorRef color) {
         CFStringRef cfString = CFStringCreateWithCString(kCFAllocatorDefault, string, kCFStringEncodingUTF8);
         CFStringRef cfFontName = CFStringCreateWithCString(kCFAllocatorDefault, fontName, kCFStringEncodingUTF8);
