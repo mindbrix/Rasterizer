@@ -29,14 +29,14 @@ struct RasterizerCoreText {
     typedef std::map<uint64_t, Ra::Scene> SceneMap;
     
     static CFAttributedStringRef createAttributedString(const char *string, const char *fontName, float fontSize, CGColorRef color) {
-        CFMutableAttributedStringRef attrString = CFAttributedStringCreateMutable(kCFAllocatorDefault, 0);
         CFStringRef cfString = CFStringCreateWithCString(kCFAllocatorDefault, string, kCFStringEncodingUTF8);
-        CFAttributedStringReplaceString (attrString, CFRangeMake(0, 0), cfString);
-        CFIndex stringLen = CFStringGetLength(cfString);
         CFStringRef cfFontName = CFStringCreateWithCString(kCFAllocatorDefault, fontName, kCFStringEncodingUTF8);
         CTFontRef ctFont = CTFontCreateWithName(cfFontName, fontSize, NULL);
-        CFAttributedStringSetAttribute(attrString, CFRangeMake(0, stringLen), kCTFontAttributeName, ctFont);
-        CFAttributedStringSetAttribute(attrString, CFRangeMake(0, stringLen), kCTForegroundColorAttributeName, color);
+        const void *keys[] = { kCTFontAttributeName, kCTForegroundColorAttributeName };
+        const void *values[] = { ctFont, color };
+        CFDictionaryRef attributes = CFDictionaryCreate(kCFAllocatorDefault, keys, values, 2, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
+        CFAttributedStringRef attrString = CFAttributedStringCreate(kCFAllocatorDefault, cfString, attributes);
+        CFRelease(attributes);
         CFRelease(ctFont);
         CFRelease(cfString);
         CFRelease(cfFontName);
@@ -132,21 +132,25 @@ struct RasterizerCoreText {
     
     static uint64_t hashForAttributedString(CFAttributedStringRef string) {
         CFStringRef cfString = CFAttributedStringGetString(string);
-        const char *stringPtr = CFStringGetCStringPtr(cfString, kCFStringEncodingUTF8);
         CFIndex stringLen = CFStringGetLength(cfString);
-        uint64_t stringHash = XXH64(stringPtr, stringLen, 0);
+        uint64_t stringHash = CFHash(cfString);
         for (CFIndex i = 0; i < stringLen; i++) {
             CTFontRef ctFont = (CTFontRef)CFAttributedStringGetAttribute(string, i, kCTFontAttributeName, NULL);
-            CFStringRef fontName = CTFontCopyPostScriptName(ctFont);
-            CGFloat fontSize = CTFontGetSize(ctFont);
+            if (ctFont) {
+                CFStringRef fontName = CTFontCopyPostScriptName(ctFont);
+                if (fontName) {
+                    stringHash = XXH64(& stringHash, sizeof(stringHash), CFHash(fontName));
+                    CFRelease(fontName);
+                }
+                CGFloat fontSize = CTFontGetSize(ctFont);
+                stringHash = XXH64(& fontSize, sizeof(fontSize), stringHash);
+            }
             CGColorRef color = (CGColorRef)CFAttributedStringGetAttribute(string, i, kCTForegroundColorAttributeName, NULL);
-            size_t componentCount = CGColorGetNumberOfComponents(color);
-            const CGFloat *components = CGColorGetComponents(color);
-            
-            stringHash = XXH64(CFStringGetCStringPtr(fontName, kCFStringEncodingUTF8), CFStringGetLength(fontName), stringHash);
-            stringHash = XXH64(& fontSize, sizeof(fontSize), stringHash);
-            stringHash = XXH64(components, componentCount * sizeof(*components), stringHash);
-            CFRelease(fontName);
+            if (color) {
+                size_t componentCount = CGColorGetNumberOfComponents(color);
+                const CGFloat *components = CGColorGetComponents(color);
+                stringHash = XXH64(components, componentCount * sizeof(*components), stringHash);
+            }
         }
         return stringHash;
     }
