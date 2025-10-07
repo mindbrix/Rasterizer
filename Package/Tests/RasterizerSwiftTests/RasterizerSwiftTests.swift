@@ -22,6 +22,15 @@ import Testing
     await #expect(v.useCG == false)
 }
 
+@Test func testText() async throws {
+    let scene = RAScene()
+    let string = "Hello"
+    let attributedString = NSAttributedString(string: string)
+    let bounds = scene.addText(attributedString, ctm: .identity, clip: .zero)
+    
+    #expect(!bounds.isEmpty)
+}
+
 @Test func testPDF() async throws {
     let scene = RAScene()
     let data = Data()

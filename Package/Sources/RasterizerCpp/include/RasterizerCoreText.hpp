@@ -39,13 +39,16 @@ struct RasterizerCoreText {
         return attrString;
     }
     
-    static void addTextToScene(CFAttributedStringRef string, CGAffineTransform ctm, CGRect clip, Ra::Scene& scene) {
+    static CGRect addTextToScene(CFAttributedStringRef string, CGAffineTransform ctm, CGRect clip, Ra::Scene& scene) {
+        Ra::Scene glyphs;
         CTLineRef line = CTLineCreateWithAttributedString(string);
-        addCTLineToScene(line, CGPointZero, ctm, clip, scene);
+        addCTLineToScene(line, CGPointZero, ctm, clip, glyphs);
         CFRelease(line);
+        scene.appendScene(glyphs);
+        return RaCG::CGRectFromBounds(glyphs.bounds());
     }
     
-    static void addTextToSceneInRect(CFAttributedStringRef string, CGRect rect, CGAffineTransform ctm, CGRect clip, Ra::Scene& scene) {
+    static CGRect addTextToSceneInRect(CFAttributedStringRef string, CGRect rect, CGAffineTransform ctm, CGRect clip, Ra::Scene& scene) {
         Ra::Scene glyphs;
         CTFramesetterRef framesetter = CTFramesetterCreateWithAttributedString(string);
         CGPathRef rectPath = CGPathCreateWithRect(rect, NULL);
@@ -62,6 +65,7 @@ struct RasterizerCoreText {
         CFRelease(frame);
         CGPathRelease(rectPath);
         CFRelease(framesetter);
+        return RaCG::CGRectFromBounds(glyphs.bounds());
     }
     
     static void addCTLineToScene(CTLineRef line, CGPoint origin, CGAffineTransform ctm, CGRect clip, Ra::Scene& scene) {
