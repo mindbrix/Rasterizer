@@ -183,7 +183,8 @@ struct RasterizerDemo {
         hud.addPath(bgPath, Ra::Transform(), bgColor, 0, 0);
         
         float lineHeight = text.height() / kHudItemCount, uy;
-        float emSize = lineHeight * float(font.unitsPerEm) / (font.ascent - font.descent + font.lineGap);
+        float fontSize = RasterizerCoreText::fontSizeForLineHeight(fontName.addr, lineHeight);
+        
         for (size_t i = 0; i < kHudItemCount; i++) {
             HudItem& item = hudItems[i];
             uy = text.uy - i * lineHeight;
@@ -197,11 +198,11 @@ struct RasterizerDemo {
                 || (*item.key == 'T' && showTime)
                 || (*item.key == 'C' && useCurves))
                 color = activeColor;
-            Ra::Bounds gb = RasterizerCoreText::addCStringToSceneInRect(item.key, fontName.addr, emSize, textColor, Ra::Bounds(text.lx, text.ly, text.ux, uy), Ra::Transform(), Ra::Bounds(), hud);
+            Ra::Bounds gb = RasterizerCoreText::addCStringToSceneInRect(item.key, fontName.addr, fontSize, textColor, Ra::Bounds(text.lx, hudBounds.ly, text.ux, uy), Ra::Transform(), Ra::Bounds(), hud);
             char const *label = item.text;
             if (*item.key == '0' && !gpu)
                 label = item.alt;
-            RasterizerCoreText::addCStringToSceneInRect(label, fontName.addr, emSize, color, Ra::Bounds(text.lx + 2 * emSize, text.ly, text.ux, uy), Ra::Transform(), Ra::Bounds(), hud);
+            RasterizerCoreText::addCStringToSceneInRect(label, fontName.addr, fontSize, color, Ra::Bounds(text.lx + 2 * fontSize, hudBounds.ly, text.ux, uy), Ra::Transform(), Ra::Bounds(), hud);
         }
         hud.addPath(bgPath, Ra::Transform(), textColor, kHudBorder, 0);
         return hud;

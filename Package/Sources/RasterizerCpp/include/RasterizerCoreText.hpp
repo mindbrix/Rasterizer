@@ -24,6 +24,16 @@
 
 
 struct RasterizerCoreText {
+    static float fontSizeForLineHeight(const char *fontName, float lineHeight) {
+        CFStringRef cfFontName = CFStringCreateWithCString(kCFAllocatorDefault, fontName, kCFStringEncodingUTF8);
+        CTFontRef ctFont = CTFontCreateWithName(cfFontName, 1, NULL);
+        CGFloat ascent = CTFontGetAscent(ctFont);
+        CGFloat descent = CTFontGetDescent(ctFont);
+        CFRelease(ctFont);
+        CFRelease(cfFontName);
+        return lineHeight / (ascent + descent);
+    }
+    
     static Ra::Bounds addCStringToSceneInRect(const char *string, const char *fontName, float fontSize, Ra::Colorant color, Ra::Bounds rect, Ra::Transform ctm, Ra::Bounds clip, Ra::Scene& scene) {
         CGColorRef cgColor = RaCG::CGColorCreateFromColorant(color);
         CFAttributedStringRef attr = createAttributedString(string, fontName, fontSize, cgColor);
