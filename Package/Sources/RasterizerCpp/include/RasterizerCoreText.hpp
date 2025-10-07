@@ -67,8 +67,9 @@ struct RasterizerCoreText {
         CGPoint origins[lineCount];
         CTFrameGetLineOrigins(frame, CFRangeMake(0, 0), origins);
         for (int i = 0; i < lineCount; i++) {
+            CGPoint origin = CGPointMake(rect.origin.x + origins[i].x, rect.origin.y + origins[i].y);
             CTLineRef line = (CTLineRef)CFArrayGetValueAtIndex(lines, i);
-            addCTLineToScene(line, origins[i], ctm, clip, glyphs);
+            addCTLineToScene(line, origin, ctm, clip, glyphs);
         }
         scene.appendScene(glyphs);
         CFRelease(frame);

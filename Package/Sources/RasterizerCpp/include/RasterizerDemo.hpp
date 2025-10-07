@@ -197,11 +197,11 @@ struct RasterizerDemo {
                 || (*item.key == 'T' && showTime)
                 || (*item.key == 'C' && useCurves))
                 color = activeColor;
-            font.layoutGlyphs(emSize, textColor, Ra::Bounds(text.lx, text.ly, text.ux, uy), Ra::Transform(), false, true, false, item.key, hud);
+            Ra::Bounds gb = RasterizerCoreText::addCStringToSceneInRect(item.key, fontName.addr, emSize, textColor, Ra::Bounds(text.lx, text.ly, text.ux, uy), Ra::Transform(), Ra::Bounds(), hud);
             char const *label = item.text;
             if (*item.key == '0' && !gpu)
                 label = item.alt;
-            font.layoutGlyphs(emSize, color, Ra::Bounds(text.lx + 2 * emSize, text.ly, text.ux, uy), Ra::Transform(), false, true, false, label, hud);
+            RasterizerCoreText::addCStringToSceneInRect(label, fontName.addr, emSize, color, Ra::Bounds(text.lx + 2 * emSize, text.ly, text.ux, uy), Ra::Transform(), Ra::Bounds(), hud);
         }
         hud.addPath(bgPath, Ra::Transform(), textColor, kHudBorder, 0);
         return hud;
