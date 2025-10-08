@@ -45,8 +45,11 @@ public class SwiftDemoView: RasterizerView {
         true
     }
     override public func keyDown(with event: NSEvent) {
+        guard let characters = event.characters?.first?.lowercased(), let character = characters.first else {
+            return
+        }
         demo.bounds = self.bounds
-        if !demo.handleEvent(.keyDown(keyCode: event.keyCode, flags: event.modifierFlags)) {
+        if !demo.handleEvent(.keyDown(character: character, flags: event.modifierFlags)) {
             super.keyDown(with: event)
         }
     }
@@ -64,17 +67,8 @@ public class SwiftDemoView: RasterizerView {
 
 
 class SwiftDemo: NSObject, RASceneListDelegate {
-    enum KeyCode: UInt16 {
-        case kA = 0
-        case kC = 8
-        case kF = 3
-        case kG = 5
-        case kH = 4
-        case kV = 9
-        //, kI = 34, kL = 37, kO = 31, kP = 35, kS = 1, kT = 17, k1 = 18, k0 = 29, kMinus = 27, kPlus = 24 }
-    }
     enum Event {
-        case keyDown(keyCode: UInt16, flags: NSEvent.ModifierFlags)
+        case keyDown(character: Character, flags: NSEvent.ModifierFlags)
         case magnify(scale: Double)
         case rotate(angle: Float)
         case translate(tx: Double, ty: Double)
@@ -87,15 +81,15 @@ class SwiftDemo: NSObject, RASceneListDelegate {
     
     func handleEvent(_ event: Event) -> Bool {
         switch event {
-        case .keyDown(let keyCode, let flags):
-            switch keyCode {
-            case KeyCode.kA.rawValue:
+        case .keyDown(let character, let flags):
+            switch character {
+            case "a":
                 if (flags.contains(.shift)) {
                     flag.toggle()
                 }
-            case KeyCode.kC.rawValue:
+            case "c":
                 ctm = .identity
-            case KeyCode.kV.rawValue:
+            case "v":
                 if (flags.contains(.command)) {
                     let objects = NSPasteboard.general.readObjects(forClasses: [NSAttributedString.self])
                     if let attrString = objects?.first as? NSAttributedString {
