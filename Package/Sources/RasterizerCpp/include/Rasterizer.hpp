@@ -92,6 +92,9 @@ struct Rasterizer {
         inline bool isNull() const {
             return lx == FLT_MAX && ly == FLT_MAX;
         }
+        inline bool isZero() const {
+            return lx == ux && ly == uy;
+        }
         inline Bounds(const Transform quad) :
             lx(quad.tx + fminf(0.f, quad.a) + fminf(0.f, quad.c)),
             ly(quad.ty + fminf(0.f, quad.b) + fminf(0.f, quad.d)),
@@ -263,7 +266,8 @@ struct Rasterizer {
     
     struct Geometry {
         enum Type { kMove, kLine, kQuadratic, kCubic, kClose, kCountSize };
-
+        size_t TypeSizes[kCountSize] = { 1, 1, 2, 3, 1 };
+        
         void prealloc(size_t count) {
             points.prealloc(2 * count), types.prealloc(count);
         }
@@ -279,14 +283,14 @@ struct Rasterizer {
             cubicTo(t * b.lx + s * b.ux, b.ly, b.ux, s * b.ly + t * b.uy, b.ux, my);
         }
         void moveTo(float x, float y) {
-            validate(), new (molecules.alloc(1)) Bounds(), points.idx = points.end;
-            float *pts = points.alloc(2);  x0 = pts[0] = x, y0 = pts[1] = y, update(kMove, 1, pts);
+            validate();
+            float *pts = points.alloc(2);  x0 = pts[0] = x, y0 = pts[1] = y, update(kMove, 1);
         }
         void lineTo(float x1, float y1) {
             float ax = x1 - x0, ay = y1 - y0, dot = ax * ax + ay * ay;
             if (dot == 0.f)
                 return;
-            float *pts = points.alloc(2);  x0 = pts[0] = x1, y0 = pts[1] = y1, update(kLine, 1, pts);
+            float *pts = points.alloc(2);  x0 = pts[0] = x1, y0 = pts[1] = y1, update(kLine, 1);
         }
         void quadTo(float x1, float y1, float x2, float y2) {
             float ax, bx, ay, by, dot, t, err = 1e-2f;
@@ -297,7 +301,7 @@ struct Rasterizer {
             if (t < err) {
                 lineTo(x2, y2);
             } else {
-                float *pts = points.alloc(4);  pts[0] = x1, pts[1] = y1, x0 = pts[2] = x2, y0 = pts[3] = y2, update(kQuadratic, 2, pts);
+                float *pts = points.alloc(4);  pts[0] = x1, pts[1] = y1, x0 = pts[2] = x2, y0 = pts[3] = y2, update(kQuadratic, 2);
                 ax = x2 + x0 - x1 - x1, ay = y2 + y0 - y1 - y1, maxCurve = fmaxf(maxCurve, ax * ax + ay * ay);
             }
         }
@@ -314,7 +318,7 @@ struct Rasterizer {
                 if (dot < 1e-4f)
                     quadTo((3.f * (x1 + x2) - x0 - x3) * 0.25f, (3.f * (y1 + y2) - y0 - y3) * 0.25f, x3, y3);
                 else {
-                    float *pts = points.alloc(6);  pts[0] = x1, pts[1] = y1, pts[2] = x2, pts[3] = y2, pts[4] = x3, pts[5] = y3, update(kCubic, 3, pts);
+                    float *pts = points.alloc(6);  pts[0] = x1, pts[1] = y1, pts[2] = x2, pts[3] = y2, pts[4] = x3, pts[5] = y3, update(kCubic, 3);
                     bx -= 3.f * (x1 - x0), by -= 3.f * (y1 - y0), dot += bx * bx + by * by, x0 = x3, y0 = y3;
                     s = ceilf(sqrtf(sqrtf(dot)));
                     cubicSums += s, maxCurve = fmaxf(maxCurve, dot / s);
@@ -322,23 +326,31 @@ struct Rasterizer {
             }
         }
         void close() {
-            float *pts = points.alloc(2);  pts[0] = x0, pts[1] = y0, update(kClose, 1, pts);
+            float *pts = points.alloc(2);  pts[0] = x0, pts[1] = y0, update(kClose, 1);
         }
         
-        void update(Type type, size_t size, float *p) {
-            counts[type]++;  memset(types.alloc(size), type, size);
-            for (int i = 0; i < size; i++)
-                molecules.back().extend(p[i * 2], p[i * 2 + 1]);
-            bounds.extend(molecules.back());
+        inline void update(Type type, size_t size) {
+            memset(types.alloc(size), type, size);
         }
         void validate() {
-            Bounds *b = molecules.end ? & molecules.back() : nullptr;
-            if (b && b->lx == b->ux && b->ly == b->uy) {
-                for (uint8_t *type = types.base + points.idx / 2, *end = types.base + points.end / 2; type < end;)
-                    counts[*type]--, type += *type == kMove || *type == kLine || *type == kClose ? 1 : *type == kQuadratic ? 2 : 3;
-                molecules.end--, types.end = points.idx / 2, points.end = points.idx, bounds = Bounds();
-                for (int i = 0; i < molecules.end; i++)
-                    bounds.extend(molecules.base[i]);
+            if (points.idx != points.end) {
+                Bounds molecule;
+                for (size_t i = points.idx; i < points.end; i += 2)
+                    molecule.extend(points.base[i], points.base[i + 1]);
+                if (!molecule.isZero()) {
+                    bounds.extend(molecule);
+                    *(molecules.alloc(1)) = molecule;
+                    for (size_t i = types.idx; i < types.end;) {
+                        uint8_t type = types.base[i];
+                        counts[type]++;
+                        i += TypeSizes[type];
+                    }
+                    points.idx = points.end;
+                    types.idx = types.end;
+                } else {
+                    points.end = points.idx;
+                    types.end = types.idx;
+                }
             }
         }
         bool isValid() {
