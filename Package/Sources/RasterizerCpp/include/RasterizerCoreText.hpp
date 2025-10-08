@@ -24,7 +24,7 @@
 
 
 struct RasterizerCoreText {
-    static CGRect addTextToScene(CFAttributedStringRef string, CGAffineTransform ctm, CGRect clip, Ra::Scene& scene) {
+    static CGRect addTextLineToScene(CFAttributedStringRef string, CGAffineTransform ctm, CGRect clip, Ra::Scene& scene) {
         Ra::Scene glyphs;
         CTLineRef line = CTLineCreateWithAttributedString(string);
         addCTLineToScene(line, CGPointZero, ctm, clip, glyphs);
@@ -57,7 +57,7 @@ struct RasterizerCoreText {
     static Ra::Bounds addCStringToSceneInRect(const char *string, const char *fontName, float fontSize, Ra::Colorant color, Ra::Bounds rect, Ra::Transform ctm, Ra::Bounds clip, Ra::Scene& scene) {
         CGColorRef cgColor = RaCG::CGColorCreateFromColorant(color);
         CFAttributedStringRef attr = createAttributedString(string, fontName, fontSize, cgColor);
-        CGRect bounds = addTextToSceneInRect(attr, RaCG::CGRectFromBounds(rect), RaCG::CGFromTransform(ctm), CGRectZero, scene);
+        CGRect bounds = addTextToSceneInRect(attr, RaCG::CGRectFromBounds(rect), RaCG::CGFromTransform(ctm), clip.isNull() ? CGRectNull : RaCG::CGRectFromBounds(clip), scene);
         CGColorRelease(cgColor);
         CFRelease(attr);
         return RaCG::BoundsFromCGRect(bounds);
@@ -159,7 +159,4 @@ struct RasterizerCoreText {
         CFRelease(cfFontName);
         return scene;
     }
-    
-    
-    
 };

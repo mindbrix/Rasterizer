@@ -26,7 +26,7 @@ import Testing
     let scene = RAScene()
     let string = "Hello"
     let attributedString = NSAttributedString(string: string)
-    let bounds = scene.addText(attributedString, ctm: .identity, clip: .zero)
+    let bounds = scene.addTextLine(attributedString, ctm: .identity, clip: .zero)
     
     #expect(!bounds.isEmpty)
 }

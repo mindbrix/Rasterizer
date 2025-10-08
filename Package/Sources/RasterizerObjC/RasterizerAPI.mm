@@ -78,8 +78,8 @@
                    & clipBounds);
 }
 
-- (CGRect)addText:(NSAttributedString *)string ctm:(CGAffineTransform)ctm clip:(CGRect)clip {
-    return RasterizerCoreText::addTextToScene((__bridge CFAttributedStringRef)string, ctm, clip, _scene);
+- (CGRect)addTextLine:(NSAttributedString *)string ctm:(CGAffineTransform)ctm clip:(CGRect)clip {
+    return RasterizerCoreText::addTextLineToScene((__bridge CFAttributedStringRef)string, ctm, clip, _scene);
 }
 - (CGRect)addText:(NSAttributedString *)string inRect:(CGRect)rect ctm:(CGAffineTransform)ctm clip:(CGRect)clip {
     return RasterizerCoreText::addTextToSceneInRect((__bridge CFAttributedStringRef)string, rect, ctm, clip, _scene);

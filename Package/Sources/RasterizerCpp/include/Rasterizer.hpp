@@ -89,6 +89,9 @@ struct Rasterizer {
         inline bool isHuge() const {
             return lx == -5e11f;
         }
+        inline bool isNull() const {
+            return lx == FLT_MAX && ly == FLT_MAX;
+        }
         inline Bounds(const Transform quad) :
             lx(quad.tx + fminf(0.f, quad.a) + fminf(0.f, quad.c)),
             ly(quad.ty + fminf(0.f, quad.b) + fminf(0.f, quad.d)),
@@ -259,9 +262,6 @@ struct Rasterizer {
     };
     
     struct Geometry {
-        ~Geometry() {
-            int i = 1 + 2;
-        }
         enum Type { kMove, kLine, kQuadratic, kCubic, kClose, kCountSize };
 
         void prealloc(size_t count) {
@@ -415,9 +415,6 @@ struct Rasterizer {
     };
     
     struct Scene {
-        ~Scene() {
-            int i = 0;
-        }
         template<typename T>
         struct RowPair {
             uint64_t refCount;  T *base;  Row<T> src, dst;
