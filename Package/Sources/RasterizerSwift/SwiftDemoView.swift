@@ -70,6 +70,7 @@ class SwiftDemo: NSObject, RASceneListDelegate {
         case kF = 3
         case kG = 5
         case kH = 4
+        case kV = 9
         //, kI = 34, kL = 37, kO = 31, kP = 35, kS = 1, kT = 17, k1 = 18, k0 = 29, kMinus = 27, kPlus = 24 }
     }
     enum Event {
@@ -94,12 +95,14 @@ class SwiftDemo: NSObject, RASceneListDelegate {
                 }
             case KeyCode.kC.rawValue:
                 ctm = .identity
-            case KeyCode.kF.rawValue:
-                let objects = NSPasteboard.general.readObjects(forClasses: [NSAttributedString.self])
-                if let attrString = objects?.first as? NSAttributedString {
-                    let scene = RAScene()
-                    scene.addText(attrString, in: bounds, ctm: .identity, clip: .zero)
-                    pastedScene = scene
+            case KeyCode.kV.rawValue:
+                if (flags.contains(.command)) {
+                    let objects = NSPasteboard.general.readObjects(forClasses: [NSAttributedString.self])
+                    if let attrString = objects?.first as? NSAttributedString {
+                        let scene = RAScene()
+                        scene.addText(attrString, in: bounds, ctm: .identity, clip: .zero)
+                        pastedScene = scene
+                    }
                 }
             default:
                 return false
