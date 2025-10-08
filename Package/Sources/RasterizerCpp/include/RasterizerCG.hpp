@@ -168,6 +168,14 @@ struct RasterizerCG {
         return CGRectMake(bounds.lx, bounds.ly, bounds.ux - bounds.lx, bounds.uy - bounds.ly);
     }
     static void writeCGPathToPath(CGPathRef cgPath, Ra::Path path) {
+        size_t TypeSizes[5] = { 1, 1, 2, 3, 1 };
+        
+        __block size_t size = 0;
+        __block size_t *sizes = TypeSizes;
+        CGPathApplyWithBlock(cgPath, ^(const CGPathElement *element){
+            size += sizes[element->type];
+        });
+        path->prealloc(size);
         CGPathApplyWithBlock(cgPath, ^(const CGPathElement *element){
             switch (element->type) {
                 case kCGPathElementMoveToPoint:
