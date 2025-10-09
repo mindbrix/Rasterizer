@@ -125,15 +125,18 @@ struct RasterizerCoreText {
         return attrString;
     }
 
-    static float fontSizeForLineHeight(const char *fontName, float lineHeight) {
+    static float fontSizeForLineHeight(const char *fontName, float height) {
         CFStringRef cfFontName = CFStringCreateWithCString(kCFAllocatorDefault, fontName, kCFStringEncodingUTF8);
-        CTFontRef ctFont = CTFontCreateWithName(cfFontName, 1, NULL);
+        CTFontRef ctFont = CTFontCreateWithName(cfFontName, height, NULL);
         CGFloat ascent = CTFontGetAscent(ctFont);
         CGFloat descent = CTFontGetDescent(ctFont);
-        CGFloat leading = CTFontGetLeading(ctFont);
+        CGFloat leading = floor(fmax(0, CTFontGetLeading(ctFont)) + 0.5);
+        CGFloat lineHeight = floor(ascent + 0.5) + floor(descent + 0.5) + leading;
+        CGFloat ascenderDelta = leading > 0 ? 0 : floor(0.2 * lineHeight + 0.5);
+        CGFloat defaultLineHeight = lineHeight + ascenderDelta;
         CFRelease(ctFont);
         CFRelease(cfFontName);
-        return lineHeight / (ascent + descent + leading);
+        return height * height / defaultLineHeight;
     }
     
     static Ra::Scene writeGlyphGrid(const char *fontName, float lineHeight, Ra::Colorant color) {
