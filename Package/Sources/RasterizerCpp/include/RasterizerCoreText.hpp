@@ -130,17 +130,16 @@ struct RasterizerCoreText {
         CTFontRef ctFont = CTFontCreateWithName(cfFontName, 1, NULL);
         CGFloat ascent = CTFontGetAscent(ctFont);
         CGFloat descent = CTFontGetDescent(ctFont);
+        CGFloat leading = CTFontGetLeading(ctFont);
         CFRelease(ctFont);
         CFRelease(cfFontName);
-        return lineHeight / (ascent + descent);
+        return lineHeight / (ascent + descent + leading);
     }
     
     static Ra::Scene writeGlyphGrid(const char *fontName, float lineHeight, Ra::Colorant color) {
         Ra::Scene scene;
         CFStringRef cfFontName = CFStringCreateWithCString(kCFAllocatorDefault, fontName, kCFStringEncodingUTF8);
         CTFontRef ctFont = CTFontCreateWithName(cfFontName, 1, NULL);
-        CGFloat ascent = CTFontGetAscent(ctFont);
-        CGFloat descent = CTFontGetDescent(ctFont);
         CFIndex glyphCount = CTFontGetGlyphCount(ctFont);
         float scale = fontSizeForLineHeight(fontName, lineHeight);
         
