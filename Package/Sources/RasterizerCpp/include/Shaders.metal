@@ -403,18 +403,23 @@ fragment float4 fast_edges_fragment_main(
 )
 {
     float winding = 0;
-    thread uint32_t *idx = & vert.idx0;
-    for (int i = 0; i < 2; i++) {
-        if (idx[i] != 0xFFFFF) {
-            const device Segment& s = segments[idx[i]], & n = segments[idx[i] + 1];
-            const bool curve = *useCurves && s.ix0 & 1;
-            winding += lineWinding(
-               vert.tx + s.x0,
-               vert.ty + s.y0,
-               vert.tx + (curve ? n.x1 : s.x1),
-               vert.ty + (curve ? n.y1 : s.y1)
-            );
-        }
+    const device Segment& s = segments[vert.idx0], & n = segments[vert.idx0 + 1];
+    const bool curve = *useCurves && s.ix0 & 1;
+    winding += lineWinding(
+       vert.tx + s.x0,
+       vert.ty + s.y0,
+       vert.tx + (curve ? n.x1 : s.x1),
+       vert.ty + (curve ? n.y1 : s.y1)
+    );
+    if (vert.idx1 != 0xFFFFF) {
+        const device Segment& s = segments[vert.idx1], & n = segments[vert.idx1 + 1];
+        const bool curve = *useCurves && s.ix0 & 1;
+        winding += lineWinding(
+           vert.tx + s.x0,
+           vert.ty + s.y0,
+           vert.tx + (curve ? n.x1 : s.x1),
+           vert.ty + (curve ? n.y1 : s.y1)
+        );
     }
     return winding;
 }

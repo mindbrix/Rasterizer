@@ -144,7 +144,9 @@ class SwiftDemo: NSObject, RASceneListDelegate {
         for i in 0 ..< count {
             let ti = Double(i) / Double(count)
             let origin = CGPoint(center: center, r: 0.5 * radius, theta: ti * 2 * Double.pi)
-            path.addEllipse(CGRect(x: origin.x - radius, y: origin.y - radius, width: dim, height: dim))
+            
+            path.add(CGRect(x: origin.x - radius, y: origin.y - radius, width: dim, height: dim))
+//            path.addEllipse(CGRect(x: origin.x - radius, y: origin.y - radius, width: dim, height: dim))
         }
         let scene = RAScene()
         scene.add(path, ctm: .identity, color: CGColor(gray: 0, alpha: 1), width: 0, flags: RASceneFlags.fillEvenOdd.rawValue, clip: .zero)
