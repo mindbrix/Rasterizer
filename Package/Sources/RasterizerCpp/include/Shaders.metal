@@ -474,6 +474,7 @@ vertex InstancesVertex instances_vertex_main(
     vert.iid = iid;
     constexpr float err = 1e-3;
     const bool isRight = vid & 1, isTop = vid & 2;
+    const float sign = isRight ? -1.0 : 1.0;
     const device Instance& inst = instances[iid];
     uint iz = inst.iz & kPathIndexMask, flags = inst.iz & Instance::kFragmentMask;
     
@@ -502,6 +503,7 @@ vertex InstancesVertex instances_vertex_main(
         const bool pcurve = *useCurves && pinst.outline.cx != FLT_MAX, ncurve = *useCurves && ninst.outline.cx != FLT_MAX;
         const bool f0 = pcap ? !roundCap : !isCurve || !pcurve;
         const bool f1 = ncap ? !roundCap : !isCurve || !ncurve;
+        const bool underside = sign * area < 0.0;
         
         ow = isCurve ? 0.5 * tc / rc : 0.0;
         lcap = (isCurve ? 0.41 * dw : 0.0) + (squareCap || roundCap ? dw : 0.5);
@@ -519,6 +521,8 @@ vertex InstancesVertex instances_vertex_main(
         
         pcap = pcap || pdot < 1e-6 || dot(prev, next) < caplimit;
         tangent = pcap ? no : normalize(prev + next);
+        
+        ow *= underside ? 0.0 : 1.0;
         miter0 = (dw + ow) / abs(dot(no, tangent)) * float2(-tangent.y, tangent.x);
         
         prev = normalize({ x2 - (isCurve ? x1 : x0), y2 - (isCurve ? y1 : y0) });
@@ -531,12 +535,11 @@ vertex InstancesVertex instances_vertex_main(
         tangent = ncap ? no : normalize(prev + next);
         miter1 = (dw + ow) / abs(dot(no, tangent)) * float2(-tangent.y, tangent.x);
                 
-        float lp, cx0, cy0, ln, cx1, cy1, t, dt;
+        float lp, cx0, cy0, ln, cx1, cy1, t, dt, rt;
         lp = select(0.0, lcap, pcap) + err, cx0 = x0 - no.x * lp, cy0 = y0 - no.y * lp;
         ln = select(0.0, lcap, ncap) + err, cx1 = x2 + no.x * ln, cy1 = y2 + no.y * ln;
         t = ((cx1 - cx0) * miter1.y - (cy1 - cy0) * miter1.x) / (miter0.x * miter1.y - miter0.y * miter1.x);
-        float sign, rt;
-        sign = isRight ? -1.0 : 1.0, rt = sign * t, dt = sign * (rt < 0.0 ? 1.0 : min(1.0, rt));
+        rt = sign * t, dt = sign * (rt < 0.0 ? 1.0 : min(1.0, rt));
         dx = isTop ? fma(miter1.x, dt, cx1) : fma(miter0.x, dt, cx0);
         dy = isTop ? fma(miter1.y, dt, cy1) : fma(miter0.y, dt, cy0);
         
@@ -604,6 +607,12 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
             x1 = inst.outline.cx, y1 = inst.outline.cy;
             x0 -= vert.u, y0 -= vert.v, x1 -= vert.u, y1 -= vert.v, x2 -= vert.u, y2 -= vert.v;
             
+//            float cx = x2 - x0, cy = y2 - y0, rc = rsqrt(cx * cx + cy * cy);
+//            dm0 = (x0 * cy + y0 * -cx) * rc;
+//            dm1 = ((x1 - x0) * cy + (y1 - y0) * -cx) * rc;
+//            float inset, ld, ud;
+//            inset = 1, ud = dw - inset, ld = -(dw - 0.5 * abs(dm1) - inset);
+//            sqdist = dm0 > ld && dm0 < ud ? FLT_MAX : sqBezier(float2(x0, y0), float2(x1, y1), float2(x2, y2));
             sqdist = sqBezier(float2(x0, y0), float2(x1, y1), float2(x2, y2));
             float outline = saturate(dw - sqrt(sqdist));
             
@@ -619,7 +628,7 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
             cap1 = (ncap ? saturate(cap + d1) : 1.0) * saturate(dw - abs(dm1));
             sd1 = f1 ? saturate(d1) : 1.0;
             
-            alpha = cap0 * (1.0 - sd0) + cap1 * (1.0 - sd1) + (sd0 + sd1 - 1.0) * outline;
+            alpha = 0.25 + cap0 * (1.0 - sd0) + cap1 * (1.0 - sd1) + (sd0 + sd1 - 1.0) * outline;
         }
     } else
     if (vert.u != FLT_MAX) {

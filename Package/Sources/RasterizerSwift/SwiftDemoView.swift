@@ -169,7 +169,7 @@ class SwiftDemo: NSObject, RASceneListDelegate {
         path.close()
         
         let scene = RAScene()
-        let count = flag ? 2000 : 200
+        let count = flag ? 2000 : 20
         let r = 0.5 * dim
         let center = CGPoint(x: r, y: r)
         let scale = 0.125 * dim
