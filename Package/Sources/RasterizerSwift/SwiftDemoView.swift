@@ -164,8 +164,8 @@ class SwiftDemo: NSObject, RASceneListDelegate {
         let unitRect = CGRect(x: 0, y: 0, width: 1, height: 1)
         let unitCenter = CGPoint(x: unitRect.midX, y: unitRect.midY)
         let path = RAPath()
-        path.add(unitRect)
-//        path.addEllipse(unitRect)
+//        path.add(unitRect)
+        path.addEllipse(unitRect)
         path.close()
         
         let scene = RAScene()

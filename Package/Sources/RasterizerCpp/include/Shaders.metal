@@ -601,30 +601,22 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
             float x0, y0, x1, y1, x2, y2, d0, dm0, d1, dm1, sqdist, sd0, sd1, cap, cap0, cap1;
             
             x0 = o.x0, y0 = o.y0, x2 = o.x1, y2 = o.y1;
-            x1 = isCurve ? inst.outline.cx : 0.5 * (x0 + x2);
-            y1 = isCurve ? inst.outline.cy : 0.5 * (y0 + y2);
+            x1 = inst.outline.cx, y1 = inst.outline.cy;
             x0 -= vert.u, y0 -= vert.v, x1 -= vert.u, y1 -= vert.v, x2 -= vert.u, y2 -= vert.v;
             
-            float bx = x0 - x1, by = y0 - y1, bdot = bx * bx + by * by, rb = rsqrt(bdot);
-            float ax = x2 - x1, ay = y2 - y1, adot = ax * ax + ay * ay, ra = rsqrt(adot);
-            d0 = (x0 * bx + y0 * by) * rb;
-            dm0 = (x0 * -by + y0 * bx) * rb;
-            d1 = (x2 * ax + y2 * ay) * ra;
-            dm1 = (x2 * -ay + y2 * ax) * ra;
-            
-            if (isCurve) {
-                sqdist = sqBezier(float2(x0, y0), float2(x1, y1), float2(x2, y2));
-            } else {
-                float dx = d0 - clamp(d0, 0.0, d0 + d1);
-                sqdist = dx * dx + dm0 * dm0;
-            }
+            sqdist = sqBezier(float2(x0, y0), float2(x1, y1), float2(x2, y2));
             float outline = saturate(dw - sqrt(sqdist));
             
             cap = squareCap ? dw : 0.5;
-            cap0 = (pcap ? saturate(cap + d0) : 1.0) * saturate(dw - abs(dm0));
-            cap1 = (ncap ? saturate(cap + d1) : 1.0) * saturate(dw - abs(dm1));
             
+            float bx = x0 - x1, by = y0 - y1, bdot = bx * bx + by * by, rb = rsqrt(bdot);
+            d0 = (x0 * bx + y0 * by) * rb, dm0 = (x0 * -by + y0 * bx) * rb;
+            cap0 = (pcap ? saturate(cap + d0) : 1.0) * saturate(dw - abs(dm0));
             sd0 = f0 ? saturate(d0) : 1.0;
+            
+            float ax = x2 - x1, ay = y2 - y1, adot = ax * ax + ay * ay, ra = rsqrt(adot);
+            d1 = (x2 * ax + y2 * ay) * ra, dm1 = (x2 * -ay + y2 * ax) * ra;
+            cap1 = (ncap ? saturate(cap + d1) : 1.0) * saturate(dw - abs(dm1));
             sd1 = f1 ? saturate(d1) : 1.0;
             
             alpha = cap0 * (1.0 - sd0) + cap1 * (1.0 - sd1) + (sd0 + sd1 - 1.0) * outline;
