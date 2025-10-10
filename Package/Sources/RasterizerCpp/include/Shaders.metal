@@ -426,16 +426,20 @@ fragment float4 quad_edges_fragment_main(
 )
 {
     float winding = 0;
-    thread uint32_t *idx = & vert.idx0;
-    for (int i = 0; i < 2; i++) {
-        if (idx[i] != 0xFFFFF) {
-            const device Segment& s = segments[idx[i]], & n = segments[idx[i] + 1];
-            const bool curve = *useCurves && s.ix0 & 1;
-            if (curve)
-                winding += quadraticWinding(vert.tx + s.x0, vert.ty + s.y0, vert.tx + s.x1, vert.ty + s.y1, vert.tx + n.x1, vert.ty + n.y1);
-            else
-                winding += lineWinding(vert.tx + s.x0, vert.ty + s.y0, vert.tx + s.x1, vert.ty + s.y1);
-        }
+    const device Segment& s = segments[vert.idx0], & n = segments[vert.idx0 + 1];
+    const bool curve = *useCurves && s.ix0 & 1;
+    if (curve)
+        winding += quadraticWinding(vert.tx + s.x0, vert.ty + s.y0, vert.tx + s.x1, vert.ty + s.y1, vert.tx + n.x1, vert.ty + n.y1);
+    else
+        winding += lineWinding(vert.tx + s.x0, vert.ty + s.y0, vert.tx + s.x1, vert.ty + s.y1);
+    
+    if (vert.idx1 != 0xFFFFF) {
+        const device Segment& s = segments[vert.idx1], & n = segments[vert.idx1 + 1];
+        const bool curve = *useCurves && s.ix0 & 1;
+        if (curve)
+            winding += quadraticWinding(vert.tx + s.x0, vert.ty + s.y0, vert.tx + s.x1, vert.ty + s.y1, vert.tx + n.x1, vert.ty + n.y1);
+        else
+            winding += lineWinding(vert.tx + s.x0, vert.ty + s.y0, vert.tx + s.x1, vert.ty + s.y1);
     }
     return winding;
 }

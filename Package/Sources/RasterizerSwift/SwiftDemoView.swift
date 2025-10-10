@@ -74,6 +74,7 @@ class SwiftDemo: NSObject, RASceneListDelegate {
         case translate(tx: Double, ty: Double)
     }
     
+    var index = 0
     var flag = false
     var ctm = CGAffineTransform.identity
     var bounds = CGRect.zero
@@ -83,6 +84,8 @@ class SwiftDemo: NSObject, RASceneListDelegate {
         switch event {
         case .keyDown(let character, let flags):
             switch character {
+            case "0"..."9":
+                index = Int(character.asciiValue ?? 0) - Int(Character("0").asciiValue ?? 0)
             case "a":
                 if (flags.contains(.shift)) {
                     flag.toggle()
@@ -118,8 +121,38 @@ class SwiftDemo: NSObject, RASceneListDelegate {
     }
     func getListAtTime(_ time: Double, width: Double, height: Double) -> RASceneList! {
         bounds = CGRect(x: 0, y: 0, width: width, height: height)
+        var list: RASceneList {
+            switch index {
+            case 0:
+                test0(time, width: width, height: height)
+            case 1:
+                testCubics(time, width: width, height: height)
+            default:
+                test0(time, width: 0.5 * width, height: 0.5 * height)
+            }
+        }
+        return list
+    }
+    
+    func testCubics(_ time: Double, width: Double, height: Double) -> RASceneList {
+        let count = 200
+        let bounds = CGRect(x: 0, y: 0, width: width, height: height)
+        let dim = min(bounds.width, bounds.height)
+        let radius = 0.5 * dim
+        let center = CGPoint(x: bounds.midX, y: bounds.midY)
+        let path = RAPath()
+        for i in 0 ..< count {
+            let ti = Double(i) / Double(count)
+            let origin = CGPoint(center: center, r: 0.5 * radius, theta: ti * 2 * Double.pi)
+            path.addEllipse(CGRect(x: origin.x - radius, y: origin.y - radius, width: dim, height: dim))
+        }
+        let scene = RAScene()
+        scene.add(path, ctm: .identity, color: CGColor(gray: 0, alpha: 1), width: 0, flags: RASceneFlags.fillEvenOdd.rawValue, clip: .zero)
         
-        return test0(time, width: width, height: height)
+        
+        let list = RASceneList()
+        list.add(scene, ctm: ctm, clip: .zero)
+        return list
     }
     
     func test0(_ time: Double, width: Double, height: Double) -> RASceneList {
