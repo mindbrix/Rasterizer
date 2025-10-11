@@ -370,6 +370,9 @@ struct Rasterizer {
             }
             return cubics + 2 * (counts[kMove] + counts[kLine] + counts[kQuadratic] + counts[kCubic]);
         }
+        inline bool isFlat() const {
+            return (counts[kQuadratic] + counts[kCubic]) == 0;
+        }
         size_t hash() {
             xxhash = xxhash ?: XXH64(points.base, points.end * sizeof(float), XXH64(types.base, types.end * sizeof(uint8_t), 0));
             return xxhash;
@@ -637,7 +640,7 @@ struct Rasterizer {
                         if (width) {
                             Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kOutlines | bool(flags & Scene::kRoundCap) * Instance::kRoundCap | bool(flags & Scene::kSquareCap) * Instance::kSquareCap);
                             inst->g = g, inst->clip = unclipped ? Bounds::huge() : clip.inset(-width, -width);
-                            if (det > 1e2f) {
+                            if ((kSubdivideQuadratics && !g->isFlat()) || det > 1e2f) {
                                 SegmentCounter counter;
                                 divideGeometry(g, m, inst->clip, false, false, counter);
                                 outlineInstances += counter.count;
@@ -1072,9 +1075,70 @@ struct Rasterizer {
             }
         }
     }
+    
+    struct Params {
+        Params(float x0, float y0, float x1, float y1, float x2, float y2, float tol = 0.25f) {
+            const float ddx = 2 * x1 - x0 - x2;
+            const float ddy = 2 * y1 - y0 - y2;
+            const float u0 = (x1 - x0) * ddx + (y1 - y0) * ddy;
+            const float u2 = (x2 - x1) * ddx + (y2 - y1) * ddy;
+            const float cross = (x2 - x0) * ddy - (y2 - y0) * ddx;
+            
+            if (cross != 0.f) {
+                _x0 = u0 / cross;
+                _x2 = u2 / cross;
+                scale = cross * cross / (sqrtf(ddx * ddx + ddy * ddy) * fabsf(u2 - u0));
+                
+                a0 = approx_myint(_x0);
+                a2 = approx_myint(_x2);
+                n = ceilf(0.5 * fabsf(a2 - a0) * sqrtf(scale / tol));
+                
+                float u0 = approx_inv_myint(a0);
+                float u2 = approx_inv_myint(a2);
+            }
+        }
+        inline size_t count() {
+            return n;
+        }
+        float tAtIndex(float i) {
+            float u0 = _x0, u2 = _x2;
+            float u = approx_inv_myint(a0 + ((a2 - a0) * i) / n);
+            float t = (u - u0) / (u2 - u0);
+            return t;
+        }
+        static float approx_myint(float x) {
+            const float d = 0.67;
+            float n0 = x / (1 - d + powf(powf(d, 4) + 0.25 * x * x, 0.25));
+            float n1 = x / (1 - d + sqrtf(sqrtf(d * d * d * d + 0.25 * x * x)));
+            assert(fabsf(n0 - n1) < 1e-3f);
+            return n0;
+        }
+        static float approx_inv_myint(float x) {
+            const float b = 0.39;
+            return x * (1 - b + sqrtf(b * b + 0.25 * x * x));
+        }
+        
+        float _x0 = 0, _x2 = 0, a0, a2, scale = 0, n = 1;
+    };
+    
+    
+    
     struct SegmentCounter: GeometryWriter {
         void writeSegment(float x0, float y0, float x1, float y1) { count += 1; }
-        void Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) { count += 2; }
+        void Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
+            if (kSubdivideQuadratics) {
+                Params params(x0, y0, x1, y1, x2, y2);
+                count += params.count();
+                
+//                float ax, ay, a;
+//                ax = x0 + x2 - x1 - x1, ay = y0 + y2 - y1 - y1, a = quadraticScale * (ax * ax + ay * ay);
+//                float n = ceilf(sqrtf(0.25f * sqrtf(ax * ax + ay * ay) / quadraticScale));
+//                count += n;
+//                float n2 = a < quadraticScale ? 1.f : a < 8.f ? 2.f : 2.f + floorf(sqrtf(sqrtf(a)));
+//                count += n2;
+            } else
+                count += 2;
+        }
         size_t count = 0;
     };
     
@@ -1083,17 +1147,44 @@ struct Rasterizer {
             writeInstance(x0, y0, FLT_MAX, FLT_MAX, x1, y1);
         }
         void Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
-            float ax, bx, ay, by, adot, bdot, cosine, ratio, a, b, t, s, tx0, tx1, x, ty0, ty1, y;
-            ax = x2 - x1, bx = x1 - x0, ay = y2 - y1, by = y1 - y0;
-            adot = ax * ax + ay * ay, bdot = bx * bx + by * by, cosine = (ax * bx + ay * by) / sqrt(adot * bdot + 1e-12f), ratio = adot / bdot;
-            if (cosine > 0.7071f)
-                writeInstance(x0, y0, ratio < 1e-2f || ratio > 1e2f ? FLT_MAX : x1, y1, x2, y2);
-            else {
-                a = sqrtf(adot), b = sqrtf(bdot), t = b / (a + b), s = 1.0f - t;
-                tx0 = s * x0 + t * x1, tx1 = s * x1 + t * x2, x = s * tx0 + t * tx1;
-                ty0 = s * y0 + t * y1, ty1 = s * y1 + t * y2, y = s * ty0 + t * ty1;
-                writeInstance(x0, y0, tx0, ty0, x, y);
-                writeInstance(x, y, tx1, ty1, x2, y2);
+            if (kSubdivideQuadratics) {
+                float ax, ay, a, count, dt, ox, oy, fx, fy, f2x, f1x, f2y, f1y;
+                Params params(x0, y0, x1, y1, x2, y2);
+                count = params.count();
+                
+                ax = x0 + x2 - x1 - x1, ay = y0 + y2 - y1 - y1, a = quadraticScale * (ax * ax + ay * ay);
+//                count = a < quadraticScale ? 1.f : a < 8.f ? 2.f : 2.f + floorf(sqrtf(sqrtf(a)));
+//                float n = ceilf(sqrtf(0.25f * sqrtf(ax * ax + ay * ay) / quadraticScale));
+//                count = n;
+                dt = 1.f / count;
+                ax *= dt * dt, f2x = 2.f * ax, f1x = ax + 2.f * (x1 - x0) * dt, ox = fx = x0;
+                ay *= dt * dt, f2y = 2.f * ay, f1y = ay + 2.f * (y1 - y0) * dt, oy = fy = y0;
+                int i = 1;
+                while (--count) {
+                    float t = params.tAtIndex(i++), s = 1.f - t, xt, yt;
+                    xt = s * s * x0 + 2.f * s * t * x1 + t * t * x2;
+                    yt = s * s * y0 + 2.f * s * t * y1 + t * t * y2;
+                    writeInstance(ox, oy, FLT_MAX, FLT_MAX, xt, yt);
+                    ox = xt, oy = yt;
+                    
+//                    fx += f1x, f1x += f2x, fy += f1y, f1y += f2y;
+//                    writeInstance(ox, oy, FLT_MAX, FLT_MAX, fx, fy);
+//                    ox = fx, oy = fy;
+                }
+                writeInstance(ox, oy, FLT_MAX, FLT_MAX, x2, y2);
+            } else {
+                float ax, bx, ay, by, adot, bdot, cosine, ratio, a, b, t, s, tx0, tx1, x, ty0, ty1, y;
+                ax = x2 - x1, bx = x1 - x0, ay = y2 - y1, by = y1 - y0;
+                adot = ax * ax + ay * ay, bdot = bx * bx + by * by, cosine = (ax * bx + ay * by) / sqrt(adot * bdot + 1e-12f), ratio = adot / bdot;
+                if (cosine > 0.7071f)
+                    writeInstance(x0, y0, ratio < 1e-2f || ratio > 1e2f ? FLT_MAX : x1, y1, x2, y2);
+                else {
+                    a = sqrtf(adot), b = sqrtf(bdot), t = b / (a + b), s = 1.0f - t;
+                    tx0 = s * x0 + t * x1, tx1 = s * x1 + t * x2, x = s * tx0 + t * tx1;
+                    ty0 = s * y0 + t * y1, ty1 = s * y1 + t * y2, y = s * ty0 + t * ty1;
+                    writeInstance(x0, y0, tx0, ty0, x, y);
+                    writeInstance(x, y, tx1, ty1, x2, y2);
+                }
             }
         }
         void EndSubpath(float x0, float y0, float x1, float y1, bool closed) {
