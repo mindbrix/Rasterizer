@@ -1128,15 +1128,12 @@ struct Rasterizer {
         }
         void Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
             if (kSubdivideQuadratics) {
-                float count, ox, oy, t, t0, mt, s, xt, yt, xm, ym, cx, cy, cdot, ow, cpx, cpy;
-                float sx0, sy0, sx1, sx2, sy1, sy2;
+                float count, t, t0, mt, s, cx, cy, cdot, ow, sx0, sy0, sx1, sx2, sy1, sy2;
                 Params params(x0, y0, x1, y1, x2, y2);
                 count = params.count();
-                sx0 = ox = x0, sy0 = oy = y0, t0 = 0.f;
-                for (int i = 1; i < count; i++) {
-                    t = params.tAtIndex(i), s = 1.f - t;
-                    
-                    mt = t0 / t;
+                sx0 = x0, sy0 = y0, t0 = 0.f;
+                for (int i = 1; i < count; i++, sx0 = sx2, sy0 = sy2, t0 = t) {
+                    t = params.tAtIndex(i), s = 1.f - t, mt = t0 / t;
                     sx1 = s * x0 + t * x1, sx2 = s * x1 + t * x2;
                     sy1 = s * y0 + t * y1, sy2 = s * y1 + t * y2;
                     sx2 = s * sx1 + t * sx2, sx1 = (1.f - mt) * sx1 + mt * sx2;
@@ -1144,21 +1141,11 @@ struct Rasterizer {
                     cx = sx2 - sx0, cy = sy2 - sy0, cdot = cx * cx + cy * cy;
                     mt = ((sx1 - sx0) * cx + (sy1 - sy0) * cy) / cdot;
                     writeInstance(sx0, sy0, 0.5f - fabsf(mt - 0.5f) > 0.1f ? sx1 : FLT_MAX, sy1, sx2, sy2);
-                    
-                    sx0 = sx2, sy0 = sy2;
-                    
-                    ox = xt, oy = yt, t0 = t;
                 }
-                t = 1.f, s = 0.f, xt = x2, yt = y2;
-                
-                mt = t0 / t;
-                sx1 = s * x0 + t * x1, sx2 = s * x1 + t * x2;
-                sy1 = s * y0 + t * y1, sy2 = s * y1 + t * y2;
-                sx2 = s * sx1 + t * sx2, sx1 = (1.f - mt) * sx1 + mt * sx2;
-                sy2 = s * sy1 + t * sy2, sy1 = (1.f - mt) * sy1 + mt * sy2;
-                cx = sx2 - sx0, cy = sy2 - sy0, cdot = cx * cx + cy * cy;
-                mt = ((sx1 - sx0) * cx + (sy1 - sy0) * cy) / cdot;
-                writeInstance(sx0, sy0, 0.5f - fabsf(mt - 0.5f) > 0.1f ? sx1 : FLT_MAX, sy1, sx2, sy2);
+                sx1 = (1.f - t0) * x1 + t0 * x2, sy1 = (1.f - t0) * y1 + t0 * y2;
+                cx = x2 - sx0, cy = y2 - sy0, cdot = cx * cx + cy * cy;
+                mt = ((x1 - sx0) * cx + (y1 - sy0) * cy) / cdot;
+                writeInstance(sx0, sy0, 0.5f - fabsf(mt - 0.5f) > 0.1f ? sx1 : FLT_MAX, sy1, x2, y2);
                 
             } else {
                 float ax, bx, ay, by, adot, bdot, cosine, ratio, a, b, t, s, tx0, tx1, x, ty0, ty1, y;
