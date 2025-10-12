@@ -508,8 +508,7 @@ vertex InstancesVertex instances_vertex_main(
         ow = isCurve ? 0.5 * tc / rc : 0.0;
         
         if (kAddCurves) {
-            ow = abs(y1);
-            vert.ow = y1;
+            vert.ow = copysign(ow, area);
         }
         
         lcap = (isCurve ? 0.41 * dw : 0.0) + (squareCap || roundCap ? dw : 0.5);
@@ -528,8 +527,7 @@ vertex InstancesVertex instances_vertex_main(
         pcap = pcap || pdot < 1e-6 || dot(prev, next) < caplimit;
         tangent = pcap ? no : normalize(prev + next);
         
-        if (!kAddCurves)
-            ow *= !pcap && !ncap && underside ? 0.0 : 1.0;
+        ow *= !pcap && !ncap && underside ? 0.0 : 1.0;
         miter0 = (dw + ow) / abs(dot(no, tangent)) * float2(-tangent.y, tangent.x);
         
         prev = normalize({ x2 - (isCurve ? x1 : x0), y2 - (isCurve ? y1 : y0) });
@@ -552,20 +550,23 @@ vertex InstancesVertex instances_vertex_main(
         
         if (!isCurve) {
             vert.u = (dx - x0) * -no.y + (dy - y0) * no.x;
-            if (!kAddCurves && !roundCap) {
+            if (!roundCap) {
                 cx = cx1 - cx0, cy = cy1 - cy0;
             } else {
                 cx0 = x0, cy0 = y0;
             }
             float t = ((dx - cx0) * cx + (dy - cy0) * cy) / (cx * cx + cy * cy), s = 1.0 - t;
-            if (kAddCurves) {
-//                vert.v = isTop ? 1.0 : -1.0;
-                vert.v = 2.0 * t - 1.0;
-            }  else
-                vert.v = s * (pcap ? -1.0 : -1e-3) + t * (ncap ? 1.0 : 1e-3);
+            vert.v = s * (pcap ? -1.0 : -1e-3) + t * (ncap ? 1.0 : 1e-3);
         } else
         {
-            vert.u = dx, vert.v = dy;
+            if (kAddCurves) {
+                vert.u = (dx - x0) * -no.y + (dy - y0) * no.x;
+                float t = ((dx - x0) * cx + (dy - y0) * cy) / cdot, s = 1.0 - t;
+//                vert.v = isTop ? 1.0 : 0.0;
+                vert.v = t;
+            }  else {
+                vert.u = dx, vert.v = dy;
+            }
         }
         
         vert.cover = dw;
@@ -607,40 +608,40 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
             float dx = abs(vert.u), dy = sy * (1.0 - abs(vert.v)), ry = min(0.0, dy);
             float rect = saturate(dw - dx) * saturate(dy);
             float lozenge = saturate(dw - sqrt(dx * dx + ry * ry));
-            
-            if (kAddCurves) {
-                float t = 0.5 * (vert.v + 1);
-                float ow = 4.0 * (1.0 - t) * t * vert.ow;
-                float cap = squareCap ? dw : 0.5;
-                float rect = saturate(dw + ow - vert.u) * saturate((dw - ow) + vert.u) * (pcap || ncap ? saturate(cap + dy) : 1.0);
-                alpha =  rect;
-            } else
-                alpha = roundCap ? lozenge : rect;
+            alpha = roundCap ? lozenge : rect;
         } else
         {
-            const device Instance& inst = instances[vert.iid];
-            const device Segment& o = inst.outline.s;
-            float x0, y0, x1, y1, x2, y2, d0, dm0, d1, dm1, sqdist, sd0, sd1, cap, cap0, cap1;
-            
-            x0 = o.x0, y0 = o.y0, x2 = o.x1, y2 = o.y1;
-            x1 = inst.outline.cx, y1 = inst.outline.cy;
-            x0 -= vert.u, y0 -= vert.v, x1 -= vert.u, y1 -= vert.v, x2 -= vert.u, y2 -= vert.v;
-            sqdist = sqBezier(float2(x0, y0), float2(x1, y1), float2(x2, y2));
-            float outline = saturate(dw - sqrt(sqdist));
-            
-            cap = squareCap ? dw : 0.5;
-            
-            float bx = x0 - x1, by = y0 - y1, bdot = bx * bx + by * by, rb = rsqrt(bdot);
-            d0 = (x0 * bx + y0 * by) * rb, dm0 = (x0 * -by + y0 * bx) * rb;
-            cap0 = (pcap ? saturate(cap + d0) : 1.0) * saturate(dw - abs(dm0));
-            sd0 = f0 ? saturate(d0) : 1.0;
-            
-            float ax = x2 - x1, ay = y2 - y1, adot = ax * ax + ay * ay, ra = rsqrt(adot);
-            d1 = (x2 * ax + y2 * ay) * ra, dm1 = (x2 * -ay + y2 * ax) * ra;
-            cap1 = (ncap ? saturate(cap + d1) : 1.0) * saturate(dw - abs(dm1));
-            sd1 = f1 ? saturate(d1) : 1.0;
-            
-            alpha = cap0 * (1.0 - sd0) + cap1 * (1.0 - sd1) + (sd0 + sd1 - 1.0) * outline;
+            if (kAddCurves) {
+                float t = vert.v;
+                float ow = 4.0 * (1.0 - t) * t * vert.ow;
+                float rect = saturate(dw + ow - vert.u) * saturate(dw - ow + vert.u);
+                alpha = rect;
+            } else {
+                
+                const device Instance& inst = instances[vert.iid];
+                const device Segment& o = inst.outline.s;
+                float x0, y0, x1, y1, x2, y2, d0, dm0, d1, dm1, sqdist, sd0, sd1, cap, cap0, cap1;
+                
+                x0 = o.x0, y0 = o.y0, x2 = o.x1, y2 = o.y1;
+                x1 = inst.outline.cx, y1 = inst.outline.cy;
+                x0 -= vert.u, y0 -= vert.v, x1 -= vert.u, y1 -= vert.v, x2 -= vert.u, y2 -= vert.v;
+                sqdist = sqBezier(float2(x0, y0), float2(x1, y1), float2(x2, y2));
+                float outline = saturate(dw - sqrt(sqdist));
+                
+                cap = squareCap ? dw : 0.5;
+                
+                float bx = x0 - x1, by = y0 - y1, bdot = bx * bx + by * by, rb = rsqrt(bdot);
+                d0 = (x0 * bx + y0 * by) * rb, dm0 = (x0 * -by + y0 * bx) * rb;
+                cap0 = (pcap ? saturate(cap + d0) : 1.0) * saturate(dw - abs(dm0));
+                sd0 = f0 ? saturate(d0) : 1.0;
+                
+                float ax = x2 - x1, ay = y2 - y1, adot = ax * ax + ay * ay, ra = rsqrt(adot);
+                d1 = (x2 * ax + y2 * ay) * ra, dm1 = (x2 * -ay + y2 * ax) * ra;
+                cap1 = (ncap ? saturate(cap + d1) : 1.0) * saturate(dw - abs(dm1));
+                sd1 = f1 ? saturate(d1) : 1.0;
+                
+                alpha = cap0 * (1.0 - sd0) + cap1 * (1.0 - sd1) + (sd0 + sd1 - 1.0) * outline;
+            }
         }
     } else
     if (vert.u != FLT_MAX) {

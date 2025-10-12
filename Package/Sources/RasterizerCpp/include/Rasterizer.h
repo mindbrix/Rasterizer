@@ -39,5 +39,5 @@
 #define kCubicSolverLimit 5e-2f
 #define kDepthRange 0.1f
 #define kSubdivideQuadratics 1
-#define kAddCurves 0
-#define kSubdivideQuadraticTolerance 16
+#define kAddCurves 1
+#define kSubdivideQuadraticTolerance 4
