@@ -454,7 +454,7 @@ struct InstancesVertex
 {
     float4 position [[position]];
     float2 clip;
-    float u, v, cover, alpha;
+    float u, v, cover, alpha, ow;
     uint32_t iz, iid;
 };
 
@@ -504,7 +504,14 @@ vertex InstancesVertex instances_vertex_main(
         const bool f1 = ncap ? !roundCap : !isCurve || !ncurve;
         const bool underside = sign * area < 0.0;
         
+        
         ow = isCurve ? 0.5 * tc / rc : 0.0;
+        
+        if (kAddCurves) {
+            ow = abs(y1);
+            vert.ow = y1;
+        }
+        
         lcap = (isCurve ? 0.41 * dw : 0.0) + (squareCap || roundCap ? dw : 0.5);
         float caplimit = dw == 1.0 ? 0.0 : -0.866025403784439;
         
@@ -521,7 +528,8 @@ vertex InstancesVertex instances_vertex_main(
         pcap = pcap || pdot < 1e-6 || dot(prev, next) < caplimit;
         tangent = pcap ? no : normalize(prev + next);
         
-        ow *= !pcap && !ncap && underside ? 0.0 : 1.0;
+        if (!kAddCurves)
+            ow *= !pcap && !ncap && underside ? 0.0 : 1.0;
         miter0 = (dw + ow) / abs(dot(no, tangent)) * float2(-tangent.y, tangent.x);
         
         prev = normalize({ x2 - (isCurve ? x1 : x0), y2 - (isCurve ? y1 : y0) });
@@ -544,13 +552,17 @@ vertex InstancesVertex instances_vertex_main(
         
         if (!isCurve) {
             vert.u = (dx - x0) * -no.y + (dy - y0) * no.x;
-            if (!roundCap) {
+            if (!kAddCurves && !roundCap) {
                 cx = cx1 - cx0, cy = cy1 - cy0;
             } else {
                 cx0 = x0, cy0 = y0;
             }
             float t = ((dx - cx0) * cx + (dy - cy0) * cy) / (cx * cx + cy * cy), s = 1.0 - t;
-            vert.v = s * (pcap ? -1.0 : -1e-3) + t * (ncap ? 1.0 : 1e-3);
+            if (kAddCurves) {
+//                vert.v = isTop ? 1.0 : -1.0;
+                vert.v = 2.0 * t - 1.0;
+            }  else
+                vert.v = s * (pcap ? -1.0 : -1e-3) + t * (ncap ? 1.0 : 1e-3);
         } else
         {
             vert.u = dx, vert.v = dy;
@@ -595,7 +607,15 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
             float dx = abs(vert.u), dy = sy * (1.0 - abs(vert.v)), ry = min(0.0, dy);
             float rect = saturate(dw - dx) * saturate(dy);
             float lozenge = saturate(dw - sqrt(dx * dx + ry * ry));
-            alpha = roundCap ? lozenge : rect;
+            
+            if (kAddCurves) {
+                float t = 0.5 * (vert.v + 1);
+                float ow = 4.0 * (1.0 - t) * t * vert.ow;
+                float cap = squareCap ? dw : 0.5;
+                float rect = saturate(dw + ow - vert.u) * saturate((dw - ow) + vert.u) * (pcap || ncap ? saturate(cap + dy) : 1.0);
+                alpha = rect;
+            } else
+                alpha = roundCap ? lozenge : rect;
         } else
         {
             const device Instance& inst = instances[vert.iid];

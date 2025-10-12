@@ -1077,7 +1077,7 @@ struct Rasterizer {
     }
     
     struct Params {
-        Params(float x0, float y0, float x1, float y1, float x2, float y2, float tol = 0.25f) {
+        Params(float x0, float y0, float x1, float y1, float x2, float y2, float tol = kSubdivideQuadraticTolerance) {
             const float ddx = 2 * x1 - x0 - x2;
             const float ddy = 2 * y1 - y0 - y2;
             const float u0 = (x1 - x0) * ddx + (y1 - y0) * ddy;
@@ -1129,13 +1129,6 @@ struct Rasterizer {
             if (kSubdivideQuadratics) {
                 Params params(x0, y0, x1, y1, x2, y2);
                 count += params.count();
-                
-//                float ax, ay, a;
-//                ax = x0 + x2 - x1 - x1, ay = y0 + y2 - y1 - y1, a = quadraticScale * (ax * ax + ay * ay);
-//                float n = ceilf(sqrtf(0.25f * sqrtf(ax * ax + ay * ay) / quadraticScale));
-//                count += n;
-//                float n2 = a < quadraticScale ? 1.f : a < 8.f ? 2.f : 2.f + floorf(sqrtf(sqrtf(a)));
-//                count += n2;
             } else
                 count += 2;
         }
@@ -1144,34 +1137,35 @@ struct Rasterizer {
     
     struct Outliner: GeometryWriter {
         void writeSegment(float x0, float y0, float x1, float y1) {
-            writeInstance(x0, y0, FLT_MAX, FLT_MAX, x1, y1);
+            writeInstance(x0, y0, FLT_MAX, 0.f, x1, y1);
         }
         void Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
             if (kSubdivideQuadratics) {
-                float ax, ay, a, count, dt, ox, oy, fx, fy, f2x, f1x, f2y, f1y;
+                float count, ox, oy, t, t0, mt, s, xt, yt, xm, ym, cx, cy, ow;
                 Params params(x0, y0, x1, y1, x2, y2);
                 count = params.count();
-                
-                ax = x0 + x2 - x1 - x1, ay = y0 + y2 - y1 - y1, a = quadraticScale * (ax * ax + ay * ay);
-//                count = a < quadraticScale ? 1.f : a < 8.f ? 2.f : 2.f + floorf(sqrtf(sqrtf(a)));
-//                float n = ceilf(sqrtf(0.25f * sqrtf(ax * ax + ay * ay) / quadraticScale));
-//                count = n;
-                dt = 1.f / count;
-                ax *= dt * dt, f2x = 2.f * ax, f1x = ax + 2.f * (x1 - x0) * dt, ox = fx = x0;
-                ay *= dt * dt, f2y = 2.f * ay, f1y = ay + 2.f * (y1 - y0) * dt, oy = fy = y0;
-                int i = 1;
-                while (--count) {
-                    float t = params.tAtIndex(i++), s = 1.f - t, xt, yt;
+                ox = x0, oy = y0, t0 = 0.f;
+                for (int i = 1; i < count; i++) {
+                    t = params.tAtIndex(i), s = 1.f - t;
                     xt = s * s * x0 + 2.f * s * t * x1 + t * t * x2;
                     yt = s * s * y0 + 2.f * s * t * y1 + t * t * y2;
-                    writeInstance(ox, oy, FLT_MAX, FLT_MAX, xt, yt);
-                    ox = xt, oy = yt;
+                    mt = 0.5 * (t0 + t), s = 1.f - mt;
+                    xm = s * s * x0 + 2.f * s * mt * x1 + mt * mt * x2;
+                    ym = s * s * y0 + 2.f * s * mt * y1 + mt * mt * y2;
+                    cx = xt - ox, cy = yt - oy;
+                    ow = -((xm - ox) * cy + (ym - oy) * -cx) / sqrtf(cx * cx + cy * cy);
+//                    assert(fabsf(ow) < kSubdivideQuadraticTolerance + 1e-1f);
+                    writeInstance(ox, oy, FLT_MAX, ow, xt, yt);
                     
-//                    fx += f1x, f1x += f2x, fy += f1y, f1y += f2y;
-//                    writeInstance(ox, oy, FLT_MAX, FLT_MAX, fx, fy);
-//                    ox = fx, oy = fy;
+                    ox = xt, oy = yt, t0 = t;
                 }
-                writeInstance(ox, oy, FLT_MAX, FLT_MAX, x2, y2);
+                t = 1.f, xt = x2, yt = y2;
+                mt = 0.5 * (t0 + t), s = 1.f - mt;
+                xm = s * s * x0 + 2.f * s * mt * x1 + mt * mt * x2;
+                ym = s * s * y0 + 2.f * s * mt * y1 + mt * mt * y2;
+                cx = xt - ox, cy = yt - oy;
+                ow = -((xm - ox) * cy + (ym - oy) * -cx) / sqrtf(cx * cx + cy * cy);
+                writeInstance(ox, oy, FLT_MAX, ow, x2, y2);
             } else {
                 float ax, bx, ay, by, adot, bdot, cosine, ratio, a, b, t, s, tx0, tx1, x, ty0, ty1, y;
                 ax = x2 - x1, bx = x1 - x0, ay = y2 - y1, by = y1 - y0;
