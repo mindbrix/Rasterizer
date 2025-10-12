@@ -1078,42 +1078,29 @@ struct Rasterizer {
     
     struct Params {
         Params(float x0, float y0, float x1, float y1, float x2, float y2, float tol = kSubdivideQuadraticTolerance) {
-            const float ddx = 2 * x1 - x0 - x2;
-            const float ddy = 2 * y1 - y0 - y2;
-            const float u0 = (x1 - x0) * ddx + (y1 - y0) * ddy;
-            const float u2 = (x2 - x1) * ddx + (y2 - y1) * ddy;
-            const float cross = (x2 - x0) * ddy - (y2 - y0) * ddx;
+            const float ax = 2 * x1 - x0 - x2, ay = 2 * y1 - y0 - y2;
+            const float cross = (x2 - x0) * ay - (y2 - y0) * ax;
             
             if (cross != 0.f) {
-                _x0 = u0 / cross;
-                _x2 = u2 / cross;
-                scale = cross * cross / (sqrtf(ddx * ddx + ddy * ddy) * fabsf(u2 - u0));
-                
-                a0 = approx_myint(_x0);
-                a2 = approx_myint(_x2);
+                _x0 = ((x1 - x0) * ax + (y1 - y0) * ay) / cross;
+                _x2 = ((x2 - x1) * ax + (y2 - y1) * ay) / cross;
+                scale = fabsf(cross) / (sqrtf(ax * ax + ay * ay) * fabsf(_x2 - _x0));
+                a0 = approx_myint(_x0), a2 = approx_myint(_x2);
                 n = ceilf(0.5 * fabsf(a2 - a0) * sqrtf(scale / tol));
-                
-                float u0 = approx_inv_myint(a0);
-                float u2 = approx_inv_myint(a2);
             }
         }
         inline size_t count() {
             return n;
         }
-        float tAtIndex(float i) {
-            float u0 = _x0, u2 = _x2;
+        inline float tAtIndex(float i) {
             float u = approx_inv_myint(a0 + ((a2 - a0) * i) / n);
-            float t = (u - u0) / (u2 - u0);
-            return t;
+            return (u - _x0) / (_x2 - _x0);
         }
-        static float approx_myint(float x) {
+        static inline float approx_myint(float x) {
             const float d = 0.67;
-            float n0 = x / (1 - d + powf(powf(d, 4) + 0.25 * x * x, 0.25));
-            float n1 = x / (1 - d + sqrtf(sqrtf(d * d * d * d + 0.25 * x * x)));
-            assert(fabsf(n0 - n1) < 1e-3f);
-            return n0;
+            return x / (1 - d + sqrtf(sqrtf(d * d * d * d + 0.25 * x * x)));
         }
-        static float approx_inv_myint(float x) {
+        static inline float approx_inv_myint(float x) {
             const float b = 0.39;
             return x * (1 - b + sqrtf(b * b + 0.25 * x * x));
         }

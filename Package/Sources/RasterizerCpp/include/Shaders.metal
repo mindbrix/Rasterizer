@@ -613,7 +613,7 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
                 float ow = 4.0 * (1.0 - t) * t * vert.ow;
                 float cap = squareCap ? dw : 0.5;
                 float rect = saturate(dw + ow - vert.u) * saturate((dw - ow) + vert.u) * (pcap || ncap ? saturate(cap + dy) : 1.0);
-                alpha = rect;
+                alpha =  rect;
             } else
                 alpha = roundCap ? lozenge : rect;
         } else
