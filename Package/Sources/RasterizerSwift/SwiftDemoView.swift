@@ -91,7 +91,7 @@ class SwiftDemo: NSObject, RASceneListDelegate {
                 if (flags.contains(.shift)) {
                     flag.toggle()
                 }
-            case "c":
+            case "f":
                 ctm = .identity
             case "o":
                 outlines.toggle()

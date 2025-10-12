@@ -508,7 +508,7 @@ struct Rasterizer {
     };
     struct Blend : Instance {
         Blend(size_t iz) : Instance(iz) {}
-        union { struct { int count, idx; } data;  Bounds clip; };
+        struct { int count, idx; } data;
         Geometry *g;
     };
     struct Edge {
@@ -639,13 +639,13 @@ struct Rasterizer {
                         Geometry *g = scn->paths[is].ptr;
                         if (width) {
                             Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kOutlines | bool(flags & Scene::kRoundCap) * Instance::kRoundCap | bool(flags & Scene::kSquareCap) * Instance::kSquareCap);
-                            inst->g = g, inst->clip = unclipped ? Bounds::huge() : clip.inset(-width, -width);
-                            if ((kSubdivideQuadratics && !g->isFlat()) || det > 1e2f) {
-                                SegmentCounter counter;
-                                divideGeometry(g, m, inst->clip, false, false, counter);
-                                outlineInstances += counter.count;
-                            } else
-                                outlineInstances += g->upperBound(det);
+                            Bounds outlineClip = unclipped ? Bounds::huge() : clip.inset(-width, -width);
+                            inst->data.idx = uint32_t(outlines.idx);
+                            Outliner outliner;
+                            outliner.iz = inst->iz, outliner.outlines = & outlines;
+                            divideGeometry(g, m, outlineClip, unclipped, false, outliner);
+                            inst->data.count = uint32_t(outlines.idx) - inst->data.idx;
+                            
                         } else if (useMolecules && clipWidth * clipHeight / g->types.end < kMoleculesPixelsPerEdge) {
                             bounds[iz] = *bnds, fasts.base[iz]++;
                             bool fast = !buffer->useCurves || g->maxCurve * det < 16.f;
@@ -675,18 +675,18 @@ struct Rasterizer {
             }
         }
         void empty() {
-            outlinePaths = outlineInstances = p16total = 0, blends.empty(), fasts.empty(), opaques.empty(), segments.empty(), segmentsIndices.empty(), indices.empty();
+            outlinePaths = outlineInstances = p16total = 0, blends.empty(), fasts.empty(), opaques.empty(), outlines.empty(), segments.empty(), segmentsIndices.empty(), indices.empty();
             for (int i = 0; i < samples.size(); i++)
                 samples[i].empty();
             entries = Vector<Buffer::Entry>();
         }
-        void reset() { outlinePaths = outlineInstances = p16total = 0, blends.reset(), fasts.reset(), opaques.reset(), segments.reset(), segmentsIndices.reset(), indices.reset(), entries = Vector<Buffer::Entry>();
+        void reset() { outlinePaths = outlineInstances = p16total = 0, blends.reset(), fasts.reset(), opaques.reset(), outlines.reset(), segments.reset(), segmentsIndices.reset(), indices.reset(), entries = Vector<Buffer::Entry>();
             samples.memory->resize(0);
         }
         
         size_t outlinePaths = 0, outlineInstances = 0, p16total;
         Allocator allocator;  Vector<Buffer::Entry> entries;
-        Row<uint32_t> fasts;  Row<Blend> blends;  Row<Instance> opaques;  Row<Segment> segments;
+        Row<uint32_t> fasts;  Row<Blend> blends;  Row<Instance> opaques, outlines;  Row<Segment> segments;
         Row<Sample::Index> indices;  RefVector<Row<Sample>> samples;  Row<uint32_t> segmentsIndices;
     };
     static void divideGeometry(Geometry *g, Transform m, Bounds clip, bool unclipped, bool polygon, GeometryWriter& writer) {
@@ -1108,20 +1108,6 @@ struct Rasterizer {
         float _x0 = 0, _x2 = 0, a0, a2, scale = 0, n = 1;
     };
     
-    
-    
-    struct SegmentCounter: GeometryWriter {
-        void writeSegment(float x0, float y0, float x1, float y1) { count += 1; }
-        void Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
-            if (kSubdivideQuadratics) {
-                Params params(x0, y0, x1, y1, x2, y2);
-                count += params.count();
-            } else
-                count += 2;
-        }
-        size_t count = 0;
-    };
-    
     struct Outliner: GeometryWriter {
         void writeSegment(float x0, float y0, float x1, float y1) {
             writeInstance(x0, y0, FLT_MAX, 0.f, x1, y1);
@@ -1163,16 +1149,20 @@ struct Rasterizer {
             }
         }
         void EndSubpath(float x0, float y0, float x1, float y1, bool closed) {
+            Instance *dst = outlines->base + outlines->end;
+            Instance *dst0 = outlines->base + outlines->idx;
             if (dst - dst0 > 0) {
-                Instance *first = dst0, *last = dst - 1;  dst0 = dst;
+                Instance *first = dst0, *last = dst - 1;
                 first->outline.prev = int(closed) * int(last - first), last->outline.next = -first->outline.prev;
+                outlines->idx = outlines->end;
             }
         }
         inline void writeInstance(float x0, float y0, float x1, float y1, float x2, float y2) {
+            Instance *dst = outlines->alloc(1);
             Outline& o = dst->outline;
-            dst->iz = iz, o.s.x0 = x0, o.s.y0 = y0, o.s.x1 = x2, o.s.y1 = y2, o.cx = x1, o.cy = y1, o.prev = -1, o.next = 1, dst++;
+            dst->iz = iz, o.s.x0 = x0, o.s.y0 = y0, o.s.x1 = x2, o.s.y1 = y2, o.cx = x1, o.cy = y1, o.prev = -1, o.next = 1;
         }
-        uint32_t iz;  Instance *dst0, *dst;
+        uint32_t iz;  Row<Instance> *outlines = nullptr;
     };
     static size_t resizeBuffer(const SceneList& list, Context *contexts, size_t count, size_t *begins, Buffer& buffer) {
         size_t size = buffer.headerSize, begin = buffer.headerSize, end = begin, sz, i, j, instances;
@@ -1180,6 +1170,8 @@ struct Rasterizer {
             size += contexts[i].opaques.end * sizeof(Instance);
         Context *ctx = contexts;   Allocator::Pass *pass;
         for (ctx = contexts, i = 0; i < count; i++, ctx++) {
+            ctx->outlineInstances = ctx->outlines.end + ctx->outlinePaths;
+            
             for (instances = 0, pass = ctx->allocator.passes.base, j = 0; j < ctx->allocator.passes.end; j++, pass++)
                 instances += pass->count();
             begins[i] = size, size += instances * sizeof(Edge) + (ctx->outlineInstances - ctx->outlinePaths + ctx->blends.end) * sizeof(Instance) + ctx->segments.end * sizeof(Segment) + ctx->p16total * sizeof(Point16);
@@ -1237,9 +1229,8 @@ struct Rasterizer {
                 iz = inst->iz & kPathIndexMask;
                 Geometry *g = inst->g;
                 if (inst->iz & Instance::kOutlines) {
-                    outliner.iz = inst->iz, outliner.dst = outliner.dst0 = dst;
-                    divideGeometry(g, ctms[iz], inst->clip, inst->clip.isHuge(), false, outliner);
-                    dst = outliner.dst;
+                    memcpy(dst, ctx->outlines.base + inst->data.idx, inst->data.count * sizeof(Instance));
+                    dst += inst->data.count;
                 } else {
                     ic = dst - dst0, dst->iz = inst->iz, dst->quad = inst->quad, dst++;
                     bool fast = inst->iz & Instance::kFastEdges;
