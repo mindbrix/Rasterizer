@@ -1128,31 +1128,38 @@ struct Rasterizer {
         }
         void Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
             if (kSubdivideQuadratics) {
-                float count, ox, oy, t, t0, mt, s, xt, yt, xm, ym, cx, cy, ow;
+                float count, ox, oy, t, t0, mt, s, xt, yt, xm, ym, cx, cy, cdot, ow, cpx, cpy;
+                float sx0, sy0, sx1, sx2, sy1, sy2;
                 Params params(x0, y0, x1, y1, x2, y2);
                 count = params.count();
-                ox = x0, oy = y0, t0 = 0.f;
+                sx0 = ox = x0, sy0 = oy = y0, t0 = 0.f;
                 for (int i = 1; i < count; i++) {
                     t = params.tAtIndex(i), s = 1.f - t;
-                    xt = s * s * x0 + 2.f * s * t * x1 + t * t * x2;
-                    yt = s * s * y0 + 2.f * s * t * y1 + t * t * y2;
-                    mt = 0.5 * (t0 + t), s = 1.f - mt;
-                    xm = s * s * x0 + 2.f * s * mt * x1 + mt * mt * x2;
-                    ym = s * s * y0 + 2.f * s * mt * y1 + mt * mt * y2;
-                    cx = xt - ox, cy = yt - oy;
-                    ow = -((xm - ox) * cy + (ym - oy) * -cx) / sqrtf(cx * cx + cy * cy);
-//                    assert(fabsf(ow) < kSubdivideQuadraticTolerance + 1e-1f);
-                    writeInstance(ox, oy, FLT_MAX, ow, xt, yt);
+                    
+                    mt = t0 / t;
+                    sx1 = s * x0 + t * x1, sx2 = s * x1 + t * x2;
+                    sy1 = s * y0 + t * y1, sy2 = s * y1 + t * y2;
+                    sx2 = s * sx1 + t * sx2, sx1 = (1.f - mt) * sx1 + mt * sx2;
+                    sy2 = s * sy1 + t * sy2, sy1 = (1.f - mt) * sy1 + mt * sy2;
+                    cx = sx2 - sx0, cy = sy2 - sy0, cdot = cx * cx + cy * cy;
+                    mt = ((sx1 - sx0) * cx + (sy1 - sy0) * cy) / cdot;
+                    writeInstance(sx0, sy0, 0.5f - fabsf(mt - 0.5f) > 0.1f ? sx1 : FLT_MAX, sy1, sx2, sy2);
+                    
+                    sx0 = sx2, sy0 = sy2;
                     
                     ox = xt, oy = yt, t0 = t;
                 }
-                t = 1.f, xt = x2, yt = y2;
-                mt = 0.5 * (t0 + t), s = 1.f - mt;
-                xm = s * s * x0 + 2.f * s * mt * x1 + mt * mt * x2;
-                ym = s * s * y0 + 2.f * s * mt * y1 + mt * mt * y2;
-                cx = xt - ox, cy = yt - oy;
-                ow = -((xm - ox) * cy + (ym - oy) * -cx) / sqrtf(cx * cx + cy * cy);
-                writeInstance(ox, oy, FLT_MAX, ow, x2, y2);
+                t = 1.f, s = 0.f, xt = x2, yt = y2;
+                
+                mt = t0 / t;
+                sx1 = s * x0 + t * x1, sx2 = s * x1 + t * x2;
+                sy1 = s * y0 + t * y1, sy2 = s * y1 + t * y2;
+                sx2 = s * sx1 + t * sx2, sx1 = (1.f - mt) * sx1 + mt * sx2;
+                sy2 = s * sy1 + t * sy2, sy1 = (1.f - mt) * sy1 + mt * sy2;
+                cx = sx2 - sx0, cy = sy2 - sy0, cdot = cx * cx + cy * cy;
+                mt = ((sx1 - sx0) * cx + (sy1 - sy0) * cy) / cdot;
+                writeInstance(sx0, sy0, 0.5f - fabsf(mt - 0.5f) > 0.1f ? sx1 : FLT_MAX, sy1, sx2, sy2);
+                
             } else {
                 float ax, bx, ay, by, adot, bdot, cosine, ratio, a, b, t, s, tx0, tx1, x, ty0, ty1, y;
                 ax = x2 - x1, bx = x1 - x0, ay = y2 - y1, by = y1 - y0;
