@@ -1076,76 +1076,27 @@ struct Rasterizer {
         }
     }
     
-    struct Params {
-        Params(float x0, float y0, float x1, float y1, float x2, float y2, float tol = kSubdivideQuadraticTolerance) {
-            const float ax = 2 * x1 - x0 - x2, ay = 2 * y1 - y0 - y2;
-            const float cross = (x2 - x0) * ay - (y2 - y0) * ax;
-            
-            if (cross != 0.f) {
-                _x0 = ((x1 - x0) * ax + (y1 - y0) * ay) / cross;
-                _x2 = ((x2 - x1) * ax + (y2 - y1) * ay) / cross;
-                scale = fabsf(cross) / (sqrtf(ax * ax + ay * ay) * fabsf(_x2 - _x0));
-                a0 = approx_myint(_x0), a2 = approx_myint(_x2);
-                n = ceilf(0.5 * fabsf(a2 - a0) * sqrtf(scale / tol));
-            }
-        }
-        inline size_t count() {
-            return n;
-        }
-        inline float tAtIndex(float i) {
-            float u = approx_inv_myint(a0 + ((a2 - a0) * i) / n);
-            return (u - _x0) / (_x2 - _x0);
-        }
-        static inline float approx_myint(float x) {
-            const float d = 0.67;
-            return x / (1 - d + sqrtf(sqrtf(d * d * d * d + 0.25 * x * x)));
-        }
-        static inline float approx_inv_myint(float x) {
-            const float b = 0.39;
-            return x * (1 - b + sqrtf(b * b + 0.25 * x * x));
-        }
-        
-        float _x0 = 0, _x2 = 0, a0, a2, scale = 0, n = 1;
-    };
-    
     struct Outliner: GeometryWriter {
         void writeSegment(float x0, float y0, float x1, float y1) {
             writeInstance(x0, y0, FLT_MAX, 0.f, x1, y1);
         }
         void Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
-            if (kSubdivideQuadratics) {
-                float count, t, t0, mt, s, cx, cy, cdot, ow, sx0, sy0, sx1, sx2, sy1, sy2;
-                Params params(x0, y0, x1, y1, x2, y2);
-                count = params.count();
-                sx0 = x0, sy0 = y0, t0 = 0.f;
-                for (int i = 1; i < count; i++, sx0 = sx2, sy0 = sy2, t0 = t) {
-                    t = params.tAtIndex(i), s = 1.f - t, mt = t0 / t;
-                    sx1 = s * x0 + t * x1, sx2 = s * x1 + t * x2;
-                    sy1 = s * y0 + t * y1, sy2 = s * y1 + t * y2;
-                    sx2 = s * sx1 + t * sx2, sx1 = (1.f - mt) * sx1 + mt * sx2;
-                    sy2 = s * sy1 + t * sy2, sy1 = (1.f - mt) * sy1 + mt * sy2;
-                    cx = sx2 - sx0, cy = sy2 - sy0, cdot = cx * cx + cy * cy;
-                    mt = ((sx1 - sx0) * cx + (sy1 - sy0) * cy) / cdot;
-                    writeInstance(sx0, sy0, 0.5f - fabsf(mt - 0.5f) > 0.1f ? sx1 : FLT_MAX, sy1, sx2, sy2);
-                }
-                sx1 = (1.f - t0) * x1 + t0 * x2, sy1 = (1.f - t0) * y1 + t0 * y2;
-                cx = x2 - sx0, cy = y2 - sy0, cdot = cx * cx + cy * cy;
-                mt = ((x1 - sx0) * cx + (y1 - sy0) * cy) / cdot;
-                writeInstance(sx0, sy0, 0.5f - fabsf(mt - 0.5f) > 0.1f ? sx1 : FLT_MAX, sy1, x2, y2);
-                
-            } else {
-                float ax, bx, ay, by, adot, bdot, cosine, ratio, a, b, t, s, tx0, tx1, x, ty0, ty1, y;
-                ax = x2 - x1, bx = x1 - x0, ay = y2 - y1, by = y1 - y0;
-                adot = ax * ax + ay * ay, bdot = bx * bx + by * by, cosine = (ax * bx + ay * by) / sqrt(adot * bdot + 1e-12f), ratio = adot / bdot;
-                if (cosine > 0.7071f)
-                    writeInstance(x0, y0, ratio < 1e-2f || ratio > 1e2f ? FLT_MAX : x1, y1, x2, y2);
-                else {
-                    a = sqrtf(adot), b = sqrtf(bdot), t = b / (a + b), s = 1.0f - t;
-                    tx0 = s * x0 + t * x1, tx1 = s * x1 + t * x2, x = s * tx0 + t * tx1;
-                    ty0 = s * y0 + t * y1, ty1 = s * y1 + t * y2, y = s * ty0 + t * ty1;
-                    writeInstance(x0, y0, tx0, ty0, x, y);
-                    writeInstance(x, y, tx1, ty1, x2, y2);
-                }
+            float ax, bx, ay, by, cross, dot, adot, bdot, cosine, ratio;
+            ax = x2 - x1, bx = x1 - x0, ay = y2 - y1, by = y1 - y0;
+            cross = ax * by - ay * bx, dot = ax * bx + ay * by;
+            adot = ax * ax + ay * ay, bdot = bx * bx + by * by,
+            cosine = dot / sqrt(adot * bdot + 1e-12f), ratio = adot / bdot;
+            bool uneven = ratio < 1e-2f || ratio > 1e2f;
+            bool flat = fabsf(cross) < 1e-3f;
+            if (cosine > 0.7071f)
+                writeInstance(x0, y0, flat || uneven ? FLT_MAX : x1, y1, x2, y2);
+            else {
+                float a, b, t, s, tx0, tx1, x, ty0, ty1, y;
+                a = sqrtf(adot), b = sqrtf(bdot), t = b / (a + b), s = 1.0f - t;
+                tx0 = s * x0 + t * x1, tx1 = s * x1 + t * x2, x = s * tx0 + t * tx1;
+                ty0 = s * y0 + t * y1, ty1 = s * y1 + t * y2, y = s * ty0 + t * ty1;
+                writeInstance(x0, y0, tx0, ty0, x, y);
+                writeInstance(x, y, tx1, ty1, x2, y2);
             }
         }
         void EndSubpath(float x0, float y0, float x1, float y1, bool closed) {
