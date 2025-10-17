@@ -50,7 +50,11 @@ public class SwiftDemoView: RasterizerView {
         }
         demo.bounds = self.bounds
         if !demo.handleEvent(.keyDown(character: character, flags: event.modifierFlags)) {
-            super.keyDown(with: event)
+            if character == "0" {
+                useCG.toggle()
+            } else {
+                super.keyDown(with: event)
+            }
         }
     }
     override public func magnify(with event: NSEvent) {
@@ -67,6 +71,8 @@ public class SwiftDemoView: RasterizerView {
 
 
 class SwiftDemo: NSObject, RASceneListDelegate {
+    typealias ListClosure = (_ time: Double, _ width: Double, _ height: Double) -> RASceneList
+    
     enum Event {
         case keyDown(character: Character, flags: NSEvent.ModifierFlags)
         case magnify(scale: Double)
@@ -74,9 +80,31 @@ class SwiftDemo: NSObject, RASceneListDelegate {
         case translate(tx: Double, ty: Double)
     }
     
+    lazy var closures: [ListClosure] = [{ [weak self] time, width, height in
+        guard let self else {
+            return RASceneList()
+        }
+        return self.test0(time, width: width, height: height)
+    },
+    { [weak self] time, width, height in
+        guard let self else {
+            return RASceneList()
+        }
+        return self.testQuadratics(time, width: width, height: height)
+    },
+    { [weak self] time, width, height in
+        guard let self else {
+            return RASceneList()
+        }
+        return self.testCubics(time, width: width, height: height)
+    },
+    ]
+    
     var index = 0
     var flag = false
     var outlines = false
+    var paused = false
+    var t = 0.0
     var ctm = CGAffineTransform.identity
     var bounds = CGRect.zero
     var pastedScene: RAScene?
@@ -85,8 +113,11 @@ class SwiftDemo: NSObject, RASceneListDelegate {
         switch event {
         case .keyDown(let character, let flags):
             switch character {
-            case "0"..."9":
-                index = Int(character.asciiValue ?? 0) - Int(Character("0").asciiValue ?? 0)
+            case "1"..."9":
+                let i = Int(character.asciiValue ?? 0) - Int(Character("0").asciiValue ?? 0)
+                let idx = max(0, i - 1)
+                let limit = max(0, closures.count - 1)
+                index = min(limit, idx)
             case "a":
                 if (flags.contains(.shift)) {
                     flag.toggle()
@@ -95,6 +126,8 @@ class SwiftDemo: NSObject, RASceneListDelegate {
                 ctm = .identity
             case "o":
                 outlines.toggle()
+            case "p":
+                paused.toggle()
             case "v":
                 if (flags.contains(.command)) {
                     let objects = NSPasteboard.general.readObjects(forClasses: [NSAttributedString.self])
@@ -124,19 +157,24 @@ class SwiftDemo: NSObject, RASceneListDelegate {
     }
     func getListAtTime(_ time: Double, width: Double, height: Double) -> RASceneList! {
         bounds = CGRect(x: 0, y: 0, width: width, height: height)
-        var list: RASceneList {
-            switch index {
-            case 0:
-                test0(time, width: width, height: height)
-            case 1:
-                testCubics(time, width: width, height: height)
-            default:
-                test0(time, width: 0.5 * width, height: 0.5 * height)
-            }
-        }
+        t = paused ? t : time
+        let list = closures[index](t, width, height)
+        list.ctm = ctm
         return list
     }
     
+    func testQuadratics(_ time: Double, width: Double, height: Double) -> RASceneList {
+        let path = RAPath()
+        path.move(to: 0, y: 0)
+        path.quad(to: 0.125 * width, y1: 0.25 * height, x2: 0.5 * width, y2: 0)
+        
+        let scene = RAScene()
+        scene.add(path, ctm: .identity, color: CGColor(gray: 0, alpha: 1), width: outlines ? -1 : 1e-2 * width, flags: 0, clip: .zero)
+        
+        let list = RASceneList()
+        list.add(scene, ctm: .identity, clip: .zero)
+        return list
+    }
     func testCubics(_ time: Double, width: Double, height: Double) -> RASceneList {
         let count = 200
         let bounds = CGRect(x: 0, y: 0, width: width, height: height)
@@ -157,7 +195,7 @@ class SwiftDemo: NSObject, RASceneListDelegate {
         scene.add(path, ctm: .identity, color: CGColor(gray: 0, alpha: 1), width: outlines ? -1 : 0, flags: RASceneFlags.fillEvenOdd.rawValue, clip: .zero)
 
         let list = RASceneList()
-        list.add(scene, ctm: ctm, clip: .zero)
+        list.add(scene, ctm: .identity, clip: .zero)
         return list
     }
     
@@ -172,6 +210,7 @@ class SwiftDemo: NSObject, RASceneListDelegate {
         path.addEllipse(unitRect)
         path.close()
         
+        let black = CGColor(gray: 0, alpha: 1)
         let scene = RAScene()
         let count = flag ? 2000 : 20
         let r = 0.5 * dim
@@ -190,21 +229,28 @@ class SwiftDemo: NSObject, RASceneListDelegate {
             )
             scene.add(path,
                 ctm: ctm,
+                color: black,
+                width: 0,
+                flags: 0,
+                clip: .zero
+            )
+            scene.add(path,
+                ctm: ctm,
                 color: hsv,
                 width: 0.1,
-                flags: RASceneFlags.fillEvenOdd.rawValue,
+                flags: 0,
                 clip: .zero
             )
         }
         let list = RASceneList()
         list.add(scene,
-            ctm: ctm,
+            ctm: .identity,
             clip: .zero
         )
         if let pasted = pastedScene {
             list.add(pasted,
-                ctm: ctm,
-               clip: .zero
+                ctm: .identity,
+                clip: .zero
             )
         }
         return list
