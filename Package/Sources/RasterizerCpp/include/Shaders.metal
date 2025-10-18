@@ -454,7 +454,7 @@ struct InstancesVertex
 {
     float4 position [[position]];
     float2 clip;
-    float u, v, cover, alpha, ow;
+    float u, v, w, cover, alpha, ow;
     uint32_t iz, iid;
 };
 
@@ -518,21 +518,35 @@ vertex InstancesVertex instances_vertex_main(
         float2 no, prev, next, tangent, miter0, miter1;
         no = float2(cx, cy) * rc;
         
-        px0 = x0 - (pcurve ? pinst.outline.cx : p.x0);
-        py0 = y0 - (pcurve ? pinst.outline.cy : p.y0);
+        if (kAddCurves) {
+            next = normalize({ x2 - x0, y2 - y0 });
+            px0 = x0 - p.x0;
+            py0 = y0 - p.y0;
+        } else {
+            next = normalize({ (isCurve ? x1 : x2) - x0, (isCurve ? y1 : y2) - y0 });
+            px0 = x0 - (pcurve ? pinst.outline.cx : p.x0);
+            py0 = y0 - (pcurve ? pinst.outline.cy : p.y0);
+        }
         pdot = px0 * px0 + py0 * py0;
         prev = rsqrt(pdot) * float2(px0, py0);
-        next = normalize({ (isCurve ? x1 : x2) - x0, (isCurve ? y1 : y2) - y0 });
         
         pcap = pcap || pdot < 1e-6 || dot(prev, next) < caplimit;
         tangent = pcap ? no : normalize(prev + next);
         
         ow *= !pcap && !ncap && underside ? 0.0 : 1.0;
+        
+        
         miter0 = (dw + ow) / abs(dot(no, tangent)) * float2(-tangent.y, tangent.x);
         
-        prev = normalize({ x2 - (isCurve ? x1 : x0), y2 - (isCurve ? y1 : y0) });
-        nx1 = (ncurve ? ninst.outline.cx : n.x1) - x2;
-        ny1 = (ncurve ? ninst.outline.cy : n.y1) - y2;
+        if (kAddCurves) {
+            prev = normalize({ x2 - x0, y2 - y0 });
+            nx1 = n.x1 - x2;
+            ny1 = n.y1 - y2;
+        } else {
+            prev = normalize({ x2 - (isCurve ? x1 : x0), y2 - (isCurve ? y1 : y0) });
+            nx1 = (ncurve ? ninst.outline.cx : n.x1) - x2;
+            ny1 = (ncurve ? ninst.outline.cy : n.y1) - y2;
+        }
         ndot = nx1 * nx1 + ny1 * ny1;
         next = rsqrt(ndot) * float2(nx1, ny1);
         
@@ -561,9 +575,40 @@ vertex InstancesVertex instances_vertex_main(
         {
             if (kAddCurves) {
                 vert.u = (dx - x0) * -no.y + (dy - y0) * no.x;
-                float t = ((dx - x0) * cx + (dy - y0) * cy) / cdot, s = 1.0 - t;
-//                vert.v = isTop ? 1.0 : 0.0;
-                vert.v = t;
+                vert.v = ((dx - x0) * cx + (dy - y0) * cy) / (cx * cx + cy * cy);
+//                vert.v = 2.0 * vert.v - 1.0;
+                /*
+                float a0, a1, nx, ny, t0, t1;
+                nx = -by, ny = bx;
+//                nx = miter0.x, ny = miter0.y;
+                a1 = nx * by - ny * bx;
+                a0 = nx * (dy - y0) - ny * (dx - x0);
+                t0 = a0 / a1;
+//                vert.v = a0 / a1;
+                nx = -ay, ny = ax;
+//                nx = miter1.x, ny = miter1.y;
+                a1 = nx * ay - ny * ax;
+                a0 = nx * (dy - y2) - ny * (dx - x2);
+                t1 = a0 / a1;
+                vert.w = a0 / a1;
+                vert.w = t0 / (t0 + t1);
+                */
+                float2 n0 = normalize({ -by, bx });
+                float2 n1 = normalize({ ay, -ax });
+                float t0 = vert.u * (cx * n0.x + cy * n0.y) / (cx * cx + cy * cy);
+                float t1 = 1.0 + vert.u * (cx * n1.x + cy * n1.y) / (cx * cx + cy * cy);
+                vert.w = (vert.v - t0) / (t1 - t0);
+                vert.w = isTop ? t1 : t0;
+                
+                x0 -= dx, y0 -= dy, x1 -= dx, y1 -= dy, x2 -= dx, y2 -= dy;
+                vert.u = x0 * y2 - y0 * x2 ; // a
+                vert.v = x1 * y0 - y1 * x0; // b
+//                vert.w = x2 * y1 - y2 * x1;  // d
+                vert.u /= area, vert.v /= area, vert.w /= area;
+//
+                
+                
+
             }  else {
                 vert.u = dx, vert.v = dy;
             }
@@ -612,10 +657,22 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
         } else
         {
             if (kAddCurves) {
-                float t = vert.v;
+                float a = vert.u, b = vert.v, d = 1 - a - b, f = 4.0 * b * d - a * a;
+                float dx = dfdx(f), dy = dfdy(f);
+                alpha = f * rsqrt(dx * dx + dy * dy);
+                /*
+                float t = saturate(vert.v / (vert.v + vert.w));
+                float c = dfdx(vert.v), d = dfdy(vert.v), sy = rsqrt(c * c + d * d);
+                float dx = abs(vert.u), dy = sy * (1.0 - abs(vert.v)), ry = min(0.0, dy);
+//                t = (0.5 * (vert.v + 1.0));
+                t = (vert.w);
                 float ow = 4.0 * (1.0 - t) * t * vert.ow;
-                float rect = saturate(dw + ow - vert.u) * saturate(dw - ow + vert.u);
-                alpha = rect;
+                float line = saturate(dw - dx);
+                float curve = saturate(dw + ow - vert.u) * saturate(dw - ow + vert.u);
+                float lozenge = saturate(dw - sqrt(dx * dx + ry * ry));
+                alpha = 1|| abs(t - 0.5) <= 0.5f ? curve : 0;// vert.u > 0.0 ? rect : t;
+                 */
+                
             } else {
                 
                 const device Instance& inst = instances[vert.iid];

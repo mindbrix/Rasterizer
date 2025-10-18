@@ -320,7 +320,7 @@ struct Rasterizer {
                 lineTo(x3, y3);
             } else {
                 bx = 3.f * (x2 - x1), ax = x3 - x0 - bx, by = 3.f * (y2 - y1), ay = y3 - y0 - by, dot = ax * ax + ay * ay;
-                if (dot < 1e-4f)
+                if (kAddCurves || dot < 1e-4f)
                     quadTo((3.f * (x1 + x2) - x0 - x3) * 0.25f, (3.f * (y1 + y2) - y0 - y3) * 0.25f, x3, y3);
                 else {
                     float *pts = points.alloc(6);  pts[0] = x1, pts[1] = y1, pts[2] = x2, pts[3] = y2, pts[4] = x3, pts[5] = y3, update(kCubic, 3);
@@ -1080,7 +1080,41 @@ struct Rasterizer {
         void writeSegment(float x0, float y0, float x1, float y1) {
             writeInstance(x0, y0, FLT_MAX, 0.f, x1, y1);
         }
+        void SubdivideQuadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
+            float ax, ay, adot, count, dt, fx, f2x, f1x, fy, f2y, f1y;
+            ax = x0 + x2 - x1 - x1, ay = y0 + y2 - y1 - y1, adot = ax * ax + ay * ay;
+            count = ceilf(sqrtf(sqrtf(adot + 1e-6f)) / 16);
+            dt = 0.5f / count;
+//            float t = dt, s, w0, w1, w2, x, y;
+//            for (int i = 1; i < count; i++, t += dt) {
+//                s = 1.f - t, w0 = s * s, w1 = 2.f * s * t, w2 = t * t;
+//                x = w0 * x0 + w1 * x1 + w2 * x2;
+//                y = w0 * y0 + w1 * y1 + w2 * y2;
+//                writeSegment(x0, y0, x, y);
+//                x0 = x, y0 = y;
+//            }
+            ax *= dt * dt, f2x = 2.f * ax, f1x = ax + 2.f * (x1 - x0) * dt, fx = x0;
+            ay *= dt * dt, f2y = 2.f * ay, f1y = ay + 2.f * (y1 - y0) * dt, fy = y0;
+            while (--count) {
+                fx += f1x, f1x += f2x, fy += f1y, f1y += f2y;
+                x1 = fx, y1 = fy;
+                fx += f1x, f1x += f2x, fy += f1y, f1y += f2y;
+                x1 = 2.f * x1 - 0.5f * (x0 + fx);
+                y1 = 2.f * y1 - 0.5f * (y0 + fy);
+                writeInstance(x0, y0, x1, y1, fx, fy);
+                x0 = fx, y0 = fy;
+            }
+            fx += f1x, fy += f1y;
+            x1 = fx, y1 = fy;
+            x1 = 2.f * x1 - 0.5f * (x0 + x2);
+            y1 = 2.f * y1 - 0.5f * (y0 + y2);
+            writeInstance(x0, y0, x1, y1, x2, y2);
+        }
         void Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
+            if (kAddCurves) {
+                SubdivideQuadratic(x0, y0, x1, y1, x2, y2);
+                return;
+            }
             float ax, bx, ay, by, cross, dot, adot, bdot, cosine, ratio;
             ax = x2 - x1, bx = x1 - x0, ay = y2 - y1, by = y1 - y0;
             cross = ax * by - ay * bx, dot = ax * bx + ay * by;
