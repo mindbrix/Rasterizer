@@ -574,8 +574,9 @@ vertex InstancesVertex instances_vertex_main(
                 vert.u = (x0 * y2 - y0 * x2) / area; // a
                 vert.v = (x1 * y0 - y1 * x0) / area; // b
                 
-                vert.x = pcap ? (bx * -x0 + by * -y0) * rsqrt(bx * bx + by * by) : 1.0;
-                vert.y = ncap ? (ax * -x2 + ay * -y2) * rsqrt(ax * ax + ay * ay) : 1.0;
+                lcap = squareCap || roundCap ? dw : 0.5;
+                vert.x = pcap ? lcap + (bx * -x0 + by * -y0) * rsqrt(bx * bx + by * by) : 1.0;
+                vert.y = ncap ? lcap + (ax * -x2 + ay * -y2) * rsqrt(ax * ax + ay * ay) : 1.0;
             }  else {
                 vert.u = x0, vert.v = x1, vert.w = x2;
                 vert.x = y0, vert.y = y1, vert.z = y2;
@@ -617,9 +618,10 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
         const float dw = vert.cover;
         
         if (!isCurve) {
+            float line = dw - abs(vert.u);
             float c = dfdx(vert.v), d = dfdy(vert.v), sy = rsqrt(c * c + d * d);
-            float dx = abs(vert.u), dy = sy * (1.0 - abs(vert.v)), ry = min(0.0, dy);
-            float rect = saturate(dw - dx) * saturate(dy);
+            float dx = vert.u, dy = sy * (1.0 - abs(vert.v)), ry = min(0.0, dy);
+            float rect = saturate(line) * saturate(dy);
             float lozenge = saturate(dw - sqrt(dx * dx + ry * ry));
             alpha = roundCap ? lozenge : rect;
         } else
