@@ -571,8 +571,26 @@ vertex InstancesVertex instances_vertex_main(
         {
             x0 -= dx, y0 -= dy, x1 -= dx, y1 -= dy, x2 -= dx, y2 -= dy;
             if (kAddCurves) {
-                vert.u = (x0 * y2 - y0 * x2) / area; // a
-                vert.v = (x1 * y0 - y1 * x0) / area; // b
+                float sign, rb, ra, cx2, cy2;
+                sign = copysign(1.0, area);
+                rb = sign * dw * rsqrt(bx * bx + by * by);
+                ra = sign * dw * rsqrt(ax * ax + ay * ay);
+                
+                cx0 = x0 + rb * -by, cy0 = y0 + rb * bx;
+                cx2 = x2 + ra * ay, cy2 = y2 + ra * -ax;
+                t = ((cx2 - cx0) * ay - (cy2 - cy0) * ax) / (bx * ay - by * ax);
+                cx1 = cx2 + t * ax, cy1 = cy2 + t * ay;
+                area = (cx2 - cx0) * (cy1 - cy0) - (cy2 - cy0) * (cx1 - cx0);
+                vert.u = (cx0 * cy2 - cy0 * cx2) / area; // a
+                vert.v = (cx1 * cy0 - cy1 * cx0) / area; // b
+                
+                cx0 = x0 - rb * -by, cy0 = y0 - rb * bx;
+                cx2 = x2 - ra * ay, cy2 = y2 - ra * -ax;
+                t = ((cx2 - cx0) * ay - (cy2 - cy0) * ax) / (bx * ay - by * ax);
+                cx1 = cx2 + t * ax, cy1 = cy2 + t * ay;
+                area = (cx2 - cx0) * (cy1 - cy0) - (cy2 - cy0) * (cx1 - cx0);
+                vert.w = (cx0 * cy2 - cy0 * cx2) / area; // a
+                vert.z = (cx1 * cy0 - cy1 * cx0) / area; // b
                 
                 lcap = squareCap || roundCap ? dw : 0.5;
                 vert.x = pcap ? lcap + (bx * -x0 + by * -y0) * rsqrt(bx * bx + by * by) : 1.0;
@@ -627,14 +645,14 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
         } else
         {
             if (kAddCurves) {
-                float a, b, d, f, dx, dy, curve0, curve1, cap0, cap1;
-                a = vert.u, b = vert.v, d = 1 - a - b, f = 4.0 * b * d - a * a;
-                dx = dfdx(f), dy = dfdy(f), f *= rsqrt(dx * dx + dy * dy);
-                curve0 = dw - f, curve1 = dw + f;
-
-                cap0 = vert.x, cap1 = vert.y;
+                float a, b, d, f0, f1, dx, dy;
+                a = vert.u, b = vert.v, d = 1 - a - b, f0 = 4.0 * b * d - a * a;
+                dx = dfdx(f0), dy = dfdy(f0), f0 *= rsqrt(dx * dx + dy * dy);
                 
-                alpha = saturate(curve0) * saturate(curve1) * saturate(cap0) * saturate(cap1);
+                a = vert.w, b = vert.z, d = 1 - a - b, f1 = 4.0 * b * d - a * a;
+                dx = dfdx(f1), dy = dfdy(f1), f1 *= rsqrt(dx * dx + dy * dy);
+                
+                alpha = saturate(f0) * saturate(-f1) * saturate(vert.x) * saturate(vert.y);
             } else {
                 float x0, y0, x1, y1, x2, y2, d0, dm0, d1, dm1, sqdist, sd0, sd1, cap, cap0, cap1;
                 
