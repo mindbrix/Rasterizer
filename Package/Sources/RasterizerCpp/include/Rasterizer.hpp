@@ -320,7 +320,7 @@ struct Rasterizer {
                 lineTo(x3, y3);
             } else {
                 bx = 3.f * (x2 - x1), ax = x3 - x0 - bx, by = 3.f * (y2 - y1), ay = y3 - y0 - by, dot = ax * ax + ay * ay;
-                if (kAddCurves || dot < 1e-4f)
+                if (0||dot < 1e-4f)
                     quadTo((3.f * (x1 + x2) - x0 - x3) * 0.25f, (3.f * (y1 + y2) - y0 - y3) * 0.25f, x3, y3);
                 else {
                     float *pts = points.alloc(6);  pts[0] = x1, pts[1] = y1, pts[2] = x2, pts[3] = y2, pts[4] = x3, pts[5] = y3, update(kCubic, 3);
@@ -1111,20 +1111,19 @@ struct Rasterizer {
             writeInstance(x0, y0, x1, y1, x2, y2);
         }
         void Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
-            if (kAddCurves) {
-                SubdivideQuadratic(x0, y0, x1, y1, x2, y2);
-                return;
-            }
-            float ax, bx, ay, by, cross, dot, adot, bdot, cosine, ratio;
+            float ax, bx, ay, by, cx, cy, dot, adot, bdot, cdot, cosine, t0, t1, dt;
             ax = x2 - x1, bx = x1 - x0, ay = y2 - y1, by = y1 - y0;
-            cross = ax * by - ay * bx, dot = ax * bx + ay * by;
-            adot = ax * ax + ay * ay, bdot = bx * bx + by * by,
-            cosine = dot / sqrt(adot * bdot + 1e-12f), ratio = adot / bdot;
-            bool uneven = ratio < 1e-2f || ratio > 1e2f;
-            bool flat = fabsf(cross) < 1e-3f;
-            if (cosine > 0.7071f)
-                writeInstance(x0, y0, flat || uneven ? FLT_MAX : x1, y1, x2, y2);
-            else {
+            dot = ax * bx + ay * by, adot = ax * ax + ay * ay, bdot = bx * bx + by * by,
+            cosine = dot / sqrt(adot * bdot + 1e-12f);
+            if (cosine > 0.7071f) {
+                const float tan30 = 0.577350269189626f;
+                cx = x2 - x0, cy = y2 - y0, cdot = cx * cx + cy * cy;
+                t0 = (cx * bx + cy * by) / cdot - 0.5f;
+                t1 = (-cy * bx + cx * by) / cdot;
+                dt = copysign(1.f, t0), t0 = fabsf(t0), t1 = fabsf(t1);
+                dt *= fminf(t0, t1 / tan30) - t0;
+                writeInstance(x0, y0, x1 + dt * cx, y1 + dt * cy, x2, y2);
+            } else {
                 float a, b, t, s, tx0, tx1, x, ty0, ty1, y;
                 a = sqrtf(adot), b = sqrtf(bdot), t = b / (a + b), s = 1.0f - t;
                 tx0 = s * x0 + t * x1, tx1 = s * x1 + t * x2, x = s * tx0 + t * tx1;
