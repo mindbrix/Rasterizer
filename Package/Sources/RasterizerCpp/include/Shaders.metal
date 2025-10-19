@@ -622,11 +622,15 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
         } else
         {
             if (kAddCurves) {
-                float c = dfdx(vert.w), d = dfdy(vert.w), sy = rsqrt(c * c + d * d);
-                float cap = pcap ? saturate(sy * vert.w) : 1.0;
-                float a = vert.u, b = vert.v, w = 1 - a - b, f = 4.0 * b * w - a * a;
-                float dx = dfdx(f), dy = dfdy(f);
-                alpha = saturate((f) * rsqrt(dx * dx + dy * dy)) * cap;
+                float dx, dy, curve, sy, cap, a, b, d, f;
+                dx = dfdx(vert.w), dy = dfdy(vert.w), sy = rsqrt(dx * dx + dy * dy);
+                cap = pcap ? saturate(sy * vert.w) : 1.0;
+                
+                a = vert.u, b = vert.v, d = 1 - a - b, f = 4.0 * b * d - a * a;
+                dx = dfdx(f), dy = dfdy(f), f *= rsqrt(dx * dx + dy * dy);
+                curve = saturate(dw - f) * saturate(dw + f);
+                
+                alpha = curve * cap;
             } else {
                 
                 const device Instance& inst = instances[vert.iid];
