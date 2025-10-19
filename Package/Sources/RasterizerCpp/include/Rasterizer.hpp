@@ -1080,36 +1080,6 @@ struct Rasterizer {
         void writeSegment(float x0, float y0, float x1, float y1) {
             writeInstance(x0, y0, FLT_MAX, 0.f, x1, y1);
         }
-        void SubdivideQuadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
-            float ax, ay, adot, count, dt, fx, f2x, f1x, fy, f2y, f1y;
-            ax = x0 + x2 - x1 - x1, ay = y0 + y2 - y1 - y1, adot = ax * ax + ay * ay;
-            count = ceilf(sqrtf(sqrtf(adot + 1e-6f)) / 16);
-            dt = 0.5f / count;
-//            float t = dt, s, w0, w1, w2, x, y;
-//            for (int i = 1; i < count; i++, t += dt) {
-//                s = 1.f - t, w0 = s * s, w1 = 2.f * s * t, w2 = t * t;
-//                x = w0 * x0 + w1 * x1 + w2 * x2;
-//                y = w0 * y0 + w1 * y1 + w2 * y2;
-//                writeSegment(x0, y0, x, y);
-//                x0 = x, y0 = y;
-//            }
-            ax *= dt * dt, f2x = 2.f * ax, f1x = ax + 2.f * (x1 - x0) * dt, fx = x0;
-            ay *= dt * dt, f2y = 2.f * ay, f1y = ay + 2.f * (y1 - y0) * dt, fy = y0;
-            while (--count) {
-                fx += f1x, f1x += f2x, fy += f1y, f1y += f2y;
-                x1 = fx, y1 = fy;
-                fx += f1x, f1x += f2x, fy += f1y, f1y += f2y;
-                x1 = 2.f * x1 - 0.5f * (x0 + fx);
-                y1 = 2.f * y1 - 0.5f * (y0 + fy);
-                writeInstance(x0, y0, x1, y1, fx, fy);
-                x0 = fx, y0 = fy;
-            }
-            fx += f1x, fy += f1y;
-            x1 = fx, y1 = fy;
-            x1 = 2.f * x1 - 0.5f * (x0 + x2);
-            y1 = 2.f * y1 - 0.5f * (y0 + y2);
-            writeInstance(x0, y0, x1, y1, x2, y2);
-        }
         void Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
             float ax, bx, ay, by, cx, cy, dot, adot, bdot, cdot, cosine, t0, t1, dt;
             ax = x2 - x1, bx = x1 - x0, ay = y2 - y1, by = y1 - y0;
