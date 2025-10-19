@@ -455,7 +455,8 @@ struct InstancesVertex
     float4 position [[position]];
     float2 clip;
     float u, v, w, cover, alpha;
-    uint32_t iz, iid;
+    float x, y, z;
+    uint32_t iz;
 };
 
 vertex InstancesVertex instances_vertex_main(
@@ -470,7 +471,6 @@ vertex InstancesVertex instances_vertex_main(
             uint vid [[vertex_id]], uint iid [[instance_id]])
 {
     InstancesVertex vert;
-    vert.iid = iid;
     constexpr float err = 1e-3;
     const bool isRight = vid & 1, isTop = vid & 2;
     const float sign = isRight ? -1.0 : 1.0;
@@ -585,7 +585,8 @@ vertex InstancesVertex instances_vertex_main(
                 float t1 = 1.0 + s / ds1 * dt1;
                 vert.w = (t - t0) / (t1 - t0);
             }  else {
-                vert.u = dx, vert.v = dy;
+                vert.u = x0 - dx, vert.v = x1 - dx, vert.w = x2 - dx;
+                vert.x = y0 - dy, vert.y = y1 - dy, vert.z = y2 - dy;
             }
         }
         
@@ -642,14 +643,11 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
                 
                 alpha = saturate(curve0) * saturate(curve1) * saturate(cap0) * saturate(cap1);
             } else {
-                
-                const device Instance& inst = instances[vert.iid];
-                const device Segment& o = inst.outline.s;
                 float x0, y0, x1, y1, x2, y2, d0, dm0, d1, dm1, sqdist, sd0, sd1, cap, cap0, cap1;
                 
-                x0 = o.x0, y0 = o.y0, x2 = o.x1, y2 = o.y1;
-                x1 = inst.outline.cx, y1 = inst.outline.cy;
-                x0 -= vert.u, y0 -= vert.v, x1 -= vert.u, y1 -= vert.v, x2 -= vert.u, y2 -= vert.v;
+                x0 = vert.u, x1 = vert.v, x2 = vert.w;
+                y0 = vert.x, y1 = vert.y, y2 = vert.z;
+                
                 sqdist = sqBezier(float2(x0, y0), float2(x1, y1), float2(x2, y2));
                 float outline = saturate(dw - sqrt(sqdist));
                 
