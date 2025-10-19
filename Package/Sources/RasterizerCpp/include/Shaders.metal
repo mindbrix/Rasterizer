@@ -514,7 +514,7 @@ vertex InstancesVertex instances_vertex_main(
         float2 no, prev, next, tangent, miter0, miter1;
         no = float2(cx, cy) * rc;
         
-        if (kAddCurves) {
+        if (!kQuadraticMiters) {
             next = normalize({ x2 - x0, y2 - y0 });
             px0 = x0 - p.x0;
             py0 = y0 - p.y0;
@@ -534,7 +534,7 @@ vertex InstancesVertex instances_vertex_main(
         
         miter0 = (dw + ow) / abs(dot(no, tangent)) * float2(-tangent.y, tangent.x);
         
-        if (kAddCurves) {
+        if (!kQuadraticMiters) {
             prev = normalize({ x2 - x0, y2 - y0 });
             nx1 = n.x1 - x2;
             ny1 = n.y1 - y2;
