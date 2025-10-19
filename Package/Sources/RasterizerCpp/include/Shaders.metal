@@ -573,7 +573,17 @@ vertex InstancesVertex instances_vertex_main(
                 x0 -= dx, y0 -= dy, x1 -= dx, y1 -= dy, x2 -= dx, y2 -= dy;
                 vert.u = (x0 * y2 - y0 * x2) / area; // a
                 vert.v = (x1 * y0 - y1 * x0) / area; // b
-                vert.w = -(x0 * cx + y0 * cy) / (cx * cx + cy * cy);
+                float cdot = cx * cx + cy * cy;
+                float t = -(cx * x0 + cy * y0) / cdot;
+                float dt0 = (cx * -by + cy * bx) / cdot;
+                float dt1 = (cx * ay + cy * -ax) / cdot;
+                float s = -(-cy * x0 + cx * y0) / cdot;
+                float ds0 = (-cy * -by + cx * bx) / cdot;
+                float ds1 = (-cy * ay + cx * -ax) / cdot;
+                
+                float t0 = s / ds0 * dt0;
+                float t1 = 1.0 + s / ds1 * dt1;
+                vert.w = (t - t0) / (t1 - t0);
             }  else {
                 vert.u = dx, vert.v = dy;
             }
@@ -622,15 +632,15 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
         } else
         {
             if (kAddCurves) {
-                float dx, dy, curve, sy, cap, a, b, d, f;
-                dx = dfdx(vert.w), dy = dfdy(vert.w), sy = rsqrt(dx * dx + dy * dy);
-                cap = pcap ? saturate(sy * vert.w) : 1.0;
-                
+                float  a, b, d, f, dx, dy, curve0, curve1, sy, cap0, cap1;
                 a = vert.u, b = vert.v, d = 1 - a - b, f = 4.0 * b * d - a * a;
                 dx = dfdx(f), dy = dfdy(f), f *= rsqrt(dx * dx + dy * dy);
-                curve = saturate(dw - f) * saturate(dw + f);
+                curve0 = dw - f, curve1 = dw + f;
+
+                dx = dfdx(vert.w), dy = dfdy(vert.w), sy = rsqrt(dx * dx + dy * dy);
+                cap0 = pcap ? sy * vert.w : 1, cap1 = ncap ? sy * (1.0 - vert.w) : 1;
                 
-                alpha = curve * cap;
+                alpha = saturate(curve0) * saturate(curve1) * saturate(cap0) * saturate(cap1);
             } else {
                 
                 const device Instance& inst = instances[vert.iid];

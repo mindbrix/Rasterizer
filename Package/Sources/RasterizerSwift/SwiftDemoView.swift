@@ -227,13 +227,13 @@ class SwiftDemo: NSObject, RASceneListDelegate {
                 scale: CGSize(width: scale, height: scale),
                 translation: CGVector(dx: radial.x - unitCenter.x, dy: radial.y - unitCenter.y)
             )
-            scene.add(path,
-                ctm: ctm,
-                color: black,
-                width: 0,
-                flags: 0,
-                clip: .zero
-            )
+//            scene.add(path,
+//                ctm: ctm,
+//                color: black,
+//                width: 0,
+//                flags: 0,
+//                clip: .zero
+//            )
             scene.add(path,
                 ctm: ctm,
                 color: hsv,
