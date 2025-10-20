@@ -543,18 +543,13 @@ vertex InstancesVertex instances_vertex_main(
         
         if (!isCurve) {
             vert.u = (dx - x0) * -no.y + (dy - y0) * no.x;
-            if (!roundCap) {
-                cx = cx1 - cx0, cy = cy1 - cy0;
-            } else {
-                cx0 = x0, cy0 = y0;
-            }
-            float t = ((dx - cx0) * cx + (dy - cy0) * cy) / (cx * cx + cy * cy), s = 1.0 - t;
-            vert.v = s * (pcap ? -1.0 : -1e-3) + t * (ncap ? 1.0 : 1e-3);
+            float offset = roundCap ? 0.0 : squareCap ? dw : 0.5;
+            vert.w = !pcap ? FLT_MAX : offset + (dx - x0) * no.x + (dy - y0) * no.y;
+            vert.z = !ncap ? FLT_MAX : offset + (dx - x2) * -no.x + (dy - y2) * -no.y;
         } else
         {
-            x0 -= dx, y0 -= dy, x1 -= dx, y1 -= dy, x2 -= dx, y2 -= dy;
-            vert.u = x0, vert.v = x1, vert.w = x2;
-            vert.x = y0, vert.y = y1, vert.z = y2;
+            vert.u = x0 - dx, vert.v = x1 - dx, vert.w = x2 - dx;
+            vert.x = y0 - dy, vert.y = y1 - dy, vert.z = y2 - dy;
         }
         
         vert.cover = dw;
@@ -592,10 +587,8 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
         const float dw = vert.cover;
         
         if (!isCurve) {
-            float line = dw - abs(vert.u);
-            float c = dfdx(vert.v), d = dfdy(vert.v), sy = rsqrt(c * c + d * d);
-            float dx = vert.u, dy = sy * (1.0 - abs(vert.v)), ry = min(0.0, dy);
-            float rect = saturate(line) * saturate(dy);
+            float dx = vert.u, dy = min(vert.w, vert.z), ry = min(0.0, dy);
+            float rect = saturate(dw - abs(dx)) * saturate(dy);
             float lozenge = saturate(dw - sqrt(dx * dx + ry * ry));
             alpha = roundCap ? lozenge : rect;
         } else
