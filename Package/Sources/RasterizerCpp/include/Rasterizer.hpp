@@ -502,7 +502,7 @@ struct Rasterizer {
         Segment s;  short prev, next;  float cx, cy;
     };
     struct Instance {
-        enum Flags { kMolecule = 1 << 25, kFastEdges = 1 << 26, kEdge = 1 << 27, kRoundCap = 1 << 28, kOutlines = 1 << 29, kSquareCap = 1 << 30, kEvenOdd = 1 << 31 };
+        enum Flags { kFastOutlines = 1 << 24, kMolecule = 1 << 25, kFastEdges = 1 << 26, kEdge = 1 << 27, kRoundCap = 1 << 28, kOutlines = 1 << 29, kSquareCap = 1 << 30, kEvenOdd = 1 << 31 };
         Instance(size_t iz) : iz(uint32_t(iz)) {}
         uint32_t iz;  union { Quad quad;  Outline outline; };
     };

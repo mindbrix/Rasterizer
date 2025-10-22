@@ -60,7 +60,7 @@ struct Outline {
 
 struct Instance {
     enum Flags {
-        kIsCurve = 1 << 24,
+        kFastOutlines = 1 << 24, kIsCurve = 1 << 24,
         kMolecule = 1 << 25,    kPCap = 1 << 25,
         kFastEdges = 1 << 26,   kNCap = 1 << 26,
         kEdge = 1 << 27,        kF0 = 1 << 27,
