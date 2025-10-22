@@ -63,8 +63,8 @@ struct Instance {
         kIsCurve = 1 << 24,
         kMolecule = 1 << 25,    kPCap = 1 << 25,
         kFastEdges = 1 << 26,   kNCap = 1 << 26,
-        kEdge = 1 << 27,        kPCurve = 1 << 27,
-        kRoundCap = 1 << 28,    kNCurve = 1 << 28,
+        kEdge = 1 << 27,        kF0 = 1 << 27,
+        kRoundCap = 1 << 28,    kF1 = 1 << 28,
         kOutlines = 1 << 29, kSquareCap = 1 << 30, kEvenOdd = 1 << 31, kFragmentMask = (kOutlines | kSquareCap | kEvenOdd) };
     uint32_t iz;  union { Quad quad;  Outline outline; };
 };
@@ -553,7 +553,7 @@ vertex InstancesVertex instances_vertex_main(
         }
         
         vert.cover = dw;
-        flags = flags | pcap * Instance::kPCap | ncap * Instance::kNCap | isCurve * Instance::kIsCurve | f0 * Instance::kPCurve | f1 * Instance::kNCurve | roundCap * Instance::kEvenOdd;
+        flags = flags | pcap * Instance::kPCap | ncap * Instance::kNCap | isCurve * Instance::kIsCurve | f0 * Instance::kF0 | f1 * Instance::kF1 | roundCap * Instance::kEvenOdd;
     } else {
         const device Cell& cell = inst.quad.cell;
         dx = isRight ? cell.ux : cell.lx;
@@ -583,7 +583,7 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
         bool squareCap = vert.iz & Instance::kSquareCap;
         bool roundCap = vert.iz & Instance::kEvenOdd;
         bool pcap = vert.iz & Instance::kPCap, ncap = vert.iz & Instance::kNCap;
-        bool f0 = vert.iz & Instance::kPCurve, f1 = vert.iz & Instance::kNCurve;
+        bool f0 = vert.iz & Instance::kF0, f1 = vert.iz & Instance::kF1;
         const float dw = vert.cover;
         
         if (!isCurve) {
