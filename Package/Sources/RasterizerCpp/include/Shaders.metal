@@ -502,7 +502,7 @@ vertex InstancesVertex instances_vertex_main(
         const bool pcurve = *useCurves && pinst.outline.cx != FLT_MAX, ncurve = *useCurves && ninst.outline.cx != FLT_MAX;
         const bool f0 = pcap ? !roundCap : !isCurve || !pcurve;
         const bool f1 = ncap ? !roundCap : !isCurve || !ncurve;
-        const bool underside = sign * area < 0.0;
+//        const bool underside = sign * area < 0.0;
         
         ow = isCurve ? 0.5 * tc / rc : 0.0;
         
@@ -510,13 +510,16 @@ vertex InstancesVertex instances_vertex_main(
         float caplimit = dw == 1.0 ? 0.0 : -0.866025403784439;
         
         float px0, py0, pdot, nx1, ny1, ndot;
-        float2 no, prev, next, tangent, miter0, miter1;
-        no = float2(cx, cy) * rc;
-        
-        next = normalize({ (isCurve ? x1 : x2) - x0, (isCurve ? y1 : y2) - y0 });
         px0 = x0 - (pcurve ? pinst.outline.cx : p.x0);
         py0 = y0 - (pcurve ? pinst.outline.cy : p.y0);
         pdot = px0 * px0 + py0 * py0;
+        nx1 = (ncurve ? ninst.outline.cx : n.x1) - x2;
+        ny1 = (ncurve ? ninst.outline.cy : n.y1) - y2;
+        ndot = nx1 * nx1 + ny1 * ny1;
+        
+        float2 no = float2(cx, cy) * rc, prev, next, tangent, miter0, miter1;
+        
+        next = normalize({ (isCurve ? x1 : x2) - x0, (isCurve ? y1 : y2) - y0 });
         prev = rsqrt(pdot) * float2(px0, py0);
         pcap = pcap || pdot < 1e-6 || dot(prev, next) < caplimit;
         tangent = pcap ? no : normalize(prev + next);
@@ -525,9 +528,6 @@ vertex InstancesVertex instances_vertex_main(
 //        ow *= !pcap && !ncap && underside ? 0.0 : 1.0;
         
         prev = normalize({ x2 - (isCurve ? x1 : x0), y2 - (isCurve ? y1 : y0) });
-        nx1 = (ncurve ? ninst.outline.cx : n.x1) - x2;
-        ny1 = (ncurve ? ninst.outline.cy : n.y1) - y2;
-        ndot = nx1 * nx1 + ny1 * ny1;
         next = rsqrt(ndot) * float2(nx1, ny1);
         ncap = ncap || ndot < 1e-6 || dot(prev, next) < caplimit;
         tangent = ncap ? no : normalize(prev + next);
