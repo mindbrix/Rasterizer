@@ -501,6 +501,10 @@ struct Rasterizer {
     struct Outline {
         Segment s;  short prev, next;  float cx, cy;
     };
+    struct P16Outline {
+        uint32_t i;
+        short prev, next;
+    };
     struct Instance {
         enum Flags { kFastOutlines = 1 << 24, kMolecule = 1 << 25, kFastEdges = 1 << 26, kEdge = 1 << 27, kRoundCap = 1 << 28, kOutlines = 1 << 29, kSquareCap = 1 << 30, kEvenOdd = 1 << 31 };
         Instance(size_t iz) : iz(uint32_t(iz)) {}
@@ -652,6 +656,7 @@ struct Rasterizer {
                             Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kMolecule | bool(flags & Scene::kFillEvenOdd) * Instance::kEvenOdd | fast * Instance::kFastEdges);
                             inst->g = g, inst->quad.cover = 0;
                             int type = fast ? Allocator::kFastMolecules : Allocator::kQuadMolecules;
+                            inst->quad.base = int(p16total);
                             size = g->p16s.end, p16total += size;
                             cnt = fast ? size / kFastSegments : g->atoms.end;
                             allocator.alloc(clip.lx, clip.ly, clip.ux, clip.uy, blends.end - 1, & inst->quad.cell, type, cnt);
@@ -1145,13 +1150,13 @@ struct Rasterizer {
             ctx->entries.add(Buffer::Entry(Buffer::kSegmentsBase, begin, end));
             memcpy(buffer.base + begin, ctx->segments.base, size), begin = end;
             
-            for (pbase = 0, i = lz = 0; i < list.scenes.size(); lz += list.scenes[i].count, i++)
+            for (i = lz = 0; i < list.scenes.size(); lz += list.scenes[i].count, i++)
                 for (count = list.scenes[i].count, is = 0; is < count; is++)
                     if (ctx->fasts.base[lz + is]) {
                         Geometry *g = list.scenes[i].paths[is].ptr;
                         size = g->p16s.end * sizeof(Point16);
                         memcpy(buffer.base + end, g->p16s.base, size);
-                        end += size, ctx->fasts.base[lz + is] = uint32_t(pbase), pbase += g->p16s.end;
+                        end += size;
                     }
             ctx->entries.add(Buffer::Entry(Buffer::kPointsBase, begin, end)), begin = end;
         }
@@ -1192,8 +1197,8 @@ struct Rasterizer {
                         uint16_t ux = inst->quad.cell.ux;  Transform& ctm = ctms[iz];
                         float *molx = (float *)g->molecules.base + (ctm.a > 0.f ? 2 : 0), *moly = (float *)g->molecules.base + (ctm.c > 0.f ? 3 : 1);
                         Edge *molecule = fast ? fastMolecule : quadMolecule;
-                        dst[-1].quad.base = int(ctx->fasts.base[iz]);
-                        dst[-1].quad.biid = int(molecule - (fast ? fastMolecule0 : quadMolecule0));
+                        Instance *prev = dst - 1;
+                        prev->quad.biid = int(molecule - (fast ? fastMolecule0 : quadMolecule0));
                         bool hasMolecules = g->molecules.end > 1, update = hasMolecules;
                         if (fast) {
                             uint8_t *p16cnt = g->p16cnts.base;

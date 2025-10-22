@@ -485,12 +485,22 @@ vertex InstancesVertex instances_vertex_main(
         const bool squareCap = inst.iz & Instance::kSquareCap;
         const device Instance & pinst = instances[iid + inst.outline.prev], & ninst = instances[iid + inst.outline.next];
         const device Segment& p = pinst.outline.s, & o = inst.outline.s, & n = ninst.outline.s;
+        const device Outline& pout = pinst.outline, & out = inst.outline, & nout = ninst.outline;
+        const bool pcurve = *useCurves && pout.cx != FLT_MAX;
+        const bool ncurve = *useCurves && nout.cx != FLT_MAX;
         
         float x0, y0, x1, y1, x2, y2;
         float ax, bx, cx, ay, by, cy, ow, lcap;
-        bool pcap = inst.outline.prev == 0 || p.x1 != o.x0 || p.y1 != o.y0;
-        bool ncap = inst.outline.next == 0 || n.x0 != o.x1 || n.y0 != o.y1;
-        x0 = o.x0, y0 = o.y0, x1 = inst.outline.cx, y1 = inst.outline.cy, x2 = o.x1, y2 = o.y1;
+        bool pcap = out.prev == 0 || p.x1 != o.x0 || p.y1 != o.y0;
+        bool ncap = out.next == 0 || n.x0 != o.x1 || n.y0 != o.y1;
+        x0 = o.x0, y0 = o.y0, x1 = out.cx, y1 = out.cy, x2 = o.x1, y2 = o.y1;
+        
+        float px0, py0, pdot, nx1, ny1, ndot;
+        px0 = x0 - (pcurve ? pout.cx : p.x0);
+        py0 = y0 - (pcurve ? pout.cy : p.y0);
+        nx1 = (ncurve ? nout.cx : n.x1) - x2;
+        ny1 = (ncurve ? nout.cy : n.y1) - y2;
+        
         ax = x1 - x2, bx = x1 - x0, cx = x2 - x0;
         ay = y1 - y2, by = y1 - y0, cy = y2 - y0;
         float cdot = cx * cx + cy * cy, rc = rsqrt(cdot);
@@ -499,7 +509,7 @@ vertex InstancesVertex instances_vertex_main(
         float tc = abs(area / cdot);
         
         const bool isCurve = *useCurves && x1 != FLT_MAX && tc > 1e-3;
-        const bool pcurve = *useCurves && pinst.outline.cx != FLT_MAX, ncurve = *useCurves && ninst.outline.cx != FLT_MAX;
+        
 //        const bool underside = sign * area < 0.0;
         
         ow = isCurve ? 0.5 * tc / rc : 0.0;
@@ -507,12 +517,9 @@ vertex InstancesVertex instances_vertex_main(
         lcap = (isCurve ? 0.41 * dw : 0.0) + (squareCap || roundCap ? dw : 0.5);
         float caplimit = dw == 1.0 ? 0.0 : -0.866025403784439;
         
-        float px0, py0, pdot, nx1, ny1, ndot;
-        px0 = x0 - (pcurve ? pinst.outline.cx : p.x0);
-        py0 = y0 - (pcurve ? pinst.outline.cy : p.y0);
+        
+        
         pdot = px0 * px0 + py0 * py0;
-        nx1 = (ncurve ? ninst.outline.cx : n.x1) - x2;
-        ny1 = (ncurve ? ninst.outline.cy : n.y1) - y2;
         ndot = nx1 * nx1 + ny1 * ny1;
         
         float2 no = float2(cx, cy) * rc, prev, next, tangent, miter0, miter1;
