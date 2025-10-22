@@ -500,8 +500,6 @@ vertex InstancesVertex instances_vertex_main(
         
         const bool isCurve = *useCurves && x1 != FLT_MAX && tc > 1e-3;
         const bool pcurve = *useCurves && pinst.outline.cx != FLT_MAX, ncurve = *useCurves && ninst.outline.cx != FLT_MAX;
-        const bool f0 = pcap ? !roundCap : !isCurve || !pcurve;
-        const bool f1 = ncap ? !roundCap : !isCurve || !ncurve;
 //        const bool underside = sign * area < 0.0;
         
         ow = isCurve ? 0.5 * tc / rc : 0.0;
@@ -551,7 +549,9 @@ vertex InstancesVertex instances_vertex_main(
             vert.u = x0 - dx, vert.v = x1 - dx, vert.w = x2 - dx;
             vert.x = y0 - dy, vert.y = y1 - dy, vert.z = y2 - dy;
         }
-        
+        const bool f0 = pcap ? !roundCap : !isCurve || !pcurve;
+        const bool f1 = ncap ? !roundCap : !isCurve || !ncurve;
+
         vert.cover = dw;
         flags = flags | pcap * Instance::kPCap | ncap * Instance::kNCap | isCurve * Instance::kIsCurve | f0 * Instance::kF0 | f1 * Instance::kF1 | roundCap * Instance::kEvenOdd;
     } else {
