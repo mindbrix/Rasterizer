@@ -601,8 +601,6 @@ struct Rasterizer {
                 for (int i = 0; i < fatlines; i++)
                     samples.add(Row<Sample>());
             }
-            fasts.zalloc(list.pathsCount);
-            
             Colorant *colors = (Colorant *)(buffer->base + buffer->colors);
             Transform *ctms = (Transform *)(buffer->base + buffer->ctms);
             Transform *clips = (Transform *)(buffer->base + buffer->clips);
@@ -651,14 +649,15 @@ struct Rasterizer {
                             inst->data.count = uint32_t(outlines.idx) - inst->data.idx;
                             
                         } else if (useMolecules && clipWidth * clipHeight / g->types.end < kMoleculesPixelsPerEdge) {
-                            bounds[iz] = *bnds, fasts.base[iz]++;
+                            bounds[iz] = *bnds;
                             bool fast = !buffer->useCurves || g->maxCurve * det < 16.f;
                             Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kMolecule | bool(flags & Scene::kFillEvenOdd) * Instance::kEvenOdd | fast * Instance::kFastEdges);
+                            p16s.add(& g->p16s);
                             inst->g = g, inst->quad.cover = 0;
-                            int type = fast ? Allocator::kFastMolecules : Allocator::kQuadMolecules;
                             inst->quad.base = int(p16total);
                             size = g->p16s.end, p16total += size;
                             cnt = fast ? size / kFastSegments : g->atoms.end;
+                            int type = fast ? Allocator::kFastMolecules : Allocator::kQuadMolecules;
                             allocator.alloc(clip.lx, clip.ly, clip.ux, clip.uy, blends.end - 1, & inst->quad.cell, type, cnt);
                         } else {
                             bool fast = !buffer->useCurves || g->maxCurve * det < 4.f;
@@ -680,18 +679,21 @@ struct Rasterizer {
             }
         }
         void empty() {
-            outlinePaths = outlineInstances = p16total = 0, blends.empty(), fasts.empty(), opaques.empty(), outlines.empty(), segments.empty(), segmentsIndices.empty(), indices.empty();
+            outlinePaths = outlineInstances = p16total = 0, blends.empty(), opaques.empty(), outlines.empty(), segments.empty(), segmentsIndices.empty(), indices.empty();
+            p16s.resize(0);
             for (int i = 0; i < samples.size(); i++)
                 samples[i].empty();
             entries = Vector<Buffer::Entry>();
         }
-        void reset() { outlinePaths = outlineInstances = p16total = 0, blends.reset(), fasts.reset(), opaques.reset(), outlines.reset(), segments.reset(), segmentsIndices.reset(), indices.reset(), entries = Vector<Buffer::Entry>();
+        void reset() { outlinePaths = outlineInstances = p16total = 0, blends.reset(), opaques.reset(), outlines.reset(), segments.reset(), segmentsIndices.reset(), indices.reset(), entries = Vector<Buffer::Entry>();
+            p16s.resize(0);
             samples.memory->resize(0);
         }
         
         size_t outlinePaths = 0, outlineInstances = 0, p16total;
         Allocator allocator;  Vector<Buffer::Entry> entries;
-        Row<uint32_t> fasts;  Row<Blend> blends;  Row<Instance> opaques, outlines;  Row<Segment> segments;
+        Vector<Row<Point16>*> p16s;
+        Row<Blend> blends;  Row<Instance> opaques, outlines;  Row<Segment> segments;
         Row<Sample::Index> indices;  RefVector<Row<Sample>> samples;  Row<uint32_t> segmentsIndices;
     };
     static void divideGeometry(Geometry *g, Transform m, Bounds clip, bool unclipped, bool polygon, GeometryWriter& writer) {
@@ -1150,14 +1152,12 @@ struct Rasterizer {
             ctx->entries.add(Buffer::Entry(Buffer::kSegmentsBase, begin, end));
             memcpy(buffer.base + begin, ctx->segments.base, size), begin = end;
             
-            for (i = lz = 0; i < list.scenes.size(); lz += list.scenes[i].count, i++)
-                for (count = list.scenes[i].count, is = 0; is < count; is++)
-                    if (ctx->fasts.base[lz + is]) {
-                        Geometry *g = list.scenes[i].paths[is].ptr;
-                        size = g->p16s.end * sizeof(Point16);
-                        memcpy(buffer.base + end, g->p16s.base, size);
-                        end += size;
-                    }
+            auto& p16s = ctx->p16s;
+            for (i = 0; i < p16s.size(); i++) {
+                size = p16s[i]->end * sizeof(Point16);
+                memcpy(buffer.base + end, p16s[i]->base, size);
+                end += size;
+            }
             ctx->entries.add(Buffer::Entry(Buffer::kPointsBase, begin, end)), begin = end;
         }
         Transform *ctms = (Transform *)(buffer.base + buffer.ctms);
