@@ -237,7 +237,7 @@ class SwiftDemo: NSObject, RASceneListDelegate {
             scene.add(path,
                 ctm: ctm,
                 color: hsv,
-                width: 0.1,
+                width: outlines ? -1 : 0.1,
                 flags: 0,
                 clip: .zero
             )
