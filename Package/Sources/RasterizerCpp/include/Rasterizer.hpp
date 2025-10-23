@@ -417,8 +417,12 @@ struct Rasterizer {
             p->x = fmaxf(0.f, fminf(kMoleculesRange, x1));
             p->y = fmaxf(0.f, fminf(kMoleculesRange, y1));
             
-            if (atoms->idx < atoms->end)
-                atoms->back().i |= Atom::isEnd;
+            if (atoms->idx < atoms->end) {
+                if (kUpdateOnMoveTo)
+                    atoms->base[atoms->idx].i |= Atom::isEnd;
+                else
+                    atoms->back().i |= Atom::isEnd;
+            }
             atoms->idx = atoms->end;
             
             size_t segcnt, icount, last, rem;
@@ -508,7 +512,7 @@ struct Rasterizer {
     struct Instance {
         enum Flags { kFastOutlines = 1 << 24, kMolecule = 1 << 25, kFastEdges = 1 << 26, kEdge = 1 << 27, kRoundCap = 1 << 28, kOutlines = 1 << 29, kSquareCap = 1 << 30, kEvenOdd = 1 << 31 };
         Instance(size_t iz) : iz(uint32_t(iz)) {}
-        uint32_t iz;  union { Quad quad;  Outline outline; };
+        uint32_t iz;  union { Quad quad;  Outline outline;  P16Outline p16; };
     };
     struct Blend : Instance {
         Blend(size_t iz) : Instance(iz) {}
@@ -645,6 +649,7 @@ struct Rasterizer {
                             inst->data.idx = uint32_t(outlines.idx);
                             Outliner outliner;
                             outliner.iz = inst->iz, outliner.outlines = & outlines;
+//                            outliner.writeP16s(g, p16total);
                             divideGeometry(g, m, outlineClip, unclipped, false, outliner);
                             inst->data.count = uint32_t(outlines.idx) - inst->data.idx;
                             
@@ -1084,6 +1089,15 @@ struct Rasterizer {
     }
     
     struct Outliner: GeometryWriter {
+        void writeP16s(Geometry *g, size_t base) {
+            size_t count = g->atoms.end, i;
+            Atom *atom = g->atoms.base;
+            Instance *dst = outlines->prealloc(count);
+            for (i = 0; i < count; i++, dst++, atom++) {
+                dst->iz = iz;
+                dst->p16.i = uint32_t(base) + atom->i;
+            }
+        }
         void writeSegment(float x0, float y0, float x1, float y1) {
             writeInstance(x0, y0, FLT_MAX, 0.f, x1, y1);
         }
@@ -1210,8 +1224,13 @@ struct Rasterizer {
                         } else {
                             Atom *atom = g->atoms.base;
                             for (j = 0, size = g->atoms.end; j < size; j++, update = hasMolecules && (atom->i & Atom::isEnd) && j < size - 1, atom++, molecule++) {
-                                if (update)
-                                    ux = ceilf(*molx * ctm.a + *moly * ctm.c + ctm.tx), molx += 4, moly += 4;
+                                if (kUpdateOnMoveTo) {
+                                    if (hasMolecules && (atom->i & Atom::isEnd))
+                                        ux = ceilf(*molx * ctm.a + *moly * ctm.c + ctm.tx), molx += 4, moly += 4;
+                                } else {
+                                    if (update)
+                                        ux = ceilf(*molx * ctm.a + *moly * ctm.c + ctm.tx), molx += 4, moly += 4;
+                                }
                                 molecule->ic = uint32_t(ic) | ((atom->i & 0xF0000) << 12), molecule->i0 = atom->i & 0xFFFF, molecule->ux = ux;
                             }
                         }
