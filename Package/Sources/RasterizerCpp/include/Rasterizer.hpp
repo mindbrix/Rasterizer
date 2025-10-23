@@ -265,7 +265,7 @@ struct Rasterizer {
     };
     
     struct Atom {
-        enum Flags { isEnd = 1 << 31, kMask = ~isEnd };
+        enum Flags { isMoveTo = 1 << 31, kMask = ~isMoveTo };
         uint32_t i;
     };
     
@@ -417,12 +417,8 @@ struct Rasterizer {
             p->x = fmaxf(0.f, fminf(kMoleculesRange, x1));
             p->y = fmaxf(0.f, fminf(kMoleculesRange, y1));
             
-            if (atoms->idx < atoms->end) {
-                if (kUpdateOnMoveTo)
-                    atoms->base[atoms->idx].i |= Atom::isEnd;
-                else
-                    atoms->back().i |= Atom::isEnd;
-            }
+            if (atoms->idx < atoms->end)
+                atoms->base[atoms->idx].i |= Atom::isMoveTo;
             atoms->idx = atoms->end;
             
             size_t segcnt, icount, last, rem;
@@ -1223,14 +1219,9 @@ struct Rasterizer {
                             }
                         } else {
                             Atom *atom = g->atoms.base;
-                            for (j = 0, size = g->atoms.end; j < size; j++, update = hasMolecules && (atom->i & Atom::isEnd) && j < size - 1, atom++, molecule++) {
-                                if (kUpdateOnMoveTo) {
-                                    if (hasMolecules && (atom->i & Atom::isEnd))
-                                        ux = ceilf(*molx * ctm.a + *moly * ctm.c + ctm.tx), molx += 4, moly += 4;
-                                } else {
-                                    if (update)
-                                        ux = ceilf(*molx * ctm.a + *moly * ctm.c + ctm.tx), molx += 4, moly += 4;
-                                }
+                            for (j = 0, size = g->atoms.end; j < size; j++, atom++, molecule++) {
+                                if (hasMolecules && (atom->i & Atom::isMoveTo))
+                                    ux = ceilf(*molx * ctm.a + *moly * ctm.c + ctm.tx), molx += 4, moly += 4;
                                 molecule->ic = uint32_t(ic) | ((atom->i & 0xF0000) << 12), molecule->i0 = atom->i & 0xFFFF, molecule->ux = ux;
                             }
                         }
