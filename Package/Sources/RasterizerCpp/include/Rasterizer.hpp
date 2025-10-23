@@ -422,13 +422,11 @@ struct Rasterizer {
             atoms->idx = atoms->end;
             
             size_t segcnt, icount, last, rem;
-            uint8_t *counts;
             segcnt = p16s->end - p16s->idx - 1, icount = (segcnt + kFastSegments) / kFastSegments;
             last = icount - 1, rem = segcnt - last * kFastSegments;
-            counts = p16cnts->alloc(icount);
+            uint8_t *counts = p16cnts->alloc(icount);
             memset(counts, kFastSegments, last);
-            counts[last] = rem;
-            counts[0] |= isMoveTo;
+            counts[last] = rem, counts[0] |= isMoveTo;
             p16s->zalloc(p16cnts->end * kFastSegments - p16s->end), p16s->idx = p16s->end;
         }
         Row<Point16> *p16s;   Row<uint8_t> *p16cnts;  Row<Atom> *atoms;
@@ -1243,7 +1241,6 @@ struct Rasterizer {
                 end = begin + size * sizeof(Instance);
                 ctx->entries.add(Buffer::Entry(Buffer::kInstances, begin, end)), begin = end;
             }
-            
         }
     }
 };
