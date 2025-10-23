@@ -214,7 +214,7 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
     
     const device Edge& edge = edges[iid];
     const device Instance& inst = instances[edge.ic & Edge::kMask];
-    int ue1 = (edge.ic & Edge::ue1) >> 24, segcount = ue1 & 0x7, i;
+    int segcount = edge.i0, i;
     const device Transform& m = ctms[inst.iz & kPathIndexMask];
     const device Bounds& b = bounds[inst.iz & kPathIndexMask];
     const device Cell& cell = inst.quad.cell;
