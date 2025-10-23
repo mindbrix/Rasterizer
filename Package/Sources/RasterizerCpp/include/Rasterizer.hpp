@@ -428,7 +428,10 @@ struct Rasterizer {
             counts = p16cnts->alloc(icount);
             memset(counts, kFastSegments, last);
             counts[last] = rem;
-            counts[last - int(rem == 0)] |= kEndSubpath;
+            if (kUpdateOnMoveTo)
+                counts[0] |= kEndSubpath;
+            else
+                counts[last - int(rem == 0)] |= kEndSubpath;
             p16s->zalloc(p16cnts->end * kFastSegments - p16s->end), p16s->idx = p16s->end;
         }
         Row<Point16> *p16s;   Row<uint8_t> *p16cnts;  Row<Atom> *atoms;
@@ -1213,8 +1216,13 @@ struct Rasterizer {
                         if (fast) {
                             uint8_t *p16cnt = g->p16cnts.base;
                             for (j = 0, size = g->p16s.end / kFastSegments; j < size; j++, update = hasMolecules && (*p16cnt & P16Writer::kEndSubpath) && j < size - 1, p16cnt++, molecule++) {
-                                if (update)
-                                    ux = ceilf(*molx * ctm.a + *moly * ctm.c + ctm.tx), molx += 4, moly += 4;
+                                if (kUpdateOnMoveTo) {
+                                    if (hasMolecules && (*p16cnt & P16Writer::kEndSubpath))
+                                        ux = ceilf(*molx * ctm.a + *moly * ctm.c + ctm.tx), molx += 4, moly += 4;
+                                } else {
+                                    if (update)
+                                        ux = ceilf(*molx * ctm.a + *moly * ctm.c + ctm.tx), molx += 4, moly += 4;
+                                }
                                 molecule->ic = uint32_t(ic | (uint32_t(*p16cnt & 0xF) << 24)), molecule->ux = ux;
                             }
                         } else {
