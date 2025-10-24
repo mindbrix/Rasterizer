@@ -332,8 +332,8 @@ fragment float4 quad_molecules_fragment_main(QuadMoleculesVertex vert [[stage_in
 struct EdgesVertex
 {
     float4 position [[position]];
-    float tx, ty;
-    uint32_t idx0, idx1;
+    float x0, y0, x1, y1, x2, y2, x3, y3, x4, y4, x5, y5;
+    bool isCurve0, isCurve1;
 };
 
 vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
@@ -348,7 +348,8 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
     const device Edge& edge = edges[iid];
     const device Instance& inst = instances[edge.ic & Edge::kMask];
     const device Cell& cell = inst.quad.cell;
-    thread uint32_t *dstIdx = & vert.idx0;
+    thread float *dstFloats = & vert.x0;
+    thread bool *dstFlags = & vert.isCurve0;
     uint32_t ids[2] = { ((edge.ic & Edge::ue0) >> 12) + edge.i0, ((edge.ic & Edge::ue1) >> 8) + edge.ux };
     const thread uint32_t *idxes = & ids[0];
     float slx = cell.ux, sly = FLT_MAX, suy = -FLT_MAX;
@@ -359,12 +360,15 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
         if (idxes[i] != 0xFFFFF) {
             const device Segment& s = segments[inst.quad.base + idxes[i]];
             x0 = s.x0, y0 = s.y0;
-            dstIdx[i] = inst.quad.base + idxes[i];
             bool curve = *useCurves && s.ix0 & 1;
+            dstFlags[i] = curve;
             if (curve) {
                 const device Segment& n = segments[inst.quad.base + idxes[i] + 1];
                 x2 = n.x1, y2 = n.y1;
                 x1 = s.x1, y1 = s.y1;
+                dstFloats[i * 6 + 0] = x0, dstFloats[i * 6 + 1] = y0;
+                dstFloats[i * 6 + 2] = x1, dstFloats[i * 6 + 3] = y1;
+                dstFloats[i * 6 + 4] = x2, dstFloats[i * 6 + 5] = y2;
                 
                 float ay, by, cy, ax, bx, d, r, t0, t1;
                 ax = x2 - x1, bx = x1 - x0, ax -= bx, bx *= 2.0;
@@ -377,13 +381,18 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
                     slx = min(slx, min(fma(fma(ax, t0, bx), t0, x0), fma(fma(ax, t1, bx), t1, x0)));
             } else {
                 x2 = s.x1, y2 = s.y1;
+                dstFloats[i * 6 + 0] = x0, dstFloats[i * 6 + 1] = y0;
+                dstFloats[i * 6 + 2] = x0, dstFloats[i * 6 + 3] = y0;
+                dstFloats[i * 6 + 4] = x2, dstFloats[i * 6 + 5] = y2;
                 
                 float m = (x2 - x0) / (y2 - y0), c = x0 - m * y0;
                 slx = min(slx, max(min(x0, x2), min(m * clamp(y0, float(cell.ly), float(cell.uy)) + c, m * clamp(y2, float(cell.ly), float(cell.uy)) + c)));
             }
             sly = min(sly, min(y0, y2)), suy = max(suy, max(y0, y2));
         } else {
-            dstIdx[i] = 0xFFFFF;
+            dstFloats[i * 6 + 0] = 0.0, dstFloats[i * 6 + 1] = 0.0;
+            dstFloats[i * 6 + 2] = 0.0, dstFloats[i * 6 + 3] = 0.0;
+            dstFloats[i * 6 + 4] = 0.0, dstFloats[i * 6 + 5] = 0.0;
         }
     }
     float dx = select(max(floor(slx), float(cell.lx)), float(cell.ux), vid & 1);
@@ -391,7 +400,10 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
     float x = (cell.ox - cell.lx + dx) / *width * 2.0 - 1.0;
     float y = (cell.oy - cell.ly + dy) / *height * 2.0 - 1.0;
     vert.position = float4(x, y, 1.0, visible);
-    vert.tx = 0.5 - dx, vert.ty = 0.5 - dy;
+    
+    for (int i = 0; i < 12; i += 2)
+        dstFloats[i] += 0.5 - dx, dstFloats[i + 1] += 0.5 - dy;
+    
     return vert;
 }
 
@@ -402,24 +414,8 @@ fragment float4 fast_edges_fragment_main(
 )
 {
     float winding = 0;
-    const device Segment& s = segments[vert.idx0], & n = segments[vert.idx0 + 1];
-    const bool curve = *useCurves && s.ix0 & 1;
-    winding += lineWinding(
-       vert.tx + s.x0,
-       vert.ty + s.y0,
-       vert.tx + (curve ? n.x1 : s.x1),
-       vert.ty + (curve ? n.y1 : s.y1)
-    );
-    if (vert.idx1 != 0xFFFFF) {
-        const device Segment& s = segments[vert.idx1], & n = segments[vert.idx1 + 1];
-        const bool curve = *useCurves && s.ix0 & 1;
-        winding += lineWinding(
-           vert.tx + s.x0,
-           vert.ty + s.y0,
-           vert.tx + (curve ? n.x1 : s.x1),
-           vert.ty + (curve ? n.y1 : s.y1)
-        );
-    }
+    winding += lineWinding(vert.x0, vert.y0, vert.x2, vert.y2);
+    winding += lineWinding(vert.x3, vert.y3, vert.x5, vert.y5);
     return winding;
 }
 
@@ -430,21 +426,13 @@ fragment float4 quad_edges_fragment_main(
 )
 {
     float winding = 0;
-    const device Segment& s = segments[vert.idx0], & n = segments[vert.idx0 + 1];
-    const bool curve = *useCurves && s.ix0 & 1;
-    if (curve)
-        winding += quadraticWinding(vert.tx + s.x0, vert.ty + s.y0, vert.tx + s.x1, vert.ty + s.y1, vert.tx + n.x1, vert.ty + n.y1);
-    else
-        winding += lineWinding(vert.tx + s.x0, vert.ty + s.y0, vert.tx + s.x1, vert.ty + s.y1);
+    winding += vert.isCurve0 ?
+        quadraticWinding(vert.x0, vert.y0, vert.x1, vert.y1, vert.x2, vert.y2) :
+        lineWinding(vert.x0, vert.y0, vert.x2, vert.y2);
+    winding += vert.isCurve1 ?
+        quadraticWinding(vert.x3, vert.y3, vert.x4, vert.y4, vert.x5, vert.y5) :
+        lineWinding(vert.x3, vert.y3, vert.x5, vert.y5);
     
-    if (vert.idx1 != 0xFFFFF) {
-        const device Segment& s = segments[vert.idx1], & n = segments[vert.idx1 + 1];
-        const bool curve = *useCurves && s.ix0 & 1;
-        if (curve)
-            winding += quadraticWinding(vert.tx + s.x0, vert.ty + s.y0, vert.tx + s.x1, vert.ty + s.y1, vert.tx + n.x1, vert.ty + n.y1);
-        else
-            winding += lineWinding(vert.tx + s.x0, vert.ty + s.y0, vert.tx + s.x1, vert.ty + s.y1);
-    }
     return winding;
 }
 
