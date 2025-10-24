@@ -404,24 +404,14 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
     return vert;
 }
 
-fragment float4 fast_edges_fragment_main(
-                                         EdgesVertex vert [[stage_in]],
-                                         const device Segment *segments [[buffer(2)]],
-                                         constant bool *useCurves [[buffer(14)]]
-)
-{
+fragment float4 fast_edges_fragment_main(EdgesVertex vert [[stage_in]]) {
     float winding = 0;
     winding += lineWinding(vert.x0, vert.y0, vert.x2, vert.y2);
     winding += lineWinding(vert.x3, vert.y3, vert.x5, vert.y5);
     return winding;
 }
 
-fragment float4 quad_edges_fragment_main(
-                                         EdgesVertex vert [[stage_in]],
-                                         const device Segment *segments [[buffer(2)]],
-                                         constant bool *useCurves [[buffer(14)]]
-)
-{
+fragment float4 quad_edges_fragment_main(EdgesVertex vert [[stage_in]]) {
     float winding = 0;
     winding += quadraticWinding(vert.x0, vert.y0, vert.x1, vert.y1, vert.x2, vert.y2);
     winding += quadraticWinding(vert.x3, vert.y3, vert.x4, vert.y4, vert.x5, vert.y5);
@@ -560,7 +550,6 @@ vertex InstancesVertex instances_vertex_main(
 
 fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
                                         const device Colorant *colors [[buffer(0)]],
-                                        const device Instance *instances [[buffer(1)]],
                                         texture2d<float> accumulation [[texture(0)]]
 )
 {
