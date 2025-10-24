@@ -166,7 +166,7 @@ struct RasterizerPDF {
     }
     
     static inline Ra::Transform transformForPage(FPDF_PAGE page) {
-        float left, bottom, right, top, tx = 0.f, ty = 0.f, sine, cosine;
+        float left = 0.f, bottom = 0.f, right = 0.f, top = 0.f, tx = 0.f, ty = 0.f, sine, cosine;
         FPDFPage_GetMediaBox(page, & left, & bottom, & right, & top);
         int rot = FPDFPage_GetRotation(page);
         __sincosf(-rot * 0.5f * M_PI, & sine, & cosine);
