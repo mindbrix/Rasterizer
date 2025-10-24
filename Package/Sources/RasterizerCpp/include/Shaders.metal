@@ -333,7 +333,6 @@ struct EdgesVertex
 {
     float4 position [[position]];
     float x0, y0, x1, y1, x2, y2, x3, y3, x4, y4, x5, y5;
-    bool isCurve0, isCurve1;
 };
 
 vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
@@ -349,7 +348,6 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
     const device Instance& inst = instances[edge.ic & Edge::kMask];
     const device Cell& cell = inst.quad.cell;
     thread float *dstFloats = & vert.x0;
-    thread bool *dstFlags = & vert.isCurve0;
     uint32_t ids[2] = { ((edge.ic & Edge::ue0) >> 12) + edge.i0, ((edge.ic & Edge::ue1) >> 8) + edge.ux };
     const thread uint32_t *idxes = & ids[0];
     float slx = cell.ux, sly = FLT_MAX, suy = -FLT_MAX;
@@ -361,7 +359,6 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
             const device Segment& s = segments[inst.quad.base + idxes[i]];
             x0 = s.x0, y0 = s.y0;
             bool curve = *useCurves && s.ix0 & 1;
-            dstFlags[i] = curve;
             if (curve) {
                 const device Segment& n = segments[inst.quad.base + idxes[i] + 1];
                 x2 = n.x1, y2 = n.y1;
@@ -382,7 +379,7 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
             } else {
                 x2 = s.x1, y2 = s.y1;
                 dstFloats[i * 6 + 0] = x0, dstFloats[i * 6 + 1] = y0;
-                dstFloats[i * 6 + 2] = x0, dstFloats[i * 6 + 3] = y0;
+                dstFloats[i * 6 + 2] = 0.5 * (x0 + x2), dstFloats[i * 6 + 3] = 0.5 * (y0 + y2);
                 dstFloats[i * 6 + 4] = x2, dstFloats[i * 6 + 5] = y2;
                 
                 float m = (x2 - x0) / (y2 - y0), c = x0 - m * y0;
@@ -426,13 +423,8 @@ fragment float4 quad_edges_fragment_main(
 )
 {
     float winding = 0;
-    winding += vert.isCurve0 ?
-        quadraticWinding(vert.x0, vert.y0, vert.x1, vert.y1, vert.x2, vert.y2) :
-        lineWinding(vert.x0, vert.y0, vert.x2, vert.y2);
-    winding += vert.isCurve1 ?
-        quadraticWinding(vert.x3, vert.y3, vert.x4, vert.y4, vert.x5, vert.y5) :
-        lineWinding(vert.x3, vert.y3, vert.x5, vert.y5);
-    
+    winding += quadraticWinding(vert.x0, vert.y0, vert.x1, vert.y1, vert.x2, vert.y2);
+    winding += quadraticWinding(vert.x3, vert.y3, vert.x4, vert.y4, vert.x5, vert.y5);
     return winding;
 }
 
