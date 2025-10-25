@@ -14,11 +14,30 @@
 		E920A5A921762BCE00F52C25 /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = E920A5A721762BCE00F52C25 /* MainMenu.xib */; };
 		E920A5AC21762BCE00F52C25 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = E920A5AB21762BCE00F52C25 /* main.m */; };
 		E95512522EACF2AD00AC7260 /* DemoView.mm in Sources */ = {isa = PBXBuildFile; fileRef = E95512512EACF2AD00AC7260 /* DemoView.mm */; };
+		E95512582EACF7B100AC7260 /* freetype.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = E95512572EACF7B100AC7260 /* freetype.xcframework */; };
+		E95512592EACF7B100AC7260 /* freetype.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = E95512572EACF7B100AC7260 /* freetype.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		E955125C2EACF7BE00AC7260 /* pdfium.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = E955125B2EACF7BE00AC7260 /* pdfium.xcframework */; };
+		E955125D2EACF7BE00AC7260 /* pdfium.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = E955125B2EACF7BE00AC7260 /* pdfium.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		E9682E222C7F634D001046F5 /* Rasterizer Default.pdf in Resources */ = {isa = PBXBuildFile; fileRef = E9682E212C7F634D001046F5 /* Rasterizer Default.pdf */; };
 		E971DB2D218495AA005AE5E5 /* Rasterizer.icns in Resources */ = {isa = PBXBuildFile; fileRef = E971DB2C218495AA005AE5E5 /* Rasterizer.icns */; };
 		E9AFC0452E910E5C00BAEFFE /* RasterizerCpp in Frameworks */ = {isa = PBXBuildFile; productRef = E9AFC0442E910E5C00BAEFFE /* RasterizerCpp */; };
 		E9AFC0472E910E5C00BAEFFE /* RasterizerObjC in Frameworks */ = {isa = PBXBuildFile; productRef = E9AFC0462E910E5C00BAEFFE /* RasterizerObjC */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		E955125A2EACF7B100AC7260 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				E955125D2EACF7BE00AC7260 /* pdfium.xcframework in Embed Frameworks */,
+				E95512592EACF7B100AC7260 /* freetype.xcframework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		E920A59921762BCD00F52C25 /* Rasterizer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Rasterizer.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -38,6 +57,8 @@
 		E95512542EACF44800AC7260 /* Concentrichron.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Concentrichron.hpp; sourceTree = "<group>"; };
 		E95512552EACF44800AC7260 /* RasterizerFreeType.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = RasterizerFreeType.h; sourceTree = "<group>"; };
 		E95512562EACF44800AC7260 /* RasterizerPDF.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = RasterizerPDF.hpp; sourceTree = "<group>"; };
+		E95512572EACF7B100AC7260 /* freetype.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = freetype.xcframework; path = Rasterizer/Frameworks/freetype.xcframework; sourceTree = "<group>"; };
+		E955125B2EACF7BE00AC7260 /* pdfium.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = pdfium.xcframework; path = Rasterizer/Frameworks/pdfium.xcframework; sourceTree = "<group>"; };
 		E9682E212C7F634D001046F5 /* Rasterizer Default.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; path = "Rasterizer Default.pdf"; sourceTree = "<group>"; };
 		E971DB2C218495AA005AE5E5 /* Rasterizer.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = Rasterizer.icns; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -49,6 +70,8 @@
 			files = (
 				E9AFC0472E910E5C00BAEFFE /* RasterizerObjC in Frameworks */,
 				E9AFC0452E910E5C00BAEFFE /* RasterizerCpp in Frameworks */,
+				E955125C2EACF7BE00AC7260 /* pdfium.xcframework in Frameworks */,
+				E95512582EACF7B100AC7260 /* freetype.xcframework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -58,6 +81,8 @@
 		E901B3852194B00F00B1AB72 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				E955125B2EACF7BE00AC7260 /* pdfium.xcframework */,
+				E95512572EACF7B100AC7260 /* freetype.xcframework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -122,6 +147,7 @@
 				E920A59521762BCD00F52C25 /* Sources */,
 				E920A59621762BCD00F52C25 /* Frameworks */,
 				E920A59721762BCD00F52C25 /* Resources */,
+				E955125A2EACF7B100AC7260 /* Embed Frameworks */,
 			);
 			buildRules = (
 			);

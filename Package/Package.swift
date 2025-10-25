@@ -25,11 +25,7 @@ let package = Package(
         // Targets can depend on other targets in this package and products from dependencies.
         .target(
             name: "RasterizerCpp",
-            dependencies: ["freetype", "pdfium"],
             path: "Sources/RasterizerCpp",
-            exclude: [
-                "exclude"
-            ],
             cxxSettings: [
                 .headerSearchPath("include"),
             ]
@@ -54,14 +50,6 @@ let package = Package(
             name: "RasterizerSwift",
             dependencies: ["RasterizerObjC"],
             path: "Sources/RasterizerSwift"
-        ),
-        .binaryTarget(
-            name: "freetype",
-            path: "Sources/RasterizerCpp/exclude/freetype.xcframework"
-        ),
-        .binaryTarget(
-            name: "pdfium",
-            path: "Sources/RasterizerCpp/exclude/pdfium.xcframework"
         ),
         .testTarget(
             name: "RasterizerSwiftTests",
