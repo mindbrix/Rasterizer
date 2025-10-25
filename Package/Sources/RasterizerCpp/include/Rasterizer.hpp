@@ -500,7 +500,7 @@ struct Rasterizer {
         Segment s;  short prev, next;  float cx, cy;
     };
     struct Opaque {
-        uint32_t iz;  Cell cell;
+        uint32_t iz;  union { Cell cell;  Segment s; };
     };
     struct Instance {
         enum Flags { kMolecule = 1 << 25, kFastEdges = 1 << 26, kEdge = 1 << 27, kRoundCap = 1 << 28, kOutlines = 1 << 29, kSquareCap = 1 << 30, kEvenOdd = 1 << 31 };
@@ -642,6 +642,7 @@ struct Rasterizer {
                             uint32_t i0 = uint32_t(outlines.idx), i1;
                             Outliner outliner;
                             outliner.iz = inst->iz, outliner.outlines = & outlines;
+                            outliner.opaques = & opaques;
                             divideGeometry(g, m, outlineClip, unclipped, false, outliner);
                             i1 = uint32_t(outlines.idx);
                             inst->data.idx = i0, inst->data.count = i1 - i0;
@@ -1121,8 +1122,13 @@ struct Rasterizer {
             Instance *dst = outlines->alloc(1);
             Outline& o = dst->outline;
             dst->iz = iz, o.s.x0 = x0, o.s.y0 = y0, o.s.x1 = x2, o.s.y1 = y2, o.cx = x1, o.cy = y1, o.prev = -1, o.next = 1;
+            if (opaques) {
+                Opaque *opaque = opaques->alloc(1);
+                Segment& s = opaque->s;
+                opaque->iz = iz, s.x0 = x0, s.y0 = y0, s.x1 = x2, s.y1 = y2;
+            }
         }
-        uint32_t iz;  Row<Instance> *outlines = nullptr;
+        uint32_t iz;  Row<Instance> *outlines = nullptr;  Row<Opaque> *opaques = nullptr;
     };
     static size_t resizeBuffer(const SceneList& list, Context *contexts, size_t count, size_t *begins, Buffer& buffer) {
         size_t size = buffer.headerSize, begin = buffer.headerSize, end = begin, sz, i, j, instances;
