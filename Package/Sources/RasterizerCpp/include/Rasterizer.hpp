@@ -1140,7 +1140,7 @@ struct Rasterizer {
         return size;
     }
     static void writeContextToBuffer(const SceneList& list, Context *ctx, size_t begin, Buffer& buffer) {
-        size_t i, j, count, size, ip, iz, is, lz, ic, end, pbase = 0, instbegin, passsize;
+        size_t i, j, count, size, ip, iz, ic, end, instbegin, passsize;
         if (ctx->segments.end || ctx->p16total) {
             size = ctx->segments.end * sizeof(Segment), end = begin + size;
             ctx->entries.add(Buffer::Entry(Buffer::kSegmentsBase, begin, end));
