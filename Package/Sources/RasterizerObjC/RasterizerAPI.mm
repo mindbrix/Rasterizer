@@ -87,9 +87,6 @@
 - (CGAffineTransform)addSvgFromData:(NSData *)data {
     return RaCG::CGFromTransform(RasterizerSVG::addSvgDataToScene(data.bytes, data.length, _scene));
 }
-- (CGAffineTransform)addPdfFromData:(NSData *)data pageNumber:(NSInteger)pageNumber {
-    return RaCG::CGFromTransform(RasterizerPDF::addPdfToScene(data.bytes, data.length, pageNumber, _scene));
-}
 
 @end
 
