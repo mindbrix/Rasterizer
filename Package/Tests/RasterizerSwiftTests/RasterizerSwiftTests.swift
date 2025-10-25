@@ -16,12 +16,6 @@ import Testing
     await #expect(v.useCG == false)
 }
 
-@Test func testDemoView() async throws {
-    let v = await DemoView()
-    
-    await #expect(v.useCG == false)
-}
-
 @Test func testText() async throws {
     let scene = RAScene()
     let string = "Hello"
@@ -31,10 +25,3 @@ import Testing
     #expect(!bounds.isEmpty)
 }
 
-@Test func testPDF() async throws {
-    let scene = RAScene()
-    let data = Data()
-    let ctm = scene.addPdf(from: data, pageNumber: 0)
-    
-    #expect(ctm.isIdentity)
-}

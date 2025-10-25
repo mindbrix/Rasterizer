@@ -22,7 +22,7 @@
 #import "RasterizerCG.hpp"
 #import "RasterizerUtilities.h"
 #import "RasterizerDemo.hpp"
-#import "RasterizerAPI+Internal.h"
+#import "../private/RasterizerAPI+Internal.h"
 
 @interface DemoView () <NSFontChanging, RASceneListDelegate>
 

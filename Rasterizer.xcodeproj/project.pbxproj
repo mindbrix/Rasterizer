@@ -13,6 +13,7 @@
 		E920A5A621762BCE00F52C25 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E920A5A521762BCE00F52C25 /* Assets.xcassets */; };
 		E920A5A921762BCE00F52C25 /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = E920A5A721762BCE00F52C25 /* MainMenu.xib */; };
 		E920A5AC21762BCE00F52C25 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = E920A5AB21762BCE00F52C25 /* main.m */; };
+		E95512522EACF2AD00AC7260 /* DemoView.mm in Sources */ = {isa = PBXBuildFile; fileRef = E95512512EACF2AD00AC7260 /* DemoView.mm */; };
 		E9682E222C7F634D001046F5 /* Rasterizer Default.pdf in Resources */ = {isa = PBXBuildFile; fileRef = E9682E212C7F634D001046F5 /* Rasterizer Default.pdf */; };
 		E971DB2D218495AA005AE5E5 /* Rasterizer.icns in Resources */ = {isa = PBXBuildFile; fileRef = E971DB2C218495AA005AE5E5 /* Rasterizer.icns */; };
 		E9AFC0452E910E5C00BAEFFE /* RasterizerCpp in Frameworks */ = {isa = PBXBuildFile; productRef = E9AFC0442E910E5C00BAEFFE /* RasterizerCpp */; };
@@ -31,6 +32,8 @@
 		E920A5AA21762BCE00F52C25 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		E920A5AB21762BCE00F52C25 /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
 		E920A5AD21762BCE00F52C25 /* Rasterizer.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Rasterizer.entitlements; sourceTree = "<group>"; };
+		E95512502EACF2AD00AC7260 /* DemoView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = DemoView.h; sourceTree = "<group>"; };
+		E95512512EACF2AD00AC7260 /* DemoView.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = DemoView.mm; sourceTree = "<group>"; };
 		E9682E212C7F634D001046F5 /* Rasterizer Default.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; path = "Rasterizer Default.pdf"; sourceTree = "<group>"; };
 		E971DB2C218495AA005AE5E5 /* Rasterizer.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = Rasterizer.icns; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -92,6 +95,8 @@
 		E970B9072E17D99100E9A7B1 /* Demo */ = {
 			isa = PBXGroup;
 			children = (
+				E95512502EACF2AD00AC7260 /* DemoView.h */,
+				E95512512EACF2AD00AC7260 /* DemoView.mm */,
 				E920A59F21762BCD00F52C25 /* Document.h */,
 				E920A5A021762BCD00F52C25 /* Document.mm */,
 				E920A5A221762BCD00F52C25 /* Document.xib */,
@@ -178,6 +183,7 @@
 				E920A5A121762BCD00F52C25 /* Document.mm in Sources */,
 				E920A5AC21762BCE00F52C25 /* main.m in Sources */,
 				E920A59E21762BCD00F52C25 /* AppDelegate.m in Sources */,
+				E95512522EACF2AD00AC7260 /* DemoView.mm in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
