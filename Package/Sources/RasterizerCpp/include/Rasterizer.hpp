@@ -673,18 +673,18 @@ struct Rasterizer {
             }
         }
         void empty() {
-            outlinePaths = outlineInstances = p16total = 0, blends.empty(), opaques.empty(), outlines.empty(), segments.empty(), segmentsIndices.empty(), indices.empty();
+            p16total = 0, blends.empty(), opaques.empty(), outlines.empty(), segments.empty(), segmentsIndices.empty(), indices.empty();
             p16s.resize(0);
             for (int i = 0; i < samples.size(); i++)
                 samples[i].empty();
             entries = Vector<Buffer::Entry>();
         }
-        void reset() { outlinePaths = outlineInstances = p16total = 0, blends.reset(), opaques.reset(), outlines.reset(), segments.reset(), segmentsIndices.reset(), indices.reset(), entries = Vector<Buffer::Entry>();
+        void reset() { p16total = 0, blends.reset(), opaques.reset(), outlines.reset(), segments.reset(), segmentsIndices.reset(), indices.reset(), entries = Vector<Buffer::Entry>();
             p16s.resize(0);
             samples.memory->resize(0);
         }
         
-        size_t outlinePaths = 0, outlineInstances = 0, p16total;
+        size_t p16total;
         Allocator allocator;  Vector<Buffer::Entry> entries;
         Vector<Row<Point16>*> p16s;
         Row<Blend> blends;  Row<Instance> opaques, outlines;  Row<Segment> segments;
@@ -1125,11 +1125,9 @@ struct Rasterizer {
             size += contexts[i].opaques.end * sizeof(Instance);
         Context *ctx = contexts;   Allocator::Pass *pass;
         for (ctx = contexts, i = 0; i < count; i++, ctx++) {
-            ctx->outlineInstances = ctx->outlines.end + ctx->outlinePaths;
-            
             for (instances = 0, pass = ctx->allocator.passes.base, j = 0; j < ctx->allocator.passes.end; j++, pass++)
                 instances += pass->count();
-            begins[i] = size, size += instances * sizeof(Edge) + (ctx->outlineInstances - ctx->outlinePaths + ctx->blends.end) * sizeof(Instance) + ctx->segments.end * sizeof(Segment) + ctx->p16total * sizeof(Point16);
+            begins[i] = size, size += instances * sizeof(Edge) + (ctx->outlines.end + ctx->blends.end) * sizeof(Instance) + ctx->segments.end * sizeof(Segment) + ctx->p16total * sizeof(Point16);
         }
         buffer.resize(size, buffer.headerSize);
         for (i = 0; i < count; i++)
