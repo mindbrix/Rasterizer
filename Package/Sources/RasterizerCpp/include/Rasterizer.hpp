@@ -499,6 +499,11 @@ struct Rasterizer {
     struct Outline {
         Segment s;  short prev, next;  float cx, cy;
     };
+    
+    struct InstanceIndex {
+        enum Flags { kIsOutline = 1 << 31 };
+        uint32_t i;
+    };
     struct Instance {
         enum Flags { kMolecule = 1 << 25, kFastEdges = 1 << 26, kEdge = 1 << 27, kRoundCap = 1 << 28, kOutlines = 1 << 29, kSquareCap = 1 << 30, kEvenOdd = 1 << 31 };
         Instance(size_t iz) : iz(uint32_t(iz)) {}
@@ -636,12 +641,17 @@ struct Rasterizer {
                         if (width) {
                             Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kOutlines | bool(flags & Scene::kRoundCap) * Instance::kRoundCap | bool(flags & Scene::kSquareCap) * Instance::kSquareCap);
                             Bounds outlineClip = unclipped ? Bounds::huge() : clip.inset(-width, -width);
-                            inst->data.idx = uint32_t(outlines.idx);
+                            uint32_t i0 = uint32_t(outlines.idx), i1;
                             Outliner outliner;
                             outliner.iz = inst->iz, outliner.outlines = & outlines;
                             divideGeometry(g, m, outlineClip, unclipped, false, outliner);
-                            inst->data.count = uint32_t(outlines.idx) - inst->data.idx;
+                            i1 = uint32_t(outlines.idx);
+                            inst->data.idx = i0, inst->data.count = i1 - i0;
                             
+                            InstanceIndex *idx = instanceIndices.alloc(i1 - i0);
+                            for (uint32_t i = i0; i < i1; i++, idx++)
+                                idx->i = i | InstanceIndex::kIsOutline;
+                        
                         } else if (useMolecules && clipWidth * clipHeight / g->types.end < kMoleculesPixelsPerEdge) {
                             bounds[iz] = *bnds;
                             bool fast = !buffer->useCurves || g->maxCurve * det < 16.f;
@@ -664,9 +674,15 @@ struct Rasterizer {
                                 Bounds soft = Bounds(quad.concat(invclip));
                                 softunclipped = fmaxf(fmaxf(fabsf(soft.lx - 0.5f), fabsf(soft.ux - 0.5f)), fmaxf(fabsf(soft.ly - 0.5f), fabsf(soft.uy - 0.5f))) < softclipMargin;
                             }
+                            size_t i0 = opaques.end, i1;
                             bool opaque = colors[iz].a == 255 && softunclipped;
                             writeSegmentInstances(clip, flags & Scene::kFillEvenOdd, iz, opaque, fast, *this);
                             segments.idx = segments.end = idxr.dst - segments.base;
+                            i1 = opaques.end;
+                            
+                            InstanceIndex *idx = instanceIndices.alloc(i1 - i0);
+                            for (size_t i = i0; i < i1; i++, idx++)
+                                idx->i = uint32_t(i);
                         }
                     }
                 }
@@ -675,18 +691,21 @@ struct Rasterizer {
         void empty() {
             p16total = 0, blends.empty(), opaques.empty(), outlines.empty(), segments.empty(), segmentsIndices.empty(), indices.empty();
             p16s.resize(0);
+            instanceIndices.empty();
             for (int i = 0; i < samples.size(); i++)
                 samples[i].empty();
             entries = Vector<Buffer::Entry>();
         }
         void reset() { p16total = 0, blends.reset(), opaques.reset(), outlines.reset(), segments.reset(), segmentsIndices.reset(), indices.reset(), entries = Vector<Buffer::Entry>();
             p16s.resize(0);
+            instanceIndices.reset();
             samples.memory->resize(0);
         }
         
         size_t p16total;
         Allocator allocator;  Vector<Buffer::Entry> entries;
         Vector<Row<Point16>*> p16s;
+        Row<InstanceIndex> instanceIndices;
         Row<Blend> blends;  Row<Instance> opaques, outlines;  Row<Segment> segments;
         Row<Sample::Index> indices;  RefVector<Row<Sample>> samples;  Row<uint32_t> segmentsIndices;
     };
