@@ -1,5 +1,5 @@
 //
-//  RasterizerObjC+Internal.h
+//  RasterizerAPI+Internal.h
 //  Rasterizer
 //
 //  Created by Nigel Barber on 04/09/2025.
@@ -7,7 +7,6 @@
 //
 #import "RasterizerAPI.h"
 #import "Rasterizer.hpp"
-#import "RasterizerFreeType.h"
 
 
 @interface RAPath ()
