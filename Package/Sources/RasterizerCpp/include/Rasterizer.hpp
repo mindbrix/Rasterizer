@@ -499,10 +499,8 @@ struct Rasterizer {
     struct Outline {
         Segment s;  short prev, next;  float cx, cy;
     };
-    
-    struct InstanceIndex {
-        enum Flags { kIsOutline = 1 << 31 };
-        uint32_t i;
+    struct Opaque {
+        uint32_t iz;  Cell cell;
     };
     struct Instance {
         enum Flags { kMolecule = 1 << 25, kFastEdges = 1 << 26, kEdge = 1 << 27, kRoundCap = 1 << 28, kOutlines = 1 << 29, kSquareCap = 1 << 30, kEvenOdd = 1 << 31 };
@@ -647,11 +645,6 @@ struct Rasterizer {
                             divideGeometry(g, m, outlineClip, unclipped, false, outliner);
                             i1 = uint32_t(outlines.idx);
                             inst->data.idx = i0, inst->data.count = i1 - i0;
-                            
-                            InstanceIndex *idx = instanceIndices.alloc(i1 - i0);
-                            for (uint32_t i = i0; i < i1; i++, idx++)
-                                idx->i = i | InstanceIndex::kIsOutline;
-                        
                         } else if (useMolecules && clipWidth * clipHeight / g->types.end < kMoleculesPixelsPerEdge) {
                             bounds[iz] = *bnds;
                             bool fast = !buffer->useCurves || g->maxCurve * det < 16.f;
@@ -674,15 +667,9 @@ struct Rasterizer {
                                 Bounds soft = Bounds(quad.concat(invclip));
                                 softunclipped = fmaxf(fmaxf(fabsf(soft.lx - 0.5f), fabsf(soft.ux - 0.5f)), fmaxf(fabsf(soft.ly - 0.5f), fabsf(soft.uy - 0.5f))) < softclipMargin;
                             }
-                            size_t i0 = opaques.end, i1;
                             bool opaque = colors[iz].a == 255 && softunclipped;
                             writeSegmentInstances(clip, flags & Scene::kFillEvenOdd, iz, opaque, fast, *this);
                             segments.idx = segments.end = idxr.dst - segments.base;
-                            i1 = opaques.end;
-                            
-                            InstanceIndex *idx = instanceIndices.alloc(i1 - i0);
-                            for (size_t i = i0; i < i1; i++, idx++)
-                                idx->i = uint32_t(i);
                         }
                     }
                 }
@@ -691,22 +678,19 @@ struct Rasterizer {
         void empty() {
             p16total = 0, blends.empty(), opaques.empty(), outlines.empty(), segments.empty(), segmentsIndices.empty(), indices.empty();
             p16s.resize(0);
-            instanceIndices.empty();
             for (int i = 0; i < samples.size(); i++)
                 samples[i].empty();
             entries = Vector<Buffer::Entry>();
         }
         void reset() { p16total = 0, blends.reset(), opaques.reset(), outlines.reset(), segments.reset(), segmentsIndices.reset(), indices.reset(), entries = Vector<Buffer::Entry>();
             p16s.resize(0);
-            instanceIndices.reset();
             samples.memory->resize(0);
         }
         
         size_t p16total;
         Allocator allocator;  Vector<Buffer::Entry> entries;
         Vector<Row<Point16>*> p16s;
-        Row<InstanceIndex> instanceIndices;
-        Row<Blend> blends;  Row<Instance> opaques, outlines;  Row<Segment> segments;
+        Row<Opaque> opaques;  Row<Blend> blends;  Row<Instance> outlines;  Row<Segment> segments;
         Row<Sample::Index> indices;  RefVector<Row<Sample>> samples;  Row<uint32_t> segmentsIndices;
     };
     static void divideGeometry(Geometry *g, Transform m, Bounds clip, bool unclipped, bool polygon, GeometryWriter& writer) {
@@ -1073,7 +1057,9 @@ struct Rasterizer {
                         winding = cover = truncf(winding + copysign(0.5f, winding));
                         if ((even && (int(winding) & 1)) || (!even && winding)) {
                             if (opaque) {
-                                Cell *cell = & (new (ctx.opaques.alloc(1)) Instance(iz))->quad.cell;
+                                Opaque *opaque = ctx.opaques.alloc(1);
+                                Cell *cell = & opaque->cell;
+                                opaque->iz = uint32_t(iz);
                                 cell->lx = ux, cell->ly = ly, cell->ux = index->lx, cell->uy = uy;
                             } else {
                                 Cell *cell = & (new (ctx.blends.alloc(1)) Blend(iz))->quad.cell;
@@ -1141,7 +1127,7 @@ struct Rasterizer {
     static size_t resizeBuffer(const SceneList& list, Context *contexts, size_t count, size_t *begins, Buffer& buffer) {
         size_t size = buffer.headerSize, begin = buffer.headerSize, end = begin, sz, i, j, instances;
         for (i = 0; i < count; i++)
-            size += contexts[i].opaques.end * sizeof(Instance);
+            size += contexts[i].opaques.end * sizeof(Opaque);
         Context *ctx = contexts;   Allocator::Pass *pass;
         for (ctx = contexts, i = 0; i < count; i++, ctx++) {
             for (instances = 0, pass = ctx->allocator.passes.base, j = 0; j < ctx->allocator.passes.end; j++, pass++)
@@ -1150,7 +1136,7 @@ struct Rasterizer {
         }
         buffer.resize(size, buffer.headerSize);
         for (i = 0; i < count; i++)
-            if ((sz = contexts[i].opaques.end * sizeof(Instance)))
+            if ((sz = contexts[i].opaques.end * sizeof(Opaque)))
                 memcpy(buffer.base + end, contexts[i].opaques.base, sz), end += sz;
         if (begin != end)
             new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::kOpaques, begin, end);

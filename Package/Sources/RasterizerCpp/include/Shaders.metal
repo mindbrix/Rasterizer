@@ -58,6 +58,10 @@ struct Outline {
     float cx, cy;
 };
 
+struct Opaque {
+    uint32_t iz;  Cell cell;
+};
+
 struct Instance {
     enum Flags {
         kFastOutlines = 1 << 24, kIsCurve = 1 << 24,
@@ -168,14 +172,14 @@ struct OpaquesVertex
 };
 
 vertex OpaquesVertex opaques_vertex_main(const device Colorant *colors [[buffer(0)]],
-                                         const device Instance *instances [[buffer(1)]],
+                                         const device Opaque *opaques [[buffer(1)]],
                                          constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
                                          constant uint *reverse [[buffer(12)]], constant uint *pathCount [[buffer(13)]],
                                          uint vid [[vertex_id]], uint iid [[instance_id]])
 {
-    const device Instance& inst = instances[*reverse - 1 - iid];
+    const device Opaque& inst = opaques[*reverse - 1 - iid];
     const device Colorant& color = colors[inst.iz & kPathIndexMask];
-    const device Cell& cell = inst.quad.cell;
+    const device Cell& cell = inst.cell;
     OpaquesVertex vert;
     vert.position = {
         select(cell.lx, cell.ux, vid & 1) / *width * 2.0 - 1.0,
