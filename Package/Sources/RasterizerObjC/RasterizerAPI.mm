@@ -11,7 +11,6 @@
 #import "RasterizerCG.hpp"
 #import "RasterizerUtilities.h"
 #import "RasterizerSVG.hpp"
-#import "RasterizerPDF.hpp"
 #import "RasterizerCoreText.hpp"
 
 
