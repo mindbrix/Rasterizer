@@ -1177,21 +1177,12 @@ struct Rasterizer {
                 assert(begin == instbegin);
             }
             
-            Vector<size_t> changes;  changes.add(begin);
-            bool isOutline, wasOutline = ctx->blends.base[pass->idx].iz & Instance::kOutlines;
-            
             Instance *dst0 = (Instance *)(buffer.base + begin), *dst = dst0;  Outliner outliner;
             for (Blend *inst = ctx->blends.base + pass->idx, *endinst = inst + passsize; inst < endinst; inst++) {
                 iz = inst->iz & kPathIndexMask;
                 Geometry *g = inst->g;
                 
-                isOutline = inst->iz & Instance::kOutlines;
-                
-                if (isOutline != wasOutline) {
-                    changes.add(begin + (dst - dst0) * sizeof(Instance));
-                    wasOutline = isOutline;
-                }
-                if (isOutline) {
+                if (inst->iz & Instance::kOutlines) {
                     memcpy(dst, ctx->outlines.base + inst->data.idx, inst->data.count * sizeof(Instance));
                     dst += inst->data.count;
                 } else {
@@ -1238,18 +1229,7 @@ struct Rasterizer {
             
             if ((size = dst - dst0)) {
                 end = begin + size * sizeof(Instance);
-                changes.add(end);
-                
-                if (kSeparateOutlineCalls) {
-                    size_t i0, i1;
-                    for (int i = 0; i < changes.size() - 1; i++) {
-                        i0 = changes[i], i1 = changes[i + 1];
-                        if (i0 != i1)
-                            ctx->entries.add(Buffer::Entry(Buffer::kInstances, i0, i1));
-                    }
-                } else {
-                    ctx->entries.add(Buffer::Entry(Buffer::kInstances, begin, end));
-                }
+                ctx->entries.add(Buffer::Entry(Buffer::kInstances, begin, end));
                 begin = end;
             }
         }
