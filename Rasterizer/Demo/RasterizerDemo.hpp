@@ -156,16 +156,6 @@ struct RasterizerDemo {
         redraw = true;
     }
     
-    void onRedraw(float w, float h) {
-        bounds = Ra::Bounds(0.f, 0.f, w, h);
-        redraw = false;
-        if (animating)
-            clock += timeScale / 60.0;
-        if (mouseMove) {
-            list.ctm = ctm;
-            indices = RasterizerWinding::indicesForPoint(list, bounds, mx, my);
-        }
-    }
    
 #pragma mark - Properties
     
@@ -207,8 +197,16 @@ struct RasterizerDemo {
         return hud;
     }
     Ra::SceneList getDrawList(double time, float w, float h) {
-        clock = time * timeScale;
         bounds = Ra::Bounds(0.f, 0.f, w, h);
+        redraw = false;
+        if (animating)
+            clock += timeScale / 60.0;
+        if (mouseMove) {
+            list.ctm = ctm;
+            indices = RasterizerWinding::indicesForPoint(list, bounds, mx, my);
+        }
+        
+        clock = time * timeScale;
         list = Ra::SceneList();
         if (pastedString.size) {
             if (pasted.pathsCount == 0) {
