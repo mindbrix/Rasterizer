@@ -178,7 +178,7 @@ class SwiftDemo: NSObject, RASceneListDelegate {
         path.quad(to: 0.25 * width, y1: 0.5 * height, x2: width, y2: 0)
         
         let scene = RAScene()
-        scene.add(path, ctm: .identity, color: CGColor(gray: 0, alpha: 1), width: 1e-2 * width, flags: 0, clip: .zero)
+        scene.add(path, ctm: .identity, color: CGColor(gray: 0, alpha: 1), width: 1e-1 * width, flags: 0, clip: .zero)
         
         let list = RASceneList()
         list.add(scene, ctm: .identity, clip: .zero)
@@ -219,7 +219,6 @@ class SwiftDemo: NSObject, RASceneListDelegate {
         path.addEllipse(unitRect)
         path.close()
         
-        let black = CGColor(gray: 0, alpha: 1)
         let scene = RAScene()
         let count = flag ? 2000 : 20
         let r = 0.5 * dim
@@ -236,13 +235,6 @@ class SwiftDemo: NSObject, RASceneListDelegate {
                 scale: CGSize(width: scale, height: scale),
                 translation: CGVector(dx: radial.x - unitCenter.x, dy: radial.y - unitCenter.y)
             )
-//            scene.add(path,
-//                ctm: ctm,
-//                color: black,
-//                width: 0,
-//                flags: 0,
-//                clip: .zero
-//            )
             scene.add(path,
                 ctm: ctm,
                 color: hsv,
