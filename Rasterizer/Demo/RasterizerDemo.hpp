@@ -361,8 +361,7 @@ struct RasterizerDemo {
                 dstCtms[j] = m->concatAroundCenter(rsts[j & 1], cx * m->a + cy * m->c + m->tx, cx * m->b + cy * m->d + m->ty);
             }
         }
-        for (size_t j = li; j < ui; j++)
-            dstWidths[j] = scale * srcWidths[j];
+        memcpy(dstWidths + li, srcWidths + li, count * sizeof(srcWidths[0]));
         
         for (size_t j = li; j < ui; j++) {
             dstColors[j] = (demo.indices.i0 == si && demo.indices.i1 == j) ? red : srcColors[j];
