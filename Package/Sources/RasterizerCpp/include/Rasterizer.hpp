@@ -499,8 +499,11 @@ struct Rasterizer {
     struct Outline {
         Segment s;  short prev, next;  float cx, cy;
     };
+    struct Quadratic {
+        float x0, y0, x1, y1, x2, y2;
+    };
     struct Opaque {
-        uint32_t iz;  float tcp;  union { Cell cell;  Segment s; };
+        uint32_t iz;  union { Cell cell;  Quadratic s; };
     };
     struct Instance {
         enum Flags { kMolecule = 1 << 25, kFastEdges = 1 << 26, kEdge = 1 << 27, kRoundCap = 1 << 28, kOutlines = 1 << 29, kSquareCap = 1 << 30, kEvenOdd = 1 << 31 };
@@ -1125,14 +1128,8 @@ struct Rasterizer {
             dst->iz = iz, o.s.x0 = x0, o.s.y0 = y0, o.s.x1 = x2, o.s.y1 = y2, o.cx = x1, o.cy = y1, o.prev = -1, o.next = 1;
             if (opaques) {
                 Opaque *opaque = opaques->alloc(1);
-                Segment& s = opaque->s;
-                opaque->iz = iz, s.x0 = x0, s.y0 = y0, s.x1 = x2, s.y1 = y2;
-                opaque->tcp = 0.f;
-                if (x1 != FLT_MAX) {
-                    float cx, cy, cdot;
-                    cx = x2 - x0, cy = y2 - y0, cdot = cx * cx + cy * cy;
-                    opaque->tcp = ((x1 - x0) * -cy + (y1 - y0) * cx) / cdot;
-                }
+                struct Quadratic& s = opaque->s;
+                opaque->iz = iz, s.x0 = x0, s.y0 = y0, s.x1 = x1, s.y1 = y1, s.x2 = x2, s.y2 = y2;
             }
         }
         uint32_t iz;  Row<Instance> *outlines = nullptr;  Row<Opaque> *opaques = nullptr;

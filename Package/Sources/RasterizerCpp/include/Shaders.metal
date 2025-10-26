@@ -58,8 +58,12 @@ struct Outline {
     float cx, cy;
 };
 
+struct Quadratic {
+    float x0, y0, x1, y1, x2, y2;
+};
+
 struct Opaque {
-    uint32_t iz;  float tcp;  union { Cell cell;  Segment s; };
+    uint32_t iz;  union { Cell cell;  Quadratic s; };
 };
 
 struct Instance {
@@ -180,26 +184,29 @@ vertex OpaquesVertex opaques_vertex_main(const device Colorant *colors [[buffer(
 {
     const device Opaque& inst = opaques[*reverse - 1 - iid];
     const device Colorant& color = colors[inst.iz & kPathIndexMask];
-    const float tcp = 0.5 * inst.tcp;
     const device Cell& cell = inst.cell;
-    const device Segment& s = inst.s;
+    const device Quadratic& s = inst.s;
     float x, y, z = kDepthRange * float((inst.iz & kPathIndexMask) + 1) / float(*pathCount);
     
     OpaquesVertex vert;
     vert.color = { color.r / 255.0, color.g / 255.0, color.b / 255.0, 1.0 };
     
     if (inst.iz & Instance::kOutlines) {
-        float dw, x0, y0, x1, y1, cx, cy, rc, dx, dy, ow, sign, miter;
+        float dw, x0, y0, x1, y1, x2, y2, cx, cy, cdot, rc, tcp, dx, dy, ow, sign, miter;
         dw = 0.5 * (widths[inst.iz & kPathIndexMask] - 1.0);
-        x0 = s.x0, y0 = s.y0, x1 = s.x1, y1 = s.y1;
-        cx = x1 - x0, cy = y1 - y0, rc = rsqrt(cx * cx + cy * cy);
+        
+        x0 = s.x0, y0 = s.y0, x1 = s.x1, y1 = s.y1, x2 = s.x2, y2 = s.y2;
+        cx = x2 - x0, cy = y2 - y0, cdot = cx * cx + cy * cy, rc = rsqrt(cdot);
         float2 no = { cx * rc, cy * rc };
+        
+        tcp = x1 == FLT_MAX ? 0.0 : 0.5 * ((x1 - x0) * -cy + (y1 - y0) * cx) / cdot;
+        
         sign = vid & 1 ? -1.0 : 1.0;
         dx = 0.5 * no.x, dy = 0.5 * no.y;
         ow = sign * tcp > 0.0 ? 0.0 : abs(tcp / rc);
         miter = sign * (dw - ow);
-        x = (vid >> 1 ? x1 - dx : x0 + dx) + miter * -no.y;
-        y = (vid >> 1 ? y1 - dy : y0 + dy) + miter * no.x;
+        x = (vid >> 1 ? x2 - dx : x0 + dx) + miter * -no.y;
+        y = (vid >> 1 ? y2 - dy : y0 + dy) + miter * no.x;
         vert.color = { 1, 0, 0, 1.0 };
     } else {
         x = select(cell.lx, cell.ux, vid & 1);
