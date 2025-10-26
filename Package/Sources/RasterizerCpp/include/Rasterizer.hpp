@@ -120,6 +120,7 @@ struct Rasterizer {
         float lx, ly, ux, uy;
     };
     struct Colorant {
+        Colorant() {}
         Colorant(uint8_t b, uint8_t g, uint8_t r, uint8_t a) : b(b), g(g), r(r), a(a) {}
         uint8_t b, g, r, a;
     };
@@ -469,6 +470,7 @@ struct Rasterizer {
     struct Params {
         bool useCurves = true;
         bool showOpaques = true;
+        bool showOutlines = false;
     };
     struct SceneList {
         Bounds bounds() const {
@@ -614,7 +616,7 @@ struct Rasterizer {
             bool clipActive = false;
             
             size_t lz, uz, i, clz, cuz, iz, is, size, cnt;  uint8_t flags;
-            float det, width, uw, softclipMargin = 0.5f;
+            float det, width, uw, softclipMargin = 0.5f;  Colorant color;
             for (lz = uz = i = 0; i < list.scenes.size(); i++, lz = uz) {
                 const Scene *scn = & list.scenes[i];
                 uz = lz + scn->count, clz = lz < slz ? slz : lz > suz ? suz : lz, cuz = uz < slz ? slz : uz > suz ? suz : uz;
@@ -624,7 +626,14 @@ struct Rasterizer {
                     if ((flags = scn->flags->base[is]) & Scene::Flags::kInvisible)
                         continue;
                     m = scn->ctms->base[is].concat(ctm), det = fabsf(m.a * m.d - m.b * m.c);
-                    uw = scn->widths->base[is], width = uw * (uw > 0.f ? sqrtf(det) : -1.f);
+                    uw = scn->widths->base[is];
+                    if (list.params.showOutlines) {
+                        width = 1.f;
+                        color = uw == 0.f ? Colorant(0, 0, 0, 255) : Colorant(0, 0, 255, 255);
+                    } else {
+                        width = uw * (uw > 0.f ? sqrtf(det) : -1.f);
+                        color = scn->colors->base[is];
+                    }
                     
                     bool newClip = memcmp(& scn->clips[is], & lastClip, sizeof(Bounds)) != 0;
                     if (newClip) {
@@ -641,8 +650,8 @@ struct Rasterizer {
                         bool unclipped = clip.contains(dev);
                         float clipWidth = clip.width(), clipHeight = clip.height();
                         bool useMolecules = clipHeight <= kMoleculesHeight && clipWidth <= kMoleculesHeight;
-                        colors[iz] = scn->colors->base[is];
-                        ctms[iz] = m, widths[iz] = width, clips[iz] = invclip;
+                        
+                        colors[iz] = color, ctms[iz] = m, widths[iz] = width, clips[iz] = invclip;
                         Geometry *g = scn->paths[is].ptr;
                         if (width) {
                             Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kOutlines | bool(flags & Scene::kRoundCap) * Instance::kRoundCap | bool(flags & Scene::kSquareCap) * Instance::kSquareCap);
@@ -650,7 +659,7 @@ struct Rasterizer {
                             uint32_t i0 = uint32_t(outlines.idx), i1;
                             Outliner outliner;
                             outliner.iz = inst->iz, outliner.outlines = & outlines;
-                            if (width > 4.f && colors[iz].a == 255) {
+                            if (width > 4.f && color.a == 255) {
                                 bool softunclipped = true;
                                 if (clipActive) {
                                     Bounds soft = Bounds(quad.concat(invclip));
@@ -683,7 +692,7 @@ struct Rasterizer {
                                 Bounds soft = Bounds(quad.concat(invclip));
                                 softunclipped = fmaxf(fmaxf(fabsf(soft.lx - 0.5f), fabsf(soft.ux - 0.5f)), fmaxf(fabsf(soft.ly - 0.5f), fabsf(soft.uy - 0.5f))) < softclipMargin;
                             }
-                            bool opaque = colors[iz].a == 255 && softunclipped;
+                            bool opaque = color.a == 255 && softunclipped;
                             writeSegmentInstances(clip, flags & Scene::kFillEvenOdd, iz, opaque, fast, *this);
                             segments.idx = segments.end = idxr.dst - segments.base;
                         }

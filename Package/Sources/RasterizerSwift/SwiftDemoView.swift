@@ -102,10 +102,10 @@ class SwiftDemo: NSObject, RASceneListDelegate {
     
     var index = 0
     var flag = false
-    var outlines = false
     var paused = false
     var useCurves = true
     var showOpaques = true
+    var showOutlines = false
     var t = 0.0
     var ctm = CGAffineTransform.identity
     var bounds = CGRect.zero
@@ -131,7 +131,7 @@ class SwiftDemo: NSObject, RASceneListDelegate {
             case "i":
                 showOpaques.toggle()
             case "o":
-                outlines.toggle()
+                showOutlines.toggle()
             case "p":
                 paused.toggle()
             case "v":
@@ -168,6 +168,7 @@ class SwiftDemo: NSObject, RASceneListDelegate {
         list.ctm = ctm
         list.useCurves = useCurves
         list.showOpaques = showOpaques
+        list.showOutlines = showOutlines
         return list
     }
     
@@ -177,7 +178,7 @@ class SwiftDemo: NSObject, RASceneListDelegate {
         path.quad(to: 0.25 * width, y1: 0.5 * height, x2: width, y2: 0)
         
         let scene = RAScene()
-        scene.add(path, ctm: .identity, color: CGColor(gray: 0, alpha: 1), width: outlines ? -1 : 1e-2 * width, flags: 0, clip: .zero)
+        scene.add(path, ctm: .identity, color: CGColor(gray: 0, alpha: 1), width: 1e-2 * width, flags: 0, clip: .zero)
         
         let list = RASceneList()
         list.add(scene, ctm: .identity, clip: .zero)
@@ -200,7 +201,7 @@ class SwiftDemo: NSObject, RASceneListDelegate {
             }
         }
         let scene = RAScene()
-        scene.add(path, ctm: .identity, color: CGColor(gray: 0, alpha: 1), width: outlines ? -1 : 0, flags: RASceneFlags.fillEvenOdd.rawValue, clip: .zero)
+        scene.add(path, ctm: .identity, color: CGColor(gray: 0, alpha: 1), width: 0, flags: RASceneFlags.fillEvenOdd.rawValue, clip: .zero)
 
         let list = RASceneList()
         list.add(scene, ctm: .identity, clip: .zero)
@@ -245,7 +246,7 @@ class SwiftDemo: NSObject, RASceneListDelegate {
             scene.add(path,
                 ctm: ctm,
                 color: hsv,
-                width: outlines ? -1 : 0.1,
+                width: 0.1,
                 flags: 0,
                 clip: .zero
             )

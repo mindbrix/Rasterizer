@@ -83,8 +83,7 @@ struct Edge {
 };
 
 struct Params {
-    bool useCurves;
-    bool showOpaques;
+    bool useCurves, showOpaques, showOutlines;
 };
 
 

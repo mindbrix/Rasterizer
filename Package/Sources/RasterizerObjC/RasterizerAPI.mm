@@ -115,6 +115,12 @@
 - (void)setShowOpaques:(BOOL)showOpaques {
     _list.params.showOpaques = showOpaques;
 }
+- (BOOL)showOutlines {
+    return _list.params.showOutlines;
+}
+- (void)setShowOutlines:(BOOL)showOutlines {
+    _list.params.showOutlines = showOutlines;
+}
 
 - (void)addList:(RASceneList *)list {
     _list.addList(list.list);

@@ -83,7 +83,7 @@ struct RasterizerDemo {
         else if (keyCode == KeyCode::kI)
             params.showOpaques = !params.showOpaques, keyUsed = true, clearHUD();
         else if (keyCode == KeyCode::kO)
-            outlineWidth = outlineWidth ? 0.f : -1.f, keyUsed = true, clearHUD();
+            params.showOutlines = !params.showOutlines, keyUsed = true, clearHUD();
         else if (keyCode == KeyCode::kP)
             mouseMove = !mouseMove, indices = mouseMove ? indices : Rw::IndexPair(INT_MAX, INT_MAX), keyUsed = true, clearHUD();
         else if (keyCode == KeyCode::kL)
@@ -192,7 +192,7 @@ struct RasterizerDemo {
                 || (*item.key == 'A' && animating)
                 || (*item.key == 'G' && showGlyphGrid)
                 || (*item.key == 'I' && params.showOpaques)
-                || (*item.key == 'O' && outlineWidth != 0)
+                || (*item.key == 'O' && params.showOutlines)
                 || (*item.key == 'P' && mouseMove)
                 || (*item.key == 'T' && showTime)
                 || (*item.key == 'C' && params.useCurves))
@@ -310,7 +310,7 @@ struct RasterizerDemo {
     Ra::Params params;
     bool gpu = true, redraw = false, fit = false, mouseDown = false, mouseMove = false, animating = false;
     double clock = 0.0, timeScale = 0.333;
-    float mx, my, outlineWidth = 0.f;
+    float mx, my;
     Rw::IndexPair indices = Rw::IndexPair(INT_MAX, INT_MAX), locked = Rw::IndexPair(INT_MAX, INT_MAX);
     size_t flags = 0;
     
@@ -361,16 +361,11 @@ struct RasterizerDemo {
                 dstCtms[j] = m->concatAroundCenter(rsts[j & 1], cx * m->a + cy * m->c + m->tx, cx * m->b + cy * m->d + m->ty);
             }
         }
-        if (demo.outlineWidth) {
-            memset_pattern4(dstWidths + li, & demo.outlineWidth, count * sizeof(srcWidths[0]));
-        } else if (!demo.animating)
-            memcpy(dstWidths + li, srcWidths + li, count * sizeof(srcWidths[0]));
-        else
-            for (size_t j = li; j < ui; j++)
-                dstWidths[j] = scale * srcWidths[j];
+        for (size_t j = li; j < ui; j++)
+            dstWidths[j] = scale * srcWidths[j];
         
         for (size_t j = li; j < ui; j++) {
-            dstColors[j] = (demo.indices.i0 == si && demo.indices.i1 == j) ? red : demo.outlineWidth != 0.f ? (srcWidths[j] ? red : black) : srcColors[j];
+            dstColors[j] = (demo.indices.i0 == si && demo.indices.i1 == j) ? red : srcColors[j];
         }
         for (size_t j = li; j < ui; j++) {
             dstFlags[j] = demo.locked.i0 == INT_MAX ? srcFlags[j] : si == demo.locked.i0 && j == demo.locked.i1 ? srcFlags[j] & ~Ra::Scene::kInvisible : srcFlags[j] | Ra::Scene::kInvisible;
