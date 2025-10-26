@@ -89,6 +89,7 @@ struct RasterizerPDF {
     };
     
     static bool pathIsRect(Ra::Path p) {
+        p->validate();
         float *pts = p->points.base, ax, ay, bx, by, t0, t1;
         if (p->types.end != 6 || p->counts[Ra::Geometry::kLine] != 4 || pts[0] != pts[10] || pts[1] != pts[11])
             return false;
