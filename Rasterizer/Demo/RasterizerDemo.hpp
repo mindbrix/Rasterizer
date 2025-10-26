@@ -197,7 +197,7 @@ struct RasterizerDemo {
                 || (*item.key == 'T' && showTime)
                 || (*item.key == 'C' && useCurves))
                 color = activeColor;
-            Ra::Bounds gb = RasterizerCoreText::addCStringToSceneInRect(item.key, fontName.addr, fontSize, textColor, Ra::Bounds(text.lx, hudBounds.ly, text.ux, uy), Ra::Transform(), Ra::Bounds(), hud);
+            RasterizerCoreText::addCStringToSceneInRect(item.key, fontName.addr, fontSize, textColor, Ra::Bounds(text.lx, hudBounds.ly, text.ux, uy), Ra::Transform(), Ra::Bounds(), hud);
             char const *label = item.text;
             if (*item.key == '0' && !gpu)
                 label = item.alt;
@@ -245,7 +245,7 @@ struct RasterizerDemo {
         if (fit)
             ctm = bounds.fitTransform(list.bounds()), fit = false;
         Ra::SceneList draw = list;
-        draw.ctm = ctm, draw.params.useCurves = useCurves, draw.params.showOpaques = opaque;
+        draw.ctm = ctm, draw.params.useCurves = useCurves, draw.params.showOpaques = !opaque;
         if (showHud) {
             Ra::Bounds hudBounds = Ra::Bounds(0, 0, kHudWidth, kHudHeight);
             if (hud.weight == 0)
@@ -307,7 +307,7 @@ struct RasterizerDemo {
     Ra::Transform ctm;
     Ra::Bounds bounds;
 
-    bool gpu = true, redraw = false, fit = false, mouseDown = false, mouseMove = false, useCurves = true, animating = false, opaque = false;
+    bool gpu = true, redraw = false, fit = false, mouseDown = false, mouseMove = false, useCurves = true, animating = false, opaque = true;
     double clock = 0.0, timeScale = 0.333;
     float mx, my, outlineWidth = 0.f;
     Rw::IndexPair indices = Rw::IndexPair(INT_MAX, INT_MAX), locked = Rw::IndexPair(INT_MAX, INT_MAX);

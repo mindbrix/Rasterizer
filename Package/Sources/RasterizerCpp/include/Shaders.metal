@@ -196,7 +196,7 @@ vertex OpaquesVertex opaques_vertex_main(const device Colorant *colors [[buffer(
     float x, y, z = kDepthRange * float((inst.iz & kPathIndexMask) + 1) / float(*pathCount);
     
     OpaquesVertex vert;
-    vert.color = params->showOpaques ? float4( 1, 0, 0, 1.0 ) : float4( color.r / 255.0, color.g / 255.0, color.b / 255.0, 1.0 );
+    vert.color = params->showOpaques ? float4( 1, 1, 1, 1.0 ) : float4( color.r / 255.0, color.g / 255.0, color.b / 255.0, 1.0 );
     
     if (inst.iz & Instance::kOutlines) {
         const float dw = 0.5 * (widths[inst.iz & kPathIndexMask] - 1.0);
