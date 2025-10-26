@@ -208,18 +208,16 @@ vertex OpaquesVertex opaques_vertex_main(const device Colorant *colors [[buffer(
         ax = x2 - x1, ay = y2 - y1, ra = rsqrt(ax * ax + ay * ay);
         bx = x1 - x0, by = y1 - y0, rb = rsqrt(bx * bx + by * by);
         cx = x2 - x0, cy = y2 - y0, rc = rsqrt(cx * cx + cy * cy);
-        height = isFlat ? 0.0 : 0.5 * ((x1 - x0) * -cy + (y1 - y0) * cx) * rc;
+        height = isFlat ? 0.0 : 0.5 * (bx * -cy + by * cx) * rc;
         ow = sign * height > 0.0 ? 0.0 : abs(height);
         miterLen = abs(height) > dw ? 0.0 : sign * (dw - ow);
         
-        float2 no = {
+        float2 unit = {
             isFlat ? cx * rc : (isTop ? ax * ra : bx * rb),
             isFlat ? cy * rc : (isTop ? ay * ra : by * rb)
         };
-        
-        dx = 0.5 * no.x, dy = 0.5 * no.y;
-        x = (isTop ? x2 - dx : x0 + dx) + miterLen * -no.y;
-        y = (isTop ? y2 - dy : y0 + dy) + miterLen * no.x;
+        dx = 0.5 * unit.x, x = (isTop ? x2 - dx : x0 + dx) + miterLen * -unit.y;
+        dy = 0.5 * unit.y, y = (isTop ? y2 - dy : y0 + dy) + miterLen * unit.x;
     } else {
         x = select(cell.lx, cell.ux, vid & 1);
         y = select(cell.ly, cell.uy, vid >> 1);
