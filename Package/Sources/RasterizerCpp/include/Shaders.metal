@@ -82,6 +82,11 @@ struct Edge {
     uint16_t i0, ux;
 };
 
+struct Params {
+    bool useCurves = false;
+};
+
+
 // https://www.shadertoy.com/view/4dsfRS
 
 float sqBezier(float2 p0, float2 p1, float2 p2) {
@@ -248,7 +253,6 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
                                 const device Bounds *bounds [[buffer(7)]],
                                 const device Point16 *points [[buffer(8)]],
                                 constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
-                                constant bool *useCurves [[buffer(14)]],
                                 uint vid [[vertex_id]], uint iid [[instance_id]])
 {
     FastMoleculesVertex vert;
@@ -381,7 +385,7 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
                                      const device Transform *ctms [[buffer(4)]],
                                      const device Instance *instances [[buffer(5)]],
                                      constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
-                                     constant bool *useCurves [[buffer(14)]],
+                                     constant Params *params [[buffer(14)]],
                                      uint vid [[vertex_id]], uint iid [[instance_id]])
 {
     EdgesVertex vert;
@@ -399,7 +403,7 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
         if (idxes[i] != 0xFFFFF) {
             const device Segment& s = segments[inst.quad.base + idxes[i]];
             x0 = s.x0, y0 = s.y0;
-            bool curve = *useCurves && s.ix0 & 1;
+            bool curve = params->useCurves && s.ix0 & 1;
             if (curve) {
                 const device Segment& n = segments[inst.quad.base + idxes[i] + 1];
                 x2 = n.x1, y2 = n.y1;
@@ -478,7 +482,7 @@ vertex InstancesVertex instances_vertex_main(
             const device Bounds *bounds [[buffer(7)]],
             constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
             constant uint *pathCount [[buffer(13)]],
-            constant bool *useCurves [[buffer(14)]],
+            constant Params *params [[buffer(14)]],
             uint vid [[vertex_id]], uint iid [[instance_id]])
 {
     InstancesVertex vert;
@@ -497,8 +501,8 @@ vertex InstancesVertex instances_vertex_main(
         const device Instance & pinst = instances[iid + inst.outline.prev], & ninst = instances[iid + inst.outline.next];
         const device Segment& p = pinst.outline.s, & o = inst.outline.s, & n = ninst.outline.s;
         const device Outline& pout = pinst.outline, & out = inst.outline, & nout = ninst.outline;
-        const bool pcurve = *useCurves && pout.cx != FLT_MAX;
-        const bool ncurve = *useCurves && nout.cx != FLT_MAX;
+        const bool pcurve = params->useCurves && pout.cx != FLT_MAX;
+        const bool ncurve = params->useCurves && nout.cx != FLT_MAX;
         
         float x0, y0, x1, y1, x2, y2;
         float ax, bx, cx, ay, by, cy, ow, lcap;
@@ -519,7 +523,7 @@ vertex InstancesVertex instances_vertex_main(
         float area = cx * by - cy * bx;
         float tc = abs(area / cdot);
         
-        const bool isCurve = *useCurves && x1 != FLT_MAX && tc > 1e-3;
+        const bool isCurve = params->useCurves && x1 != FLT_MAX && tc > 1e-3;
         
 //        const bool underside = sign * area < 0.0;
         

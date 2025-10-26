@@ -527,6 +527,9 @@ struct Rasterizer {
         Sample(float lx, float ux, float cover, size_t is): lx(lx), ux(ceilf(ux)), cover(int16_t(cover)), is(uint32_t(is)) {}
         int16_t lx, ux, cover;  uint32_t is;
     };
+    struct Params {
+        bool useCurves = false;
+    };
     struct Buffer {
         enum Type { kQuadEdges, kFastEdges, kFastMolecules, kQuadMolecules, kOpaques, kInstances, kSegmentsBase, kPointsBase, kInstancesBase };
         struct Entry {
@@ -560,7 +563,8 @@ struct Rasterizer {
             }
         }
         uint8_t *base = nullptr;  Row<Entry> entries;
-        bool useCurves = false;   Colorant clearColor = Colorant(255, 255, 255, 255);
+        Params params;
+        bool useCurve0s = false;   Colorant clearColor = Colorant(255, 255, 255, 255);
         size_t colors, ctms, clips, widths, bounds, idxs, pathsCount, headerSize, size = 0, allocation = 0;
     };
     struct Allocator {
@@ -652,7 +656,7 @@ struct Rasterizer {
                             inst->data.idx = i0, inst->data.count = i1 - i0;
                         } else if (useMolecules && clipWidth * clipHeight / g->types.end < kMoleculesPixelsPerEdge) {
                             bounds[iz] = *bnds;
-                            bool fast = !buffer->useCurves || g->maxCurve * det < 16.f;
+                            bool fast = !buffer->params.useCurves || g->maxCurve * det < 16.f;
                             Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kMolecule | bool(flags & Scene::kFillEvenOdd) * Instance::kEvenOdd | fast * Instance::kFastEdges);
                             p16s.add(& g->p16s);
                             inst->g = g, inst->quad.cover = 0;
@@ -662,7 +666,7 @@ struct Rasterizer {
                             int type = fast ? Allocator::kFastMolecules : Allocator::kQuadMolecules;
                             allocator.alloc(clip.lx, clip.ly, clip.ux, clip.uy, blends.end - 1, & inst->quad.cell, type, cnt);
                         } else {
-                            bool fast = !buffer->useCurves || g->maxCurve * det < 4.f;
+                            bool fast = !buffer->params.useCurves || g->maxCurve * det < 4.f;
                             CurveIndexer idxr;
                             idxr.clip = clip, idxr.samples = & samples[0], idxr.fast = fast;
                             idxr.dst = idxr.dst0 = segments.alloc(2 * g->upperBound(det));

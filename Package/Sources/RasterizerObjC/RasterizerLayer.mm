@@ -241,9 +241,9 @@
                     [commandEncoder setVertexBuffer:mtlBuffer offset:ptsbase atIndex:8];
                     [commandEncoder setVertexBytes:& width length:sizeof(width) atIndex:10];
                     [commandEncoder setVertexBytes:& height length:sizeof(height) atIndex:11];
-                    [commandEncoder setVertexBytes:& buffer->useCurves length:sizeof(bool) atIndex:14];
+                    [commandEncoder setVertexBytes:& buffer->params length:sizeof(Ra::Params) atIndex:14];
                     [commandEncoder setFragmentBuffer:mtlBuffer offset:segbase atIndex:2];
-                    [commandEncoder setFragmentBytes:& buffer->useCurves length:sizeof(bool) atIndex:14];
+                    [commandEncoder setFragmentBytes:& buffer->params length:sizeof(Ra::Params) atIndex:14];
                     [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip
                                        vertexStart:0
                                        vertexCount:4
@@ -263,7 +263,7 @@
                 [commandEncoder setVertexBytes:& width length:sizeof(width) atIndex:10];
                 [commandEncoder setVertexBytes:& height length:sizeof(height) atIndex:11];
                 [commandEncoder setVertexBytes:& pathsCount length:sizeof(pathsCount) atIndex:13];
-                [commandEncoder setVertexBytes:& buffer->useCurves length:sizeof(bool) atIndex:14];
+                [commandEncoder setVertexBytes:& buffer->params length:sizeof(Ra::Params) atIndex:14];
                 [commandEncoder setFragmentBuffer:mtlBuffer offset:buffer->colors atIndex:0];
                 [commandEncoder setFragmentBuffer:mtlBuffer offset:entry.begin atIndex:1];
                 [commandEncoder setFragmentTexture:_accumulationTexture atIndex:0];
