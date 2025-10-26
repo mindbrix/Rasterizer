@@ -466,6 +466,10 @@ struct Rasterizer {
         RefVector<Path> paths;  Vector<Bounds> bnds, clips;
         Ref<RowPair<Transform>> ctms;  Ref<RowPair<Colorant>> colors;  Ref<RowPair<float>> widths;  Ref<RowPair<uint8_t>> flags;
     };
+    struct Params {
+        bool useCurves = false;
+        bool showOpaques = false;
+    };
     struct SceneList {
         Bounds bounds() const {
             Bounds b;
@@ -483,7 +487,7 @@ struct Rasterizer {
                 pathsCount += scene.count, scenes.emplace_back(scene), ctms.emplace_back(ctm), clips.emplace_back(clip);
             return *this;
         }
-        Transform ctm;  bool useCurves = true;  Colorant clearColor = { 0xFF, 0xFF, 0xFF, 0xFF };
+        Transform ctm;  Params params;  bool showOpaques = false; Colorant clearColor = { 0xFF, 0xFF, 0xFF, 0xFF };
         size_t pathsCount = 0;   std::vector<Scene> scenes;  std::vector<Transform> ctms;  std::vector<Bounds> clips;
     };
     struct Segment {
@@ -526,9 +530,6 @@ struct Rasterizer {
         };
         Sample(float lx, float ux, float cover, size_t is): lx(lx), ux(ceilf(ux)), cover(int16_t(cover)), is(uint32_t(is)) {}
         int16_t lx, ux, cover;  uint32_t is;
-    };
-    struct Params {
-        bool useCurves = false;
     };
     struct Buffer {
         enum Type { kQuadEdges, kFastEdges, kFastMolecules, kQuadMolecules, kOpaques, kInstances, kSegmentsBase, kPointsBase, kInstancesBase };

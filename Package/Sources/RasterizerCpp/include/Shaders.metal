@@ -83,7 +83,8 @@ struct Edge {
 };
 
 struct Params {
-    bool useCurves = false;
+    bool useCurves;
+    bool showOpaques;
 };
 
 
@@ -185,6 +186,7 @@ vertex OpaquesVertex opaques_vertex_main(const device Colorant *colors [[buffer(
                                          const device float *widths [[buffer(6)]],
                                          constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
                                          constant uint *reverse [[buffer(12)]], constant uint *pathCount [[buffer(13)]],
+                                         constant Params *params [[buffer(14)]],
                                          uint vid [[vertex_id]], uint iid [[instance_id]])
 {
     const device Opaque& inst = opaques[*reverse - 1 - iid];
@@ -194,7 +196,7 @@ vertex OpaquesVertex opaques_vertex_main(const device Colorant *colors [[buffer(
     float x, y, z = kDepthRange * float((inst.iz & kPathIndexMask) + 1) / float(*pathCount);
     
     OpaquesVertex vert;
-    vert.color = { color.r / 255.0, color.g / 255.0, color.b / 255.0, 1.0 };
+    vert.color = params->showOpaques ? float4( 1, 0, 0, 1.0 ) : float4( color.r / 255.0, color.g / 255.0, color.b / 255.0, 1.0 );
     
     if (inst.iz & Instance::kOutlines) {
         const float dw = 0.5 * (widths[inst.iz & kPathIndexMask] - 1.0);
@@ -219,7 +221,6 @@ vertex OpaquesVertex opaques_vertex_main(const device Colorant *colors [[buffer(
         dx = 0.5 * no.x, dy = 0.5 * no.y;
         x = (isTop ? x2 - dx : x0 + dx) + miterLen * -no.y;
         y = (isTop ? y2 - dy : y0 + dy) + miterLen * no.x;
-        vert.color = { 1, 0, 0, 1.0 };
     } else {
         x = select(cell.lx, cell.ux, vid & 1);
         y = select(cell.ly, cell.uy, vid >> 1);

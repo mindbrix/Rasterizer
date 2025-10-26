@@ -45,7 +45,7 @@ struct RasterizerDemo {
         HudItem("F", "Fit bounds"),
         HudItem("G", "Glyph grid"),
         HudItem("H", "HUD"),
-        HudItem("I", "Opaque"),
+        HudItem("I", "Opaques"),
         HudItem("O", "Outlines"),
         HudItem("P", "Path mouseover"),
         HudItem("S", "PDF screenshot"),
@@ -245,7 +245,7 @@ struct RasterizerDemo {
         if (fit)
             ctm = bounds.fitTransform(list.bounds()), fit = false;
         Ra::SceneList draw = list;
-        draw.ctm = ctm, draw.useCurves = useCurves;
+        draw.ctm = ctm, draw.params.useCurves = useCurves, draw.params.showOpaques = opaque;
         if (showHud) {
             Ra::Bounds hudBounds = Ra::Bounds(0, 0, kHudWidth, kHudHeight);
             if (hud.weight == 0)

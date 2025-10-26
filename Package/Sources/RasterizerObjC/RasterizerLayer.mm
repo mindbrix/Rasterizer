@@ -212,6 +212,7 @@
                 [commandEncoder setVertexBytes:& height length:sizeof(height) atIndex:11];
                 [commandEncoder setVertexBytes:& reverse length:sizeof(reverse) atIndex:12];
                 [commandEncoder setVertexBytes:& pathsCount length:sizeof(pathsCount) atIndex:13];
+                [commandEncoder setVertexBytes:& buffer->params length:sizeof(Ra::Params) atIndex:14];
                 [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip
                                    vertexStart:0
                                    vertexCount:4
