@@ -201,7 +201,7 @@ vertex OpaquesVertex opaques_vertex_main(const device Colorant *colors [[buffer(
     if (inst.iz & Instance::kOutlines) {
         const float dw = 0.5 * (widths[inst.iz & kPathIndexMask] - 1.0);
         const float x0 = s.x0, y0 = s.y0, x1 = s.x1, y1 = s.y1, x2 = s.x2, y2 = s.y2;
-        const bool isFlat = x1 == FLT_MAX;
+        const bool isFlat = x1 == FLT_MAX || !params->useCurves;
         const bool isTop = vid >> 1, isRight = vid & 1;
         const float sign = isRight ? -1.0 : 1.0;
         
