@@ -73,7 +73,7 @@ struct RasterizerDemo {
         if (keyCode == KeyCode::kA)
             animating = !animating, clock = 0.0, keyUsed = true, clearHUD();
         else if (keyCode == KeyCode::kC)
-            useCurves = !useCurves, keyUsed = true, clearHUD();
+            params.useCurves = !params.useCurves, keyUsed = true, clearHUD();
         else if (keyCode == KeyCode::kF) {
             Ra::Transform fit = bounds.fitTransform(list.bounds());
             ctm = memcmp(& ctm, & fit, sizeof(ctm)) == 0 ? Ra::Transform() : fit;
@@ -81,7 +81,7 @@ struct RasterizerDemo {
         } else if (keyCode == KeyCode::kH)
             showHud = !showHud, keyUsed = true;
         else if (keyCode == KeyCode::kI)
-            opaque = !opaque, keyUsed = true, clearHUD();
+            params.showOpaques = !params.showOpaques, keyUsed = true, clearHUD();
         else if (keyCode == KeyCode::kO)
             outlineWidth = outlineWidth ? 0.f : -1.f, keyUsed = true, clearHUD();
         else if (keyCode == KeyCode::kP)
@@ -191,11 +191,11 @@ struct RasterizerDemo {
             if (  (*item.key == '0')
                 || (*item.key == 'A' && animating)
                 || (*item.key == 'G' && showGlyphGrid)
-                || (*item.key == 'I' && opaque)
+                || (*item.key == 'I' && params.showOpaques)
                 || (*item.key == 'O' && outlineWidth != 0)
                 || (*item.key == 'P' && mouseMove)
                 || (*item.key == 'T' && showTime)
-                || (*item.key == 'C' && useCurves))
+                || (*item.key == 'C' && params.useCurves))
                 color = activeColor;
             RasterizerCoreText::addCStringToSceneInRect(item.key, fontName.addr, fontSize, textColor, Ra::Bounds(text.lx, hudBounds.ly, text.ux, uy), Ra::Transform(), Ra::Bounds(), hud);
             char const *label = item.text;
@@ -245,7 +245,7 @@ struct RasterizerDemo {
         if (fit)
             ctm = bounds.fitTransform(list.bounds()), fit = false;
         Ra::SceneList draw = list;
-        draw.ctm = ctm, draw.params.useCurves = useCurves, draw.params.showOpaques = !opaque;
+        draw.ctm = ctm, draw.params = params;
         if (showHud) {
             Ra::Bounds hudBounds = Ra::Bounds(0, 0, kHudWidth, kHudHeight);
             if (hud.weight == 0)
@@ -307,7 +307,8 @@ struct RasterizerDemo {
     Ra::Transform ctm;
     Ra::Bounds bounds;
 
-    bool gpu = true, redraw = false, fit = false, mouseDown = false, mouseMove = false, useCurves = true, animating = false, opaque = true;
+    Ra::Params params;
+    bool gpu = true, redraw = false, fit = false, mouseDown = false, mouseMove = false, animating = false;
     double clock = 0.0, timeScale = 0.333;
     float mx, my, outlineWidth = 0.f;
     Rw::IndexPair indices = Rw::IndexPair(INT_MAX, INT_MAX), locked = Rw::IndexPair(INT_MAX, INT_MAX);

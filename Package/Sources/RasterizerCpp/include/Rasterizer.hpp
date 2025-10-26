@@ -468,7 +468,7 @@ struct Rasterizer {
     };
     struct Params {
         bool useCurves = false;
-        bool showOpaques = false;
+        bool showOpaques = true;
     };
     struct SceneList {
         Bounds bounds() const {
