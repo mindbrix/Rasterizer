@@ -104,6 +104,8 @@ class SwiftDemo: NSObject, RASceneListDelegate {
     var flag = false
     var outlines = false
     var paused = false
+    var useCurves = true
+    var showOpaques = true
     var t = 0.0
     var ctm = CGAffineTransform.identity
     var bounds = CGRect.zero
@@ -122,8 +124,12 @@ class SwiftDemo: NSObject, RASceneListDelegate {
                 if (flags.contains(.shift)) {
                     flag.toggle()
                 }
+            case "c":
+                useCurves.toggle()
             case "f":
                 ctm = .identity
+            case "i":
+                showOpaques.toggle()
             case "o":
                 outlines.toggle()
             case "p":
@@ -160,6 +166,8 @@ class SwiftDemo: NSObject, RASceneListDelegate {
         t = paused ? t : time
         let list = closures[index](t, width, height)
         list.ctm = ctm
+        list.useCurves = useCurves
+        list.showOpaques = showOpaques
         return list
     }
     

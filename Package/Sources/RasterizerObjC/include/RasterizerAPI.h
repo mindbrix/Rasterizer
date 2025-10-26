@@ -45,6 +45,8 @@ typedef NS_ENUM(NSUInteger, RASceneFlags) {
 @interface RASceneList: NSObject
 @property(nonatomic, readonly) CGRect bounds;
 @property(nonatomic) CGAffineTransform ctm;
+@property(nonatomic) BOOL useCurves;
+@property(nonatomic) BOOL showOpaques;
 
 - (void)addList:(RASceneList *)list;
 - (void)addScene:(RAScene *)scene ctm:(CGAffineTransform)ctm clip:(CGRect)clip;

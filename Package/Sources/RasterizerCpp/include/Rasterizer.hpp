@@ -467,7 +467,7 @@ struct Rasterizer {
         Ref<RowPair<Transform>> ctms;  Ref<RowPair<Colorant>> colors;  Ref<RowPair<float>> widths;  Ref<RowPair<uint8_t>> flags;
     };
     struct Params {
-        bool useCurves = false;
+        bool useCurves = true;
         bool showOpaques = true;
     };
     struct SceneList {

@@ -14,7 +14,7 @@
 #import "RasterizerCoreText.hpp"
 
 
-#pragma mark - RasterizerPath
+#pragma mark - RAPath
 
 @implementation RAPath: NSObject
 
@@ -58,7 +58,7 @@
 @end
 
 
-#pragma mark - RasterizerScene
+#pragma mark - RAScene
 
 @implementation RAScene: NSObject
 
@@ -90,7 +90,7 @@
 @end
 
 
-#pragma mark - RasterizerScene
+#pragma mark - RASceneList
 
 @implementation RASceneList: NSObject
 
@@ -102,6 +102,18 @@
 }
 - (void)setCtm:(CGAffineTransform)ctm {
     _list.ctm = RaCG::transformFromCG(ctm);
+}
+- (BOOL)useCurves {
+    return _list.params.useCurves;
+}
+- (void)setUseCurves:(BOOL)useCurves {
+    _list.params.useCurves = useCurves;
+}
+- (BOOL)showOpaques {
+    return _list.params.showOpaques;
+}
+- (void)setShowOpaques:(BOOL)showOpaques {
+    _list.params.showOpaques = showOpaques;
 }
 
 - (void)addList:(RASceneList *)list {
