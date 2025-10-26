@@ -192,20 +192,28 @@ vertex OpaquesVertex opaques_vertex_main(const device Colorant *colors [[buffer(
     vert.color = { color.r / 255.0, color.g / 255.0, color.b / 255.0, 1.0 };
     
     if (inst.iz & Instance::kOutlines) {
-        float dw, x0, y0, x1, y1, x2, y2, cx, cy, cdot, rc, height, dx, dy, ow, sign, miter;
-        dw = 0.5 * (widths[inst.iz & kPathIndexMask] - 1.0);
+        const float dw = 0.5 * (widths[inst.iz & kPathIndexMask] - 1.0);
+        const float x0 = s.x0, y0 = s.y0, x1 = s.x1, y1 = s.y1, x2 = s.x2, y2 = s.y2;
+        const bool isFlat = x1 == FLT_MAX;
+        const bool isTop = vid >> 1, isRight = vid & 1;
+        const float sign = isRight ? -1.0 : 1.0;
         
-        x0 = s.x0, y0 = s.y0, x1 = s.x1, y1 = s.y1, x2 = s.x2, y2 = s.y2;
-        cx = x2 - x0, cy = y2 - y0, cdot = cx * cx + cy * cy, rc = rsqrt(cdot);
-        height = x1 == FLT_MAX ? 0.0 : 0.5 * ((x1 - x0) * -cy + (y1 - y0) * cx) * rc;
-        
-        float2 no = { cx * rc, cy * rc };
-        dx = 0.5 * no.x, dy = 0.5 * no.y;
-        sign = vid & 1 ? -1.0 : 1.0;
+        float ax, ay, bx, by, cx, cy, ra, rb, rc, height, dx, dy, ow, miterLen;
+        ax = x1 - x2, ay = y1 - y2, ra = rsqrt(ax * ax + ay * ay);
+        bx = x1 - x0, by = y1 - y0, rb = rsqrt(bx * bx + by * by);
+        cx = x2 - x0, cy = y2 - y0, rc = rsqrt(cx * cx + cy * cy);
+        height = isFlat ? 0.0 : 0.5 * ((x1 - x0) * -cy + (y1 - y0) * cx) * rc;
         ow = sign * height > 0.0 ? 0.0 : abs(height);
-        miter = sign * (dw - ow);
-        x = (vid >> 1 ? x2 - dx : x0 + dx) + miter * -no.y;
-        y = (vid >> 1 ? y2 - dy : y0 + dy) + miter * no.x;
+        miterLen = sign * (dw - ow);
+        
+        float2 no = {
+            isFlat ? cx * rc : (isTop ? -ax * ra : bx * rb),
+            isFlat ? cy * rc : (isTop ? -ay * ra : by * rb)
+        };
+        
+        dx = 0.5 * no.x, dy = 0.5 * no.y;
+        x = (isTop ? x2 - dx : x0 + dx) + miterLen * -no.y;
+        y = (isTop ? y2 - dy : y0 + dy) + miterLen * no.x;
         vert.color = { 1, 0, 0, 1.0 };
     } else {
         x = select(cell.lx, cell.ux, vid & 1);
