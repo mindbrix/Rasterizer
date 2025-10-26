@@ -650,16 +650,14 @@ struct Rasterizer {
                             uint32_t i0 = uint32_t(outlines.idx), i1;
                             Outliner outliner;
                             outliner.iz = inst->iz, outliner.outlines = & outlines;
-                            if (width > 4.f) {
+                            if (width > 4.f && colors[iz].a == 255) {
                                 bool softunclipped = true;
                                 if (clipActive) {
                                     Bounds soft = Bounds(quad.concat(invclip));
                                     softunclipped = fmaxf(fmaxf(fabsf(soft.lx - 0.5f), fabsf(soft.ux - 0.5f)), fmaxf(fabsf(soft.ly - 0.5f), fabsf(soft.uy - 0.5f))) < softclipMargin;
                                 }
-                                bool opaque = colors[iz].a == 255 && softunclipped;
-                                outliner.opaques = opaque ? & opaques : nullptr;
+                                outliner.opaques = softunclipped ? & opaques : nullptr;
                             }
-                            
                             divideGeometry(g, m, outlineClip, unclipped, false, outliner);
                             i1 = uint32_t(outlines.idx);
                             inst->data.idx = i0, inst->data.count = i1 - i0;
