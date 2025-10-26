@@ -192,18 +192,17 @@ vertex OpaquesVertex opaques_vertex_main(const device Colorant *colors [[buffer(
     vert.color = { color.r / 255.0, color.g / 255.0, color.b / 255.0, 1.0 };
     
     if (inst.iz & Instance::kOutlines) {
-        float dw, x0, y0, x1, y1, x2, y2, cx, cy, cdot, rc, tcp, dx, dy, ow, sign, miter;
+        float dw, x0, y0, x1, y1, x2, y2, cx, cy, cdot, rc, height, dx, dy, ow, sign, miter;
         dw = 0.5 * (widths[inst.iz & kPathIndexMask] - 1.0);
         
         x0 = s.x0, y0 = s.y0, x1 = s.x1, y1 = s.y1, x2 = s.x2, y2 = s.y2;
         cx = x2 - x0, cy = y2 - y0, cdot = cx * cx + cy * cy, rc = rsqrt(cdot);
+        height = x1 == FLT_MAX ? 0.0 : 0.5 * ((x1 - x0) * -cy + (y1 - y0) * cx) * rc;
+        
         float2 no = { cx * rc, cy * rc };
-        
-        tcp = x1 == FLT_MAX ? 0.0 : 0.5 * ((x1 - x0) * -cy + (y1 - y0) * cx) / cdot;
-        
-        sign = vid & 1 ? -1.0 : 1.0;
         dx = 0.5 * no.x, dy = 0.5 * no.y;
-        ow = sign * tcp > 0.0 ? 0.0 : abs(tcp / rc);
+        sign = vid & 1 ? -1.0 : 1.0;
+        ow = sign * height > 0.0 ? 0.0 : abs(height);
         miter = sign * (dw - ow);
         x = (vid >> 1 ? x2 - dx : x0 + dx) + miter * -no.y;
         y = (vid >> 1 ? y2 - dy : y0 + dy) + miter * no.x;
