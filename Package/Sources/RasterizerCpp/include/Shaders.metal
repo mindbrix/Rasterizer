@@ -199,7 +199,7 @@ vertex OpaquesVertex opaques_vertex_main(const device Colorant *colors [[buffer(
         const float sign = isRight ? -1.0 : 1.0;
         
         float ax, ay, bx, by, cx, cy, ra, rb, rc, height, dx, dy, ow, miterLen;
-        ax = x1 - x2, ay = y1 - y2, ra = rsqrt(ax * ax + ay * ay);
+        ax = x2 - x1, ay = y2 - y1, ra = rsqrt(ax * ax + ay * ay);
         bx = x1 - x0, by = y1 - y0, rb = rsqrt(bx * bx + by * by);
         cx = x2 - x0, cy = y2 - y0, rc = rsqrt(cx * cx + cy * cy);
         height = isFlat ? 0.0 : 0.5 * ((x1 - x0) * -cy + (y1 - y0) * cx) * rc;
@@ -207,8 +207,8 @@ vertex OpaquesVertex opaques_vertex_main(const device Colorant *colors [[buffer(
         miterLen = sign * (dw - ow);
         
         float2 no = {
-            isFlat ? cx * rc : (isTop ? -ax * ra : bx * rb),
-            isFlat ? cy * rc : (isTop ? -ay * ra : by * rb)
+            isFlat ? cx * rc : (isTop ? ax * ra : bx * rb),
+            isFlat ? cy * rc : (isTop ? ay * ra : by * rb)
         };
         
         dx = 0.5 * no.x, dy = 0.5 * no.y;
