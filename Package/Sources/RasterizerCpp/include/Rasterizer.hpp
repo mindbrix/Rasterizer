@@ -642,7 +642,8 @@ struct Rasterizer {
                             uint32_t i0 = uint32_t(outlines.idx), i1;
                             Outliner outliner;
                             outliner.iz = inst->iz, outliner.outlines = & outlines;
-                            outliner.opaques = & opaques;
+                            if (width > 4.f)
+                                outliner.opaques = & opaques;
                             divideGeometry(g, m, outlineClip, unclipped, false, outliner);
                             i1 = uint32_t(outlines.idx);
                             inst->data.idx = i0, inst->data.count = i1 - i0;
