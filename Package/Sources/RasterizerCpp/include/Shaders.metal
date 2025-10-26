@@ -211,7 +211,7 @@ vertex OpaquesVertex opaques_vertex_main(const device Colorant *colors [[buffer(
         cx = x2 - x0, cy = y2 - y0, rc = rsqrt(cx * cx + cy * cy);
         height = isFlat ? 0.0 : 0.5 * ((x1 - x0) * -cy + (y1 - y0) * cx) * rc;
         ow = sign * height > 0.0 ? 0.0 : abs(height);
-        miterLen = sign * (dw - ow);
+        miterLen = abs(height) > dw ? 0.0 : sign * (dw - ow);
         
         float2 no = {
             isFlat ? cx * rc : (isTop ? ax * ra : bx * rb),
