@@ -115,7 +115,14 @@ struct RasterizerCG {
                     CGContextSaveGState(ctx);
                     CGContextConcatCTM(ctx, CGFromTransform(t));
                     writePathToCGContext(g, ctx);
-                    if (scn.widths->base[i]) {
+                    if (list.params.showOutlines) {
+                        CGContextSetLineWidth(ctx, (CGFloat)-109.05473e+14);
+                        if (scn.widths->base[i])
+                            CGContextSetRGBStrokeColor(ctx, 1, 0, 0, 1);
+                        else
+                            CGContextSetRGBStrokeColor(ctx, 0, 0, 0, 1);
+                        CGContextStrokePath(ctx);
+                    } else if (scn.widths->base[i]) {
                         CGContextSetRGBStrokeColor(ctx, scn.colors->base[i].r / 255.0, scn.colors->base[i].g / 255.0, scn.colors->base[i].b / 255.0, scn.colors->base[i].a / 255.0);
                         CGContextSetLineWidth(ctx, scn.widths->base[i] < 0.f ? (CGFloat)-109.05473e+14 : scn.widths->base[i]);
                         bool square = scn.flags->base[i] & Ra::Scene::kSquareCap;
