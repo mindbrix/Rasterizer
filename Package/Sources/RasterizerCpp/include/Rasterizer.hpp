@@ -500,7 +500,7 @@ struct Rasterizer {
         Segment s;  short prev, next;  float cx, cy;
     };
     struct Opaque {
-        uint32_t iz;  union { Cell cell;  Segment s; };
+        uint32_t iz;  float tcp;  union { Cell cell;  Segment s; };
     };
     struct Instance {
         enum Flags { kMolecule = 1 << 25, kFastEdges = 1 << 26, kEdge = 1 << 27, kRoundCap = 1 << 28, kOutlines = 1 << 29, kSquareCap = 1 << 30, kEvenOdd = 1 << 31 };
@@ -1126,6 +1126,12 @@ struct Rasterizer {
                 Opaque *opaque = opaques->alloc(1);
                 Segment& s = opaque->s;
                 opaque->iz = iz, s.x0 = x0, s.y0 = y0, s.x1 = x2, s.y1 = y2;
+                opaque->tcp = 0.f;
+                if (x1 != FLT_MAX) {
+                    float cx, cy, cdot;
+                    cx = x2 - x0, cy = y2 - y0, cdot = cx * cx + cy * cy;
+                    opaque->tcp = ((x1 - x0) * -cy + (y1 - y0) * cx) / cdot;
+                }
             }
         }
         uint32_t iz;  Row<Instance> *outlines = nullptr;  Row<Opaque> *opaques = nullptr;

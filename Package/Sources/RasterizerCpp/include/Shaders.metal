@@ -59,7 +59,7 @@ struct Outline {
 };
 
 struct Opaque {
-    uint32_t iz;  union { Cell cell;  Segment s; };
+    uint32_t iz;  float tcp;  union { Cell cell;  Segment s; };
 };
 
 struct Instance {
@@ -180,37 +180,37 @@ vertex OpaquesVertex opaques_vertex_main(const device Colorant *colors [[buffer(
 {
     const device Opaque& inst = opaques[*reverse - 1 - iid];
     const device Colorant& color = colors[inst.iz & kPathIndexMask];
+    const float tcp = 0.5 * inst.tcp;
     const device Cell& cell = inst.cell;
     const device Segment& s = inst.s;
     float x, y, z = kDepthRange * float((inst.iz & kPathIndexMask) + 1) / float(*pathCount);
+    
     OpaquesVertex vert;
+    vert.color = { color.r / 255.0, color.g / 255.0, color.b / 255.0, 1.0 };
     
     if (inst.iz & Instance::kOutlines) {
-        float dw, x0, y0, x1, y1;
+        float dw, x0, y0, x1, y1, cx, cy, rc, dx, dy, ow, sign, miter;
         dw = 0.5 * (widths[inst.iz & kPathIndexMask] - 1.0);
-        x0 = s.x0, y0 = s.y0;
-        x1 = s.x1, y1 = s.y1;
-        float2 no = normalize({ x1 - x0, y1 - y0 });
-        x0 += 0.5 * no.x, y0 += 0.5 * no.y;
-        x1 -= 0.5 * no.x, y1 -= 0.5 * no.y;
-        x = (vid >> 1 ? x1 : x0) + ((vid & 1) ? -1.0 : 1.0) * dw * -no.y;
-        y = (vid >> 1 ? y1 : y0) + ((vid & 1) ? -1.0 : 1.0) * dw * no.x;
-        vert.position = {
-            x / *width * 2.0 - 1.0,
-            y / *height * 2.0 - 1.0,
-            z,
-            1.0
-        };
+        x0 = s.x0, y0 = s.y0, x1 = s.x1, y1 = s.y1;
+        cx = x1 - x0, cy = y1 - y0, rc = rsqrt(cx * cx + cy * cy);
+        float2 no = { cx * rc, cy * rc };
+        sign = vid & 1 ? -1.0 : 1.0;
+        dx = 0.5 * no.x, dy = 0.5 * no.y;
+        ow = sign * tcp > 0.0 ? 0.0 : abs(tcp / rc);
+        miter = sign * (dw - ow);
+        x = (vid >> 1 ? x1 - dx : x0 + dx) + miter * -no.y;
+        y = (vid >> 1 ? y1 - dy : y0 + dy) + miter * no.x;
         vert.color = { 1, 0, 0, 1.0 };
     } else {
-        vert.position = {
-            select(cell.lx, cell.ux, vid & 1) / *width * 2.0 - 1.0,
-            select(cell.ly, cell.uy, vid >> 1) / *height * 2.0 - 1.0,
-            z,
-            1.0
-        };
-        vert.color = { color.r / 255.0, color.g / 255.0, color.b / 255.0, 1.0 };
+        x = select(cell.lx, cell.ux, vid & 1);
+        y = select(cell.ly, cell.uy, vid >> 1);
     }
+    vert.position = {
+        x / *width * 2.0 - 1.0,
+        y / *height * 2.0 - 1.0,
+        z,
+        1.0
+    };
     return vert;
 }
 
