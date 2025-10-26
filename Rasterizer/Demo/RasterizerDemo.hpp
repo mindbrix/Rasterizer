@@ -370,8 +370,6 @@ struct RasterizerDemo {
         
         for (size_t j = li; j < ui; j++) {
             dstColors[j] = (demo.indices.i0 == si && demo.indices.i1 == j) ? red : demo.outlineWidth != 0.f ? (srcWidths[j] ? red : black) : srcColors[j];
-            if (demo.opaque)
-                dstColors[j].a = 255;
         }
         for (size_t j = li; j < ui; j++) {
             dstFlags[j] = demo.locked.i0 == INT_MAX ? srcFlags[j] : si == demo.locked.i0 && j == demo.locked.i1 ? srcFlags[j] & ~Ra::Scene::kInvisible : srcFlags[j] | Ra::Scene::kInvisible;
