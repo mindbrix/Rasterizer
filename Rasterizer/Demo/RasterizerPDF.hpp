@@ -19,7 +19,6 @@
 //
 
 #import "Rasterizer.hpp"
-#import "RasterizerFreeType.h"
 #import "xxhash.h"
 #import "fpdfview.h"
 #import "fpdf_edit.h"
@@ -109,24 +108,13 @@ struct RasterizerPDF {
             unsigned int R = 0, G = 0, B = 0, A = 255;
             FPDFPageObj_GetFillColor(pageObject, & R, & G, & B, & A);
             Ra::Colorant red(0, 0, 255, 255), textColor(B, G, R, A);
-            RasterizerFreeType freetype;
             Ra::Path rect;  rect->addBounds(Ra::Bounds(0, 0, 1, 1)), rect->close();
             FPDF_FONT font = FPDFTextObj_GetFont(pageObject);
-            size_t dataLength = 0;
-            FPDF_BOOL success = FPDFFont_GetFontData(font, nullptr, 1024, & dataLength);
-            if (success) {
-                Ra::Vector<unsigned char> fontData;
-                fontData.resize(dataLength);
-                FPDFFont_GetFontData(font, & fontData[0], dataLength, & dataLength);
-                freetype.loadFace(fontData);
-            }
             for(auto i : it->second) {
                 unsigned int code = FPDFText_GetUnicode(text_page, i);
-                Ra::Path ftPath = freetype.createCharPath(code);
                 FPDFText_GetCharBox(text_page, i, & left, & right, & bottom, & top);
                 FPDF_GLYPHPATH pdfPath = FPDFFont_GetGlyphPath(font, code, 1);
-                Ra::Path p = ftPath->isValid() ? ftPath : PathWriter().createPathFromGlyphPath(pdfPath);
-                
+                Ra::Path p = PathWriter().createPathFromGlyphPath(pdfPath);
                 if (p->isValid()) {
                     Ra::Bounds b = Ra::Bounds(p->bounds.quad(textCTM));
                     Ra::Transform ctm = textCTM.concat(Ra::Bounds(left, bottom, right, top).fitTransform(b));
