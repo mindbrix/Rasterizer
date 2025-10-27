@@ -20,31 +20,17 @@
 
 #import "DemoView.h"
 #import "RasterizerCG.hpp"
+#import "RasterizerUtilities.h"
 #import "RasterizerDemo.hpp"
+#import "../private/RasterizerAPI+Internal.h"
 
-@interface DemoView () <NSFontChanging, ListDelegate>
+@interface DemoView () <NSFontChanging, RASceneListDelegate>
 
-@property(nonatomic) CVDisplayLinkRef displayLink;
-@property(nonatomic) dispatch_semaphore_t inflight_semaphore;
 @property(nonatomic) RasterizerDemo demo;
 @property(nonatomic) NSFont *font;
 
-- (void)timerFired:(double)time;
-
 @end
 
-static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink, const CVTimeStamp *now, const CVTimeStamp *outputTime,
-CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
-    DemoView *view = (__bridge DemoView *)displayLinkContext;
-    @autoreleasepool {
-        if (dispatch_semaphore_wait(view.inflight_semaphore, DISPATCH_TIME_NOW) == 0)
-            dispatch_async(dispatch_get_main_queue(), ^{
-                [view timerFired:[NSDate date].timeIntervalSinceReferenceDate];
-                dispatch_semaphore_signal(view.inflight_semaphore);
-            });
-    }
-    return kCVReturnSuccess;
-}
 
 @implementation DemoView
 
@@ -57,44 +43,20 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     self.listDelegate = self;
     self.font = nil;
     _demo.setUseGPU(!self.useCG);
-    [self startTimer];
     return self;
 }
 
-- (void)removeFromSuperview {
-    [self stopTimer];
-    [super removeFromSuperview];
+
+#pragma mark - SceneListDelegate
+
+- (BOOL)shouldRedrawAtTime:(double)time {
+    return _demo.getShouldRedraw();
 }
 
-#pragma mark - CVDisplayLink
-
-- (void)startTimer {
-    _inflight_semaphore = dispatch_semaphore_create(1);
-    CVReturn cvReturn = CVDisplayLinkCreateWithCGDisplay(CGMainDisplayID(), &_displayLink);
-    cvReturn = CVDisplayLinkSetOutputCallback(_displayLink, &OnDisplayLinkFrame, (__bridge void *)self);
-    CVDisplayLinkStart(_displayLink);
-}
-
-- (void)stopTimer {
-    if (_displayLink)
-        CVDisplayLinkStop(_displayLink), CVDisplayLinkRelease(_displayLink), _displayLink = nil;
-}
-
-- (void)timerFired:(double)time {
-    if (_demo.getShouldRedraw()) {
-        _demo.onRedraw(
-            self.bounds.size.width,
-            self.bounds.size.height
-        );
-        [self.layer setNeedsDisplay];
-    }
-}
-
-
-#pragma mark - ListDelegate
-
-- (Ra::SceneList)getList: (float)width height:(float) height {
-    return _demo.getDrawList(width, height);
+- (RASceneList *)getListAtTime:(double)time width:(double)width height:(double)height {
+    RASceneList *list = [RASceneList new];
+    list.list = _demo.getDrawList(time, width, height);
+    return list;
 }
 
 
@@ -175,7 +137,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 - (void)setFont:(NSFont *)font {
     _font = font ?: [NSFont fontWithName:@"HelveticaNeue-Medium" size:14];
 
-    NSURL *url = RaCG::fontURL(_font.fontName);
+    NSURL *url = RaUtils::fontURL(_font.fontName);
     _demo.setFont(url.path.UTF8String, _font.fontName.UTF8String, _font.pointSize);
 }
 

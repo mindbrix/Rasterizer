@@ -19,6 +19,8 @@
 //
 
 #import "Rasterizer.hpp"
+#import "RasterizerCG.hpp"
+#import "RasterizerCoreText.hpp"
 #import <time.h>
 
 struct Concentrichron {
@@ -28,10 +30,10 @@ struct Concentrichron {
         face = Ra::SceneList();
     }
     
-    Ra::SceneList writeList(RasterizerFont& font) {
+    Ra::SceneList writeList(const char *fontName) {
         Ra::Bounds bounds(0, 0, 800, 600);
         if (face.scenes.size() == 0)
-            face = makeFace(bounds, font);
+            face = makeFace(bounds, fontName);
         return setTime(face, bounds);
     }
     
@@ -53,7 +55,7 @@ struct Concentrichron {
         for (int i = 0; i < face.scenes.size(); i++)
             if (i > 0 && i < 8) {
                 __sincosf(ftimes[i] * 2.f * M_PI, & sine, & cosine);
-                list.addScene(face.scenes[i], Ra::Transform().preconcat(Ra::Transform(cosine, sine, -sine, cosine, 0, 0), b.cx(), b.cy()));
+                list.addScene(face.scenes[i], Ra::Transform().concatAroundCenter(Ra::Transform(cosine, sine, -sine, cosine, 0, 0), b.cx(), b.cy()));
             } else
                 list.addScene(face.scenes[i]);
         return list;
@@ -69,7 +71,7 @@ struct Concentrichron {
         p->moveTo(sx, sx), p->cubicTo(sx - f * ay, sy + f * ax, ex + f * by, ey - f * bx, ex, ey);
     }
     
-    static Ra::SceneList makeFace(Ra::Bounds b, RasterizerFont& font) {
+    static Ra::SceneList makeFace(Ra::Bounds b, const char *fontName) {
         Ra::SceneList list;
         const char *days[7] = { "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" };
         const char *dates[31] = { "1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th", "10th", "11th", "12th", "13th", "14th", "15th", "16th", "17th", "18th", "19th", "20th", "21st", "22nd", "23rd", "24th", "25th", "26th", "27th", "28th", "29th", "30th", "31st" };
@@ -107,24 +109,23 @@ struct Concentrichron {
             }
             ring.addPath(path, Ra::Transform(), black, strokeWidth, 0);
             
-            if (!font.isEmpty()) {
-                float r = r0 + 0.25f * inset, da, a0;
-                Ra::Row<char> str;
-                char strbuf[32];
-                for (int j = 0; j < divisions[i]; j++) {
-                    if (labels[i]) {
-                        str.empty();
-                        strcpy(str.alloc(strlen(labels[i][j]) + 1), labels[i][j]);
-                    } else {
-                        str.empty();
-                        bzero(strbuf, sizeof(strbuf)), snprintf(strbuf, 32, "%d", j);
-                        strcpy(str.alloc(strlen(strbuf) + 1), strbuf);
-                    }
-                    Ra::Scene glyphs;  Ra::Bounds gb = font.layoutGlyphs(inset * 0.666f, 0.f, black, b, false, false, false, str.base, glyphs);
-                    da = (gb.ux - gb.lx) / r, a0 = theta0 + j * -step - 0.5f * (step - da);
-                    
-                    RasterizerFont::layoutGlyphsOnArc(glyphs, cx, cy, r, a0, ring);
+            float r = r0 + 0.25f * inset, da, a0;
+            Ra::Row<char> str;
+            char strbuf[32];
+            for (int j = 0; j < divisions[i]; j++) {
+                if (labels[i]) {
+                    str.empty();
+                    strcpy(str.alloc(strlen(labels[i][j]) + 1), labels[i][j]);
+                } else {
+                    str.empty();
+                    bzero(strbuf, sizeof(strbuf)), snprintf(strbuf, 32, "%d", j);
+                    strcpy(str.alloc(strlen(strbuf) + 1), strbuf);
                 }
+                Ra::Scene glyphs;
+                Ra::Bounds gb = RasterizerCoreText::addCStringToSceneInRect(str.base, fontName, inset * 0.666f, black, b, Ra::Transform(), Ra::Bounds(), glyphs);
+                da = (gb.ux - gb.lx) / r, a0 = theta0 + j * -step - 0.5f * (step - da);
+                
+                layoutGlyphsOnArc(glyphs, cx, cy, r, a0, ring);
             }
             list.addScene(ring);
         }
@@ -133,5 +134,18 @@ struct Concentrichron {
         line.addPath(linePath, Ra::Transform(), red, 1.f, 0);
         list.addScene(line);
         return list;
+    }
+    
+    static void layoutGlyphsOnArc(Ra::Scene& glyphs, float cx, float cy, float r, float theta, Ra::Scene& scene) {
+        Ra::Path path;  Ra::Transform m, ctm;  Ra::Bounds b;  float lx = 0.f, bx, by, rot, px, py, sine, cosine;
+        for (int i = 0; i < glyphs.count; i++) {
+            path = glyphs.paths[i], m = glyphs.ctms->base[i], b = Ra::Bounds(path->bounds.quad(m));
+            lx = i == 0 ? b.lx : lx;
+            bx = 0.5f * (b.lx + b.ux), by = m.ty, rot = theta - (bx - lx) / r;
+            px = cx + r * cosf(rot), py = cy + r * sinf(rot);
+            __sincosf(rot - 0.5 * M_PI, & sine, & cosine);
+            ctm = m.concatAroundCenter(Ra::Transform(cosine, sine, -sine, cosine, 0, 0), bx, by), ctm.tx += px - bx, ctm.ty += py - by;
+            scene.addPath(path, ctm, glyphs.colors->base[i], 0.f, 0);
+        }
     }
 };

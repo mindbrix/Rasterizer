@@ -21,6 +21,8 @@
 			</array>
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>
+			<key>LSHandlerRank</key>
+			<string>Default</string>
 			<key>NSDocumentClass</key>
 			<string>Document</string>
 		</dict>
@@ -70,7 +72,7 @@
 	<key>NSHumanReadableCopyright</key>
 	<string>Copyright 2025 Nigel Timothy Barber - nigel@mindbrix.co.uk
 //
-//  This software is provided &apos;as-is&apos;, without any express or implied
+//  This software is provided 'as-is', without any express or implied
 //  warranty. In no event will the authors be held liable for any damages
 //  arising from the use of this software.
 //
