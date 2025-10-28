@@ -52,7 +52,6 @@
 		E95512512EACF2AD00AC7260 /* DemoView.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = DemoView.mm; sourceTree = "<group>"; };
 		E95512532EACF42300AC7260 /* RasterizerDemo.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = RasterizerDemo.hpp; sourceTree = "<group>"; };
 		E95512542EACF44800AC7260 /* Concentrichron.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Concentrichron.hpp; sourceTree = "<group>"; };
-		E95512552EACF44800AC7260 /* RasterizerFreeType.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = RasterizerFreeType.h; sourceTree = "<group>"; };
 		E95512562EACF44800AC7260 /* RasterizerPDF.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = RasterizerPDF.hpp; sourceTree = "<group>"; };
 		E955125B2EACF7BE00AC7260 /* pdfium.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = pdfium.xcframework; path = Rasterizer/Frameworks/pdfium.xcframework; sourceTree = "<group>"; };
 		E9682E212C7F634D001046F5 /* Rasterizer Default.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; path = "Rasterizer Default.pdf"; sourceTree = "<group>"; };
@@ -125,7 +124,6 @@
 				E920A5A221762BCD00F52C25 /* Document.xib */,
 				E95512532EACF42300AC7260 /* RasterizerDemo.hpp */,
 				E95512542EACF44800AC7260 /* Concentrichron.hpp */,
-				E95512552EACF44800AC7260 /* RasterizerFreeType.h */,
 				E95512562EACF44800AC7260 /* RasterizerPDF.hpp */,
 			);
 			path = Demo;
