@@ -511,7 +511,7 @@ struct Rasterizer {
         short prev, next;
     };
     struct Opaque {
-        uint32_t iz;  union { Cell cell;  Quadratic s; };
+        uint32_t iz;  union { Cell cell;  Quadratic q; };
     };
     struct Instance {
         enum Flags { kMolecule = 1 << 25, kFastEdges = 1 << 26, kEdge = 1 << 27, kRoundCap = 1 << 28, kOutlines = 1 << 29, kSquareCap = 1 << 30, kEvenOdd = 1 << 31 };
@@ -1149,8 +1149,7 @@ struct Rasterizer {
             dst->iz = iz, o.q.x0 = x0, o.q.y0 = y0, o.q.x1 = x1, o.q.y1 = y1, o.q.x2 = x2, o.q.y2 = y2, o.prev = -1, o.next = 1;
             if (opaques) {
                 Opaque *opaque = opaques->alloc(1);
-                struct Quadratic& s = opaque->s;
-                opaque->iz = iz, s.x0 = x0, s.y0 = y0, s.x1 = x1, s.y1 = y1, s.x2 = x2, s.y2 = y2;
+                opaque->iz = iz, opaque->q = o.q;
             }
         }
         uint32_t iz;  Row<Instance> *outlines = nullptr;  Row<Opaque> *opaques = nullptr;
