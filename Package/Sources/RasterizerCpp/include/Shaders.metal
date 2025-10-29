@@ -83,6 +83,7 @@ struct Edge {
 
 struct Params {
     bool useCurves, showOpaques, showOutlines;
+    Colorant clearColor;
 };
 
 
@@ -188,13 +189,11 @@ vertex OpaquesVertex opaques_vertex_main(const device Colorant *colors [[buffer(
                                          uint vid [[vertex_id]], uint iid [[instance_id]])
 {
     const device Opaque& inst = opaques[*reverse - 1 - iid];
-    const device Colorant& color = colors[inst.iz & kPathIndexMask];
+    const Colorant fillColor = colors[inst.iz & kPathIndexMask];
+    const Colorant color = params->showOpaques ? fillColor : params->clearColor;
     const device Cell& cell = inst.cell;
     const device Quadratic& s = inst.s;
     float x, y, z = kDepthRange * float((inst.iz & kPathIndexMask) + 1) / float(*pathCount);
-    
-    OpaquesVertex vert;
-    vert.color = params->showOpaques ? float4( color.r / 255.0, color.g / 255.0, color.b / 255.0, 1.0 ) : float4( 1, 1, 1, 1.0 );
     
     if (inst.iz & Instance::kOutlines) {
         const float dw = 0.5 * (widths[inst.iz & kPathIndexMask] - 1.0);
@@ -221,12 +220,14 @@ vertex OpaquesVertex opaques_vertex_main(const device Colorant *colors [[buffer(
         x = select(cell.lx, cell.ux, vid & 1);
         y = select(cell.ly, cell.uy, vid >> 1);
     }
+    OpaquesVertex vert;
     vert.position = {
         x / *width * 2.0 - 1.0,
         y / *height * 2.0 - 1.0,
         z,
         1.0
     };
+    vert.color = float4(color.r / 255.0, color.g / 255.0, color.b / 255.0, 1.0);
     return vert;
 }
 

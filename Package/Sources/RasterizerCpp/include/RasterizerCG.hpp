@@ -77,7 +77,7 @@ struct RasterizerCG {
     }
     
     static void renderListToBitmap(const Ra::SceneList& list, float scale, float w, float h, CGContextRef ctx) {
-        memset_pattern4(CGBitmapContextGetData(ctx), & list.clearColor.b, CGBitmapContextGetBytesPerRow(ctx) * CGBitmapContextGetHeight(ctx));
+        memset_pattern4(CGBitmapContextGetData(ctx), & list.params.clearColor.b, CGBitmapContextGetBytesPerRow(ctx) * CGBitmapContextGetHeight(ctx));
         
         if (!list.params.useCurves)
             CGContextSetFlatness(ctx, 20 * scale);

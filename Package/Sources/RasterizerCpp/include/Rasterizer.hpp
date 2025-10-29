@@ -471,6 +471,7 @@ struct Rasterizer {
         bool useCurves = true;
         bool showOpaques = true;
         bool showOutlines = false;
+        Colorant clearColor = { 255, 255, 255, 255 };
     };
     struct SceneList {
         Bounds bounds() const {
@@ -489,7 +490,7 @@ struct Rasterizer {
                 pathsCount += scene.count, scenes.emplace_back(scene), ctms.emplace_back(ctm), clips.emplace_back(clip);
             return *this;
         }
-        Transform ctm;  Params params;  bool showOpaques = false; Colorant clearColor = { 0xFF, 0xFF, 0xFF, 0xFF };
+        Transform ctm;  Params params;
         size_t pathsCount = 0;   std::vector<Scene> scenes;  std::vector<Transform> ctms;  std::vector<Bounds> clips;
     };
     struct Segment {
@@ -568,7 +569,7 @@ struct Rasterizer {
         }
         uint8_t *base = nullptr;  Row<Entry> entries;
         Params params;
-        bool useCurve0s = false;   Colorant clearColor = Colorant(255, 255, 255, 255);
+        bool useCurve0s = false; 
         size_t colors, ctms, clips, widths, bounds, idxs, pathsCount, headerSize, size = 0, allocation = 0;
     };
     struct Allocator {
