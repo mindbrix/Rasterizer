@@ -72,7 +72,10 @@ struct Instance {
         kFastEdges = 1 << 26,   kNCap = 1 << 26,
         kEdge = 1 << 27,        kF0 = 1 << 27,
         kRoundCap = 1 << 28,    kF1 = 1 << 28,
-        kOutlines = 1 << 29, kSquareCap = 1 << 30, kEvenOdd = 1 << 31, kFragmentMask = (kOutlines | kSquareCap | kEvenOdd) };
+        kOutlines = 1 << 29,
+        kSquareCap = 1 << 30,
+        kEvenOdd = 1 << 31,
+        kFragmentMask = (kOutlines | kSquareCap | kEvenOdd) };
     uint32_t iz;  union { Quad quad;  Outline outline; };
 };
 
@@ -198,24 +201,28 @@ vertex OpaquesVertex opaques_vertex_main(const device Colorant *colors [[buffer(
     if (inst.iz & Instance::kOutlines) {
         const float dw = 0.5 * (widths[inst.iz & kPathIndexMask] - 1.0);
         const float x0 = s.x0, y0 = s.y0, x1 = s.x1, y1 = s.y1, x2 = s.x2, y2 = s.y2;
-        const bool isFlat = x1 == FLT_MAX || !params->useCurves;
+        const bool isFlat = x1 == FLT_MAX;
         const bool isTop = vid >> 1, isRight = vid & 1;
+        const bool pcap = inst.iz & Instance::kPCap;
+        const bool ncap = inst.iz & Instance::kNCap;
+        const bool isCap = (isTop && ncap) || (!isTop && pcap);
+        const bool useCurves = params->useCurves;
         const float sign = isRight ? -1.0 : 1.0;
         
         float ax, ay, bx, by, cx, cy, ra, rb, rc, height, dx, dy, ow, miterLen;
         ax = x2 - x1, ay = y2 - y1, ra = rsqrt(ax * ax + ay * ay);
         bx = x1 - x0, by = y1 - y0, rb = rsqrt(bx * bx + by * by);
         cx = x2 - x0, cy = y2 - y0, rc = rsqrt(cx * cx + cy * cy);
-        height = isFlat ? 0.0 : 0.5 * (bx * -cy + by * cx) * rc;
+        height = isFlat || !useCurves ? 0.0 : 0.5 * (bx * -cy + by * cx) * rc;
         ow = sign * height > 0.0 ? 0.0 : abs(height);
         miterLen = abs(height) > dw ? 0.0 : sign * (dw - ow);
         
         float2 unit = {
-            isFlat ? cx * rc : (isTop ? ax * ra : bx * rb),
-            isFlat ? cy * rc : (isTop ? ay * ra : by * rb)
+            isFlat || (isCap && !useCurves) ? cx * rc : (isTop ? ax * ra : bx * rb),
+            isFlat || (isCap && !useCurves) ? cy * rc : (isTop ? ay * ra : by * rb)
         };
-        dx = 0.5 * unit.x, x = (isTop ? x2 - dx : x0 + dx) + miterLen * -unit.y;
-        dy = 0.5 * unit.y, y = (isTop ? y2 - dy : y0 + dy) + miterLen * unit.x;
+        dx = isCap ? 0.5 * unit.x : 0.0, x = (isTop ? x2 - dx : x0 + dx) + miterLen * -unit.y;
+        dy = isCap ? 0.5 * unit.y : 0.0, y = (isTop ? y2 - dy : y0 + dy) + miterLen * unit.x;
     } else {
         x = select(cell.lx, cell.ux, vid & 1);
         y = select(cell.ly, cell.uy, vid >> 1);

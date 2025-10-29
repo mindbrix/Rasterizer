@@ -1143,9 +1143,13 @@ struct Rasterizer {
                 outlines->idx = outlines->end;
                 
                 if (opaques) {
-                    Opaque *opaque = opaques->alloc(dst - dst0);
+                    Opaque *opaque0 = opaques->alloc(dst - dst0), *opaque = opaque0;
                     for (Instance *src = dst0; src < dst; src++, opaque++)
                         opaque->iz = iz, opaque->q = src->outline.q;
+                    if (!closed) {
+                        opaque0->iz |= Instance::kMolecule;
+                        (opaque - 1)->iz |= Instance::kFastEdges;
+                    }
                 }
             }
         }
