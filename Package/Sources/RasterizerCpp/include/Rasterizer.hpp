@@ -569,7 +569,6 @@ struct Rasterizer {
         }
         uint8_t *base = nullptr;  Row<Entry> entries;
         Params params;
-        bool useCurve0s = false; 
         size_t colors, ctms, clips, widths, bounds, idxs, pathsCount, headerSize, size = 0, allocation = 0;
     };
     struct Allocator {
