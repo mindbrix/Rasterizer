@@ -75,7 +75,8 @@ struct Instance {
         kOutlines = 1 << 29,
         kSquareCap = 1 << 30,
         kEvenOdd = 1 << 31,
-        kFragmentMask = (kOutlines | kSquareCap | kEvenOdd) };
+        kFragmentMask = (kOutlines | kSquareCap | kEvenOdd)
+    };
     uint32_t iz;  union { Quad quad;  Outline outline; };
 };
 

@@ -514,7 +514,17 @@ struct Rasterizer {
         uint32_t iz;  union { Cell cell;  Quadratic q; };
     };
     struct Instance {
-        enum Flags { kMolecule = 1 << 25, kFastEdges = 1 << 26, kEdge = 1 << 27, kRoundCap = 1 << 28, kOutlines = 1 << 29, kSquareCap = 1 << 30, kEvenOdd = 1 << 31 };
+        enum Flags {
+            kIsCurve = 1 << 24,
+            kMolecule = 1 << 25,    kPCap = 1 << 25,
+            kFastEdges = 1 << 26,   kNCap = 1 << 26,
+            kEdge = 1 << 27,        kF0 = 1 << 27,
+            kRoundCap = 1 << 28,    kF1 = 1 << 28,
+            kOutlines = 1 << 29,
+            kSquareCap = 1 << 30,
+            kEvenOdd = 1 << 31,
+            kFragmentMask = (kOutlines | kSquareCap | kEvenOdd)
+        };
         Instance(size_t iz) : iz(uint32_t(iz)) {}
         uint32_t iz;  union { Quad quad;  Outline outline; };
     };
@@ -1147,8 +1157,8 @@ struct Rasterizer {
                     for (Instance *src = dst0; src < dst; src++, opaque++)
                         opaque->iz = iz, opaque->q = src->outline.q;
                     if (!closed) {
-                        opaque0->iz |= Instance::kMolecule;
-                        (opaque - 1)->iz |= Instance::kFastEdges;
+                        opaque0->iz |= Instance::kPCap;
+                        (opaque - 1)->iz |= Instance::kNCap;
                     }
                 }
             }
