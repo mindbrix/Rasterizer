@@ -502,11 +502,12 @@ struct Rasterizer {
     struct Quad {
         Cell cell;  short cover;  int base, biid;
     };
-    struct Outline {
-        Segment s;  short prev, next;  float cx, cy;
-    };
     struct Quadratic {
         float x0, y0, x1, y1, x2, y2;
+    };
+    struct Outline {
+        Quadratic q;
+        short prev, next;
     };
     struct Opaque {
         uint32_t iz;  union { Cell cell;  Quadratic s; };
@@ -1145,7 +1146,7 @@ struct Rasterizer {
         inline void writeInstance(float x0, float y0, float x1, float y1, float x2, float y2) {
             Instance *dst = outlines->alloc(1);
             Outline& o = dst->outline;
-            dst->iz = iz, o.s.x0 = x0, o.s.y0 = y0, o.s.x1 = x2, o.s.y1 = y2, o.cx = x1, o.cy = y1, o.prev = -1, o.next = 1;
+            dst->iz = iz, o.q.x0 = x0, o.q.y0 = y0, o.q.x1 = x1, o.q.y1 = y1, o.q.x2 = x2, o.q.y2 = y2, o.prev = -1, o.next = 1;
             if (opaques) {
                 Opaque *opaque = opaques->alloc(1);
                 struct Quadratic& s = opaque->s;

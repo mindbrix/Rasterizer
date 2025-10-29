@@ -52,14 +52,13 @@ struct Quad {
     Cell cell;  short cover;  int base, biid;
 };
 
-struct Outline {
-    Segment s;
-    short prev, next;
-    float cx, cy;
-};
-
 struct Quadratic {
     float x0, y0, x1, y1, x2, y2;
+};
+
+struct Outline {
+    Quadratic q;
+    short prev, next;
 };
 
 struct Opaque {
@@ -496,23 +495,23 @@ vertex InstancesVertex instances_vertex_main(
     if (inst.iz & Instance::kOutlines) {
         const bool roundCap = inst.iz & Instance::kRoundCap;
         const bool squareCap = inst.iz & Instance::kSquareCap;
-        const device Instance & pinst = instances[iid + inst.outline.prev], & ninst = instances[iid + inst.outline.next];
-        const device Segment& p = pinst.outline.s, & o = inst.outline.s, & n = ninst.outline.s;
-        const device Outline& pout = pinst.outline, & out = inst.outline, & nout = ninst.outline;
-        const bool pcurve = params->useCurves && pout.cx != FLT_MAX;
-        const bool ncurve = params->useCurves && nout.cx != FLT_MAX;
+        const short prevIndex = inst.outline.prev, nextIndex = inst.outline.next;
+        const device Instance & pinst = instances[iid + prevIndex], & ninst = instances[iid + nextIndex];
+        const device Quadratic& p = pinst.outline.q, & o = inst.outline.q, & n = ninst.outline.q;
+        const bool pcurve = params->useCurves && p.x1 != FLT_MAX;
+        const bool ncurve = params->useCurves && n.x1 != FLT_MAX;
         
         float x0, y0, x1, y1, x2, y2;
         float ax, bx, cx, ay, by, cy, ow, lcap;
-        bool pcap = out.prev == 0 || p.x1 != o.x0 || p.y1 != o.y0;
-        bool ncap = out.next == 0 || n.x0 != o.x1 || n.y0 != o.y1;
-        x0 = o.x0, y0 = o.y0, x1 = out.cx, y1 = out.cy, x2 = o.x1, y2 = o.y1;
+        bool pcap = prevIndex == 0 || p.x2 != o.x0 || p.y2 != o.y0;
+        bool ncap = nextIndex == 0 || n.x0 != o.x2 || n.y0 != o.y2;
+        x0 = o.x0, y0 = o.y0, x1 = o.x1, y1 = o.y1, x2 = o.x2, y2 = o.y2;
         
         float px0, py0, pdot, nx1, ny1, ndot;
-        px0 = x0 - (pcurve ? pout.cx : p.x0);
-        py0 = y0 - (pcurve ? pout.cy : p.y0);
-        nx1 = (ncurve ? nout.cx : n.x1) - x2;
-        ny1 = (ncurve ? nout.cy : n.y1) - y2;
+        px0 = x0 - (pcurve ? p.x1 : p.x0);
+        py0 = y0 - (pcurve ? p.y1 : p.y0);
+        nx1 = (ncurve ? n.x1 : n.x2) - x2;
+        ny1 = (ncurve ? n.y1 : n.y2) - y2;
         
         ax = x1 - x2, bx = x1 - x0, cx = x2 - x0;
         ay = y1 - y2, by = y1 - y0, cy = y2 - y0;
