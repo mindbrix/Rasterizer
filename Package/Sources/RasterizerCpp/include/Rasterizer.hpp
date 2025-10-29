@@ -1141,16 +1141,18 @@ struct Rasterizer {
                 Instance *first = dst0, *last = dst - 1;
                 first->outline.prev = int(closed) * int(last - first), last->outline.next = -first->outline.prev;
                 outlines->idx = outlines->end;
+                
+                if (opaques) {
+                    Opaque *opaque = opaques->alloc(dst - dst0);
+                    for (Instance *src = dst0; src < dst; src++, opaque++)
+                        opaque->iz = iz, opaque->q = src->outline.q;
+                }
             }
         }
         inline void writeInstance(float x0, float y0, float x1, float y1, float x2, float y2) {
             Instance *dst = outlines->alloc(1);
             Outline& o = dst->outline;
             dst->iz = iz, o.q.x0 = x0, o.q.y0 = y0, o.q.x1 = x1, o.q.y1 = y1, o.q.x2 = x2, o.q.y2 = y2, o.prev = -1, o.next = 1;
-            if (opaques) {
-                Opaque *opaque = opaques->alloc(1);
-                opaque->iz = iz, opaque->q = o.q;
-            }
         }
         uint32_t iz;  Row<Instance> *outlines = nullptr;  Row<Opaque> *opaques = nullptr;
     };
