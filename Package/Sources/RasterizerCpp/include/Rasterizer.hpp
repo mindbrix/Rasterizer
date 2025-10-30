@@ -371,9 +371,6 @@ struct Rasterizer {
             }
             return cubics + 2 * (counts[kMove] + counts[kLine] + counts[kQuadratic] + counts[kCubic]);
         }
-        inline bool isFlat() const {
-            return (counts[kQuadratic] + counts[kCubic]) == 0;
-        }
         size_t hash() {
             xxhash = xxhash ?: XXH64(points.base, points.end * sizeof(float), XXH64(types.base, types.end * sizeof(uint8_t), 0));
             return xxhash;
