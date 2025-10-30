@@ -216,7 +216,7 @@ vertex OpaquesVertex opaques_vertex_main(const device Colorant *colors [[buffer(
         cx = x2 - x0, cy = y2 - y0, rc = rsqrt(cx * cx + cy * cy);
         cross = bx * -cy + by * cx;
         ow = isFlat || !useCurves || sign * cross > 0.0 ? 0.0 : 0.5 * abs(cross * rc);
-        miterLen = sign * max(-dw, dw - ow);
+        miterLen = sign * max(-dw, dw - (ow * (ow > dw ? 1.05 : 1.0)));
 
         float2 unit = {
             isFlat || (isCap && !useCurves) ? cx * rc : (isTop ? ax * ra : bx * rb),
