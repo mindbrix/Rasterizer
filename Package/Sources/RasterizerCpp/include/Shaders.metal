@@ -530,16 +530,11 @@ vertex InstancesVertex instances_vertex_main(
         float tc = abs(area / cdot);
         
         const bool isCurve = params->useCurves && x1 != FLT_MAX && tc > 1e-3;
-        
-//        const bool underside = sign * area < 0.0;
-        
         ow = isCurve ? 0.5 * tc / rc : 0.0;
         
         lcap = (isCurve ? 0.41 * dw : 0.0) + (squareCap || roundCap ? dw : 0.5);
         float caplimit = dw == 1.0 ? 0.0 : -0.866025403784439;
-        
-        
-        
+    
         pdot = px0 * px0 + py0 * py0;
         ndot = nx1 * nx1 + ny1 * ny1;
         
@@ -550,8 +545,6 @@ vertex InstancesVertex instances_vertex_main(
         pcap = pcap || pdot < 1e-6 || dot(prev, next) < caplimit;
         tangent = pcap ? no : normalize(prev + next);
         miter0 = (dw + ow) / abs(dot(no, tangent)) * float2(-tangent.y, tangent.x);
-        
-//        ow *= !pcap && !ncap && underside ? 0.0 : 1.0;
         
         prev = normalize({ x2 - (isCurve ? x1 : x0), y2 - (isCurve ? y1 : y0) });
         next = rsqrt(ndot) * float2(nx1, ny1);
@@ -642,6 +635,7 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
             
             alpha = cap0 * (1.0 - sd0) + cap1 * (1.0 - sd1) + (sd0 + sd1 - 1.0) * outline;
         }
+        alpha += 0.25;
     } else
     if (vert.u != FLT_MAX) {
         float cover = abs(vert.cover + accumulation.sample(s, float2(vert.u, vert.v)).x);
