@@ -125,10 +125,8 @@ struct Rasterizer {
         uint8_t b, g, r, a;
     };
     struct Gradient {
-        enum Type { kLinear, kRadial };
-        Colorant stops[2];
-        Transform t;
-        Type type;
+        Colorant c0, c1;
+        float x0, y0, x1, y1;
     };
     template<typename T>
     struct Ref {
@@ -658,6 +656,7 @@ struct Rasterizer {
                         bool unclipped = clip.contains(dev);
                         float clipWidth = clip.width(), clipHeight = clip.height();
                         bool useMolecules = clipHeight <= kMoleculesHeight && clipWidth <= kMoleculesHeight;
+                        bool isOpaque = color.a == 255;
                         
                         colors[iz] = color, ctms[iz] = m, widths[iz] = width, clips[iz] = invclip;
                         Geometry *g = scn->paths[is].ptr;
@@ -667,7 +666,7 @@ struct Rasterizer {
                             uint32_t i0 = uint32_t(outlines.idx), i1;
                             Outliner outliner;
                             outliner.iz = inst->iz, outliner.outlines = & outlines;
-                            if (width > 4.f && color.a == 255) {
+                            if (width > 4.f && isOpaque) {
                                 bool softunclipped = true;
                                 if (clipActive) {
                                     Bounds soft = Bounds(quad.concat(invclip));
@@ -700,8 +699,7 @@ struct Rasterizer {
                                 Bounds soft = Bounds(quad.concat(invclip));
                                 softunclipped = fmaxf(fmaxf(fabsf(soft.lx - 0.5f), fabsf(soft.ux - 0.5f)), fmaxf(fabsf(soft.ly - 0.5f), fabsf(soft.uy - 0.5f))) < softclipMargin;
                             }
-                            bool opaque = color.a == 255 && softunclipped;
-                            writeSegmentInstances(clip, flags & Scene::kFillEvenOdd, iz, opaque, fast, *this);
+                            writeSegmentInstances(clip, flags & Scene::kFillEvenOdd, iz, isOpaque && softunclipped, fast, *this);
                             segments.idx = segments.end = idxr.dst - segments.base;
                         }
                     }
