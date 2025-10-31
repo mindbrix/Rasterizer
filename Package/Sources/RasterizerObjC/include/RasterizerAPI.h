@@ -10,6 +10,13 @@
 #import <CoreGraphics/CoreGraphics.h>
 
 
+@interface RAColor: NSObject
+- (id)initWithGray:(double)gray alpha:(double)alpha;
+- (id)initWithR:(double)r g:(double)g b:(double)b a:(double)a;
+- (id)initWithCGColor:(CGColorRef)cgColor;
+@end
+
+
 @interface RAPath: NSObject
 @property(nonatomic, readonly) CGRect bounds;
 
@@ -35,7 +42,12 @@ typedef NS_ENUM(NSUInteger, RASceneFlags) {
 @interface RAScene: NSObject
 @property(nonatomic, readonly) CGRect bounds;
 
-- (void)addPath:(RAPath *)path ctm:(CGAffineTransform)ctm color:(CGColorRef)color width:(double)width flags:(NSUInteger)flags clip:(CGRect)clip;
+- (void)addPath:(RAPath *)path
+            ctm:(CGAffineTransform)ctm
+           color:(RAColor *)color
+          width:(double)width
+          flags:(NSUInteger)flags
+           clip:(CGRect)clip;
 - (CGRect)addTextLine:(NSAttributedString *)string ctm:(CGAffineTransform)ctm clip:(CGRect)clip;
 - (CGRect)addText:(NSAttributedString *)string inRect:(CGRect)rect ctm:(CGAffineTransform)ctm clip:(CGRect)clip;
 - (CGAffineTransform)addSvgFromData:(NSData *)data;

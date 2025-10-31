@@ -23,8 +23,8 @@ extension CGAffineTransform {
     }
 }
 
-extension CGColor {
-    static func CreateFromHSV(h: Double, s: Double, v: Double) -> CGColor {
+extension RAColor {
+    static func CreateFromHSV(h: Double, s: Double, v: Double) -> RAColor {
         let H = h * 360
         let C = s * v
         let X = C * (1 - abs(fmod(H / 60.0, 2) - 1))
@@ -44,7 +44,7 @@ extension CGColor {
                 return (C, 0.0, X)
             }
         }
-        return CGColor(red: rgb.0 + m, green: rgb.1 + m, blue: rgb.2 + m, alpha: 1)
+        return RAColor(r: rgb.0 + m, g: rgb.1 + m, b: rgb.2 + m, a: 1)
     }
 }
 
@@ -206,7 +206,7 @@ class SwiftDemo: NSObject, RASceneListDelegate {
         path.quad(to: -1.25 * width, y1: 0.5 * height, x2: width, y2: 0)
         
         let scene = RAScene()
-        scene.add(path, ctm: .identity, color: CGColor(gray: 0, alpha: 1), width: (flag ? 1e-2 : 1e-1) * width, flags: 0, clip: .zero)
+        scene.add(path, ctm: .identity, color: RAColor(gray: 0, alpha: 1), width: (flag ? 1e-2 : 1e-1) * width, flags: 0, clip: .zero)
         
         let list = RASceneList()
         list.add(scene, ctm: .identity, clip: .zero)
@@ -229,7 +229,7 @@ class SwiftDemo: NSObject, RASceneListDelegate {
             }
         }
         let scene = RAScene()
-        scene.add(path, ctm: .identity, color: CGColor(gray: 0, alpha: 1), width: 0, flags: RASceneFlags.fillEvenOdd.rawValue, clip: .zero)
+        scene.add(path, ctm: .identity, color: RAColor(gray: 0, alpha: 1), width: 0, flags: RASceneFlags.fillEvenOdd.rawValue, clip: .zero)
 
         let list = RASceneList()
         list.add(scene, ctm: .identity, clip: .zero)
@@ -257,8 +257,7 @@ class SwiftDemo: NSObject, RASceneListDelegate {
         let scale = 0.125 * dim
         for i in 0 ..< count {
             let ti = Double(i) / Double(count)
-            let hsv = CGColor.CreateFromHSV(h: ti, s: 1, v: 1)
-//            let hsv = NSColor(hue: ti, saturation: 1, brightness: 1, alpha: 1).cgColor
+            let hsv = RAColor.CreateFromHSV(h: ti, s: 1, v: 1)
             let radial = CGPoint(center: center, r: r, theta: ti * 2 * Double.pi)
             
             let ctm = CGAffineTransform(
@@ -267,13 +266,7 @@ class SwiftDemo: NSObject, RASceneListDelegate {
                 scale: CGSize(width: scale, height: scale),
                 translation: CGVector(dx: radial.x - unitCenter.x, dy: radial.y - unitCenter.y)
             )
-            scene.add(path,
-                ctm: ctm,
-                color: hsv,
-                width: 0.1,
-                flags: 0,
-                clip: .zero
-            )
+            scene.add(path, ctm: ctm, color: hsv, width: 0.1, flags: 0, clip: .zero)
         }
         let list = RASceneList()
         list.add(scene,

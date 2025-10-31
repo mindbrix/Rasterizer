@@ -14,6 +14,37 @@
 #import "RasterizerCoreText.hpp"
 
 
+#pragma mark - RAColor
+
+@implementation RAColor: NSObject
+
+- (id)initWithGray:(double)gray alpha:(double)alpha {
+    self = [super init];
+    if (!self)
+        return nil;
+    _color = Ra::Colorant(gray * 255, gray * 255, gray * 255, alpha * 255);
+    return self;
+}
+
+- (id)initWithR:(double)r g:(double)g b:(double)b a:(double)a {
+    self = [super init];
+    if (!self)
+        return nil;
+    _color = Ra::Colorant(b * 255, g * 255, r * 255, a * 255);
+    return self;
+}
+
+- (id)initWithCGColor:(CGColorRef)cgColor {
+    self = [super init];
+    if (!self)
+        return nil;
+    _color = RaCG::colorantFromCG(cgColor);
+    return self;
+}
+
+@end
+
+
 #pragma mark - RAPath
 
 @implementation RAPath: NSObject
@@ -66,12 +97,17 @@
     return RaCG::CGRectFromBounds(_scene.bounds());
 }
 
-- (void)addPath:(RAPath *)path ctm:(CGAffineTransform)ctm color:(CGColorRef)color width:(double)width flags:(NSUInteger)flags clip:(CGRect)clip {
+- (void)addPath:(RAPath *)path
+            ctm:(CGAffineTransform)ctm
+           color:(RAColor *)color
+          width:(double)width
+          flags:(NSUInteger)flags
+            clip:(CGRect)clip {
     Ra::Path p = path.path;
     Ra::Bounds clipBounds = CGRectIsNull(clip) || CGRectIsEmpty(clip) || CGRectIsInfinite(clip) ? Ra::Bounds::huge() : RaCG::BoundsFromCGRect(clip);
     _scene.addPath(p,
                    RaCG::transformFromCG(ctm),
-                   RaCG::colorantFromCG(color),
+                   color.color,
                    width,
                    flags,
                    & clipBounds);
