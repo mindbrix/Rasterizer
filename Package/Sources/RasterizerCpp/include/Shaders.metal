@@ -62,7 +62,7 @@ struct Outline {
 };
 
 struct Opaque {
-    uint32_t iz;  union { Cell cell;  Quadratic s; };
+    uint32_t iz;  union { Cell cell;  Quadratic q; };
 };
 
 struct Instance {
@@ -196,12 +196,12 @@ vertex OpaquesVertex opaques_vertex_main(const device Colorant *colors [[buffer(
     const Colorant fillColor = colors[inst.iz & kPathIndexMask];
     const Colorant color = params->showOpaques ? fillColor : params->clearColor;
     const device Cell& cell = inst.cell;
-    const device Quadratic& s = inst.s;
+    const device Quadratic& q = inst.q;
     float x, y, z = kDepthRange * float((inst.iz & kPathIndexMask) + 1) / float(*pathCount);
     
     if (inst.iz & Instance::kOutlines) {
         const float dw = 0.5 * (widths[inst.iz & kPathIndexMask] - 1.0);
-        const float x0 = s.x0, y0 = s.y0, x1 = s.x1, y1 = s.y1, x2 = s.x2, y2 = s.y2;
+        const float x0 = q.x0, y0 = q.y0, x1 = q.x1, y1 = q.y1, x2 = q.x2, y2 = q.y2;
         const bool isFlat = x1 == FLT_MAX;
         const bool isTop = vid >> 1, isRight = vid & 1;
         const bool pcap = inst.iz & Instance::kPCap;

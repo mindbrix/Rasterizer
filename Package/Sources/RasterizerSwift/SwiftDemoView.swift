@@ -106,6 +106,7 @@ class SwiftDemo: NSObject, RASceneListDelegate {
     var useCurves = true
     var showOpaques = true
     var showOutlines = false
+    var useRect = false
     var t = 0.0
     var ctm = CGAffineTransform.identity
     var bounds = CGRect.zero
@@ -134,6 +135,8 @@ class SwiftDemo: NSObject, RASceneListDelegate {
                 showOutlines.toggle()
             case "p":
                 paused.toggle()
+            case "r":
+                useRect.toggle()
             case "v":
                 if (flags.contains(.command)) {
                     let objects = NSPasteboard.general.readObjects(forClasses: [NSAttributedString.self])
@@ -194,7 +197,7 @@ class SwiftDemo: NSObject, RASceneListDelegate {
         for i in 0 ..< count {
             let ti = Double(i) / Double(count)
             let origin = CGPoint(center: center, r: 0.5 * radius, theta: ti * 2 * Double.pi)
-            if flag {
+            if useRect {
                 path.add(CGRect(x: origin.x - radius, y: origin.y - radius, width: dim, height: dim))
             } else {
                 path.addEllipse(CGRect(x: origin.x - radius, y: origin.y - radius, width: dim, height: dim))
@@ -215,8 +218,11 @@ class SwiftDemo: NSObject, RASceneListDelegate {
         let unitRect = CGRect(x: 0, y: 0, width: 1, height: 1)
         let unitCenter = CGPoint(x: unitRect.midX, y: unitRect.midY)
         let path = RAPath()
-//        path.add(unitRect)
-        path.addEllipse(unitRect)
+        if (useRect) {
+            path.add(unitRect)
+        } else {
+            path.addEllipse(unitRect)
+        }
         path.close()
         
         let scene = RAScene()
