@@ -214,14 +214,14 @@ vertex OpaquesVertex opaques_vertex_main(const device Colorant *colors [[buffer(
         ax = x2 - x1, ay = y2 - y1, ra = rsqrt(ax * ax + ay * ay);
         bx = x1 - x0, by = y1 - y0, rb = rsqrt(bx * bx + by * by);
         cx = x2 - x0, cy = y2 - y0, rc = rsqrt(cx * cx + cy * cy);
-        cross = bx * -cy + by * cx;
-        ow = isFlat || !useCurves || sign * cross > 0.0 ? 0.0 : 0.5 * abs(cross * rc);
-        miterLen = sign * max(-dw, dw - (ow * (ow > dw ? 1.05 : 1.0)));
-
         float2 unit = {
             isFlat || (isCap && !useCurves) ? cx * rc : (isTop ? ax * ra : bx * rb),
             isFlat || (isCap && !useCurves) ? cy * rc : (isTop ? ay * ra : by * rb)
         };
+        cross = bx * -cy + by * cx;
+        ow = isFlat || !useCurves || sign * cross > 0.0 ? 0.0 : 0.5 * abs(cross / (cx * unit.x + cy * unit.y));
+        miterLen = sign * max(-dw, dw - ow);
+
         dx = isCap ? 0.5 * unit.x : 0.0, x = (isTop ? x2 - dx : x0 + dx) + miterLen * -unit.y;
         dy = isCap ? 0.5 * unit.y : 0.0, y = (isTop ? y2 - dy : y0 + dy) + miterLen * unit.x;
     } else {

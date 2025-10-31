@@ -175,7 +175,7 @@ class SwiftDemo: NSObject, RASceneListDelegate {
     func testQuadratics(_ time: Double, width: Double, height: Double) -> RASceneList {
         let path = RAPath()
         path.move(to: 0, y: 0)
-        path.quad(to: 0.25 * width, y1: 0.5 * height, x2: width, y2: 0)
+        path.quad(to: -1.25 * width, y1: 0.5 * height, x2: width, y2: 0)
         
         let scene = RAScene()
         scene.add(path, ctm: .identity, color: CGColor(gray: 0, alpha: 1), width: (flag ? 1e-2 : 1e-1) * width, flags: 0, clip: .zero)
