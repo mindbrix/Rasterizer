@@ -26,11 +26,11 @@
     return self;
 }
 
-- (id)initWithR:(double)r g:(double)g b:(double)b a:(double)a {
+- (id)initWithRed:(double)red green:(double)green blue:(double)blue alpha:(double)alpha {
     self = [super init];
     if (!self)
         return nil;
-    _color = Ra::Colorant(b * 255, g * 255, r * 255, a * 255);
+    _color = Ra::Colorant(blue * 255, green * 255, red * 255, alpha * 255);
     return self;
 }
 

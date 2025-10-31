@@ -12,7 +12,7 @@
 
 @interface RAColor: NSObject
 - (id)initWithGray:(double)gray alpha:(double)alpha;
-- (id)initWithR:(double)r g:(double)g b:(double)b a:(double)a;
+- (id)initWithRed:(double)red green:(double)green blue:(double)blue alpha:(double)alpha;
 - (id)initWithCGColor:(CGColorRef)cgColor;
 @end
 

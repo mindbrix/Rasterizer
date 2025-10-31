@@ -44,7 +44,7 @@ extension RAColor {
                 return (C, 0.0, X)
             }
         }
-        return RAColor(r: rgb.0 + m, g: rgb.1 + m, b: rgb.2 + m, a: 1)
+        return RAColor(red: rgb.0 + m, green: rgb.1 + m, blue: rgb.2 + m, alpha: 1)
     }
 }
 
