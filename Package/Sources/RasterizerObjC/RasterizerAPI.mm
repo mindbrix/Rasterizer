@@ -26,6 +26,32 @@
     return self;
 }
 
+- (id)initWithHue:(double)hue saturation:(double)saturation value:(double)value alpha:(double)alpha {
+    self = [super init];
+    if (!self)
+        return nil;
+    double H, C, X, m, r, g, b;
+    H = hue * 360.0;
+    C = saturation * value;
+    X = C * (1 - abs(fmod(H / 60.0, 2) - 1));
+    m = value - C;
+    if (H >= 0 && H < 60) {
+        r = C, g = X, b = 0.0;
+    } else if (H >= 60 && H < 120) {
+        r = X, g = C, b = 0.0;
+    } else if (H >= 120 && H < 180) {
+        r = 0.0, g = C, b = X;
+    } else if (H >= 180 && H < 240) {
+        r = 0.0, g = X, b = C;
+    } else if (H >= 240 && H < 300) {
+        r = X, g = 0.0, b = C;
+    } else {
+        r = C, g = 0.0, b = X;
+    }
+    _color = Ra::Colorant((b + m) * 255, (g + m) * 255, (r + m) * 255, alpha * 255);
+    return self;
+}
+
 - (id)initWithRed:(double)red green:(double)green blue:(double)blue alpha:(double)alpha {
     self = [super init];
     if (!self)

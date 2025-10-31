@@ -23,31 +23,6 @@ extension CGAffineTransform {
     }
 }
 
-extension RAColor {
-    static func CreateFromHSV(h: Double, s: Double, v: Double) -> RAColor {
-        let H = h * 360
-        let C = s * v
-        let X = C * (1 - abs(fmod(H / 60.0, 2) - 1))
-        let m = v - C
-        var rgb : (Double, Double, Double) {
-            if H >= 0 && H < 60 {
-                return (C, X, 0.0)
-            } else if H >= 60 && H < 120 {
-                return (X, C, 0.0)
-            } else if H >= 120 && H < 180 {
-                return (0.0, C, X)
-            } else if H >= 180 && H < 240 {
-                return (0.0, X, C)
-            } else if H >= 240 && H < 300 {
-                return (X, 0.0, C)
-            } else {
-                return (C, 0.0, X)
-            }
-        }
-        return RAColor(red: rgb.0 + m, green: rgb.1 + m, blue: rgb.2 + m, alpha: 1)
-    }
-}
-
 extension CGPoint {
     init(center: CGPoint, r: Double, theta: Double) {
         self = CGPoint(x: center.x + r * cos(theta), y: center.y + r * sin(theta))
@@ -257,7 +232,7 @@ class SwiftDemo: NSObject, RASceneListDelegate {
         let scale = 0.125 * dim
         for i in 0 ..< count {
             let ti = Double(i) / Double(count)
-            let hsv = RAColor.CreateFromHSV(h: ti, s: 1, v: 1)
+            let hsv = RAColor(hue: ti, saturation: 1, value: 1, alpha: 1)
             let radial = CGPoint(center: center, r: r, theta: ti * 2 * Double.pi)
             
             let ctm = CGAffineTransform(
