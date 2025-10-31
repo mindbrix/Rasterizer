@@ -25,7 +25,6 @@
 @interface RasterizerLayer ()
 {
     Ra::Buffer _buffer0, _buffer1;
-    RaCG::Converter _converter;
 }
 
 @property (nonatomic) dispatch_semaphore_t inflight_semaphore;
@@ -133,17 +132,13 @@
 - (void)draw {
     BOOL odd = ++_tick & 1;
     Ra::Buffer *buffer = odd ? & _buffer1 : & _buffer0;
-    CGColorSpaceRef colorSpace = nil;
     if ([self.layerDelegate respondsToSelector:@selector(writeBuffer:forLayer:)])
-        colorSpace = [self.layerDelegate writeBuffer:buffer forLayer:self];
+        [self.layerDelegate writeBuffer:buffer forLayer:self];
     
     id <MTLBuffer> mtlBuffer = buffer->size == 0 ? nil : [self.device newBufferWithBytesNoCopy:buffer->base
                                                length:buffer->size
                                               options:MTLResourceStorageModeShared
                                           deallocator:nil];
-
-    _converter.matchColors((Ra::Colorant *)(buffer->base + buffer->colors), buffer->pathsCount, colorSpace);
-    
     id <CAMetalDrawable> drawable = [self nextDrawable];
     MTLTextureDescriptor* desc = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatDepth32Float
                                                                                     width:self.drawableSize.width

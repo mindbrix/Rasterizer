@@ -29,6 +29,7 @@
 @property(nonatomic) CVDisplayLinkRef displayLink;
 @property(nonatomic) dispatch_semaphore_t inflight_semaphore;
 @property(nonatomic) RasterizerRenderer renderer;
+@property(nonatomic) RaCG::Converter converter;
 - (void)timerFired:(double)time;
 
 @end
@@ -88,15 +89,15 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 
 #pragma mark - LayerDelegate
 
-- (CGColorSpaceRef)writeBuffer:(Ra::Buffer *)buffer forLayer:(CALayer *)layer {
+- (void)writeBuffer:(Ra::Buffer *)buffer forLayer:(CALayer *)layer {
     if ([self.listDelegate respondsToSelector:@selector(getListAtTime:width:height:)]) {
         float scale = self.layer.contentsScale, w = self.bounds.size.width, h = self.bounds.size.height;
         RASceneList *list = [self.listDelegate getListAtTime: NSDate.timeIntervalSinceReferenceDate
                                                                width: w
                                                               height: h];
         _renderer.renderList(list.list, scale, w, h, buffer);
+        _converter.matchColors((Ra::Colorant *)(buffer->base + buffer->colors), buffer->pathsCount, self.window.colorSpace.CGColorSpace);
     }
-    return self.window.colorSpace.CGColorSpace;
 }
 
 #pragma mark - CALayerDelegate
