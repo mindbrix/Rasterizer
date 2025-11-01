@@ -475,7 +475,7 @@ struct InstancesVertex
     float4 position [[position]];
     float4 color;
     float2 clip;
-    float u, v, w, cover, alpha;
+    float u, v, w, cover;
     float x, y, z;
     uint32_t iz;
 };
@@ -591,7 +591,7 @@ vertex InstancesVertex instances_vertex_main(
     float z = kDepthRange * float(iz + 1) / float(*pathCount);
     vert.position = float4(x, y, z, 1.0);
     vert.clip = float2(dx * clip.a + dy * clip.c + clip.tx, dx * clip.b + dy * clip.d + clip.ty);
-    vert.alpha = alpha;
+    vert.color *= alpha;
     vert.iz = iz | flags;
     return vert;
 }
@@ -647,6 +647,6 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
     float sx = rsqrt(a * a + b * b), sy = rsqrt(c * c + d * d);
     float clip = saturate(0.5 + clx * sx) * saturate(0.5 + (1.0 - clx) * sx) * saturate(0.5 + cly * sy) * saturate(0.5 + (1.0 - cly) * sy);
     
-    float ma = alpha * vert.alpha * clip;
+    float ma = alpha * clip;
     return { vert.color.x * ma, vert.color.y * ma, vert.color.z * ma, vert.color.w * ma };
 }
