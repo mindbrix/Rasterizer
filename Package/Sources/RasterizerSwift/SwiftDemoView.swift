@@ -168,6 +168,12 @@ class SwiftDemo: NSObject, RASceneListDelegate {
         bounds = CGRect(x: 0, y: 0, width: width, height: height)
         t = paused ? t : time
         let list = closures[index](t, width, height)
+        if let pasted = pastedScene {
+            list.add(pasted,
+                ctm: .identity,
+                clip: .zero
+            )
+        }
         list.ctm = ctm
         list.useCurves = useCurves
         list.showOpaques = showOpaques
@@ -248,12 +254,6 @@ class SwiftDemo: NSObject, RASceneListDelegate {
             ctm: .identity,
             clip: .zero
         )
-        if let pasted = pastedScene {
-            list.add(pasted,
-                ctm: .identity,
-                clip: .zero
-            )
-        }
         return list
     }
 }
