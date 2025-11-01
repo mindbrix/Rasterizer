@@ -456,7 +456,7 @@ struct Rasterizer {
         RefVector<Path> paths;
         Vector<Bounds> bnds, clips;
         Vector<Transform> ctms;
-        Vector<Colorant> colors;
+        Vector<Colorant> colors, srcColors = colors;
         Vector<float> widths;
         Vector<uint8_t> flags;
     };

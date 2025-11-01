@@ -20,7 +20,7 @@
 
 struct RasterizerRenderer {
     
-    void renderList(const Ra::SceneList& list, float scale, float w, float h, Ra::Buffer *buffer) {
+    void renderList(const Ra::SceneList& list, float scale, float w, float h, Ra::Buffer *buffer, CGColorSpaceRef destSpace) {
         Ra::Bounds device(0.f, 0.f, ceilf(scale * w), ceilf(scale * h));
         Ra::Transform view = list.ctm.concat(Ra::Transform(scale, 0.f, 0.f, scale, 0.f, 0.f));
         
@@ -42,6 +42,8 @@ struct RasterizerRenderer {
                 *(buffer->entries.alloc(1)) = contexts[i].entries[j];
         size_t end = buffer->entries.end == 0 ? 0 : buffer->entries.back().end;
         assert(size >= end);
+        
+        converter.matchColors((Ra::Colorant *)(buffer->base + buffer->colors), buffer->pathsCount, destSpace);
     }
     
     void writeBalancedWeightDivisions(const Ra::SceneList& list, size_t *divisions) {
@@ -64,6 +66,8 @@ struct RasterizerRenderer {
         }
     }
     void reset() { for (auto& ctx : contexts) ctx.reset(); }
+    
+    RaCG::Converter converter;
     
     static const int kContextCount = 8;
     Ra::Context contexts[kContextCount];
