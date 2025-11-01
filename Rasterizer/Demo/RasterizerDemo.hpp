@@ -239,7 +239,6 @@ struct RasterizerDemo {
             }
             list.addList(document);
         }
-        runTransferFunction(list, transferFunction, this);
         if (fit)
             ctm = bounds.fitTransform(list.bounds()), fit = false;
         Ra::SceneList draw = list;
@@ -311,61 +310,4 @@ struct RasterizerDemo {
     float mx, my;
     Rw::IndexPair indices = Rw::IndexPair(INT_MAX, INT_MAX), locked = Rw::IndexPair(INT_MAX, INT_MAX);
     size_t flags = 0;
-    
-#pragma mark - Static
-    typedef void (*TransferFunction)(size_t li, size_t ui, size_t si, Ra::Scene *scn, Ra::Transform ctm, void *info);
-    
-    
-    static void runTransferFunction(Ra::SceneList& list, TransferFunction function, void *info) {
-        if (function == nullptr)
-            return;
-        for (int si = 0; si < list.scenes.size(); si++) {
-            int threads = 8;
-            Ra::Scene *scn = & list.scenes[si];
-            Ra::Transform ctm = list.ctms[si];
-            std::vector<size_t> divisions;
-            divisions.emplace_back(0);
-            for (int i = 0; i < threads; i++)
-                divisions.emplace_back(ceilf(float(i + 1) / float(threads) * float(scn->count)));
-            dispatch_apply(threads, DISPATCH_APPLY_AUTO, ^(size_t i) {
-                (*function)(divisions[i], divisions[i + 1], si, scn, ctm, info);
-            });
-        }
-    }
-    
-    static void transferFunction(size_t li, size_t ui, size_t si, Ra::Scene *scn, Ra::Transform ctm, void *info) {
-        RasterizerDemo& demo = *((RasterizerDemo *)info);
-        Ra::Bounds *bounds = & scn->bnds[0];
-        Ra::Transform *srcCtms = scn->ctms->src.base, *dstCtms = scn->ctms->base;
-        Ra::Colorant *srcColors = scn->colors->src.base, *dstColors = scn->colors->base;
-        float *srcWidths = scn->widths->src.base, *dstWidths = scn->widths->base;
-        uint8_t *srcFlags = scn->flags->src.base, *dstFlags = scn->flags->base;
-        size_t count = ui - li;
-        Ra::Colorant black(0, 0, 0, 255), red(0, 0, 255, 255);
-        const float kScaleMin = 1.0f, kScaleMax = 1.2f;
-        float ftime = demo.clock - floor(demo.clock);
-        float t = sinf(kTau * ftime), s = 1.f - t;
-        float scale = s * kScaleMin + t * kScaleMax;
-        if (!demo.animating)
-            memcpy(dstCtms + li, srcCtms + li, count * sizeof(srcCtms[0]));
-        else {
-            float cx, cy, cos0 = cosf(M_PI * t), sin0 = sinf(M_PI * t), cos1 = cosf(M_PI * -t), sin1 = sinf(M_PI * -t);
-            Ra::Transform rsts[2] = {
-                { scale * cos0, scale * sin0, scale * -sin0, scale * cos0, 0, 0 },
-                { scale * cos1, scale * sin1, scale * -sin1, scale * cos1, 0, 0 }};
-            Ra::Transform *m = srcCtms + li;  Ra::Bounds *b = bounds + li;
-            for (size_t j = li; j < ui; j++, m++, b++) {
-                cx = 0.5f * (b->lx + b->ux), cy = 0.5f * (b->ly + b->uy);
-                dstCtms[j] = m->concatAroundCenter(rsts[j & 1], cx * m->a + cy * m->c + m->tx, cx * m->b + cy * m->d + m->ty);
-            }
-        }
-        memcpy(dstWidths + li, srcWidths + li, count * sizeof(srcWidths[0]));
-        
-        for (size_t j = li; j < ui; j++) {
-            dstColors[j] = (demo.indices.i0 == si && demo.indices.i1 == j) ? red : srcColors[j];
-        }
-        for (size_t j = li; j < ui; j++) {
-            dstFlags[j] = demo.locked.i0 == INT_MAX ? srcFlags[j] : si == demo.locked.i0 && j == demo.locked.i1 ? srcFlags[j] & ~Ra::Scene::kInvisible : srcFlags[j] | Ra::Scene::kInvisible;
-        }
-    }
 };
