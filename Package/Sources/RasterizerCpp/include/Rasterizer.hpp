@@ -179,9 +179,8 @@ struct Rasterizer {
         inline void add(T obj) {
             memory->add(obj);
         }
-        inline void resize(size_t n) {
-            bzero(memory->resize(n), n * sizeof(T));
-            memory->end = n;
+        inline T *resize(size_t n) {
+            return memory->resize(n);
         }
         inline size_t size() const {
             return memory->end;
