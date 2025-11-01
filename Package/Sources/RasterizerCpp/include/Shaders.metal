@@ -473,6 +473,7 @@ fragment float4 quad_edges_fragment_main(EdgesVertex vert [[stage_in]]) {
 struct InstancesVertex
 {
     float4 position [[position]];
+    float4 color;
     float2 clip;
     float u, v, w, cover, alpha;
     float x, y, z;
@@ -480,6 +481,7 @@ struct InstancesVertex
 };
 
 vertex InstancesVertex instances_vertex_main(
+            const device Colorant *colors [[buffer(0)]],
             const device Instance *instances [[buffer(1)]],
             const device Transform *ctms [[buffer(4)]],
             const device Transform *clips [[buffer(5)]],
@@ -496,6 +498,9 @@ vertex InstancesVertex instances_vertex_main(
     const float sign = isRight ? -1.0 : 1.0;
     const device Instance& inst = instances[iid];
     uint iz = inst.iz & kPathIndexMask, flags = inst.iz & Instance::kFragmentMask;
+    
+    Colorant color = colors[iz];
+    vert.color = float4(color.r / 255.0, color.g / 255.0, color.b / 255.0, color.a / 255.0);
     
     Transform clip = clips[iz];
     float w = widths[iz], cw = max(1.0, w), dw = 0.5 * (1.0 + cw);
@@ -592,7 +597,6 @@ vertex InstancesVertex instances_vertex_main(
 }
 
 fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
-                                        const device Colorant *colors [[buffer(0)]],
                                         texture2d<float> accumulation [[texture(0)]]
 )
 {
@@ -639,10 +643,10 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
         float cover = abs(vert.cover + accumulation.sample(s, float2(vert.u, vert.v)).x);
         alpha = vert.iz & Instance::kEvenOdd ? 1.0 - abs(fmod(cover, 2.0) - 1.0) : min(1.0, cover);
     }
-    Colorant color = colors[vert.iz & kPathIndexMask];
     float clx = vert.clip.x, cly = vert.clip.y, a = dfdx(clx), b = dfdy(clx), c = dfdx(cly), d = dfdy(cly);
     float sx = rsqrt(a * a + b * b), sy = rsqrt(c * c + d * d);
     float clip = saturate(0.5 + clx * sx) * saturate(0.5 + (1.0 - clx) * sx) * saturate(0.5 + cly * sy) * saturate(0.5 + (1.0 - cly) * sy);
-    float ma = 0.003921568627 * alpha * vert.alpha * clip;
-    return { color.r * ma, color.g * ma, color.b * ma, color.a * ma };
+    
+    float ma = alpha * vert.alpha * clip;
+    return { vert.color.x * ma, vert.color.y * ma, vert.color.z * ma, vert.color.w * ma };
 }
