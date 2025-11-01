@@ -106,6 +106,7 @@ class SwiftDemo: NSObject, RASceneListDelegate {
     var useCurves = true
     var showOpaques = true
     var showOutlines = false
+    var useRect = false
     var t = 0.0
     var ctm = CGAffineTransform.identity
     var bounds = CGRect.zero
@@ -134,6 +135,8 @@ class SwiftDemo: NSObject, RASceneListDelegate {
                 showOutlines.toggle()
             case "p":
                 paused.toggle()
+            case "r":
+                useRect.toggle()
             case "v":
                 if (flags.contains(.command)) {
                     let objects = NSPasteboard.general.readObjects(forClasses: [NSAttributedString.self])
@@ -165,6 +168,12 @@ class SwiftDemo: NSObject, RASceneListDelegate {
         bounds = CGRect(x: 0, y: 0, width: width, height: height)
         t = paused ? t : time
         let list = closures[index](t, width, height)
+        if let pasted = pastedScene {
+            list.add(pasted,
+                ctm: .identity,
+                clip: .zero
+            )
+        }
         list.ctm = ctm
         list.useCurves = useCurves
         list.showOpaques = showOpaques
@@ -175,10 +184,10 @@ class SwiftDemo: NSObject, RASceneListDelegate {
     func testQuadratics(_ time: Double, width: Double, height: Double) -> RASceneList {
         let path = RAPath()
         path.move(to: 0, y: 0)
-        path.quad(to: 0.25 * width, y1: 0.5 * height, x2: width, y2: 0)
+        path.quad(to: -1.25 * width, y1: 0.5 * height, x2: width, y2: 0)
         
         let scene = RAScene()
-        scene.add(path, ctm: .identity, color: CGColor(gray: 0, alpha: 1), width: 1e-1 * width, flags: 0, clip: .zero)
+        scene.add(path, ctm: .identity, color: RAColor(gray: 0, alpha: 1), width: (flag ? 1e-2 : 1e-1) * width, flags: 0, clip: .zero)
         
         let list = RASceneList()
         list.add(scene, ctm: .identity, clip: .zero)
@@ -194,14 +203,14 @@ class SwiftDemo: NSObject, RASceneListDelegate {
         for i in 0 ..< count {
             let ti = Double(i) / Double(count)
             let origin = CGPoint(center: center, r: 0.5 * radius, theta: ti * 2 * Double.pi)
-            if flag {
+            if useRect {
                 path.add(CGRect(x: origin.x - radius, y: origin.y - radius, width: dim, height: dim))
             } else {
                 path.addEllipse(CGRect(x: origin.x - radius, y: origin.y - radius, width: dim, height: dim))
             }
         }
         let scene = RAScene()
-        scene.add(path, ctm: .identity, color: CGColor(gray: 0, alpha: 1), width: 0, flags: RASceneFlags.fillEvenOdd.rawValue, clip: .zero)
+        scene.add(path, ctm: .identity, color: RAColor(gray: 0, alpha: 1), width: 0, flags: RASceneFlags.fillEvenOdd.rawValue, clip: .zero)
 
         let list = RASceneList()
         list.add(scene, ctm: .identity, clip: .zero)
@@ -215,8 +224,11 @@ class SwiftDemo: NSObject, RASceneListDelegate {
         let unitRect = CGRect(x: 0, y: 0, width: 1, height: 1)
         let unitCenter = CGPoint(x: unitRect.midX, y: unitRect.midY)
         let path = RAPath()
-//        path.add(unitRect)
-        path.addEllipse(unitRect)
+        if (useRect) {
+            path.add(unitRect)
+        } else {
+            path.addEllipse(unitRect)
+        }
         path.close()
         
         let scene = RAScene()
@@ -226,7 +238,7 @@ class SwiftDemo: NSObject, RASceneListDelegate {
         let scale = 0.125 * dim
         for i in 0 ..< count {
             let ti = Double(i) / Double(count)
-            let hsv = NSColor(hue: ti, saturation: 1, brightness: 1, alpha: 1).cgColor
+            let hsv = RAColor(hue: ti, saturation: 1, value: 1, alpha: 1)
             let radial = CGPoint(center: center, r: r, theta: ti * 2 * Double.pi)
             
             let ctm = CGAffineTransform(
@@ -235,25 +247,13 @@ class SwiftDemo: NSObject, RASceneListDelegate {
                 scale: CGSize(width: scale, height: scale),
                 translation: CGVector(dx: radial.x - unitCenter.x, dy: radial.y - unitCenter.y)
             )
-            scene.add(path,
-                ctm: ctm,
-                color: hsv,
-                width: 0.1,
-                flags: 0,
-                clip: .zero
-            )
+            scene.add(path, ctm: ctm, color: hsv, width: 0.1, flags: 0, clip: .zero)
         }
         let list = RASceneList()
         list.add(scene,
             ctm: .identity,
             clip: .zero
         )
-        if let pasted = pastedScene {
-            list.add(pasted,
-                ctm: .identity,
-                clip: .zero
-            )
-        }
         return list
     }
 }

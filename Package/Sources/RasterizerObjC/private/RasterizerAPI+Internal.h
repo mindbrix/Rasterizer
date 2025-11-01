@@ -9,6 +9,11 @@
 #import "Rasterizer.hpp"
 
 
+@interface RAColor ()
+@property(nonatomic) Ra::Colorant color;
+@end
+
+
 @interface RAPath ()
 @property(nonatomic) Ra::Path path;
 @end

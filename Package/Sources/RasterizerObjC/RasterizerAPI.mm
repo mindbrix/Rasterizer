@@ -14,6 +14,62 @@
 #import "RasterizerCoreText.hpp"
 
 
+#pragma mark - RAColor
+
+@implementation RAColor: NSObject
+
+- (id)initWithGray:(double)gray alpha:(double)alpha {
+    self = [super init];
+    if (!self)
+        return nil;
+    _color = Ra::Colorant(gray * 255, gray * 255, gray * 255, alpha * 255);
+    return self;
+}
+
+- (id)initWithHue:(double)hue saturation:(double)saturation value:(double)value alpha:(double)alpha {
+    self = [super init];
+    if (!self)
+        return nil;
+    double H, C, X, m, r, g, b;
+    H = hue * 360.0;
+    C = saturation * value;
+    X = C * (1 - abs(fmod(H / 60.0, 2) - 1));
+    m = value - C;
+    if (H >= 0 && H < 60)
+        r = C, g = X, b = 0.0;
+    else if (H >= 60 && H < 120)
+        r = X, g = C, b = 0.0;
+    else if (H >= 120 && H < 180)
+        r = 0.0, g = C, b = X;
+    else if (H >= 180 && H < 240)
+        r = 0.0, g = X, b = C;
+    else if (H >= 240 && H < 300)
+        r = X, g = 0.0, b = C;
+    else
+        r = C, g = 0.0, b = X;
+    _color = Ra::Colorant((b + m) * 255, (g + m) * 255, (r + m) * 255, alpha * 255);
+    return self;
+}
+
+- (id)initWithRed:(double)red green:(double)green blue:(double)blue alpha:(double)alpha {
+    self = [super init];
+    if (!self)
+        return nil;
+    _color = Ra::Colorant(blue * 255, green * 255, red * 255, alpha * 255);
+    return self;
+}
+
+- (id)initWithCGColor:(CGColorRef)cgColor {
+    self = [super init];
+    if (!self)
+        return nil;
+    _color = RaCG::colorantFromCG(cgColor);
+    return self;
+}
+
+@end
+
+
 #pragma mark - RAPath
 
 @implementation RAPath: NSObject
@@ -66,12 +122,17 @@
     return RaCG::CGRectFromBounds(_scene.bounds());
 }
 
-- (void)addPath:(RAPath *)path ctm:(CGAffineTransform)ctm color:(CGColorRef)color width:(double)width flags:(NSUInteger)flags clip:(CGRect)clip {
+- (void)addPath:(RAPath *)path
+            ctm:(CGAffineTransform)ctm
+           color:(RAColor *)color
+          width:(double)width
+          flags:(NSUInteger)flags
+            clip:(CGRect)clip {
     Ra::Path p = path.path;
     Ra::Bounds clipBounds = CGRectIsNull(clip) || CGRectIsEmpty(clip) || CGRectIsInfinite(clip) ? Ra::Bounds::huge() : RaCG::BoundsFromCGRect(clip);
     _scene.addPath(p,
                    RaCG::transformFromCG(ctm),
-                   RaCG::colorantFromCG(color),
+                   color.color,
                    width,
                    flags,
                    & clipBounds);

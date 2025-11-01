@@ -23,7 +23,7 @@
 
 
 @protocol LayerDelegate <NSObject>
-- (CGColorSpaceRef)writeBuffer:(Ra::Buffer *)buffer forLayer:(CALayer *)layer;
+- (void)writeBuffer:(Ra::Buffer *)buffer forLayer:(CALayer *)layer;
 @end
 
 

@@ -52,28 +52,31 @@ struct Quad {
     Cell cell;  short cover;  int base, biid;
 };
 
-struct Outline {
-    Segment s;
-    short prev, next;
-    float cx, cy;
-};
-
 struct Quadratic {
     float x0, y0, x1, y1, x2, y2;
 };
 
+struct Outline {
+    Quadratic q;
+    short prev, next;
+};
+
 struct Opaque {
-    uint32_t iz;  union { Cell cell;  Quadratic s; };
+    uint32_t iz;  union { Cell cell;  Quadratic q; };
 };
 
 struct Instance {
     enum Flags {
-        kFastOutlines = 1 << 24, kIsCurve = 1 << 24,
+        kIsCurve = 1 << 24,
         kMolecule = 1 << 25,    kPCap = 1 << 25,
         kFastEdges = 1 << 26,   kNCap = 1 << 26,
         kEdge = 1 << 27,        kF0 = 1 << 27,
         kRoundCap = 1 << 28,    kF1 = 1 << 28,
-        kOutlines = 1 << 29, kSquareCap = 1 << 30, kEvenOdd = 1 << 31, kFragmentMask = (kOutlines | kSquareCap | kEvenOdd) };
+        kOutlines = 1 << 29,
+        kSquareCap = 1 << 30,
+        kEvenOdd = 1 << 31,
+        kFragmentMask = (kOutlines | kSquareCap | kEvenOdd)
+    };
     uint32_t iz;  union { Quad quad;  Outline outline; };
 };
 
@@ -84,6 +87,7 @@ struct Edge {
 
 struct Params {
     bool useCurves, showOpaques, showOutlines;
+    Colorant clearColor;
 };
 
 
@@ -189,45 +193,48 @@ vertex OpaquesVertex opaques_vertex_main(const device Colorant *colors [[buffer(
                                          uint vid [[vertex_id]], uint iid [[instance_id]])
 {
     const device Opaque& inst = opaques[*reverse - 1 - iid];
-    const device Colorant& color = colors[inst.iz & kPathIndexMask];
+    const Colorant fillColor = colors[inst.iz & kPathIndexMask];
+    const Colorant color = params->showOpaques ? fillColor : params->clearColor;
     const device Cell& cell = inst.cell;
-    const device Quadratic& s = inst.s;
+    const device Quadratic& q = inst.q;
     float x, y, z = kDepthRange * float((inst.iz & kPathIndexMask) + 1) / float(*pathCount);
-    
-    OpaquesVertex vert;
-    vert.color = params->showOpaques ? float4( color.r / 255.0, color.g / 255.0, color.b / 255.0, 1.0 ) : float4( 1, 1, 1, 1.0 );
     
     if (inst.iz & Instance::kOutlines) {
         const float dw = 0.5 * (widths[inst.iz & kPathIndexMask] - 1.0);
-        const float x0 = s.x0, y0 = s.y0, x1 = s.x1, y1 = s.y1, x2 = s.x2, y2 = s.y2;
-        const bool isFlat = x1 == FLT_MAX || !params->useCurves;
+        const float x0 = q.x0, y0 = q.y0, x1 = q.x1, y1 = q.y1, x2 = q.x2, y2 = q.y2;
+        const bool isFlat = x1 == FLT_MAX;
         const bool isTop = vid >> 1, isRight = vid & 1;
+        const bool pcap = inst.iz & Instance::kPCap;
+        const bool ncap = inst.iz & Instance::kNCap;
+        const bool isCap = (isTop && ncap) || (!isTop && pcap);
+        const bool useCurves = params->useCurves;
         const float sign = isRight ? -1.0 : 1.0;
         
-        float ax, ay, bx, by, cx, cy, ra, rb, rc, height, dx, dy, ow, miterLen;
-        ax = x2 - x1, ay = y2 - y1, ra = rsqrt(ax * ax + ay * ay);
-        bx = x1 - x0, by = y1 - y0, rb = rsqrt(bx * bx + by * by);
-        cx = x2 - x0, cy = y2 - y0, rc = rsqrt(cx * cx + cy * cy);
-        height = isFlat ? 0.0 : 0.5 * (bx * -cy + by * cx) * rc;
-        ow = sign * height > 0.0 ? 0.0 : abs(height);
-        miterLen = abs(height) > dw ? 0.0 : sign * (dw - ow);
-        
-        float2 unit = {
-            isFlat ? cx * rc : (isTop ? ax * ra : bx * rb),
-            isFlat ? cy * rc : (isTop ? ay * ra : by * rb)
-        };
-        dx = 0.5 * unit.x, x = (isTop ? x2 - dx : x0 + dx) + miterLen * -unit.y;
-        dy = 0.5 * unit.y, y = (isTop ? y2 - dy : y0 + dy) + miterLen * unit.x;
+        float ax, bx, cx, ay, by, cy, cross, dx, dy, ow, miterLen;
+        ax = x2 - x1, bx = x1 - x0, cx = x2 - x0;
+        ay = y2 - y1, by = y1 - y0, cy = y2 - y0;
+        float2 unit = normalize({
+            isFlat || (isCap && !useCurves) ? cx : (isTop ? ax : bx),
+            isFlat || (isCap && !useCurves) ? cy : (isTop ? ay : by)
+        });
+        cross = bx * -cy + by * cx;
+        ow = isFlat || !useCurves || sign * cross > 0.0 ? 0.0 : 0.5 * abs(cross / (cx * unit.x + cy * unit.y));
+        miterLen = sign * max(-dw, dw - ow);
+
+        dx = isCap ? 0.5 * unit.x : 0.0, x = (isTop ? x2 - dx : x0 + dx) + miterLen * -unit.y;
+        dy = isCap ? 0.5 * unit.y : 0.0, y = (isTop ? y2 - dy : y0 + dy) + miterLen * unit.x;
     } else {
         x = select(cell.lx, cell.ux, vid & 1);
         y = select(cell.ly, cell.uy, vid >> 1);
     }
+    OpaquesVertex vert;
     vert.position = {
         x / *width * 2.0 - 1.0,
         y / *height * 2.0 - 1.0,
         z,
         1.0
     };
+    vert.color = float4(color.r / 255.0, color.g / 255.0, color.b / 255.0, 1.0);
     return vert;
 }
 
@@ -496,23 +503,23 @@ vertex InstancesVertex instances_vertex_main(
     if (inst.iz & Instance::kOutlines) {
         const bool roundCap = inst.iz & Instance::kRoundCap;
         const bool squareCap = inst.iz & Instance::kSquareCap;
-        const device Instance & pinst = instances[iid + inst.outline.prev], & ninst = instances[iid + inst.outline.next];
-        const device Segment& p = pinst.outline.s, & o = inst.outline.s, & n = ninst.outline.s;
-        const device Outline& pout = pinst.outline, & out = inst.outline, & nout = ninst.outline;
-        const bool pcurve = params->useCurves && pout.cx != FLT_MAX;
-        const bool ncurve = params->useCurves && nout.cx != FLT_MAX;
+        const short prevIndex = inst.outline.prev, nextIndex = inst.outline.next;
+        const device Instance & pinst = instances[iid + prevIndex], & ninst = instances[iid + nextIndex];
+        const device Quadratic& p = pinst.outline.q, & o = inst.outline.q, & n = ninst.outline.q;
+        const bool pcurve = params->useCurves && p.x1 != FLT_MAX;
+        const bool ncurve = params->useCurves && n.x1 != FLT_MAX;
         
         float x0, y0, x1, y1, x2, y2;
         float ax, bx, cx, ay, by, cy, ow, lcap;
-        bool pcap = out.prev == 0 || p.x1 != o.x0 || p.y1 != o.y0;
-        bool ncap = out.next == 0 || n.x0 != o.x1 || n.y0 != o.y1;
-        x0 = o.x0, y0 = o.y0, x1 = out.cx, y1 = out.cy, x2 = o.x1, y2 = o.y1;
+        bool pcap = prevIndex == 0 || p.x2 != o.x0 || p.y2 != o.y0;
+        bool ncap = nextIndex == 0 || n.x0 != o.x2 || n.y0 != o.y2;
+        x0 = o.x0, y0 = o.y0, x1 = o.x1, y1 = o.y1, x2 = o.x2, y2 = o.y2;
         
         float px0, py0, pdot, nx1, ny1, ndot;
-        px0 = x0 - (pcurve ? pout.cx : p.x0);
-        py0 = y0 - (pcurve ? pout.cy : p.y0);
-        nx1 = (ncurve ? nout.cx : n.x1) - x2;
-        ny1 = (ncurve ? nout.cy : n.y1) - y2;
+        px0 = x0 - (pcurve ? p.x1 : p.x0);
+        py0 = y0 - (pcurve ? p.y1 : p.y0);
+        nx1 = (ncurve ? n.x1 : n.x2) - x2;
+        ny1 = (ncurve ? n.y1 : n.y2) - y2;
         
         ax = x1 - x2, bx = x1 - x0, cx = x2 - x0;
         ay = y1 - y2, by = y1 - y0, cy = y2 - y0;
@@ -522,16 +529,11 @@ vertex InstancesVertex instances_vertex_main(
         float tc = abs(area / cdot);
         
         const bool isCurve = params->useCurves && x1 != FLT_MAX && tc > 1e-3;
-        
-//        const bool underside = sign * area < 0.0;
-        
         ow = isCurve ? 0.5 * tc / rc : 0.0;
         
         lcap = (isCurve ? 0.41 * dw : 0.0) + (squareCap || roundCap ? dw : 0.5);
         float caplimit = dw == 1.0 ? 0.0 : -0.866025403784439;
-        
-        
-        
+    
         pdot = px0 * px0 + py0 * py0;
         ndot = nx1 * nx1 + ny1 * ny1;
         
@@ -542,8 +544,6 @@ vertex InstancesVertex instances_vertex_main(
         pcap = pcap || pdot < 1e-6 || dot(prev, next) < caplimit;
         tangent = pcap ? no : normalize(prev + next);
         miter0 = (dw + ow) / abs(dot(no, tangent)) * float2(-tangent.y, tangent.x);
-        
-//        ow *= !pcap && !ncap && underside ? 0.0 : 1.0;
         
         prev = normalize({ x2 - (isCurve ? x1 : x0), y2 - (isCurve ? y1 : y0) });
         next = rsqrt(ndot) * float2(nx1, ny1);

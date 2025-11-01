@@ -125,10 +125,8 @@ struct Rasterizer {
         uint8_t b, g, r, a;
     };
     struct Gradient {
-        enum Type { kLinear, kRadial };
-        Colorant stops[2];
-        Transform t;
-        Type type;
+        Colorant c0, c1;
+        float x0, y0, x1, y1;
     };
     template<typename T>
     struct Ref {
@@ -371,9 +369,6 @@ struct Rasterizer {
             }
             return cubics + 2 * (counts[kMove] + counts[kLine] + counts[kQuadratic] + counts[kCubic]);
         }
-        inline bool isFlat() const {
-            return (counts[kQuadratic] + counts[kCubic]) == 0;
-        }
         size_t hash() {
             xxhash = xxhash ?: XXH64(points.base, points.end * sizeof(float), XXH64(types.base, types.end * sizeof(uint8_t), 0));
             return xxhash;
@@ -471,6 +466,7 @@ struct Rasterizer {
         bool useCurves = true;
         bool showOpaques = true;
         bool showOutlines = false;
+        Colorant clearColor = { 255, 255, 255, 255 };
     };
     struct SceneList {
         Bounds bounds() const {
@@ -489,7 +485,7 @@ struct Rasterizer {
                 pathsCount += scene.count, scenes.emplace_back(scene), ctms.emplace_back(ctm), clips.emplace_back(clip);
             return *this;
         }
-        Transform ctm;  Params params;  bool showOpaques = false; Colorant clearColor = { 0xFF, 0xFF, 0xFF, 0xFF };
+        Transform ctm;  Params params;
         size_t pathsCount = 0;   std::vector<Scene> scenes;  std::vector<Transform> ctms;  std::vector<Bounds> clips;
     };
     struct Segment {
@@ -502,17 +498,28 @@ struct Rasterizer {
     struct Quad {
         Cell cell;  short cover;  int base, biid;
     };
-    struct Outline {
-        Segment s;  short prev, next;  float cx, cy;
-    };
     struct Quadratic {
         float x0, y0, x1, y1, x2, y2;
     };
+    struct Outline {
+        Quadratic q;
+        short prev, next;
+    };
     struct Opaque {
-        uint32_t iz;  union { Cell cell;  Quadratic s; };
+        uint32_t iz;  union { Cell cell;  Quadratic q; };
     };
     struct Instance {
-        enum Flags { kMolecule = 1 << 25, kFastEdges = 1 << 26, kEdge = 1 << 27, kRoundCap = 1 << 28, kOutlines = 1 << 29, kSquareCap = 1 << 30, kEvenOdd = 1 << 31 };
+        enum Flags {
+            kIsCurve = 1 << 24,
+            kMolecule = 1 << 25,    kPCap = 1 << 25,
+            kFastEdges = 1 << 26,   kNCap = 1 << 26,
+            kEdge = 1 << 27,        kF0 = 1 << 27,
+            kRoundCap = 1 << 28,    kF1 = 1 << 28,
+            kOutlines = 1 << 29,
+            kSquareCap = 1 << 30,
+            kEvenOdd = 1 << 31,
+            kFragmentMask = (kOutlines | kSquareCap | kEvenOdd)
+        };
         Instance(size_t iz) : iz(uint32_t(iz)) {}
         uint32_t iz;  union { Quad quad;  Outline outline; };
     };
@@ -567,7 +574,6 @@ struct Rasterizer {
         }
         uint8_t *base = nullptr;  Row<Entry> entries;
         Params params;
-        bool useCurve0s = false;   Colorant clearColor = Colorant(255, 255, 255, 255);
         size_t colors, ctms, clips, widths, bounds, idxs, pathsCount, headerSize, size = 0, allocation = 0;
     };
     struct Allocator {
@@ -650,6 +656,7 @@ struct Rasterizer {
                         bool unclipped = clip.contains(dev);
                         float clipWidth = clip.width(), clipHeight = clip.height();
                         bool useMolecules = clipHeight <= kMoleculesHeight && clipWidth <= kMoleculesHeight;
+                        bool isOpaque = color.a == 255;
                         
                         colors[iz] = color, ctms[iz] = m, widths[iz] = width, clips[iz] = invclip;
                         Geometry *g = scn->paths[is].ptr;
@@ -659,7 +666,7 @@ struct Rasterizer {
                             uint32_t i0 = uint32_t(outlines.idx), i1;
                             Outliner outliner;
                             outliner.iz = inst->iz, outliner.outlines = & outlines;
-                            if (width > 4.f && color.a == 255) {
+                            if (width > 4.f && isOpaque) {
                                 bool softunclipped = true;
                                 if (clipActive) {
                                     Bounds soft = Bounds(quad.concat(invclip));
@@ -692,8 +699,7 @@ struct Rasterizer {
                                 Bounds soft = Bounds(quad.concat(invclip));
                                 softunclipped = fmaxf(fmaxf(fabsf(soft.lx - 0.5f), fabsf(soft.ux - 0.5f)), fmaxf(fabsf(soft.ly - 0.5f), fabsf(soft.uy - 0.5f))) < softclipMargin;
                             }
-                            bool opaque = color.a == 255 && softunclipped;
-                            writeSegmentInstances(clip, flags & Scene::kFillEvenOdd, iz, opaque, fast, *this);
+                            writeSegmentInstances(clip, flags & Scene::kFillEvenOdd, iz, isOpaque && softunclipped, fast, *this);
                             segments.idx = segments.end = idxr.dst - segments.base;
                         }
                     }
@@ -1140,17 +1146,22 @@ struct Rasterizer {
                 Instance *first = dst0, *last = dst - 1;
                 first->outline.prev = int(closed) * int(last - first), last->outline.next = -first->outline.prev;
                 outlines->idx = outlines->end;
+                
+                if (opaques) {
+                    Opaque *opaque0 = opaques->alloc(dst - dst0), *opaque = opaque0;
+                    for (Instance *src = dst0; src < dst; src++, opaque++)
+                        opaque->iz = iz, opaque->q = src->outline.q;
+                    if (!closed) {
+                        opaque0->iz |= Instance::kPCap;
+                        (opaque - 1)->iz |= Instance::kNCap;
+                    }
+                }
             }
         }
         inline void writeInstance(float x0, float y0, float x1, float y1, float x2, float y2) {
             Instance *dst = outlines->alloc(1);
             Outline& o = dst->outline;
-            dst->iz = iz, o.s.x0 = x0, o.s.y0 = y0, o.s.x1 = x2, o.s.y1 = y2, o.cx = x1, o.cy = y1, o.prev = -1, o.next = 1;
-            if (opaques) {
-                Opaque *opaque = opaques->alloc(1);
-                struct Quadratic& s = opaque->s;
-                opaque->iz = iz, s.x0 = x0, s.y0 = y0, s.x1 = x1, s.y1 = y1, s.x2 = x2, s.y2 = y2;
-            }
+            dst->iz = iz, o.q.x0 = x0, o.q.y0 = y0, o.q.x1 = x1, o.q.y1 = y1, o.q.x2 = x2, o.q.y2 = y2, o.prev = -1, o.next = 1;
         }
         uint32_t iz;  Row<Instance> *outlines = nullptr;  Row<Opaque> *opaques = nullptr;
     };
