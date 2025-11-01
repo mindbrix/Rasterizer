@@ -33,15 +33,15 @@ struct RasterizerWinding {
                 Ra::Transform ctm = list.ctms[li].concat(list.ctm);
                 Ra::Bounds sceneclip = list.clips[li];
                 for (int si = int(scene.count) - 1; si >= 0; si--) {
-                    if (scene.flags->base[si] & Ra::Scene::kInvisible)
+                    if (scene.flags[si] & Ra::Scene::kInvisible)
                         continue;
                     
                     Ra::Transform inv = sceneclip.intersect(scene.clips[si]).quad(ctm).invert();
                     float ux = inv.a * px + inv.c * py + inv.tx, uy = inv.b * px + inv.d * py + inv.ty;
                     bool inBounds = fmaxf(fabsf(ux - 0.5f), fabsf(uy - 0.5f)) <= 0.5f;
                     if (inBounds) {
-                        int winding = pointWinding(scene.paths[si].ptr, scene.bnds[si], scene.ctms->base[si].concat(ctm), px, py, scene.widths->base[si], scene.flags->base[si]);
-                        bool evenOdd = scene.flags->base[si] & Ra::Scene::kFillEvenOdd;
+                        int winding = pointWinding(scene.paths[si].ptr, scene.bnds[si], scene.ctms[si].concat(ctm), px, py, scene.widths[si], scene.flags[si]);
+                        bool evenOdd = scene.flags[si] & Ra::Scene::kFillEvenOdd;
                         int mask = evenOdd ? 1 : ~0;
                         bool inside = winding & mask;
                         if (inside)

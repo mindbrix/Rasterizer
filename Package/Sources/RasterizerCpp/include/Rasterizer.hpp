@@ -429,11 +429,6 @@ struct Rasterizer {
     };
     
     struct Scene {
-        template<typename T>
-        struct RowPair {
-            uint64_t refCount;  T *base;  Row<T> src, dst;
-            void add(T obj) {  *src.alloc(1) = obj, *dst.alloc(1) = obj, base = dst.base;  }
-        };
         enum Flags { kInvisible = 1 << 0, kFillEvenOdd = 1 << 1, kRoundCap = 1 << 2, kSquareCap = 1 << 3 };
         void addPath(Path path, Transform ctm, Colorant color, float width, uint8_t flag, Bounds *clipBounds = nullptr) {
             if (path->isValid()) {
@@ -441,26 +436,30 @@ struct Rasterizer {
                 count++, weight += g->types.end;
                 if (kMoleculesHeight && g->p16s.end == 0)
                     P16Writer().writeGeometry(g);
-                paths.add(path), bnds.add(g->bounds), ctms->add(ctm), colors->add(color), widths->add(width), flags->add(flag);
+                paths.add(path), bnds.add(g->bounds), ctms.add(ctm), colors.add(color), widths.add(width), flags.add(flag);
                 clips.add(clipBounds ? *clipBounds : Bounds::huge());
             }
         }
         void appendScene(const Scene scene) {
             for (int i = 0; i < scene.count; i++)
-                addPath(scene.paths[i], scene.ctms->base[i], scene.colors->base[i], scene.widths->base[i], scene.flags->base[i]);
+                addPath(scene.paths[i], scene.ctms[i], scene.colors[i], scene.widths[i], scene.flags[i]);
         }
         Bounds bounds() const {
             Bounds b;
             for (int i = 0; i < count; i++)
-                if ((flags->base[i] & kInvisible) == 0) {
-                    float inset = -0.5f * widths->base[i];
-                    b.extend(Bounds(bnds[i].inset(inset, inset).quad(ctms->base[i])).intersect(clips[i]));
+                if ((flags[i] & kInvisible) == 0) {
+                    float inset = -0.5f * widths[i];
+                    b.extend(Bounds(bnds[i].inset(inset, inset).quad(ctms[i])).intersect(clips[i]));
                 }
             return b;
         }
         size_t count = 0, weight = 0;
-        RefVector<Path> paths;  Vector<Bounds> bnds, clips;
-        Ref<RowPair<Transform>> ctms;  Ref<RowPair<Colorant>> colors;  Ref<RowPair<float>> widths;  Ref<RowPair<uint8_t>> flags;
+        RefVector<Path> paths;
+        Vector<Bounds> bnds, clips;
+        Vector<Transform> ctms;
+        Vector<Colorant> colors;
+        Vector<float> widths;
+        Vector<uint8_t> flags;
     };
     struct Params {
         bool useCurves = true;
@@ -629,16 +628,16 @@ struct Rasterizer {
                 Transform ctm = list.ctms[i].concat(view), clipquad, m, quad, invclip;
                 Bounds dev, clip, *bnds, clipBounds, sceneclip = list.clips[i], lastClip;
                 for (is = clz - lz, iz = clz; iz < cuz; iz++, is++) {
-                    if ((flags = scn->flags->base[is]) & Scene::Flags::kInvisible)
+                    if ((flags = scn->flags[is]) & Scene::Flags::kInvisible)
                         continue;
-                    m = scn->ctms->base[is].concat(ctm), det = fabsf(m.a * m.d - m.b * m.c);
-                    uw = scn->widths->base[is];
+                    m = scn->ctms[is].concat(ctm), det = fabsf(m.a * m.d - m.b * m.c);
+                    uw = scn->widths[is];
                     if (list.params.showOutlines) {
                         width = 1.f;
                         color = uw == 0.f ? Colorant(0, 0, 0, 255) : Colorant(0, 0, 255, 255);
                     } else {
                         width = uw * (uw > 0.f ? sqrtf(det) : -1.f);
-                        color = scn->colors->base[is];
+                        color = scn->colors[is];
                     }
                     
                     bool newClip = memcmp(& scn->clips[is], & lastClip, sizeof(Bounds)) != 0;
