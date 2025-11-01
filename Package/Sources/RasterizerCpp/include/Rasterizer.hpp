@@ -452,7 +452,7 @@ struct Rasterizer {
                 }
             return b;
         }
-        size_t count = 0, weight = 0;
+        size_t refCount, count = 0, weight = 0;
         RefVector<Path> paths;
         Vector<Bounds> bnds, clips;
         Vector<Transform> ctms;
