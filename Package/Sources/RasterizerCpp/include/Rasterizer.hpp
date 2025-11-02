@@ -161,6 +161,13 @@ struct Rasterizer {
                 resize(end * 1.5);
             addr[begin] = obj;
         }
+        inline void add(T *objs, size_t n) {
+            size_t begin = end;
+            end += n;
+            if (size < end)
+                resize(end * 1.5);
+            memcpy(addr + begin, objs, n * sizeof(T));
+        }
         T *resize(size_t n) {
             size_t begin = size;
             if (isRef)
@@ -179,6 +186,9 @@ struct Rasterizer {
         inline void add(T obj) {
             memory->add(obj);
         }
+        inline void add(T *objs, size_t n) {
+            memory->add(objs, n);
+        }
         inline T *resize(size_t n) {
             return memory->resize(n);
         }
@@ -187,8 +197,7 @@ struct Rasterizer {
         }
         inline Vector clone() {
             auto cloned = Vector<T>();
-            memcpy(cloned.resize(size()), memory->addr, size() * sizeof(T));
-            cloned.memory->end = size();
+            cloned.add(memory->addr, size());
             return cloned;
         }
         inline T& operator[](size_t i) const {
@@ -619,7 +628,7 @@ struct Rasterizer {
             empty(), allocator.empty(device);
             size_t fatlines = 1.f + ceilf((device.uy - device.ly) * krfh);
             if (samples.size() != fatlines) {
-                samples.memory->resize(0);
+                samples.resize(0);
                 for (int i = 0; i < fatlines; i++)
                     samples.add(Row<Sample>());
             }
@@ -724,7 +733,7 @@ struct Rasterizer {
         }
         void reset() { p16total = 0, blends.reset(), opaques.reset(), outlines.reset(), segments.reset(), segmentsIndices.reset(), indices.reset(), entries = Vector<Buffer::Entry>();
             p16s.resize(0);
-            samples.memory->resize(0);
+            samples.resize(0);
         }
         
         size_t p16total;
