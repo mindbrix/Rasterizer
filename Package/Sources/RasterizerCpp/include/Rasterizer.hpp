@@ -224,9 +224,6 @@ struct Rasterizer {
             alloc(n), end = begin;
             return base + begin;
         }
-        inline T *zalloc(size_t n) {
-            return (T*)memset(alloc(n), 0, n * sizeof(T));
-        }
         inline T& back() const { return base[end - 1]; }
         Row<T>& empty() { end = idx = 0; return *this; }
         void reset() { end = idx = 0, base = nullptr, memory = Ref<Memory<T>>(); }
@@ -433,7 +430,9 @@ struct Rasterizer {
             uint8_t *counts = p16cnts->alloc(icount);
             memset(counts, kFastSegments, last);
             counts[last] = rem, counts[0] |= isMoveTo;
-            p16s->zalloc(p16cnts->end * kFastSegments - p16s->end), p16s->idx = p16s->end;
+            rem = p16cnts->end * kFastSegments - p16s->end;
+            bzero(p16s->alloc(rem), rem * sizeof(*p));
+            p16s->idx = p16s->end;
         }
         Row<Point16> *p16s;   Row<uint8_t> *p16cnts;  Row<Atom> *atoms;
     };
