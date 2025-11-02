@@ -28,8 +28,8 @@ struct RasterizerWinding {
     
     static IndexPair indicesForPoint(Ra::SceneList& list, Ra::Bounds bounds, float px, float py) {
         if (px >= bounds.lx && px < bounds.ux && py >= bounds.ly && py < bounds.uy)
-            for (int li = int(list.scenes.size()) - 1; li >= 0; li--) {
-                Ra::Scene& scene = list.scenes[li];
+            for (int li = int(list._scenes.size()) - 1; li >= 0; li--) {
+                Ra::Scene& scene = *list._scenes[li].ptr;
                 Ra::Transform ctm = list.ctms[li].concat(list.ctm);
                 Ra::Bounds sceneclip = list.clips[li];
                 for (int si = int(scene.count) - 1; si >= 0; si--) {

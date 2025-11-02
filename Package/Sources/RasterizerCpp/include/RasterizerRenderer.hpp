@@ -49,8 +49,8 @@ struct RasterizerRenderer {
     }
     
     void matchColors(const Ra::SceneList& list, CGColorSpaceRef destSpace) {
-        auto scene = (Ra::Scene *) & list.scenes[0];
-        for (size_t i = 0; i < list.scenes.size(); i++, scene++) {
+        for (size_t i = 0; i < list._scenes.size(); i++) {
+            auto scene = list._scenes[i].ptr;
             if (scene->srcColors.memory->addr == scene->colors.memory->addr) {
                 size_t size = scene->srcColors.size();
                 scene->colors = Ra::Vector<Ra::Colorant>();
@@ -62,18 +62,18 @@ struct RasterizerRenderer {
     
     void writeBalancedWeightDivisions(const Ra::SceneList& list, size_t *divisions) {
         size_t total = 0, count, si, i, iz, target;
-        for (int j = 0; j < list.scenes.size(); j++)
-            total += list.scenes[j].weight;
+        for (int j = 0; j < list._scenes.size(); j++)
+            total += list._scenes[j]->weight;
         if (total == 0)
             memset(divisions, 0, (kContextCount + 1) * sizeof(*divisions));
         else {
             divisions[0] = 0, divisions[kContextCount] = list.pathsCount;
-            auto scene = & list.scenes[0];
+            auto scene = & list._scenes[0];
             for (count = si = iz = 0, i = 1; i < kContextCount; i++) {
                 for (target = total * i / kContextCount; count < target; iz++, si++) {
-                    if (si == scene->count)
+                    if (si == (scene->ptr)->count)
                         scene++, si = 0;
-                    count += scene->paths[si]->types.end;
+                    count += (scene->ptr)->paths[si]->types.end;
                 }
                 divisions[i] = iz;
             }
