@@ -154,19 +154,18 @@ struct Rasterizer {
                 free(addr);
             }
         }
-        inline void add(T obj) {
-            size_t begin = end;
-            end += 1;
-            if (size < end)
-                resize(end * 1.5);
-            addr[begin] = obj;
-        }
-        inline void add(T *objs, size_t n) {
+        inline T *alloc(size_t n) {
             size_t begin = end;
             end += n;
             if (size < end)
                 resize(end * 1.5);
-            memcpy(addr + begin, objs, n * sizeof(T));
+            return addr + begin;
+        }
+        inline void add(T obj) {
+            *alloc(1) = obj;
+        }
+        inline void add(T *objs, size_t n) {
+            memcpy(alloc(n), objs, n * sizeof(T));
         }
         T *resize(size_t n) {
             size_t begin = size;
