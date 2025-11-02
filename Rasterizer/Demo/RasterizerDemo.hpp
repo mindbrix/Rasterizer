@@ -160,16 +160,16 @@ struct RasterizerDemo {
 #pragma mark - Properties
     
     void clearHUD() {
-        hud = Ra::Scene();
+        hud = Ra::SceneRef();
     }
-    Ra::Scene getHUD(Ra::Bounds hudBounds) {
-        Ra::Scene hud;
+    Ra::SceneRef getHUD(Ra::Bounds hudBounds) {
+        Ra::SceneRef hud;
 
         float padding = 0.666 * hudBounds.height() / (kHudItemCount + 2);
         Ra::Bounds text = hudBounds.inset(padding, 0.666 * padding);
         
         Ra::Path bgPath;  bgPath->addBounds(hudBounds.inset(0.5 * kHudBorder, 0.5 * kHudBorder)), bgPath->close();
-        hud.addPath(bgPath, Ra::Transform(), bgColor, 0, 0);
+        hud->addPath(bgPath, Ra::Transform(), bgColor, 0, 0);
         
         float lineHeight = text.height() / kHudItemCount, uy;
         float fontSize = RasterizerCoreText::fontSizeForLineHeight(fontName.addr, lineHeight);
@@ -193,7 +193,7 @@ struct RasterizerDemo {
                 label = item.alt;
             RasterizerCoreText::addCStringToSceneInRect(label, fontName.addr, fontSize, color, Ra::Bounds(text.lx + 2 * fontSize, hudBounds.ly, text.ux, uy), Ra::Transform(), Ra::Bounds(), hud);
         }
-        hud.addPath(bgPath, Ra::Transform(), textColor, kHudBorder, 0);
+        hud->addPath(bgPath, Ra::Transform(), textColor, kHudBorder, 0);
         return hud;
     }
     Ra::SceneList getDrawList(double time, float w, float h) {
@@ -210,7 +210,7 @@ struct RasterizerDemo {
         list = Ra::SceneList();
         if (pastedString.size) {
             if (pasted.pathsCount == 0) {
-                Ra::Scene glyphs;
+                Ra::SceneRef glyphs;
                 RasterizerCoreText::addCStringToSceneInRect(pastedString.addr, fontName.addr, fontSize, textColor, bounds, Ra::Transform(), Ra::Bounds(), glyphs);
                 pasted.addScene(glyphs);
             }
@@ -224,7 +224,7 @@ struct RasterizerDemo {
             list.addList(concentrichron.writeList(fontName.addr));
         } else if (svgData.size) {
             if (document.pathsCount == 0) {
-                Ra::Scene scene;
+                Ra::SceneRef scene;
                 Ra::Transform m = RasterizerSVG::addSvgDataToScene(svgData.addr, svgData.size, scene);
                 document.addScene(scene, m);
                 fit = true;
@@ -232,7 +232,7 @@ struct RasterizerDemo {
             list.addList(document);
         } else if (pdfData.size) {
             if (document.pathsCount == 0) {
-                Ra::Scene scene;
+                Ra::SceneRef scene;
                 Ra::Transform m = RasterizerPDF::addPdfToScene(pdfData.addr, pdfData.size, pageIndex, scene);
                 document.addScene(scene, m);
                 fit = true;
@@ -245,7 +245,7 @@ struct RasterizerDemo {
         draw.ctm = ctm, draw.params = params;
         if (showHud) {
             Ra::Bounds hudBounds = Ra::Bounds(0, 0, kHudWidth, kHudHeight);
-            if (hud.weight == 0)
+            if (hud->weight == 0)
                 hud = getHUD(hudBounds);
             Ra::Transform m = Ra::Transform(1, 0, 0, 1, kHudInset, bounds.uy - kHudInset - kHudHeight).concat(ctm.invert());
             draw.addScene(hud, m, hudBounds);
@@ -295,7 +295,7 @@ struct RasterizerDemo {
     float fontSize = 14;
     Concentrichron concentrichron;
     Ra::SceneList list, document, pasted, text;
-    Ra::Scene hud;
+    Ra::SceneRef hud;
     Ra::Memory<char> pastedString, fontName;
     bool showGlyphGrid = false, showTime = false, showHud = true;
     size_t pageCount, pageIndex;

@@ -24,7 +24,7 @@
 struct RasterizerSVG {
     static const bool kWriteOneBigPath = false;
     
-    static Ra::Transform addSvgDataToScene(const void *data, size_t size, Ra::Scene& scene) {
+    static Ra::Transform addSvgDataToScene(const void *data, size_t size, Ra::SceneRef& scene) {
         char *terminated = (char *)malloc(size + 1);
         memcpy(terminated, data, size);
         terminated[size] = 0;
@@ -46,14 +46,14 @@ struct RasterizerSVG {
             return colorFromSVGColor(paint.gradient->stops[0].color);
     }
     
-    static void addSvgImageToScene(NSVGimage *image, Ra::Scene& scene) {
+    static void addSvgImageToScene(NSVGimage *image, Ra::SceneRef& scene) {
         if (image) {
             if (kWriteOneBigPath) {
                 Ra::Path path;
                 for (NSVGshape *shape = image->shapes; shape != NULL; shape = shape->next)
                     if (shape->fill.type != NSVG_PAINT_NONE)
                         writePathFromShape(shape, path);
-                scene.addPath(path, Ra::Transform(), Ra::Colorant(0, 0, 0, 255), 0.f, Ra::Scene::kFillEvenOdd);
+                scene->addPath(path, Ra::Transform(), Ra::Colorant(0, 0, 0, 255), 0.f, Ra::Scene::kFillEvenOdd);
             } else {
                 for (NSVGshape *shape = image->shapes; shape != NULL; shape = shape->next) {
                     Ra::Path path;
@@ -61,7 +61,7 @@ struct RasterizerSVG {
                     Ra::Transform ctm;
                     if (shape->fill.type != NSVG_PAINT_NONE) {
                         int flags = shape->fillRule == NSVG_FILLRULE_EVENODD ? Ra::Scene::kFillEvenOdd : 0;
-                        scene.addPath(path, ctm, colorFromPaint(shape->fill), 0.f, flags);
+                        scene->addPath(path, ctm, colorFromPaint(shape->fill), 0.f, flags);
                     }
                     if (shape->stroke.type != NSVG_PAINT_NONE && shape->strokeWidth) {
                         int flags = 0;
@@ -75,7 +75,7 @@ struct RasterizerSVG {
                             default:
                                 break;
                         }
-                        scene.addPath(path, ctm, colorFromPaint(shape->stroke), shape->strokeWidth, flags);
+                        scene->addPath(path, ctm, colorFromPaint(shape->stroke), shape->strokeWidth, flags);
                     }
                 }
             }

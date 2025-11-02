@@ -461,6 +461,8 @@ struct Rasterizer {
         Vector<float> widths;
         Vector<uint8_t> flags;
     };
+    typedef Ref<Scene> SceneRef;
+    
     struct Params {
         bool useCurves = true;
         bool showOpaques = true;
@@ -479,20 +481,13 @@ struct Rasterizer {
                 addScene(list._scenes[i], list.ctms[i], list.clips[i]);
             return *this;
         }
-        SceneList& addScene(Ref<Scene> scene, Transform ctm = Transform(), Bounds clip = Bounds::huge()) {
+        SceneList& addScene(SceneRef scene, Transform ctm = Transform(), Bounds clip = Bounds::huge()) {
             if (scene->weight)
                 pathsCount += scene->count, _scenes.emplace_back(scene), ctms.emplace_back(ctm), clips.emplace_back(clip);
             return *this;
         }
-        SceneList& addScene(Scene scene, Transform ctm = Transform(), Bounds clip = Bounds::huge()) {
-            if (scene.weight) {
-                pathsCount += scene.count, _scenes.emplace_back(& scene), ctms.emplace_back(ctm), clips.emplace_back(clip);
-                ;
-            }
-            return *this;
-        }
         Transform ctm;  Params params;
-        size_t pathsCount = 0;  std::vector<Ref<Scene>> _scenes;  std::vector<Transform> ctms;  std::vector<Bounds> clips;
+        size_t pathsCount = 0;  std::vector<SceneRef> _scenes;  std::vector<Transform> ctms;  std::vector<Bounds> clips;
     };
     struct Segment {
         inline Segment(float x0, float y0, float x1, float y1, bool curve) : ix0((*((uint32_t *)& x0) & ~1) | curve), y0(y0), x1(x1), y1(y1) {}

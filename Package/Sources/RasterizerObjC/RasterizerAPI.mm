@@ -119,7 +119,7 @@
 @implementation RAScene: NSObject
 
 - (CGRect)bounds {
-    return RaCG::CGRectFromBounds(_scene.bounds());
+    return RaCG::CGRectFromBounds(_scene->bounds());
 }
 
 - (void)addPath:(RAPath *)path
@@ -130,7 +130,7 @@
             clip:(CGRect)clip {
     Ra::Path p = path.path;
     Ra::Bounds clipBounds = CGRectIsNull(clip) || CGRectIsEmpty(clip) || CGRectIsInfinite(clip) ? Ra::Bounds::huge() : RaCG::BoundsFromCGRect(clip);
-    _scene.addPath(p,
+    _scene->addPath(p,
                    RaCG::transformFromCG(ctm),
                    color.color,
                    width,

@@ -20,7 +20,7 @@
 
 
 @interface RAScene ()
-@property(nonatomic) Ra::Scene scene;
+@property(nonatomic) Ra::SceneRef scene;
 @end
 
 
