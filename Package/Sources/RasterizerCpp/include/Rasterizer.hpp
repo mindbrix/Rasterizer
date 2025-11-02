@@ -155,21 +155,21 @@ struct Rasterizer {
             }
         }
         inline T *alloc(size_t n) {
-            size_t begin = end;
+            size_t oldEnd = end;
             end += n;
             if (size < end)
                 resize(end * 1.5);
-            return addr + begin;
+            return addr + oldEnd;
         }
         T *resize(size_t n) {
-            size_t begin = size;
+            size_t oldSize = size;
             if (isRef)
                 for (size_t i = n; i < end; i++)
                     addr[i].~T();
             size = n, end = end < n ? end : n;
             addr = (T *)realloc(addr, n * sizeof(T));
-            if (isRef && size > begin)
-                bzero(addr + begin, (size - begin) * sizeof(T));
+            if (isRef && size > oldSize)
+                bzero(addr + oldSize, (size - oldSize) * sizeof(T));
             return addr;
         }
         size_t refCount, size = 0, end = 0;  T *addr = nullptr;
