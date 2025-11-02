@@ -185,12 +185,12 @@ struct Rasterizer {
         inline T *resize(size_t n) {
             return memory->resize(n);
         }
-        inline size_t size() const {
+        inline size_t end() const {
             return memory->end;
         }
         inline Vector clone() {
             auto cloned = Vector<T>();
-            cloned.add(memory->addr, size());
+            cloned.add(memory->addr, end());
             return cloned;
         }
         inline T& operator[](size_t i) const {
@@ -619,7 +619,7 @@ struct Rasterizer {
         void drawList(const SceneList& list, Bounds device, Transform view, size_t slz, size_t suz, Buffer *buffer) {
             empty(), allocator.empty(device);
             size_t fatlines = 1.f + ceilf((device.uy - device.ly) * krfh);
-            if (samples.size() != fatlines) {
+            if (samples.end() != fatlines) {
                 samples.resize(0);
                 for (int i = 0; i < fatlines; i++)
                     samples.add(Row<Sample>());
@@ -719,7 +719,7 @@ struct Rasterizer {
         void empty() {
             p16total = 0, blends.empty(), opaques.empty(), outlines.empty(), segments.empty(), segmentsIndices.empty(), indices.empty();
             p16s.resize(0);
-            for (int i = 0; i < samples.size(); i++)
+            for (int i = 0; i < samples.end(); i++)
                 samples[i].empty();
             entries = Vector<Buffer::Entry>();
         }
@@ -1201,7 +1201,7 @@ struct Rasterizer {
             memcpy(buffer.base + begin, ctx->segments.base, size), begin = end;
             
             auto& p16s = ctx->p16s;
-            for (i = 0; i < p16s.size(); i++) {
+            for (i = 0; i < p16s.end(); i++) {
                 size = p16s[i]->end * sizeof(Point16);
                 memcpy(buffer.base + end, p16s[i]->base, size);
                 end += size;

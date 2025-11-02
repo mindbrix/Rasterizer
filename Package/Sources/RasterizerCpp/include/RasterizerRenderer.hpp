@@ -40,7 +40,7 @@ struct RasterizerRenderer {
             Ra::writeContextToBuffer(list, contexts + i, pbegins[i], *buffer);
         });
         for (int i = 0; i < kContextCount; i++)
-            for (int j = 0; j < contexts[i].entries.size(); j++)
+            for (int j = 0; j < contexts[i].entries.end(); j++)
                 *(buffer->entries.alloc(1)) = contexts[i].entries[j];
         size_t end = buffer->entries.end == 0 ? 0 : buffer->entries.back().end;
         assert(size >= end);
@@ -51,7 +51,7 @@ struct RasterizerRenderer {
             auto scene = list.scenes[i];
             if (scene->matchedColors == scene->colors) {
                 scene->matchedColors = scene->colors.clone();
-                converter.matchColors(& scene->matchedColors[0], scene->matchedColors.size(), destSpace);
+                converter.matchColors(& scene->matchedColors[0], scene->matchedColors.end(), destSpace);
             }
         }
     }
