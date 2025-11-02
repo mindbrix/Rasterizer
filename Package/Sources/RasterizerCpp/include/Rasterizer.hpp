@@ -161,12 +161,6 @@ struct Rasterizer {
                 resize(end * 1.5);
             return addr + begin;
         }
-        inline void add(T obj) {
-            *alloc(1) = obj;
-        }
-        inline void add(T *objs, size_t n) {
-            memcpy(alloc(n), objs, n * sizeof(T));
-        }
         T *resize(size_t n) {
             size_t begin = size;
             if (isRef)
@@ -183,10 +177,10 @@ struct Rasterizer {
     template<typename T, bool isRef = false>
     struct Vector {
         inline void add(T obj) {
-            memory->add(obj);
+            *memory->alloc(1) = obj;
         }
         inline void add(T *objs, size_t n) {
-            memory->add(objs, n);
+            memcpy(memory->alloc(n), objs, n * sizeof(T));
         }
         inline T *resize(size_t n) {
             return memory->resize(n);
