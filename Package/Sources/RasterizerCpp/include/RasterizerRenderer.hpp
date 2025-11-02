@@ -21,7 +21,7 @@
 struct RasterizerRenderer {
     
     void renderList(const Ra::SceneList& list, float scale, float w, float h, Ra::Buffer *buffer, CGColorSpaceRef destSpace) {
-//        matchColors(list, destSpace);
+        matchColors(list, destSpace);
         
         Ra::Bounds device(0.f, 0.f, ceilf(scale * w), ceilf(scale * h));
         Ra::Transform view = list.ctm.concat(Ra::Transform(scale, 0.f, 0.f, scale, 0.f, 0.f));
@@ -44,18 +44,14 @@ struct RasterizerRenderer {
                 *(buffer->entries.alloc(1)) = contexts[i].entries[j];
         size_t end = buffer->entries.end == 0 ? 0 : buffer->entries.back().end;
         assert(size >= end);
-        
-        converter.matchColors((Ra::Colorant *)(buffer->base + buffer->colors), buffer->pathsCount, destSpace);
     }
     
     void matchColors(const Ra::SceneList& list, CGColorSpaceRef destSpace) {
         for (size_t i = 0; i < list.scenes.size(); i++) {
-            auto scene = list.scenes[i].ptr;
-            if (scene->srcColors.memory->addr == scene->colors.memory->addr) {
-                size_t size = scene->srcColors.size();
-                scene->colors = Ra::Vector<Ra::Colorant>();
-                Ra::Colorant *color = scene->colors.resize(size);
-                memcpy(color, & scene->srcColors[0], size * sizeof(Ra::Colorant));
+            auto scene = list.scenes[i];
+            if (scene->matchedColors == scene->colors) {
+                scene->matchedColors = scene->colors.clone();
+                converter.matchColors(& scene->matchedColors[0], scene->matchedColors.size(), destSpace);
             }
         }
     }

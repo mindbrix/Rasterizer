@@ -131,7 +131,6 @@ struct Rasterizer {
     template<typename T>
     struct Ref {
         Ref()                               { ptr = new T(), ptr->refCount = 1; }
-        Ref(const T *src)                   { ptr = new T(), *ptr = *src, ptr->refCount = 1; }
         ~Ref()                              { if (--(ptr->refCount) == 0) delete ptr; }
         Ref(const Ref& other)               { *this = other; }
         Ref& operator= (const Ref& other)   {
@@ -186,8 +185,17 @@ struct Rasterizer {
         inline size_t size() const {
             return memory->end;
         }
+        inline Vector clone() {
+            auto cloned = Vector<T>();
+            memcpy(cloned.resize(size()), memory->addr, size() * sizeof(T));
+            cloned.memory->end = size();
+            return cloned;
+        }
         inline T& operator[](size_t i) const {
             return memory->addr[i];
+        }
+        inline bool operator== (const Vector& other) const {
+            return memory.ptr == other.memory.ptr;
         }
         inline T& back() const {
             return memory->addr[memory->end - 1];
@@ -457,7 +465,7 @@ struct Rasterizer {
         RefVector<Path> paths;
         Vector<Bounds> bnds, clips;
         Vector<Transform> ctms;
-        Vector<Colorant> colors, srcColors = colors;
+        Vector<Colorant> colors, matchedColors = colors;
         Vector<float> widths;
         Vector<uint8_t> flags;
     };
@@ -639,7 +647,7 @@ struct Rasterizer {
                         color = uw == 0.f ? Colorant(0, 0, 0, 255) : Colorant(0, 0, 255, 255);
                     } else {
                         width = uw * (uw > 0.f ? sqrtf(det) : -1.f);
-                        color = scn->colors[is];
+                        color = scn->matchedColors[is];
                     }
                     
                     bool newClip = memcmp(& scn->clips[is], & lastClip, sizeof(Bounds)) != 0;

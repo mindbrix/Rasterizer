@@ -44,9 +44,9 @@ struct RasterizerCG {
             auto colors = (uint32_t *)malloc(size * colorSize), counts = (uint32_t *)malloc(size * colorSize);
             uint32_t *cnt = counts, *src0 = (uint32_t *)colorants, *src = src0 + 1, *dst = colors, *end = src0 + size, last = *src0;
             do {
-                while (*src == last && src < end)
+                while (src < end && *src == last)
                     src++;
-                *dst++ = last, *cnt++ = uint32_t(src - src0), src0 = src, last = *src++;
+                *dst++ = last, *cnt++ = uint32_t(src - src0), src0 = src, last = src < end ? *src++ : 0;
             } while (src < end);
             
             size_t total = cnt - counts;
