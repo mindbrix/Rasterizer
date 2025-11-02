@@ -87,7 +87,7 @@ struct RasterizerCG {
     static void renderList(const Ra::SceneList& list, Ra::Bounds bounds, CGContextRef ctx) {
         CGContextConcatCTM(ctx, CGFromTransform(list.ctm));
         
-        for (int j = 0; j < list._scenes.size(); j++) {
+        for (int j = 0; j < list.scenes.size(); j++) {
             Ra::Transform ctm = list.ctms[j].concat(list.ctm), clip;
             Ra::Bounds lastClip;
             CGContextSaveGState(ctx);
@@ -95,7 +95,7 @@ struct RasterizerCG {
             CGContextClipToRect(ctx, CGRectFromBounds(list.clips[j]));
             CGContextSaveGState(ctx);
             
-            const Ra::Scene& scn = * list._scenes[j].ptr;
+            const Ra::Scene& scn = * list.scenes[j].ptr;
             for (size_t i = 0; i < scn.count; i++) {
                 if (scn.flags[i] & Ra::Scene::Flags::kInvisible)
                     continue;

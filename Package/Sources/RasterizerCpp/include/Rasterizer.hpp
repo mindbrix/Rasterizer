@@ -472,22 +472,22 @@ struct Rasterizer {
     struct SceneList {
         Bounds bounds() const {
             Bounds b;
-            for (int i = 0; i < _scenes.size(); i++)
-                b.extend(clips[i].intersect(_scenes[i]->bounds().quad(ctms[i])));
+            for (int i = 0; i < scenes.size(); i++)
+                b.extend(clips[i].intersect(scenes[i]->bounds().quad(ctms[i])));
             return b;
         }
         SceneList& addList(SceneList list) {
-            for (int i = 0; i < list._scenes.size(); i++)
-                addScene(list._scenes[i], list.ctms[i], list.clips[i]);
+            for (int i = 0; i < list.scenes.size(); i++)
+                addScene(list.scenes[i], list.ctms[i], list.clips[i]);
             return *this;
         }
         SceneList& addScene(SceneRef scene, Transform ctm = Transform(), Bounds clip = Bounds::huge()) {
             if (scene->weight)
-                pathsCount += scene->count, _scenes.emplace_back(scene), ctms.emplace_back(ctm), clips.emplace_back(clip);
+                pathsCount += scene->count, scenes.emplace_back(scene), ctms.emplace_back(ctm), clips.emplace_back(clip);
             return *this;
         }
         Transform ctm;  Params params;
-        size_t pathsCount = 0;  std::vector<SceneRef> _scenes;  std::vector<Transform> ctms;  std::vector<Bounds> clips;
+        size_t pathsCount = 0;  std::vector<SceneRef> scenes;  std::vector<Transform> ctms;  std::vector<Bounds> clips;
     };
     struct Segment {
         inline Segment(float x0, float y0, float x1, float y1, bool curve) : ix0((*((uint32_t *)& x0) & ~1) | curve), y0(y0), x1(x1), y1(y1) {}
@@ -624,8 +624,8 @@ struct Rasterizer {
             
             size_t lz, uz, i, clz, cuz, iz, is, size, cnt;  uint8_t flags;
             float det, width, uw, softclipMargin = 0.5f;  Colorant color;
-            for (lz = uz = i = 0; i < list._scenes.size(); i++, lz = uz) {
-                const Scene *scn = list._scenes[i].ptr;
+            for (lz = uz = i = 0; i < list.scenes.size(); i++, lz = uz) {
+                const Scene *scn = list.scenes[i].ptr;
                 uz = lz + scn->count, clz = lz < slz ? slz : lz > suz ? suz : lz, cuz = uz < slz ? slz : uz > suz ? suz : uz;
                 Transform ctm = list.ctms[i].concat(view), clipquad, m, quad, invclip;
                 Bounds dev, clip, *bnds, clipBounds, sceneclip = list.clips[i], lastClip;

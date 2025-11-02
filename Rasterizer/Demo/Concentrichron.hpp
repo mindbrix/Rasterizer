@@ -32,7 +32,7 @@ struct Concentrichron {
     
     Ra::SceneList writeList(const char *fontName) {
         Ra::Bounds bounds(0, 0, 800, 600);
-        if (face._scenes.size() == 0)
+        if (face.scenes.size() == 0)
             face = makeFace(bounds, fontName);
         return setTime(face, bounds);
     }
@@ -52,12 +52,12 @@ struct Concentrichron {
         float fyear = (lt->tm_year - 120 + (lt->tm_yday / (isLeapYear ? 365.f : 364.f))) / 10.f;
         float ftimes[8] = { 0, fyear, fmonth, fdate, fday, fhour, fmin, fsec }, cosine, sine;
         
-        for (int i = 0; i < face._scenes.size(); i++)
+        for (int i = 0; i < face.scenes.size(); i++)
             if (i > 0 && i < 8) {
                 __sincosf(ftimes[i] * 2.f * M_PI, & sine, & cosine);
-                list.addScene(face._scenes[i], Ra::Transform().concatAroundCenter(Ra::Transform(cosine, sine, -sine, cosine, 0, 0), b.cx(), b.cy()));
+                list.addScene(face.scenes[i], Ra::Transform().concatAroundCenter(Ra::Transform(cosine, sine, -sine, cosine, 0, 0), b.cx(), b.cy()));
             } else
-                list.addScene(face._scenes[i]);
+                list.addScene(face.scenes[i]);
         return list;
     }
     static float normalizeRadians(float a) { return fmodf(a >= 0.f ? a : (kTau - (fmodf(-a, kTau))), kTau); }
