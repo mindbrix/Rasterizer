@@ -23,6 +23,7 @@
 using namespace metal;
 
 constexpr sampler s = sampler(coord::normalized, address::clamp_to_zero, mag_filter::nearest, min_filter::nearest, mip_filter::linear);
+constexpr sampler cs = sampler(coord::normalized, address::clamp_to_zero, mag_filter::linear, min_filter::linear, mip_filter::linear);
 
 struct Transform {
     float a, b, c, d, tx, ty;
@@ -473,7 +474,7 @@ fragment float4 quad_edges_fragment_main(EdgesVertex vert [[stage_in]]) {
 struct InstancesVertex
 {
     float4 position [[position]];
-    float2 clip;
+    float2 clip, tex;
     float u, v, w, cover, alpha;
     float x, y, z;
     uint32_t iz;
@@ -588,12 +589,17 @@ vertex InstancesVertex instances_vertex_main(
     vert.clip = float2(dx * clip.a + dy * clip.c + clip.tx, dx * clip.b + dy * clip.d + clip.ty);
     vert.alpha = alpha;
     vert.iz = iz | flags;
+    
+    int tw = 1024, th = (*pathCount + tw - 1) / tw;
+    vert.tex.x = (0.5 + (iz % tw)) / float(tw);
+    vert.tex.y = (0.5 + (iz / tw)) / float(th);
     return vert;
 }
 
 fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
                                         const device Colorant *colors [[buffer(0)]],
-                                        texture2d<float> accumulation [[texture(0)]]
+                                        texture2d<float> accumulation [[texture(0)]],
+                                        texture2d<float> colorTexture [[texture(1)]]
 )
 {
     float alpha = 1.0;
@@ -639,10 +645,12 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
         float cover = abs(vert.cover + accumulation.sample(s, float2(vert.u, vert.v)).x);
         alpha = vert.iz & Instance::kEvenOdd ? 1.0 - abs(fmod(cover, 2.0) - 1.0) : min(1.0, cover);
     }
-    Colorant color = colors[vert.iz & kPathIndexMask];
+//    Colorant color = colors[vert.iz & kPathIndexMask];
     float clx = vert.clip.x, cly = vert.clip.y, a = dfdx(clx), b = dfdy(clx), c = dfdx(cly), d = dfdy(cly);
     float sx = rsqrt(a * a + b * b), sy = rsqrt(c * c + d * d);
     float clip = saturate(0.5 + clx * sx) * saturate(0.5 + (1.0 - clx) * sx) * saturate(0.5 + cly * sy) * saturate(0.5 + (1.0 - cly) * sy);
-    float ma = 0.003921568627 * alpha * vert.alpha * clip;
-    return { color.r * ma, color.g * ma, color.b * ma, color.a * ma };
+    float ma = alpha * vert.alpha * clip;
+    return ma * colorTexture.sample(cs, vert.tex);
+//    float ma = 0.003921568627 * alpha * vert.alpha * clip;
+//    return { color.r * ma, color.g * ma, color.b * ma, color.a * ma };
 }

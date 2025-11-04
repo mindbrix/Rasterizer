@@ -154,6 +154,18 @@
     self.accumulationTexture = [self.device newTextureWithDescriptor:desc];
     [self.accumulationTexture setLabel:@"accumulationTexture"];
     
+    desc.storageMode = MTLStorageModeShared;
+    desc.usage = MTLTextureUsageShaderRead;
+    desc.pixelFormat = MTLPixelFormatBGRA8Unorm;
+    size_t w = 1024, h = (buffer->pathsCount + w - 1) / w;
+    desc.width = w;
+    desc.height = h;
+    id <MTLTexture> colorTexture = [self.device newTextureWithDescriptor:desc];
+    [colorTexture replaceRegion:MTLRegionMake2D(0, 0, w, h)
+                    mipmapLevel:0
+                      withBytes:buffer->base + buffer->colors
+                    bytesPerRow:w * sizeof(Ra::Colorant)];
+    
     id <MTLCommandBuffer> commandBuffer = [self.commandQueue commandBuffer];
     
     MTLRenderPassDescriptor *drawableDescriptor = [MTLRenderPassDescriptor renderPassDescriptor];
@@ -263,6 +275,7 @@
                 [commandEncoder setFragmentBuffer:mtlBuffer offset:buffer->colors atIndex:0];
                 [commandEncoder setFragmentBuffer:mtlBuffer offset:entry.begin atIndex:1];
                 [commandEncoder setFragmentTexture:_accumulationTexture atIndex:0];
+                [commandEncoder setFragmentTexture:colorTexture atIndex:1];
                 [commandEncoder setRenderPipelineState:_instancesPipelineState];
                 [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip
                                    vertexStart:0
