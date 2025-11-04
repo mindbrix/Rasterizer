@@ -590,7 +590,7 @@ vertex InstancesVertex instances_vertex_main(
     vert.alpha = alpha;
     vert.iz = iz | flags;
     
-    int tw = 1024, th = (*pathCount + tw - 1) / tw;
+    int tw = kColorTextureWidth, th = (*pathCount + tw - 1) / tw;
     vert.tex.x = (0.5 + (iz % tw)) / float(tw);
     vert.tex.y = (0.5 + (iz / tw)) / float(th);
     return vert;

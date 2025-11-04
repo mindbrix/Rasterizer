@@ -38,3 +38,4 @@
 #define kMiterLimit 1.5
 #define kCubicSolverLimit 5e-2f
 #define kDepthRange 0.1f
+#define kColorTextureWidth 1024

@@ -157,7 +157,7 @@
     desc.storageMode = MTLStorageModeShared;
     desc.usage = MTLTextureUsageShaderRead;
     desc.pixelFormat = MTLPixelFormatBGRA8Unorm;
-    size_t w = 1024, h = (buffer->pathsCount + w - 1) / w;
+    size_t w = kColorTextureWidth, h = (buffer->pathsCount + w - 1) / w;
     desc.width = w;
     desc.height = h;
     id <MTLTexture> colorTexture = [self.device newTextureWithDescriptor:desc];
