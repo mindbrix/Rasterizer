@@ -157,7 +157,7 @@
     desc.storageMode = MTLStorageModeShared;
     desc.usage = MTLTextureUsageShaderRead;
     desc.pixelFormat = MTLPixelFormatBGRA8Unorm;
-    size_t w = kColorTextureWidth, h = (buffer->pathsCount + w - 1) / w;
+    size_t w = kColorTextureWidth, h = (buffer->pathsCount + w - 0) / w;
     desc.width = w;
     desc.height = h;
     id <MTLTexture> colorTexture = [self.device newTextureWithDescriptor:desc];
@@ -220,6 +220,7 @@
                 [commandEncoder setVertexBytes:& reverse length:sizeof(reverse) atIndex:12];
                 [commandEncoder setVertexBytes:& pathsCount length:sizeof(pathsCount) atIndex:13];
                 [commandEncoder setVertexBytes:& buffer->params length:sizeof(Ra::Params) atIndex:14];
+                [commandEncoder setFragmentTexture:colorTexture atIndex:1];
                 [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip
                                    vertexStart:0
                                    vertexCount:4

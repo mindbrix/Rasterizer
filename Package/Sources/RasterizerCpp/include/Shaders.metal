@@ -182,7 +182,7 @@ float quadraticWinding(float x0, float y0, float x1, float y1, float x2, float y
 struct OpaquesVertex
 {
     float4 position [[position]];
-    float4 color;
+    float2 tex;
 };
 
 vertex OpaquesVertex opaques_vertex_main(const device Colorant *colors [[buffer(0)]],
@@ -194,8 +194,7 @@ vertex OpaquesVertex opaques_vertex_main(const device Colorant *colors [[buffer(
                                          uint vid [[vertex_id]], uint iid [[instance_id]])
 {
     const device Opaque& inst = opaques[*reverse - 1 - iid];
-    const Colorant fillColor = colors[inst.iz & kPathIndexMask];
-    const Colorant color = params->showOpaques ? fillColor : params->clearColor;
+    const uint iz = inst.iz & kPathIndexMask;
     const device Cell& cell = inst.cell;
     const device Quadratic& q = inst.q;
     float x, y, z = kDepthRange * float((inst.iz & kPathIndexMask) + 1) / float(*pathCount);
@@ -235,13 +234,16 @@ vertex OpaquesVertex opaques_vertex_main(const device Colorant *colors [[buffer(
         z,
         1.0
     };
-    vert.color = float4(color.r / 255.0, color.g / 255.0, color.b / 255.0, 1.0);
+    int tw = kColorTextureWidth, th = (*pathCount + tw - 0) / tw;
+    uint tiz = params->showOpaques ? iz : *pathCount;
+    vert.tex.x = (0.5 + (tiz % tw)) / float(tw);
+    vert.tex.y = (0.5 + (tiz / tw)) / float(th);
     return vert;
 }
 
-fragment float4 opaques_fragment_main(OpaquesVertex vert [[stage_in]])
+fragment float4 opaques_fragment_main(OpaquesVertex vert [[stage_in]], texture2d<float> colorTexture [[texture(1)]])
 {
-    return vert.color;
+    return colorTexture.sample(cs, vert.tex);
 }
 
 #pragma mark - Fast Molecules

@@ -563,7 +563,7 @@ struct Rasterizer {
             size_t i, sizes[] = { sizeof(Colorant), sizeof(Transform), sizeof(Transform), sizeof(float), sizeof(Bounds) };
             size_t count = sizeof(sizes) / sizeof(*sizes), base = 0, bases[count];
             for (i = 0; i < count; i++)
-                bases[i] = base, base += pathsCount * sizes[i];
+                bases[i] = base, base += (pathsCount + 1) * sizes[i];
             colors = bases[0], ctms = bases[1], clips = bases[2], widths = bases[3], bounds = bases[4];
             headerSize = (base + 15) & ~15, resize(headerSize), entries.empty();
         }

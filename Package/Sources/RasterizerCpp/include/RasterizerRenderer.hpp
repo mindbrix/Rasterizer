@@ -44,6 +44,9 @@ struct RasterizerRenderer {
                 *(buffer->entries.alloc(1)) = contexts[i].entries[j];
         size_t end = buffer->entries.end == 0 ? 0 : buffer->entries.back().end;
         assert(size >= end);
+        
+        auto colors = (Ra::Colorant *)(buffer->base + buffer->colors);
+        colors[buffer->pathsCount] = buffer->params.clearColor;
     }
     
     void matchColors(const Ra::SceneList& list, CGColorSpaceRef destSpace) {
