@@ -599,7 +599,6 @@ vertex InstancesVertex instances_vertex_main(
 }
 
 fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
-                                        const device Colorant *colors [[buffer(0)]],
                                         texture2d<float> accumulation [[texture(0)]],
                                         texture2d<float> colorTexture [[texture(1)]]
 )
@@ -647,12 +646,9 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
         float cover = abs(vert.cover + accumulation.sample(s, float2(vert.u, vert.v)).x);
         alpha = vert.iz & Instance::kEvenOdd ? 1.0 - abs(fmod(cover, 2.0) - 1.0) : min(1.0, cover);
     }
-//    Colorant color = colors[vert.iz & kPathIndexMask];
     float clx = vert.clip.x, cly = vert.clip.y, a = dfdx(clx), b = dfdy(clx), c = dfdx(cly), d = dfdy(cly);
     float sx = rsqrt(a * a + b * b), sy = rsqrt(c * c + d * d);
     float clip = saturate(0.5 + clx * sx) * saturate(0.5 + (1.0 - clx) * sx) * saturate(0.5 + cly * sy) * saturate(0.5 + (1.0 - cly) * sy);
-    float ma = alpha * vert.alpha * clip;
-    return ma * colorTexture.sample(cs, vert.tex);
-//    float ma = 0.003921568627 * alpha * vert.alpha * clip;
-//    return { color.r * ma, color.g * ma, color.b * ma, color.a * ma };
+    
+    return alpha * vert.alpha * clip * colorTexture.sample(cs, vert.tex);
 }

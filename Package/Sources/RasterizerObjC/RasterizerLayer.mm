@@ -273,8 +273,6 @@
                 [commandEncoder setVertexBytes:& height length:sizeof(height) atIndex:11];
                 [commandEncoder setVertexBytes:& pathsCount length:sizeof(pathsCount) atIndex:13];
                 [commandEncoder setVertexBytes:& buffer->params length:sizeof(Ra::Params) atIndex:14];
-                [commandEncoder setFragmentBuffer:mtlBuffer offset:buffer->colors atIndex:0];
-                [commandEncoder setFragmentBuffer:mtlBuffer offset:entry.begin atIndex:1];
                 [commandEncoder setFragmentTexture:_accumulationTexture atIndex:0];
                 [commandEncoder setFragmentTexture:colorTexture atIndex:1];
                 [commandEncoder setRenderPipelineState:_instancesPipelineState];
