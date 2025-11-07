@@ -194,10 +194,10 @@ class SwiftDemo: NSObject, RASceneListDelegate {
         return list
     }
     func testCubics(_ time: Double, width: Double, height: Double) -> RASceneList {
-        let count = 200
+        let count = flag ? 60 : 20
         let bounds = CGRect(x: 0, y: 0, width: width, height: height)
         let dim = min(bounds.width, bounds.height)
-        let radius = 0.5 * dim
+        let radius = dim
         let center = CGPoint(x: bounds.midX, y: bounds.midY)
         let path = RAPath()
         for i in 0 ..< count {
