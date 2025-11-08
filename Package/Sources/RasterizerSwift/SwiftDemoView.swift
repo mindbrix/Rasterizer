@@ -70,11 +70,11 @@ public class SwiftDemoView: RasterizerView {
 }
 
 protocol RADrawable {
-    func getListAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RASceneList
+    func getSceneAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RAScene
 }
 
 class TestQuadratics: RADrawable {
-    func getListAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RASceneList {
+    func getSceneAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RAScene {
         let width = bounds.width
         let height = bounds.height
         let dim = min(width, height)
@@ -89,15 +89,12 @@ class TestQuadratics: RADrawable {
         
         let scene = RAScene()
         scene.add(path, ctm: .identity, color: RAColor(gray: 0, alpha: 1), width: stroke, flags: 0, clip: .zero)
-        
-        let list = RASceneList()
-        list.add(scene, ctm: .identity, clip: .zero)
-        return list
+        return scene
     }
 }
 
 class TestCubics: RADrawable {
-    func getListAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RASceneList {
+    func getSceneAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RAScene {
         let count = state.flag ? 72 : 36
         let dim = min(bounds.width, bounds.height)
         let radius = 0.25 * dim
@@ -116,15 +113,12 @@ class TestCubics: RADrawable {
         }
         let scene = RAScene()
         scene.add(path, ctm: .identity, color: RAColor(gray: 0, alpha: 1), width: 0, flags: RASceneFlags.fillEvenOdd.rawValue, clip: .zero)
-
-        let list = RASceneList()
-        list.add(scene, ctm: .identity, clip: .zero)
-        return list
+        return scene
     }
 }
 
 class Test0: RADrawable {
-    func getListAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RASceneList {
+    func getSceneAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RAScene {
         let ts = 0.1 * time
         let t = ts - floor(ts)
         let dim = min(bounds.width, bounds.height)
@@ -157,12 +151,7 @@ class Test0: RADrawable {
             )
             scene.add(path, ctm: ctm, color: hsv, width: unitWidth, flags: 0, clip: .zero)
         }
-        let list = RASceneList()
-        list.add(scene,
-            ctm: .identity,
-            clip: .zero
-        )
-        return list
+        return scene
     }
 }
 
@@ -248,7 +237,9 @@ class SwiftDemo: NSObject, RASceneListDelegate {
     func getListAtTime(_ time: Double, width: Double, height: Double) -> RASceneList! {
         bounds = CGRect(x: 0, y: 0, width: width, height: height)
         t = paused ? t : time
-        let list = drawables[index].getListAtTime(t, bounds: bounds, state: self)
+        let list = RASceneList()
+        let scene = drawables[index].getSceneAtTime(t, bounds: bounds, state: self)
+        list.add(scene, ctm: .identity, clip: .zero)
         if let pasted = pastedScene {
             list.add(pasted,
                 ctm: .identity,
