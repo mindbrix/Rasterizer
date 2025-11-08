@@ -60,6 +60,9 @@ public class SwiftDemoView: RasterizerView {
     override public func magnify(with event: NSEvent) {
         _ = demo.handleEvent(.magnify(scale: 1.0 + event.magnification))
     }
+    override public func mouseDragged(with event: NSEvent) {
+        _ = demo.handleEvent(.translate(tx: event.deltaX, ty: -event.deltaY))
+    }
     override public func rotate(with event: NSEvent) {
         _ = demo.handleEvent(.rotate(angle: 0.1 * event.rotation))
     }
