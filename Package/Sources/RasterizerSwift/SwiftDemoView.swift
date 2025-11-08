@@ -184,13 +184,18 @@ class SwiftDemo: NSObject, RASceneListDelegate {
     func testQuadratics(_ time: Double, bounds: CGRect) -> RASceneList {
         let width = bounds.width
         let height = bounds.height
+        let dim = min(width, height)
+        let stroke = (flag ? 1e-2 : 1e-1) * dim
+        let ts = 1 * time
+        let t = ts - floor(ts)
+        let sine = sin(t * 2 * Double.pi)
         
         let path = RAPath()
         path.move(to: 0, y: 0)
-        path.quad(to: -1.25 * width, y1: 0.5 * height, x2: width, y2: 0)
+        path.quad(to: 0.5 * dim + sine * dim, y1: dim, x2: dim, y2: 0)
         
         let scene = RAScene()
-        scene.add(path, ctm: .identity, color: RAColor(gray: 0, alpha: 1), width: (flag ? 1e-2 : 1e-1) * width, flags: 0, clip: .zero)
+        scene.add(path, ctm: .identity, color: RAColor(gray: 0, alpha: 1), width: stroke, flags: 0, clip: .zero)
         
         let list = RASceneList()
         list.add(scene, ctm: .identity, clip: .zero)
