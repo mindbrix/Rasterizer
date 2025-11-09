@@ -438,6 +438,14 @@ struct Rasterizer {
         Color(Colorant *colorants, float *locations, size_t count) {
             if (colorants == nullptr || locations == nullptr || count < 2)
                 return;
+            stops.add(colorants, count);
+            locs.add(locations, count);
+        }
+        void writeGradientStrip(Colorant *dst, size_t size) {
+            float *locations = & locs[0];
+            size_t count = locs.end();
+            Colorant *colorants = & stops[0];
+            
             std::sort(locations, locations + count);
             float lower = locations[0], upper = locations[count - 1];
             float s, t, *t0, *t1;
@@ -461,14 +469,25 @@ struct Rasterizer {
                     c0.r * s + c1.r * t,
                     c0.a * s + c1.a * t
                 );
-                gradient.add(colorant);
+                dst[i] = colorant;
             }
         }
         Colorant colorant;
-        Vector<Colorant> gradient;
+        Vector<Colorant> stops;
+        Vector<float> locs;
     };
     struct Scene {
+        enum CapStyle { kButt = 0, kSquare, kRound };
         enum Flags { kInvisible = 1 << 0, kFillEvenOdd = 1 << 1, kRoundCap = 1 << 2, kSquareCap = 1 << 3 };
+        
+        void addFill(Path path, Transform ctm, Color color, bool evenOdd, Bounds *clipBounds = nullptr) {
+            addPath(path, ctm, color, 0.f, evenOdd ? kFillEvenOdd : 0, clipBounds);
+        }
+        void addStroke(Path path, Transform ctm, Color color, float width, CapStyle capStyle, Bounds *clipBounds = nullptr) {
+            uint8_t flags = capStyle == kButt ? 0 : capStyle == kSquare ? kSquareCap : kRoundCap;
+            addPath(path, ctm, color, width, flags, clipBounds);
+        }
+        
         void addPath(Path path, Transform ctm, Colorant colorant, float width, uint8_t flag, Bounds *clipBounds = nullptr) {
             float locations[] = { 0, 1 };
             Colorant colors[] = { colorant, Colorant() };
@@ -483,10 +502,13 @@ struct Rasterizer {
                 count++, weight += g->types.end;
                 if (kMoleculesHeight && g->p16s.end == 0)
                     P16Writer().writeGeometry(g);
-                size_t count = color.gradient.end();
+                size_t count = color.stops.end();
+                
                 if (count) {
                     gradientIndices.add(gradients.end());
-                    gradients.add(& color.gradient[0], count);
+                    Colorant strip[kColorTextureWidth];
+                    color.writeGradientStrip(strip, kColorTextureWidth);
+                    gradients.add(strip, kColorTextureWidth);
                 } else {
                     gradientIndices.add(~0);
                 }
