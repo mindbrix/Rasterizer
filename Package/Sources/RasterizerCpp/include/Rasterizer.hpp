@@ -436,30 +436,32 @@ struct Rasterizer {
     struct Color {
         Color(Colorant colorant) : colorant(colorant) {}
         Color(Colorant *colorants, float *locations, size_t count) {
-            if (colorants == nullptr || locations == nullptr || count == 0)
+            if (colorants == nullptr || locations == nullptr || count < 2)
                 return;
             std::sort(locations, locations + count);
             float lower = locations[0], upper = locations[count - 1];
             float s, t, *t0, *t1;
             size_t loc;
-            Colorant c0, c1;
+            Colorant c0, c1, colorant;
             for (size_t i = 0; i < kColorTextureWidth; i++) {
                 t = float(i) / float(kColorTextureWidth - 1);
                 t = fmaxf(lower, fminf(upper, t));
-                
                 t0 = locations, t1 = t0 + 1;
                 for (loc = 0; loc < count - 1; loc++, t0++, t1++)
                     if (t >= *t0 && t <= *t1)
                         break;
-                t = (t - *t0) / (*t1 - *t0), s = 1.f - t;
+                t = (t - *t0) / (*t1 - *t0);
+                t = fmaxf(0.f, fminf(1.f, t));
+                s = 1.f - t;
                 c0 = colorants[loc];
                 c1 = colorants[loc + 1];
-                gradient.add(Colorant(
+                colorant = Colorant(
                     c0.b * s + c1.b * t,
                     c0.g * s + c1.g * t,
                     c0.r * s + c1.r * t,
-                    c0.a * s + c1.a * t)
+                    c0.a * s + c1.a * t
                 );
+                gradient.add(colorant);
             }
         }
         Colorant colorant;
@@ -468,6 +470,10 @@ struct Rasterizer {
     struct Scene {
         enum Flags { kInvisible = 1 << 0, kFillEvenOdd = 1 << 1, kRoundCap = 1 << 2, kSquareCap = 1 << 3 };
         void addPath(Path path, Transform ctm, Colorant colorant, float width, uint8_t flag, Bounds *clipBounds = nullptr) {
+            float locations[] = { 0, 1 };
+            Colorant colors[] = { colorant, Colorant() };
+            Color gradient(colors, locations, 2);
+            
             addPath(path, ctm, Color(colorant), width, flag, clipBounds);
         }
         
