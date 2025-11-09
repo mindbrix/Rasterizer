@@ -41,8 +41,6 @@ struct RasterizerSVG {
             return Ra::Color(paint.color);
         else {
             auto gradient = paint.gradient;
-            return Ra::Color(gradient->stops[0].color);
-            
             size_t count = gradient->nstops;
             Ra::Colorant stops[count];
             float locs[count];

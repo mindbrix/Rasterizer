@@ -445,6 +445,7 @@ struct Rasterizer {
         Color(Colorant *colorants, float *locations, size_t count) {
             if (colorants == nullptr || locations == nullptr || count < 2)
                 return;
+            colorant = colorants[0];
             stops.add(colorants, count);
             locs.add(locations, count);
         }
@@ -490,10 +491,6 @@ struct Rasterizer {
         enum Flags { kInvisible = 1 << 0, kFillEvenOdd = 1 << 1, kRoundCap = 1 << 2, kSquareCap = 1 << 3 };
         
         void addFill(Path path, Transform ctm, Color color, bool evenOdd, Bounds *clipBounds = nullptr) {
-            float locations[] = { 0, 1 };
-            Colorant colors[] = { color.colorant, Colorant() };
-            Color gradient(colors, locations, 2);
-    
             addPath(path, ctm, color, 0.f, evenOdd ? kFillEvenOdd : 0, clipBounds);
         }
         void addStroke(Path path, Transform ctm, Color color, float width, CapStyle capStyle, Bounds *clipBounds = nullptr) {
