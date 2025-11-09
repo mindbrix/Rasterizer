@@ -48,8 +48,8 @@ struct RasterizerSVG {
                 stops[i] = Ra::Colorant(gradient->stops[i].color);
                 locs[i] = gradient->stops[i].offset;
             }
-            auto m = (Ra::Transform *)& gradient->xform[0];
-            return Ra::Color(stops, locs, count, *m, gradient->fx, gradient->fy);
+            auto m = & gradient->xform[0];
+            return Ra::Color(stops, locs, count, Ra::Transform(m[0], m[1], m[2], m[3], m[4], m[5]));
         }
     }
     
