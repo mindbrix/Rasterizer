@@ -119,15 +119,6 @@ struct Rasterizer {
         }
         float lx, ly, ux, uy;
     };
-    struct Colorant {
-        Colorant() {}
-        Colorant(uint8_t b, uint8_t g, uint8_t r, uint8_t a) : b(b), g(g), r(r), a(a) {}
-        uint8_t b, g, r, a;
-    };
-    struct Gradient {
-        Colorant c0, c1;
-        float x0, y0, x1, y1;
-    };
     template<typename T>
     struct Ref {
         Ref()                               { ptr = new T(), ptr->refCount = 1; }
@@ -436,16 +427,41 @@ struct Rasterizer {
         }
         Row<Point16> *p16s;   Row<uint8_t> *p16cnts;  Row<Atom> *atoms;
     };
+    struct Colorant {
+        Colorant() : b(0), g(0), r(0), a(255) {}
+        Colorant(uint8_t b, uint8_t g, uint8_t r, uint8_t a) : b(b), g(g), r(r), a(a) {}
+        uint8_t b, g, r, a;
+    };
     
+    struct Color {
+        Color(Colorant colorant) : colorant(colorant) {}
+        Color(Colorant *colorants, const float *locations, size_t count) {
+            if (colorants == nullptr || locations == nullptr || count == 0)
+                return;
+        }
+        Colorant colorant;
+        Vector<Colorant> gradient;
+    };
     struct Scene {
         enum Flags { kInvisible = 1 << 0, kFillEvenOdd = 1 << 1, kRoundCap = 1 << 2, kSquareCap = 1 << 3 };
-        void addPath(Path path, Transform ctm, Colorant color, float width, uint8_t flag, Bounds *clipBounds = nullptr) {
+        void addPath(Path path, Transform ctm, Colorant colorant, float width, uint8_t flag, Bounds *clipBounds = nullptr) {
+            addPath(path, ctm, Color(colorant), width, flag, clipBounds);
+        }
+        
+        void addPath(Path path, Transform ctm, Color color, float width, uint8_t flag, Bounds *clipBounds = nullptr) {
             if (path->isValid()) {
                 Geometry *g = path.ptr;
                 count++, weight += g->types.end;
                 if (kMoleculesHeight && g->p16s.end == 0)
                     P16Writer().writeGeometry(g);
-                paths.add(path), bnds.add(g->bounds), ctms.add(ctm), colors.add(color), widths.add(width), flags.add(flag);
+                size_t count = color.gradient.end();
+                if (count) {
+                    gradientIndices.add(gradients.end());
+                    gradients.add(& color.gradient[0], count);
+                } else {
+                    gradientIndices.add(~0);
+                }
+                paths.add(path), bnds.add(g->bounds), ctms.add(ctm), colors.add(color.colorant), widths.add(width), flags.add(flag);
                 clips.add(clipBounds ? *clipBounds : Bounds::huge());
             }
         }
@@ -467,6 +483,8 @@ struct Rasterizer {
         Vector<Bounds> bnds, clips;
         Vector<Transform> ctms;
         Vector<Colorant> colors, matchedColors = colors;
+        Vector<size_t> gradientIndices;
+        Vector<Colorant> gradients, matchedGradients = gradients;
         Vector<float> widths;
         Vector<uint8_t> flags;
     };
@@ -648,6 +666,7 @@ struct Rasterizer {
                         color = uw == 0.f ? Colorant(0, 0, 0, 255) : Colorant(0, 0, 255, 255);
                     } else {
                         width = uw * (uw > 0.f ? sqrtf(det) : -1.f);
+//                        color = scn->pallette[is].flat;
                         color = scn->matchedColors[is];
                     }
                     
