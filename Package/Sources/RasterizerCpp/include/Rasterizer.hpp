@@ -442,8 +442,10 @@ struct Rasterizer {
             locs.add(locations, count);
         }
         void writeGradientStrip(Colorant *dst, size_t size) {
+            size_t count = stops.end();
+            if (count == 0)
+                return;
             float *locations = & locs[0];
-            size_t count = locs.end();
             Colorant *colorants = & stops[0];
             
             std::sort(locations, locations + count);
@@ -512,6 +514,7 @@ struct Rasterizer {
                 } else {
                     gradientIndices.add(~0);
                 }
+                _colors.add(color);
                 paths.add(path), bnds.add(g->bounds), ctms.add(ctm), colors.add(color.colorant), widths.add(width), flags.add(flag);
                 clips.add(clipBounds ? *clipBounds : Bounds::huge());
             }
@@ -533,6 +536,7 @@ struct Rasterizer {
         RefVector<Path> paths;
         Vector<Bounds> bnds, clips;
         Vector<Transform> ctms;
+        RefVector<Color> _colors;
         Vector<Colorant> colors, matchedColors = colors;
         Vector<size_t> gradientIndices;
         Vector<Colorant> gradients, matchedGradients = gradients;
