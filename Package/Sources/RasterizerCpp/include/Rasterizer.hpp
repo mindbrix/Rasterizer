@@ -442,12 +442,13 @@ struct Rasterizer {
     struct Color {
         Color() {}
         Color(Colorant colorant) : colorant(colorant) {}
-        Color(Colorant *colorants, float *locations, size_t count) {
+        Color(Colorant *colorants, float *locations, size_t count, Transform transform, float gfx, float gfy) {
             if (colorants == nullptr || locations == nullptr || count < 2)
                 return;
             colorant = colorants[0];
             stops.add(colorants, count);
             locs.add(locations, count);
+            m = transform, fx = gfx, fy = gfy;
         }
         void writeGradientStrip(Colorant *dst, size_t size) {
             size_t count = stops.end();
@@ -485,6 +486,8 @@ struct Rasterizer {
         Colorant colorant;
         Vector<Colorant> stops;
         Vector<float> locs;
+        Transform m;
+        float fx, fy;
     };
     struct Scene {
         enum CapStyle { kButt = 0, kSquare, kRound };
@@ -721,7 +724,6 @@ struct Rasterizer {
                         color = uw == 0.f ? Colorant(0, 0, 0, 255) : Colorant(0, 0, 255, 255);
                     } else {
                         width = uw * (uw > 0.f ? sqrtf(det) : -1.f);
-//                        color = scn->pallette[is].flat;
                         color = scn->matchedColors[is];
                     }
                     
