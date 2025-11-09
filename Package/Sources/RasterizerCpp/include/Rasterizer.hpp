@@ -435,9 +435,32 @@ struct Rasterizer {
     
     struct Color {
         Color(Colorant colorant) : colorant(colorant) {}
-        Color(Colorant *colorants, const float *locations, size_t count) {
+        Color(Colorant *colorants, float *locations, size_t count) {
             if (colorants == nullptr || locations == nullptr || count == 0)
                 return;
+            std::sort(locations, locations + count);
+            float lower = locations[0], upper = locations[count - 1];
+            float s, t, *t0, *t1;
+            size_t loc;
+            Colorant c0, c1;
+            for (size_t i = 0; i < kColorTextureWidth; i++) {
+                t = float(i) / float(kColorTextureWidth - 1);
+                t = fmaxf(lower, fminf(upper, t));
+                
+                t0 = locations, t1 = t0 + 1;
+                for (loc = 0; loc < count - 1; loc++, t0++, t1++)
+                    if (t >= *t0 && t <= *t1)
+                        break;
+                t = (t - *t0) / (*t1 - *t0), s = 1.f - t;
+                c0 = colorants[loc];
+                c1 = colorants[loc + 1];
+                gradient.add(Colorant(
+                    c0.b * s + c1.b * t,
+                    c0.g * s + c1.g * t,
+                    c0.r * s + c1.r * t,
+                    c0.a * s + c1.a * t)
+                );
+            }
         }
         Colorant colorant;
         Vector<Colorant> gradient;
