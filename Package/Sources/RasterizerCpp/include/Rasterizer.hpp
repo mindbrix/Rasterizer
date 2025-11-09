@@ -542,7 +542,6 @@ struct Rasterizer {
         Vector<Bounds> bnds, clips;
         Vector<Transform> ctms;
         RefVector<Color> _colors;
-        Vector<Segment> tex;
         Vector<Colorant> colors, matchedColors = colors;
         Vector<size_t> gradientIndices;
         Vector<Colorant> gradients, matchedGradients = gradients;
@@ -635,11 +634,11 @@ struct Rasterizer {
         
         void prepare(const SceneList& list) {
             pathsCount = list.pathsCount;
-            size_t i, sizes[] = { sizeof(Colorant), sizeof(Transform), sizeof(Transform), sizeof(float), sizeof(Bounds) };
+            size_t i, sizes[] = { sizeof(Colorant), sizeof(Transform), sizeof(Transform), sizeof(float), sizeof(Bounds), sizeof(Transform) };
             size_t count = sizeof(sizes) / sizeof(*sizes), base = 0, bases[count];
             for (i = 0; i < count; i++)
                 bases[i] = base, base += (pathsCount + 1) * sizes[i];
-            colors = bases[0], ctms = bases[1], clips = bases[2], widths = bases[3], bounds = bases[4];
+            colors = bases[0], ctms = bases[1], clips = bases[2], widths = bases[3], bounds = bases[4], texCtms = bases[5];
             headerSize = (base + 15) & ~15, resize(headerSize), entries.empty();
         }
         void resize(size_t n, size_t copySize = 0) {
@@ -659,7 +658,8 @@ struct Rasterizer {
         }
         uint8_t *base = nullptr;  Row<Entry> entries;
         Params params;
-        size_t colors, ctms, clips, widths, bounds, idxs, pathsCount, headerSize, size = 0, allocation = 0;
+        size_t colors, ctms, clips, widths, bounds, texCtms;
+        size_t idxs, pathsCount, headerSize, size = 0, allocation = 0;
     };
     struct Allocator {
         enum CountType { kFastEdges, kQuadEdges, kFastMolecules, kQuadMolecules };
@@ -704,10 +704,11 @@ struct Rasterizer {
             Transform *clips = (Transform *)(buffer->base + buffer->clips);
             float *widths = (float *)(buffer->base + buffer->widths);
             Bounds *bounds = (Bounds *)(buffer->base + buffer->bounds);
+            Transform *texCtms = (Transform *)(buffer->base + buffer->texCtms);
             bool clipActive = false;
             
             size_t lz, uz, i, clz, cuz, iz, is, size, cnt;  uint8_t flags;
-            float det, width, uw, softclipMargin = 0.5f;  Colorant color;
+            float det, width, uw, softclipMargin = 0.5f;
             for (lz = uz = i = 0; i < list.scenes.size(); i++, lz = uz) {
                 const Scene *scn = list.scenes[i].ptr;
                 uz = lz + scn->count, clz = lz < slz ? slz : lz > suz ? suz : lz, cuz = uz < slz ? slz : uz > suz ? suz : uz;
@@ -716,15 +717,6 @@ struct Rasterizer {
                 for (is = clz - lz, iz = clz; iz < cuz; iz++, is++) {
                     if ((flags = scn->flags[is]) & Scene::Flags::kInvisible)
                         continue;
-                    m = scn->ctms[is].concat(ctm), det = fabsf(m.a * m.d - m.b * m.c);
-                    uw = scn->widths[is];
-                    if (list.params.showOutlines) {
-                        width = 1.f;
-                        color = uw == 0.f ? Colorant(0, 0, 0, 255) : Colorant(0, 0, 255, 255);
-                    } else {
-                        width = uw * (uw > 0.f ? sqrtf(det) : -1.f);
-                        color = scn->matchedColors[is];
-                    }
                     
                     bool newClip = memcmp(& scn->clips[is], & lastClip, sizeof(Bounds)) != 0;
                     if (newClip) {
@@ -735,16 +727,30 @@ struct Rasterizer {
                         invclip = clipquad.invert();
                         clipBounds = Bounds(clipquad).integral().intersect(device);
                     }
+                    m = scn->ctms[is].concat(ctm), det = fabsf(m.a * m.d - m.b * m.c);
+                    uw = scn->widths[is];
+                    width = list.params.showOutlines ? 1.f : uw * (uw > 0.f ? sqrtf(det) : -1.f);
                     bnds = & scn->bnds[is], quad = bnds->quad(m), dev = Bounds(quad).inset(-width, -width);
                     clip = dev.integral().intersect(clipBounds);
+                    
                     if (clip.lx < clip.ux && clip.ly < clip.uy) {
                         bool unclipped = clip.contains(dev);
                         float clipWidth = clip.width(), clipHeight = clip.height();
                         bool useMolecules = clipHeight <= kMoleculesHeight && clipWidth <= kMoleculesHeight;
-                        bool isOpaque = color.a == 255;
-                        
-                        colors[iz] = color, ctms[iz] = m, widths[iz] = width, clips[iz] = invclip;
                         Geometry *g = scn->paths[is].ptr;
+                        const Color& col = scn->_colors[is];
+                        Colorant color = scn->matchedColors[is];
+                        if (col.stops.end()) {
+                            texCtms[iz] = quad.invert();// g->bounds.quad(col.m.concat(m)).invert();
+                        } else {
+                            texCtms[iz].a = FLT_MAX;
+                        }
+                        if (list.params.showOutlines) {
+                            color = uw == 0.f ? Colorant(0, 0, 0, 255) : Colorant(0, 0, 255, 255);
+                        }
+                        bool isOpaque = color.a == 255;
+                        colors[iz] = color;
+                        ctms[iz] = m, widths[iz] = width, clips[iz] = invclip;
                         if (width) {
                             Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kOutlines | bool(flags & Scene::kRoundCap) * Instance::kRoundCap | bool(flags & Scene::kSquareCap) * Instance::kSquareCap);
                             Bounds outlineClip = unclipped ? Bounds::huge() : clip.inset(-width, -width);

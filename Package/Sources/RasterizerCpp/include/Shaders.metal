@@ -188,6 +188,7 @@ struct OpaquesVertex
 vertex OpaquesVertex opaques_vertex_main(const device Colorant *colors [[buffer(0)]],
                                          const device Opaque *opaques [[buffer(1)]],
                                          const device float *widths [[buffer(6)]],
+                                         const device Transform *texCtms [[buffer(8)]],
                                          constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
                                          constant uint *reverse [[buffer(12)]], constant uint *pathCount [[buffer(13)]],
                                          constant Params *params [[buffer(14)]],
@@ -195,6 +196,7 @@ vertex OpaquesVertex opaques_vertex_main(const device Colorant *colors [[buffer(
 {
     const device Opaque& inst = opaques[*reverse - 1 - iid];
     const uint iz = inst.iz & kPathIndexMask;
+    const device Transform& texCtm = texCtms[iz];
     const device Cell& cell = inst.cell;
     const device Quadratic& q = inst.q;
     float x, y, z = kDepthRange * float((inst.iz & kPathIndexMask) + 1) / float(*pathCount);
@@ -238,6 +240,10 @@ vertex OpaquesVertex opaques_vertex_main(const device Colorant *colors [[buffer(
     uint tiz = params->showOpaques ? iz : *pathCount;
     vert.tex.x = (0.5 + (tiz % tw)) / float(tw);
     vert.tex.y = (0.5 + (tiz / tw)) / float(th);
+    
+    if (params->showOpaques && texCtms[iz].a != FLT_MAX)
+        vert.tex.x = x * texCtm.a + y * texCtm.c + texCtm.tx;
+    
     return vert;
 }
 
@@ -488,6 +494,7 @@ vertex InstancesVertex instances_vertex_main(
             const device Transform *clips [[buffer(5)]],
             const device float *widths [[buffer(6)]],
             const device Bounds *bounds [[buffer(7)]],
+            const device Transform *texCtms [[buffer(8)]],
             constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
             constant uint *pathCount [[buffer(13)]],
             constant Params *params [[buffer(14)]],
@@ -500,7 +507,10 @@ vertex InstancesVertex instances_vertex_main(
     const device Instance& inst = instances[iid];
     uint iz = inst.iz & kPathIndexMask, flags = inst.iz & Instance::kFragmentMask;
     
-    Transform clip = clips[iz];
+    
+    const device Transform& clip = clips[iz];
+    const device Transform& texCtm = texCtms[iz];
+    
     float w = widths[iz], cw = max(1.0, w), dw = 0.5 * (1.0 + cw);
     float alpha = select(1.0, w / cw, w != 0), dx, dy;
     if (inst.iz & Instance::kOutlines) {
@@ -595,6 +605,10 @@ vertex InstancesVertex instances_vertex_main(
     int tw = kColorTextureWidth, th = (*pathCount + tw - 1) / tw;
     vert.tex.x = (0.5 + (iz % tw)) / float(tw);
     vert.tex.y = (0.5 + (iz / tw)) / float(th);
+    
+    if (texCtms[iz].a != FLT_MAX)
+        vert.tex.x = dx * texCtm.a + dy * texCtm.c + texCtm.tx;
+    
     return vert;
 }
 
@@ -650,5 +664,5 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
     float sx = rsqrt(a * a + b * b), sy = rsqrt(c * c + d * d);
     float clip = saturate(0.5 + clx * sx) * saturate(0.5 + (1.0 - clx) * sx) * saturate(0.5 + cly * sy) * saturate(0.5 + (1.0 - cly) * sy);
     
-    return alpha * vert.alpha * clip * colorTexture.sample(cs, vert.tex);
+    return alpha * vert.alpha * clip * colorTexture.sample(cs, saturate(vert.tex));
 }

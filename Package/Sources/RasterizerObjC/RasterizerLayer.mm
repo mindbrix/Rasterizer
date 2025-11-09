@@ -213,6 +213,7 @@
                 [commandEncoder setRenderPipelineState:_opaquesPipelineState];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->widths atIndex:6];
+                [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->texCtms atIndex:8];
                 reverse = uint32_t((entry.end - entry.begin) / sizeof(Ra::Opaque));
                 [commandEncoder setVertexBytes:& width length:sizeof(width) atIndex:10];
                 [commandEncoder setVertexBytes:& height length:sizeof(height) atIndex:11];
@@ -268,6 +269,7 @@
                 [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->clips atIndex:5];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->widths atIndex:6];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->bounds atIndex:7];
+                [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->texCtms atIndex:8];
                 [commandEncoder setVertexBytes:& width length:sizeof(width) atIndex:10];
                 [commandEncoder setVertexBytes:& height length:sizeof(height) atIndex:11];
                 [commandEncoder setVertexBytes:& pathsCount length:sizeof(pathsCount) atIndex:13];
