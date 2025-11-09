@@ -378,6 +378,11 @@ struct Rasterizer {
     };
     typedef Ref<Geometry> Path;
     
+    struct Segment {
+        inline Segment(float x0, float y0, float x1, float y1, bool curve) : ix0((*((uint32_t *)& x0) & ~1) | curve), y0(y0), x1(x1), y1(y1) {}
+        union { float x0; uint32_t ix0; };  float y0, x1, y1;
+    };
+    
     struct P16Writer: GeometryWriter {
         static const uint8_t isMoveTo = 0x80;
         
@@ -429,11 +434,13 @@ struct Rasterizer {
     };
     struct Colorant {
         Colorant() : b(0), g(0), r(0), a(255) {}
+        Colorant(uint32_t rgba) : b((rgba >> 16) & 0xFF), g((rgba >> 8) & 0xFF), r(rgba & 0xFF), a(rgba >> 24) {};
         Colorant(uint8_t b, uint8_t g, uint8_t r, uint8_t a) : b(b), g(g), r(r), a(a) {}
         uint8_t b, g, r, a;
     };
     
     struct Color {
+        Color() {}
         Color(Colorant colorant) : colorant(colorant) {}
         Color(Colorant *colorants, float *locations, size_t count) {
             if (colorants == nullptr || locations == nullptr || count < 2)
@@ -483,6 +490,10 @@ struct Rasterizer {
         enum Flags { kInvisible = 1 << 0, kFillEvenOdd = 1 << 1, kRoundCap = 1 << 2, kSquareCap = 1 << 3 };
         
         void addFill(Path path, Transform ctm, Color color, bool evenOdd, Bounds *clipBounds = nullptr) {
+            float locations[] = { 0, 1 };
+            Colorant colors[] = { color.colorant, Colorant() };
+            Color gradient(colors, locations, 2);
+    
             addPath(path, ctm, color, 0.f, evenOdd ? kFillEvenOdd : 0, clipBounds);
         }
         void addStroke(Path path, Transform ctm, Color color, float width, CapStyle capStyle, Bounds *clipBounds = nullptr) {
@@ -491,13 +502,8 @@ struct Rasterizer {
         }
         
         void addPath(Path path, Transform ctm, Colorant colorant, float width, uint8_t flag, Bounds *clipBounds = nullptr) {
-            float locations[] = { 0, 1 };
-            Colorant colors[] = { colorant, Colorant() };
-            Color gradient(colors, locations, 2);
-            
             addPath(path, ctm, Color(colorant), width, flag, clipBounds);
         }
-        
         void addPath(Path path, Transform ctm, Color color, float width, uint8_t flag, Bounds *clipBounds = nullptr) {
             if (path->isValid()) {
                 Geometry *g = path.ptr;
@@ -537,6 +543,7 @@ struct Rasterizer {
         Vector<Bounds> bnds, clips;
         Vector<Transform> ctms;
         RefVector<Color> _colors;
+        Vector<Segment> tex;
         Vector<Colorant> colors, matchedColors = colors;
         Vector<size_t> gradientIndices;
         Vector<Colorant> gradients, matchedGradients = gradients;
@@ -570,10 +577,6 @@ struct Rasterizer {
         }
         Transform ctm;  Params params;
         size_t pathsCount = 0;  std::vector<SceneRef> scenes;  std::vector<Transform> ctms;  std::vector<Bounds> clips;
-    };
-    struct Segment {
-        inline Segment(float x0, float y0, float x1, float y1, bool curve) : ix0((*((uint32_t *)& x0) & ~1) | curve), y0(y0), x1(x1), y1(y1) {}
-        union { float x0; uint32_t ix0; };  float y0, x1, y1;
     };
     struct Cell {
         uint16_t lx, ly, ux, uy, ox, oy;

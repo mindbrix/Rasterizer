@@ -36,14 +36,22 @@ struct RasterizerSVG {
         return ctm;
     }
     
-    static inline Ra::Colorant colorFromSVGColor(int color) {
-        return Ra::Colorant((color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF, color >> 24);
-    }
-    static Ra::Colorant colorFromPaint(NSVGpaint paint) {
+    static Ra::Color colorFromPaint(NSVGpaint paint) {
         if (paint.type == NSVG_PAINT_COLOR)
-            return colorFromSVGColor(paint.color);
-        else
-            return colorFromSVGColor(paint.gradient->stops[0].color);
+            return Ra::Color(paint.color);
+        else {
+            auto gradient = paint.gradient;
+            return Ra::Color(gradient->stops[0].color);
+            
+            size_t count = gradient->nstops;
+            Ra::Colorant stops[count];
+            float locs[count];
+            for (int i = 0; i < count; i++) {
+                stops[i] = Ra::Colorant(gradient->stops[i].color);
+                locs[i] = gradient->stops[i].offset;
+            }
+            return Ra::Color(stops, locs, count);
+        }
     }
     
     static void addSvgImageToScene(NSVGimage *image, Ra::SceneRef& scene) {
@@ -53,7 +61,7 @@ struct RasterizerSVG {
                 for (NSVGshape *shape = image->shapes; shape != NULL; shape = shape->next)
                     if (shape->fill.type != NSVG_PAINT_NONE)
                         writePathFromShape(shape, path);
-                scene->addPath(path, Ra::Transform(), Ra::Colorant(0, 0, 0, 255), 0.f, Ra::Scene::kFillEvenOdd);
+                scene->addPath(path, Ra::Transform(), Ra::Color(), 0.f, Ra::Scene::kFillEvenOdd);
             } else {
                 for (NSVGshape *shape = image->shapes; shape != NULL; shape = shape->next) {
                     Ra::Path path;
