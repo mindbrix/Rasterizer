@@ -462,8 +462,8 @@ struct Rasterizer {
             float s, t, *t0, *t1;
             size_t loc;
             Colorant c0, c1, colorant;
-            for (size_t i = 0; i < kColorTextureWidth; i++) {
-                t = float(i) / float(kColorTextureWidth - 1);
+            for (size_t i = 0; i < size; i++) {
+                t = float(i) / float(size - 1);
                 t = fmaxf(lower, fminf(upper, t));
                 t0 = locations, t1 = t0 + 1;
                 for (loc = 0; loc < count - 1; loc++, t0++, t1++)
