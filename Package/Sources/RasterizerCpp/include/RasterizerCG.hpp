@@ -138,14 +138,13 @@ struct RasterizerCG {
                             else
                                 CGContextClip(ctx);
                             CGGradientRef gradient = CGGradientFromColor(color);
-                            CGRect bounds = CGRectFromBounds(g->bounds);
                             if (color.radial) {
-                                CGPoint center = CGPointMake(CGRectGetMidX(bounds), CGRectGetMidY(bounds));
-                                CGFloat radius = 0.5 * fmin(CGRectGetWidth(bounds), CGRectGetHeight(bounds));
+                                CGPoint center = CGPointMake(color.coords.x0, color.coords.y0);
+                                CGFloat radius = color.coords.x1;
                                 CGContextDrawRadialGradient(ctx, gradient, center, 0, center, radius, 0);
                             } else {
-                                CGPoint begin = CGPointMake(CGRectGetMinX(bounds), CGRectGetMinY(bounds));
-                                CGPoint end = CGPointMake(CGRectGetMaxX(bounds), CGRectGetMinY(bounds));
+                                CGPoint begin = CGPointMake(color.coords.x0, color.coords.y0);
+                                CGPoint end = CGPointMake(color.coords.x1, color.coords.y1);
                                 CGContextDrawLinearGradient(ctx, gradient, begin, end, 0);
                             }
                             CFRelease(gradient);

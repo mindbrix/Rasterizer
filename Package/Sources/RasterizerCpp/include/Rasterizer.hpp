@@ -379,6 +379,7 @@ struct Rasterizer {
     typedef Ref<Geometry> Path;
     
     struct Segment {
+        inline Segment() {}
         inline Segment(float x0, float y0, float x1, float y1, bool curve) : ix0((*((uint32_t *)& x0) & ~1) | curve), y0(y0), x1(x1), y1(y1) {}
         union { float x0; uint32_t ix0; };  float y0, x1, y1;
     };
@@ -442,13 +443,13 @@ struct Rasterizer {
     struct Color {
         Color() {}
         Color(Colorant colorant) : colorant(colorant) {}
-        Color(Colorant *colorants, float *locations, size_t count, Transform transform, bool isRadial) {
+        Color(Colorant *colorants, float *locations, size_t count, Segment coordinates, bool isRadial) {
             if (colorants == nullptr || locations == nullptr || count < 2)
                 return;
             colorant = colorants[0];
             stops.add(colorants, count);
             locs.add(locations, count);
-            m = transform;
+            coords = coordinates;
             radial = isRadial;
         }
         inline bool isGradient() const {
@@ -490,7 +491,7 @@ struct Rasterizer {
         Colorant colorant;
         Vector<Colorant> stops;
         Vector<float> locs;
-        Transform m;
+        Segment coords;
         bool radial;
     };
     struct Scene {
