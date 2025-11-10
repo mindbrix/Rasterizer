@@ -442,13 +442,14 @@ struct Rasterizer {
     struct Color {
         Color() {}
         Color(Colorant colorant) : colorant(colorant) {}
-        Color(Colorant *colorants, float *locations, size_t count, Transform transform) {
+        Color(Colorant *colorants, float *locations, size_t count, Transform transform, bool isRadial) {
             if (colorants == nullptr || locations == nullptr || count < 2)
                 return;
             colorant = colorants[0];
             stops.add(colorants, count);
             locs.add(locations, count);
             m = transform;
+            radial = isRadial;
         }
         inline bool isGradient() const {
             return stops.end();
@@ -490,6 +491,7 @@ struct Rasterizer {
         Vector<Colorant> stops;
         Vector<float> locs;
         Transform m;
+        bool radial;
     };
     struct Scene {
         enum CapStyle { kButt = 0, kSquare, kRound };

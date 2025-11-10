@@ -49,7 +49,8 @@ struct RasterizerSVG {
                 locs[i] = gradient->stops[i].offset;
             }
             auto m = & gradient->xform[0];
-            return Ra::Color(stops, locs, count, Ra::Transform(m[0], m[1], m[2], m[3], m[4], m[5]));
+            bool isRadial = paint.type == NSVG_PAINT_RADIAL_GRADIENT;
+            return Ra::Color(stops, locs, count, Ra::Transform(m[0], m[1], m[2], m[3], m[4], m[5]), isRadial);
         }
     }
     
