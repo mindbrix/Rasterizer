@@ -2846,7 +2846,7 @@ static void nsvg__scaleToViewbox(NSVGparser* p, const char* units)
 			}
 		}
 
-        /*
+        /**/
 		if (shape->fill.type == NSVG_PAINT_LINEAR_GRADIENT || shape->fill.type == NSVG_PAINT_RADIAL_GRADIENT) {
 			nsvg__scaleGradient(shape->fill.gradient, tx,ty, sx,sy);
 			memcpy(t, shape->fill.gradient->xform, sizeof(float)*6);
@@ -2857,7 +2857,7 @@ static void nsvg__scaleToViewbox(NSVGparser* p, const char* units)
 			memcpy(t, shape->stroke.gradient->xform, sizeof(float)*6);
 			nsvg__xformInverse(shape->stroke.gradient->xform, t);
 		}
-         */
+         
 		shape->strokeWidth *= avgs;
 		shape->strokeDashOffset *= avgs;
 		for (i = 0; i < shape->strokeDashCount; i++)
@@ -2879,7 +2879,8 @@ NSVGimage* nsvgParse(char* input, const char* units, float dpi)
 	nsvg__parseXML(input, nsvg__startElement, nsvg__endElement, nsvg__content, p);
 
 	// Scale to viewBox
-	nsvg__scaleToViewbox(p, units);
+    if (units)
+        nsvg__scaleToViewbox(p, units);
 
 	ret = p->image;
 	p->image = NULL;

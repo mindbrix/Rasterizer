@@ -28,7 +28,7 @@ struct RasterizerSVG {
         char *terminated = (char *)malloc(size + 1);
         memcpy(terminated, data, size);
         terminated[size] = 0;
-        struct NSVGimage *image = nsvgParse(terminated, "px", 96);
+        struct NSVGimage *image = nsvgParse(terminated, nullptr, 0);
         addSvgImageToScene(image, scene);
         Ra::Transform ctm = Ra::Transform(1, 0, 0, -1, 0, image->height);
         nsvgDelete(image);
