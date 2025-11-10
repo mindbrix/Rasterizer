@@ -241,8 +241,8 @@ vertex OpaquesVertex opaques_vertex_main(const device Colorant *colors [[buffer(
     vert.tex.x = (0.5 + (tiz % tw)) / float(tw);
     vert.tex.y = (0.5 + (tiz / tw)) / float(th);
     
-    if (params->showOpaques && texCtms[iz].a != FLT_MAX)
-        vert.tex.x = x * texCtm.a + y * texCtm.c + texCtm.tx;
+//    if (params->showOpaques && texCtms[iz].a != FLT_MAX)
+//        vert.tex.x = x * texCtm.a + y * texCtm.c + texCtm.tx;
     
     return vert;
 }
@@ -606,8 +606,8 @@ vertex InstancesVertex instances_vertex_main(
     vert.tex.x = (0.5 + (iz % tw)) / float(tw);
     vert.tex.y = (0.5 + (iz / tw)) / float(th);
     
-    if (texCtms[iz].a != FLT_MAX)
-        vert.tex.x = dx * texCtm.a + dy * texCtm.c + texCtm.tx;
+//    if (texCtms[iz].a != FLT_MAX)
+//        vert.tex.x = dx * texCtm.a + dy * texCtm.c + texCtm.tx;
     
     return vert;
 }

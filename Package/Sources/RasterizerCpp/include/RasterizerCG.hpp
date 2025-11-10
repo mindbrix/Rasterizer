@@ -130,11 +130,28 @@ struct RasterizerCG {
                         CGContextSetLineCap(ctx, round ? kCGLineCapRound : square ? kCGLineCapSquare : kCGLineCapButt);
                         CGContextStrokePath(ctx);
                     } else {
-                        CGContextSetRGBFillColor(ctx, scn.colors[i].r / 255.0, scn.colors[i].g / 255.0, scn.colors[i].b / 255.0, scn.colors[i].a / 255.0);
-                        if (scn.flags[i] & Ra::Scene::kFillEvenOdd)
-                            CGContextEOFillPath(ctx);
-                        else
-                            CGContextFillPath(ctx);
+                        const auto& color = scn._colors[i];
+                        if (color.isGradient()) {
+                            CGContextSaveGState(ctx);
+                            if (scn.flags[i] & Ra::Scene::kFillEvenOdd)
+                                CGContextEOClip(ctx);
+                            else
+                                CGContextClip(ctx);
+                            CGGradientRef gradient = CGGradientFromColor(color);
+                            CGRect bounds = CGRectFromBounds(g->bounds);
+                            CGPoint begin = CGPointMake(CGRectGetMinX(bounds), CGRectGetMinY(bounds));
+                            CGPoint end = CGPointMake(CGRectGetMaxX(bounds), CGRectGetMinY(bounds));
+                            CGContextDrawLinearGradient(ctx, gradient, begin, end, 0);
+                            CFRelease(gradient);
+                            CGContextRestoreGState(ctx);
+                        } else {
+                            const auto bgra = color.colorant;
+                            CGContextSetRGBFillColor(ctx, bgra.r / 255.0, bgra.g / 255.0, bgra.b / 255.0, bgra.a / 255.0);
+                            if (scn.flags[i] & Ra::Scene::kFillEvenOdd)
+                                CGContextEOFillPath(ctx);
+                            else
+                                CGContextFillPath(ctx);
+                        }
                     }
                     CGContextRestoreGState(ctx);
                 }
@@ -142,6 +159,21 @@ struct RasterizerCG {
             CGContextRestoreGState(ctx);
             CGContextRestoreGState(ctx);
         }
+    }
+    
+    static CGGradientRef CGGradientFromColor(Ra::Color color) {
+        size_t count = color.stops.end();
+        auto stop = & color.stops[0];
+        CGFloat components[4 * count], *rgba = components;
+        for (size_t i = 0; i < count; i++, stop++)
+            *rgba++ = stop->r / 255.0, *rgba++ = stop->g / 255.0, *rgba++ = stop->b / 255.0, *rgba++ = stop->a / 255.0;
+        CGFloat locations[count];
+        for (size_t i = 0; i < count; i++)
+            locations[i] = color.locs[i];
+        CGColorSpaceRef space = CGColorSpaceCreateDeviceRGB();
+        CGGradientRef gradient = CGGradientCreateWithColorComponents(space, components, locations, count);
+        CFRelease(space);
+        return gradient;
     }
     
     static Ra::Colorant colorantFromCG(CGColorRef color) {

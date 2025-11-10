@@ -450,6 +450,9 @@ struct Rasterizer {
             locs.add(locations, count);
             m = transform;
         }
+        inline bool isGradient() const {
+            return stops.end();
+        }
         void writeGradientStrip(Colorant *dst, size_t size) {
             size_t count = stops.end();
             if (count == 0)
