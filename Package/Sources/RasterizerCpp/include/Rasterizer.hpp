@@ -719,8 +719,7 @@ struct Rasterizer {
             Transform *texCtms = (Transform *)(buffer->base + buffer->texCtms);
             bool clipActive = false;
             
-            Color black(BGRA(0, 0, 0, 255));
-            Color red(BGRA(0, 0, 255, 255));
+            BGRA black(0, 0, 0, 255), red(0, 0, 255, 255);
             size_t lz, uz, i, clz, cuz, iz, is, size, cnt;  uint8_t flags;
             float det, width, uw, softclipMargin = 0.5f;
             for (lz = uz = i = 0; i < list.scenes.size(); i++, lz = uz) {
@@ -753,15 +752,16 @@ struct Rasterizer {
                         bool useMolecules = clipHeight <= kMoleculesHeight && clipWidth <= kMoleculesHeight;
                         Geometry *g = scn->paths[is].ptr;
                         Color *color = & scn->_colors[is];
+                        bool isOpaque = color->isOpaque();
                         bool isGradient = color->isGradient();
                         if (isGradient)
                             texCtms[iz] = color->ctm.concat(m).invert();
                         
                         if (list.params.showOutlines)
-                            color = uw == 0.f ? & black : & red;
+                            colors[iz] = uw == 0.f ? black : red;
+                        else
+                            colors[iz] = scn->matchedColors[is];
                         
-                        bool isOpaque = color->isOpaque();
-                        colors[iz] = scn->matchedColors[is];
                         ctms[iz] = m, widths[iz] = width, clips[iz] = invclip;
                         if (width) {
                             Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kOutlines | bool(flags & Scene::kRoundCap) * Instance::kRoundCap | bool(flags & Scene::kSquareCap) * Instance::kSquareCap | isGradient * Instance::kIsGradient);
