@@ -48,14 +48,7 @@ struct RasterizerSVG {
                 stops[i] = Ra::BGRA(gradient->stops[i].color);
                 locs[i] = gradient->stops[i].offset;
             }
-            auto m = & gradient->xform[0];
-            if (paint.type == NSVG_PAINT_LINEAR_GRADIENT) {
-                float dx = m[2], dy = m[3], x0 = m[4], y0 = m[5];
-                return Ra::Color(stops, locs, count, Ra::Segment(x0, y0, x0 + dx, y0 + dy, false), false);
-            } else {
-                float r = m[3], cx = m[4], cy = m[5];
-                return Ra::Color(stops, locs, count, Ra::Segment(cx, cy, r, 0, false), true);
-            }
+            return Ra::Color(stops, locs, count, *(Ra::Transform *)gradient->xform, paint.type != NSVG_PAINT_LINEAR_GRADIENT);
         }
     }
     

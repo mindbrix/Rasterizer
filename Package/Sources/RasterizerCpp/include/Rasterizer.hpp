@@ -443,20 +443,13 @@ struct Rasterizer {
     struct Color {
         Color() {}
         Color(BGRA colorant) : colorant(colorant), opaque(colorant.a == 255) {}
-        Color(BGRA *colorants, float *locations, size_t count, Segment coords, bool isRadial) {
+        Color(BGRA *colorants, float *locations, size_t count, Transform transform, bool isRadial) {
             if (colorants == nullptr || locations == nullptr || count < 2)
                 return;
             colorant = colorants[0];
             stops.add(colorants, count);
             locs.add(locations, count);
-            if (isRadial) {
-                float cx = coords.x0, cy = coords.y0, r = coords.x1;
-                ctm = Transform(r, 0, 0, r, cx, cy);
-            } else {
-                float x0 = coords.x0, y0 = coords.y0;
-                float dx = coords.x1 - x0, dy = coords.y1 - y0;
-                ctm = Transform(dy, -dx, dx, dy, x0, y0);
-            }
+            ctm = transform;
             radial = isRadial;
             opaque = true;
             for (size_t i = 0; i < count && opaque; i++)
