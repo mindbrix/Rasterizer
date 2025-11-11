@@ -68,7 +68,7 @@ struct Opaque {
 
 struct Instance {
     enum Flags {
-        kIsCurve = 1 << 24,
+        kIsCurve = 1 << 24,     kIsGradient = 1 << 24,
         kMolecule = 1 << 25,    kPCap = 1 << 25,
         kFastEdges = 1 << 26,   kNCap = 1 << 26,
         kEdge = 1 << 27,        kF0 = 1 << 27,
@@ -196,6 +196,7 @@ vertex OpaquesVertex opaques_vertex_main(const device Colorant *colors [[buffer(
 {
     const device Opaque& inst = opaques[*reverse - 1 - iid];
     const uint iz = inst.iz & kPathIndexMask;
+    const bool isGradient = inst.iz & Instance::kIsGradient;
     const device Transform& texCtm = texCtms[iz];
     const device Cell& cell = inst.cell;
     const device Quadratic& q = inst.q;
@@ -241,7 +242,7 @@ vertex OpaquesVertex opaques_vertex_main(const device Colorant *colors [[buffer(
     vert.tex.x = (0.5 + (tiz % tw)) / float(tw);
     vert.tex.y = (0.5 + (tiz / tw)) / float(th);
     
-    if (params->showOpaques && texCtms[iz].a != FLT_MAX) {
+    if (params->showOpaques && isGradient) {
         vert.tex.x = x * texCtm.a + y * texCtm.c + texCtm.tx;
         vert.tex.y = FLT_MAX;
     }
@@ -252,8 +253,9 @@ vertex OpaquesVertex opaques_vertex_main(const device Colorant *colors [[buffer(
 fragment float4 opaques_fragment_main(OpaquesVertex vert [[stage_in]], texture2d<float> colorTexture [[texture(1)]])
 {
     if (vert.tex.y == FLT_MAX) {
-        const float4 color(1, 0, 0, 1);
-        return saturate(vert.tex.x) * color;
+        const float t = saturate(vert.tex.x);
+        const float4 color(t, 0, 0, 1);
+        return color;
     }
     return colorTexture.sample(cs, vert.tex);
 }
@@ -512,7 +514,7 @@ vertex InstancesVertex instances_vertex_main(
     const float sign = isRight ? -1.0 : 1.0;
     const device Instance& inst = instances[iid];
     uint iz = inst.iz & kPathIndexMask, flags = inst.iz & Instance::kFragmentMask;
-    
+    const bool isGradient = inst.iz & Instance::kIsGradient;
     
     const device Transform& clip = clips[iz];
     const device Transform& texCtm = texCtms[iz];
@@ -612,7 +614,7 @@ vertex InstancesVertex instances_vertex_main(
     vert.tex.x = (0.5 + (iz % tw)) / float(tw);
     vert.tex.y = (0.5 + (iz / tw)) / float(th);
     
-    if (texCtms[iz].a != FLT_MAX) {
+    if (isGradient) {
         vert.tex.x = dx * texCtm.a + dy * texCtm.c + texCtm.tx;
         vert.tex.y = FLT_MAX;
     }
@@ -673,8 +675,9 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
     float clip = saturate(0.5 + clx * sx) * saturate(0.5 + (1.0 - clx) * sx) * saturate(0.5 + cly * sy) * saturate(0.5 + (1.0 - cly) * sy);
     
     if (vert.tex.y == FLT_MAX) {
-        const float4 color(1, 0, 0, 1);
-        return saturate(vert.tex.x) * alpha * vert.alpha * clip * color;
+        const float t = saturate(vert.tex.x);
+        const float4 color(t, 0, 0, 1);
+        return alpha * vert.alpha * clip * color;
     }
     return alpha * vert.alpha * clip * colorTexture.sample(cs, saturate(vert.tex));
 }

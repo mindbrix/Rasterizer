@@ -447,6 +447,8 @@ struct Rasterizer {
             if (colorants == nullptr || locations == nullptr || count < 2)
                 return;
             colorant = colorants[0];
+//            opaque = colorant.a == 255;
+//            return;
             stops.add(colorants, count);
             locs.add(locations, count);
             coords = coordinates;
@@ -606,7 +608,7 @@ struct Rasterizer {
     };
     struct Instance {
         enum Flags {
-            kIsCurve = 1 << 24,
+            kIsCurve = 1 << 24,     kIsGradient = 1 << 24,
             kMolecule = 1 << 25,    kPCap = 1 << 25,
             kFastEdges = 1 << 26,   kNCap = 1 << 26,
             kEdge = 1 << 27,        kF0 = 1 << 27,
@@ -752,27 +754,22 @@ struct Rasterizer {
                         float clipWidth = clip.width(), clipHeight = clip.height();
                         bool useMolecules = clipHeight <= kMoleculesHeight && clipWidth <= kMoleculesHeight;
                         Geometry *g = scn->paths[is].ptr;
-                        Color *col = & scn->_colors[is];
-                        if (col->isGradient()) {
-                            float dx, dy, x0, y0, tx, ty;
-                            x0 = col->coords.x0, y0 = col->coords.y0;
-                            dx = col->coords.x1 - x0, dy = col->coords.y1 - y0;
-                            auto tex = Transform(dy, -dx, dx, dy, x0, y0);
-                            tx = (x0 + dx) * tex.a + (y0 + dy) * tex.c + tex.tx;
-                            ty = (x0 + dx) * tex.b + (y0 + dy) * tex.d + tex.ty;
-                            
-                            texCtms[iz] = tex.concat(m).invert();
-                        } else {
-                            texCtms[iz].a = FLT_MAX;
+                        Color *color = & scn->_colors[is];
+                        bool isGradient = color->isGradient();
+                        if (isGradient) {
+                            float x0, y0, dx, dy;
+                            x0 = color->coords.x0, y0 = color->coords.y0;
+                            dx = color->coords.x1 - x0, dy = color->coords.y1 - y0;
+                            texCtms[iz] = Transform(dy, -dx, dx, dy, x0, y0).concat(m).invert();
                         }
                         if (list.params.showOutlines) {
-                            col = uw == 0.f ? & black : & red;
+                            color = uw == 0.f ? & black : & red;
                         }
-                        bool isOpaque = col->isOpaque();
+                        bool isOpaque = color->isOpaque();
                         colors[iz] = scn->matchedColors[is];
                         ctms[iz] = m, widths[iz] = width, clips[iz] = invclip;
                         if (width) {
-                            Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kOutlines | bool(flags & Scene::kRoundCap) * Instance::kRoundCap | bool(flags & Scene::kSquareCap) * Instance::kSquareCap);
+                            Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kOutlines | bool(flags & Scene::kRoundCap) * Instance::kRoundCap | bool(flags & Scene::kSquareCap) * Instance::kSquareCap | isGradient * Instance::kIsGradient);
                             Bounds outlineClip = unclipped ? Bounds::huge() : clip.inset(-width, -width);
                             uint32_t i0 = uint32_t(outlines.idx), i1;
                             Outliner outliner;
@@ -791,7 +788,7 @@ struct Rasterizer {
                         } else if (useMolecules && clipWidth * clipHeight / g->types.end < kMoleculesPixelsPerEdge) {
                             bounds[iz] = *bnds;
                             bool fast = !buffer->params.useCurves || g->maxCurve * det < 16.f;
-                            Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kMolecule | bool(flags & Scene::kFillEvenOdd) * Instance::kEvenOdd | fast * Instance::kFastEdges);
+                            Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kMolecule | bool(flags & Scene::kFillEvenOdd) * Instance::kEvenOdd | fast * Instance::kFastEdges | isGradient * Instance::kIsGradient);
                             p16s.add(& g->p16s);
                             inst->g = g, inst->quad.cover = 0;
                             inst->quad.base = int(p16total);
@@ -810,7 +807,7 @@ struct Rasterizer {
                                 Bounds soft = Bounds(quad.concat(invclip));
                                 softunclipped = fmaxf(fmaxf(fabsf(soft.lx - 0.5f), fabsf(soft.ux - 0.5f)), fmaxf(fabsf(soft.ly - 0.5f), fabsf(soft.uy - 0.5f))) < softclipMargin;
                             }
-                            writeSegmentInstances(clip, flags & Scene::kFillEvenOdd, iz, isOpaque && softunclipped, fast, *this);
+                            writeSegmentInstances(clip, flags & Scene::kFillEvenOdd, iz, isOpaque && softunclipped, fast, isGradient, *this);
                             segments.idx = segments.end = idxr.dst - segments.base;
                         }
                     }
@@ -1161,9 +1158,10 @@ struct Rasterizer {
                 in[--counts[(tmp[i] >> 8) & 0x3F]] = tmp[i];
         }
     }
-    static void writeSegmentInstances(Bounds clip, bool even, size_t iz, bool opaque, bool fast, Context& ctx) {
+    static void writeSegmentInstances(Bounds clip, bool even, size_t iz, bool opaque, bool fast, bool isGradient, Context& ctx) {
         size_t ily = 0, iuy = ceilf(clip.height() * krfh), iy, i, begin, size;
-        size_t edgeIz = iz | Instance::kEdge | even * Instance::kEvenOdd | fast * Instance::kFastEdges;
+        size_t edgeIz = iz | Instance::kEdge | even * Instance::kEvenOdd | fast * Instance::kFastEdges | isGradient * Instance::kIsGradient;
+        uint32_t cellIz = uint32_t(iz | isGradient * Instance::kIsGradient);
         uint16_t counts[256], ly, uy, lx, ux;
         float h, cover, winding, wscale;
         Allocator::CountType type = fast ? Allocator::kFastEdges : Allocator::kQuadEdges;
@@ -1201,10 +1199,10 @@ struct Rasterizer {
                             if (opaque) {
                                 Opaque *opaque = ctx.opaques.alloc(1);
                                 Cell *cell = & opaque->cell;
-                                opaque->iz = uint32_t(iz);
+                                opaque->iz = cellIz;
                                 cell->lx = ux, cell->ly = ly, cell->ux = index->lx, cell->uy = uy;
                             } else {
-                                Cell *cell = & (new (ctx.blends.alloc(1)) Blend(iz))->quad.cell;
+                                Cell *cell = & (new (ctx.blends.alloc(1)) Blend(cellIz))->quad.cell;
                                 cell->lx = ux, cell->ly = ly, cell->ux = index->lx, cell->uy = uy, cell->ox = kNullIndex;
                             }
                         }
