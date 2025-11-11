@@ -140,12 +140,12 @@ struct RasterizerCG {
                             CGGradientRef gradient = CGGradientFromColor(color);
                             auto options = kCGGradientDrawsBeforeStartLocation | kCGGradientDrawsAfterEndLocation;
                             if (color.radial) {
-                                CGPoint center = CGPointMake(color.coords.x0, color.coords.y0);
-                                CGFloat radius = color.coords.x1;
+                                CGPoint center = CGPointMake(color.ctm.tx, color.ctm.ty);
+                                CGFloat radius = color.ctm.a;
                                 CGContextDrawRadialGradient(ctx, gradient, center, 0, center, radius, options);
                             } else {
-                                CGPoint begin = CGPointMake(color.coords.x0, color.coords.y0);
-                                CGPoint end = CGPointMake(color.coords.x1, color.coords.y1);
+                                CGPoint begin = CGPointMake(color.ctm.tx, color.ctm.ty);
+                                CGPoint end = CGPointMake(color.ctm.tx + color.ctm.c, color.ctm.ty + color.ctm.d);
                                 CGContextDrawLinearGradient(ctx, gradient, begin, end, options);
                             }
                             CFRelease(gradient);

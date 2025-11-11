@@ -443,15 +443,20 @@ struct Rasterizer {
     struct Color {
         Color() {}
         Color(BGRA colorant) : colorant(colorant), opaque(colorant.a == 255) {}
-        Color(BGRA *colorants, float *locations, size_t count, Segment coordinates, bool isRadial) {
+        Color(BGRA *colorants, float *locations, size_t count, Segment coords, bool isRadial) {
             if (colorants == nullptr || locations == nullptr || count < 2)
                 return;
             colorant = colorants[0];
-//            opaque = colorant.a == 255;
-//            return;
             stops.add(colorants, count);
             locs.add(locations, count);
-            coords = coordinates;
+            if (isRadial) {
+                float cx = coords.x0, cy = coords.y0, r = coords.x1;
+                ctm = Transform(r, 0, 0, r, cx, cy);
+            } else {
+                float x0 = coords.x0, y0 = coords.y0;
+                float dx = coords.x1 - x0, dy = coords.y1 - y0;
+                ctm = Transform(dy, -dx, dx, dy, x0, y0);
+            }
             radial = isRadial;
             opaque = true;
             for (size_t i = 0; i < count && opaque; i++)
@@ -499,7 +504,7 @@ struct Rasterizer {
         BGRA colorant;
         Vector<BGRA> stops;
         Vector<float> locs;
-        Segment coords;
+        Transform ctm;
         bool opaque, radial;
     };
     struct Scene {
@@ -756,15 +761,12 @@ struct Rasterizer {
                         Geometry *g = scn->paths[is].ptr;
                         Color *color = & scn->_colors[is];
                         bool isGradient = color->isGradient();
-                        if (isGradient) {
-                            float x0, y0, dx, dy;
-                            x0 = color->coords.x0, y0 = color->coords.y0;
-                            dx = color->coords.x1 - x0, dy = color->coords.y1 - y0;
-                            texCtms[iz] = Transform(dy, -dx, dx, dy, x0, y0).concat(m).invert();
-                        }
-                        if (list.params.showOutlines) {
+                        if (isGradient)
+                            texCtms[iz] = color->ctm.concat(m).invert();
+                        
+                        if (list.params.showOutlines)
                             color = uw == 0.f ? & black : & red;
-                        }
+                        
                         bool isOpaque = color->isOpaque();
                         colors[iz] = scn->matchedColors[is];
                         ctms[iz] = m, widths[iz] = width, clips[iz] = invclip;
