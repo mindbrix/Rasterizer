@@ -22,7 +22,7 @@
     self = [super init];
     if (!self)
         return nil;
-    _color = Ra::Colorant(gray * 255, gray * 255, gray * 255, alpha * 255);
+    _color = Ra::BGRA(gray * 255, gray * 255, gray * 255, alpha * 255);
     return self;
 }
 
@@ -47,7 +47,7 @@
         r = X, g = 0.0, b = C;
     else
         r = C, g = 0.0, b = X;
-    _color = Ra::Colorant((b + m) * 255, (g + m) * 255, (r + m) * 255, alpha * 255);
+    _color = Ra::BGRA((b + m) * 255, (g + m) * 255, (r + m) * 255, alpha * 255);
     return self;
 }
 
@@ -55,7 +55,7 @@
     self = [super init];
     if (!self)
         return nil;
-    _color = Ra::Colorant(blue * 255, green * 255, red * 255, alpha * 255);
+    _color = Ra::BGRA(blue * 255, green * 255, red * 255, alpha * 255);
     return self;
 }
 

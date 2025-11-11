@@ -42,10 +42,10 @@ struct RasterizerSVG {
         else {
             auto gradient = paint.gradient;
             size_t count = gradient->nstops;
-            Ra::Colorant stops[count];
+            Ra::BGRA stops[count];
             float locs[count];
             for (int i = 0; i < count; i++) {
-                stops[i] = Ra::Colorant(gradient->stops[i].color);
+                stops[i] = Ra::BGRA(gradient->stops[i].color);
                 locs[i] = gradient->stops[i].offset;
             }
             auto m = & gradient->xform[0];

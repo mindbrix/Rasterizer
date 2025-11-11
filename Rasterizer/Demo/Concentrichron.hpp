@@ -79,7 +79,7 @@ struct Concentrichron {
         const char *years[10] = { "2020", "2021", "2022", "2023", "2024", "2025", "2026", "2027", "2028", "2029" };
         const char **labels[8] = { NULL, years, months, dates, days, NULL, NULL, NULL };
         const int divisions[8] = { 0, 10, 12, 31, 7, 24, 60, 60 };
-        const Ra::Colorant black(0, 0, 0, 255), red(0, 0, 255, 255), grey0(245, 245, 245, 255), grey1(250, 250, 250, 255);
+        const Ra::BGRA black(0, 0, 0, 255), red(0, 0, 255, 255), grey0(245, 245, 245, 255), grey1(250, 250, 250, 255);
         const float strokeWidth = 0.5f;
         float w = b.ux - b.lx, h = b.uy - b.ly, dim = w < h ? w : h, inset = dim / 30.f;
         float cx = 0.5f * (b.lx + b.ux), cy = 0.5f * (b.ly + b.uy);

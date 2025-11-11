@@ -25,7 +25,7 @@
 
 struct RasterizerCG {
     struct Converter {
-        void matchColors(Ra::Colorant *colorants, size_t size, CGColorSpaceRef destSpace) {
+        void matchColors(Ra::BGRA *colorants, size_t size, CGColorSpaceRef destSpace) {
             if (colorants == nullptr || size == 0 || destSpace == nil)
                 return;
             if (dstSpace != destSpace) {
@@ -182,7 +182,7 @@ struct RasterizerCG {
         return gradient;
     }
     
-    static Ra::Colorant colorantFromCG(CGColorRef color) {
+    static Ra::BGRA colorantFromCG(CGColorRef color) {
         size_t count = CGColorGetNumberOfComponents(color);
         const CGFloat *components = CGColorGetComponents(color);
         uint8_t b = 0, g = 0, r = 0, a = 255;
@@ -195,9 +195,9 @@ struct RasterizerCG {
             r = 255 * components[0];
             a = 255 * components[3];
         }
-        return Ra::Colorant(b, g, r, a);
+        return Ra::BGRA(b, g, r, a);
     }
-    static CGColorRef CGColorCreateFromColorant(Ra::Colorant color) {
+    static CGColorRef CGColorCreateFromColorant(Ra::BGRA color) {
         return CGColorCreateGenericRGB(color.r / 255.0, color.g / 255.0, color.b / 255.0, color.a / 255.0);
     }
     static Ra::Transform transformFromCG(CGAffineTransform t) {

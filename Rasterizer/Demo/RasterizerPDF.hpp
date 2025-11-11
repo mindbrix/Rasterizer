@@ -107,7 +107,7 @@ struct RasterizerPDF {
             float hairline = -1.f;
             unsigned int R = 0, G = 0, B = 0, A = 255;
             FPDFPageObj_GetFillColor(pageObject, & R, & G, & B, & A);
-            Ra::Colorant red(0, 0, 255, 255), textColor(B, G, R, A);
+            Ra::BGRA red(0, 0, 255, 255), textColor(B, G, R, A);
             Ra::Path rect;  rect->addBounds(Ra::Bounds(0, 0, 1, 1)), rect->close();
             FPDF_FONT font = FPDFTextObj_GetFont(pageObject);
             for(auto i : it->second) {
@@ -150,7 +150,7 @@ struct RasterizerPDF {
                             path = clip;
                 flags |= fillmode == FPDF_FILLMODE_ALTERNATE ? Ra::Scene::kFillEvenOdd : 0;
             }
-            scene->addPath(path, ctm, Ra::Colorant(B, G, R, A), width, flags, clipBounds);
+            scene->addPath(path, ctm, Ra::BGRA(B, G, R, A), width, flags, clipBounds);
         }
     }
     
@@ -276,7 +276,7 @@ struct RasterizerPDF {
                                 FPDF_BITMAP bitmap = FPDFImageObj_GetRenderedBitmap(doc, page, pageObject);
                                 int format = FPDFBitmap_GetFormat(bitmap);
                                 if (format) {
-                                    scene->addPath(unitRectPath, ctm, Ra::Colorant(0, 0, 0, 64), 0, 0, clipPtr);
+                                    scene->addPath(unitRectPath, ctm, Ra::BGRA(0, 0, 0, 64), 0, 0, clipPtr);
                                 }
                                 FPDFBitmap_Destroy(bitmap);
                             }
@@ -284,7 +284,7 @@ struct RasterizerPDF {
                         }
                         case FPDF_PAGEOBJ_SHADING: {
                             if (clipPaths.size())
-                                scene->addPath(clipPaths[0], Ra::Transform(), Ra::Colorant(0, 0, 255, 64), 0, 0, clipPtr);
+                                scene->addPath(clipPaths[0], Ra::Transform(), Ra::BGRA(0, 0, 255, 64), 0, 0, clipPtr);
                             break;
                         }
                         default:

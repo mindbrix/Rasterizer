@@ -45,7 +45,7 @@ struct RasterizerRenderer {
         size_t end = buffer->entries.end == 0 ? 0 : buffer->entries.back().end;
         assert(size >= end);
         
-        auto colors = (Ra::Colorant *)(buffer->base + buffer->colors);
+        auto colors = (Ra::BGRA *)(buffer->base + buffer->colors);
         colors[buffer->pathsCount] = buffer->params.clearColor;
     }
     

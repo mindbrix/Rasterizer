@@ -164,7 +164,7 @@
     [colorTexture replaceRegion:MTLRegionMake2D(0, 0, w, h)
                     mipmapLevel:0
                       withBytes:buffer->base + buffer->colors
-                    bytesPerRow:w * sizeof(Ra::Colorant)];
+                    bytesPerRow:w * sizeof(Ra::BGRA)];
     
     id <MTLCommandBuffer> commandBuffer = [self.commandQueue commandBuffer];
     
