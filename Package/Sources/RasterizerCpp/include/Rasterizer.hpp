@@ -767,7 +767,7 @@ struct Rasterizer {
                         
                         ctms[iz] = m, widths[iz] = width, clips[iz] = invclip;
                         if (width) {
-                            Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kOutlines | bool(flags & Scene::kRoundCap) * Instance::kRoundCap | bool(flags & Scene::kSquareCap) * Instance::kSquareCap);// | isGradient * Instance::kIsGradient | isRadial * Instance::kIsRadial);
+                            Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kOutlines | bool(flags & Scene::kRoundCap) * Instance::kRoundCap | bool(flags & Scene::kSquareCap) * Instance::kSquareCap | isGradient * Instance::kIsGradient | isRadial * Instance::kIsRadial);
                             Bounds outlineClip = unclipped ? Bounds::huge() : clip.inset(-width, -width);
                             uint32_t i0 = uint32_t(outlines.idx), i1;
                             Outliner outliner;

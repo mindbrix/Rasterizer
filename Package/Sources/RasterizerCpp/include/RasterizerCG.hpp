@@ -115,6 +115,8 @@ struct RasterizerCG {
                     CGContextSaveGState(ctx);
                     CGContextConcatCTM(ctx, CGFromTransform(t));
                     writePathToCGContext(g, ctx);
+                    const auto& color = scn._colors[i];
+                    const auto bgra = color.colorant;
                     if (list.params.showOutlines) {
                         CGContextSetLineWidth(ctx, (CGFloat)-109.05473e+14);
                         if (scn.widths[i])
@@ -123,35 +125,31 @@ struct RasterizerCG {
                             CGContextSetRGBStrokeColor(ctx, 0, 0, 0, 1);
                         CGContextStrokePath(ctx);
                     } else if (scn.widths[i]) {
-                        CGContextSetRGBStrokeColor(ctx, scn.colors[i].r / 255.0, scn.colors[i].g / 255.0, scn.colors[i].b / 255.0, scn.colors[i].a / 255.0);
                         CGContextSetLineWidth(ctx, scn.widths[i] < 0.f ? (CGFloat)-109.05473e+14 : scn.widths[i]);
                         bool square = scn.flags[i] & Ra::Scene::kSquareCap;
                         bool round = scn.flags[i] & Ra::Scene::kRoundCap;
                         CGContextSetLineCap(ctx, round ? kCGLineCapRound : square ? kCGLineCapSquare : kCGLineCapButt);
-                        CGContextStrokePath(ctx);
+                        
+                        if (color.isGradient()) {
+                            CGContextSaveGState(ctx);
+                            CGContextReplacePathWithStrokedPath(ctx);
+                            CGContextClip(ctx);
+                            drawGradient(color, ctx);
+                            CGContextRestoreGState(ctx);
+                        } else {
+                            CGContextSetRGBStrokeColor(ctx, bgra.r / 255.0, bgra.g / 255.0, bgra.b / 255.0, bgra.a / 255.0);
+                            CGContextStrokePath(ctx);
+                        }
                     } else {
-                        const auto& color = scn._colors[i];
                         if (color.isGradient()) {
                             CGContextSaveGState(ctx);
                             if (scn.flags[i] & Ra::Scene::kFillEvenOdd)
                                 CGContextEOClip(ctx);
                             else
                                 CGContextClip(ctx);
-                            CGGradientRef gradient = CGGradientFromColor(color);
-                            auto options = kCGGradientDrawsBeforeStartLocation | kCGGradientDrawsAfterEndLocation;
-                            if (color.radial) {
-                                CGPoint center = CGPointMake(color.ctm.tx, color.ctm.ty);
-                                CGFloat radius = color.ctm.a;
-                                CGContextDrawRadialGradient(ctx, gradient, center, 0, center, radius, options);
-                            } else {
-                                CGPoint begin = CGPointMake(color.ctm.tx, color.ctm.ty);
-                                CGPoint end = CGPointMake(color.ctm.tx + color.ctm.c, color.ctm.ty + color.ctm.d);
-                                CGContextDrawLinearGradient(ctx, gradient, begin, end, options);
-                            }
-                            CFRelease(gradient);
+                            drawGradient(color, ctx);
                             CGContextRestoreGState(ctx);
                         } else {
-                            const auto bgra = color.colorant;
                             CGContextSetRGBFillColor(ctx, bgra.r / 255.0, bgra.g / 255.0, bgra.b / 255.0, bgra.a / 255.0);
                             if (scn.flags[i] & Ra::Scene::kFillEvenOdd)
                                 CGContextEOFillPath(ctx);
@@ -165,6 +163,21 @@ struct RasterizerCG {
             CGContextRestoreGState(ctx);
             CGContextRestoreGState(ctx);
         }
+    }
+    
+    static void drawGradient(const Ra::Color color, CGContextRef ctx) {
+        CGGradientRef gradient = CGGradientFromColor(color);
+        auto options = kCGGradientDrawsBeforeStartLocation | kCGGradientDrawsAfterEndLocation;
+        if (color.radial) {
+            CGPoint center = CGPointMake(color.ctm.tx, color.ctm.ty);
+            CGFloat radius = color.ctm.a;
+            CGContextDrawRadialGradient(ctx, gradient, center, 0, center, radius, options);
+        } else {
+            CGPoint begin = CGPointMake(color.ctm.tx, color.ctm.ty);
+            CGPoint end = CGPointMake(color.ctm.tx + color.ctm.c, color.ctm.ty + color.ctm.d);
+            CGContextDrawLinearGradient(ctx, gradient, begin, end, options);
+        }
+        CFRelease(gradient);
     }
     
     static CGGradientRef CGGradientFromColor(Ra::Color color) {
