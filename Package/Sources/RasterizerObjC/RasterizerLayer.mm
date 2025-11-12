@@ -157,15 +157,20 @@
     desc.storageMode = MTLStorageModeShared;
     desc.usage = MTLTextureUsageShaderRead;
     desc.pixelFormat = MTLPixelFormatBGRA8Unorm;
-    size_t w = kColorTextureWidth, h = (buffer->pathsCount + w - 0) / w;
+    size_t w = kColorTextureWidth, h = (buffer->pathsCount + w - 0) / w, th = buffer->texCount;
     desc.width = w;
-    desc.height = h;
+    desc.height = h + th;
     id <MTLTexture> colorTexture = [self.device newTextureWithDescriptor:desc];
     [colorTexture replaceRegion:MTLRegionMake2D(0, 0, w, h)
                     mipmapLevel:0
                       withBytes:buffer->base + buffer->colors
                     bytesPerRow:w * sizeof(Ra::BGRA)];
-    
+    if (th) {
+        [colorTexture replaceRegion:MTLRegionMake2D(0, h, w, th)
+                        mipmapLevel:0
+                          withBytes:buffer->base + buffer->texStrips
+                        bytesPerRow:w * sizeof(Ra::BGRA)];
+    }
     id <MTLCommandBuffer> commandBuffer = [self.commandQueue commandBuffer];
     
     MTLRenderPassDescriptor *drawableDescriptor = [MTLRenderPassDescriptor renderPassDescriptor];
@@ -193,7 +198,7 @@
     edgesDescriptor.colorAttachments[0].loadAction = MTLLoadActionClear;
     edgesDescriptor.colorAttachments[0].clearColor = MTLClearColorMake(0, 0, 0, 0);
     
-    uint32_t reverse, pathsCount = uint32_t(buffer->pathsCount), texCount = uint32_t(buffer->texCount);
+    uint32_t reverse, pathsCount = uint32_t(buffer->pathsCount), texCount = uint32_t(th);
     float width = drawable.texture.width, height = drawable.texture.height;
     
     for (size_t segbase = 0, ptsbase = 0, instbase = 0, i = 0; i < buffer->entries.end; i++) {
@@ -214,6 +219,7 @@
                 [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->widths atIndex:6];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->texCtms atIndex:8];
+                [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->texIdxs atIndex:9];
                 reverse = uint32_t((entry.end - entry.begin) / sizeof(Ra::Opaque));
                 [commandEncoder setVertexBytes:& width length:sizeof(width) atIndex:10];
                 [commandEncoder setVertexBytes:& height length:sizeof(height) atIndex:11];
@@ -271,6 +277,7 @@
                 [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->widths atIndex:6];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->bounds atIndex:7];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->texCtms atIndex:8];
+                [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->texIdxs atIndex:9];
                 [commandEncoder setVertexBytes:& width length:sizeof(width) atIndex:10];
                 [commandEncoder setVertexBytes:& height length:sizeof(height) atIndex:11];
                 [commandEncoder setVertexBytes:& pathsCount length:sizeof(pathsCount) atIndex:13];

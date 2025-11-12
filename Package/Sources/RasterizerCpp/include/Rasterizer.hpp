@@ -673,7 +673,7 @@ struct Rasterizer {
         }
         uint8_t *base = nullptr;  Row<Entry> entries;
         Params params;
-        size_t colors, ctms, clips, widths, bounds, texCtms, texIdxs;
+        size_t colors, ctms, clips, widths, bounds, texCtms, texIdxs, texStrips;
         size_t idxs, pathsCount, texCount, headerSize, size = 0, allocation = 0;
     };
     struct Allocator {
@@ -705,6 +705,11 @@ struct Rasterizer {
         Bounds full, sheet, strips[kStripCount];
     };
     
+    struct TexRef {
+        TexRef(size_t iz, BGRA *strip) : iz(uint32_t(iz)), strip(strip) {}
+        uint32_t iz;
+        BGRA *strip;
+    };
     struct Context {
         void drawList(const SceneList& list, Bounds device, Transform view, size_t slz, size_t suz, Buffer *buffer) {
             empty(), allocator.empty(device);
@@ -720,7 +725,6 @@ struct Rasterizer {
             float *widths = (float *)(buffer->base + buffer->widths);
             Bounds *bounds = (Bounds *)(buffer->base + buffer->bounds);
             Transform *texCtms = (Transform *)(buffer->base + buffer->texCtms);
-            uint32_t *texIdxs = (uint32_t *)(buffer->base + buffer->texIdxs);
             bool clipActive = false;
             
             BGRA black(0, 0, 0, 255), red(0, 0, 255, 255);
@@ -761,11 +765,9 @@ struct Rasterizer {
                         bool isRadial = color->radial;
                         if (isGradient) {
                             texCtms[iz] = color->ctm.concat(m).invert();
-                            
-                            texIdxs[iz] = uint32_t(texTotal), texTotal += kColorTextureWidth;
                             size_t idx = scn->gradientIndices[is];
                             assert(idx != ~0);
-                            texs.add(& scn->matchedGradients[idx]);
+                            texs.add(TexRef(iz, & scn->matchedGradients[idx]));
                         }
                         
                         if (list.params.showOutlines)
@@ -837,7 +839,7 @@ struct Rasterizer {
         size_t p16total, texTotal;
         Allocator allocator;  Vector<Buffer::Entry> entries;
         Vector<Row<Point16>*> p16s;
-        Vector<BGRA *> texs;
+        Vector<TexRef> texs;
         Row<Opaque> opaques;  Row<Blend> blends;  Row<Instance> outlines;  Row<Segment> segments;
         Row<Sample::Index> indices;  RefVector<Row<Sample>> samples;  Row<uint32_t> segmentsIndices;
     };
@@ -1306,12 +1308,16 @@ struct Rasterizer {
         if (begin != end)
             new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::kOpaques, begin, end);
         
+        buffer.texStrips = end;
+        uint32_t *texIdxs = (uint32_t *)(buffer.base + buffer.texIdxs), texIdx;
         sz = kColorTextureWidth * sizeof(BGRA);
-        for (i = 0; i < count; i++) {
+        texIdx = 0;
+        for (i = 0; i < count; i++)
             for (j = 0; j < contexts[i].texs.end(); j++) {
-                memcpy(buffer.base + end, contexts[i].texs[j], sz), end += sz;
+                auto ref = contexts[i].texs[j];
+                texIdxs[ref.iz] = texIdx++;
+                memcpy(buffer.base + end, ref.strip, sz), end += sz;
             }
-        }
         assert(end == begins[0]);
         return size;
     }

@@ -23,7 +23,7 @@
 using namespace metal;
 
 constexpr sampler s = sampler(coord::normalized, address::clamp_to_zero, mag_filter::nearest, min_filter::nearest, mip_filter::linear);
-constexpr sampler cs = sampler(coord::normalized, address::clamp_to_zero, mag_filter::linear, min_filter::linear, mip_filter::linear);
+constexpr sampler cs = sampler(coord::normalized, address::clamp_to_edge, mag_filter::linear, min_filter::linear, mip_filter::linear);
 
 struct Transform {
     float a, b, c, d, tx, ty;
@@ -192,6 +192,7 @@ vertex OpaquesVertex opaques_vertex_main(const device Colorant *colors [[buffer(
                                          const device Opaque *opaques [[buffer(1)]],
                                          const device float *widths [[buffer(6)]],
                                          const device Transform *texCtms [[buffer(8)]],
+                                         const device uint32_t *texIdxs [[buffer(9)]],
                                          constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
                                          constant uint *reverse [[buffer(12)]],
                                          constant uint *pathCount [[buffer(13)]],
@@ -245,11 +246,11 @@ vertex OpaquesVertex opaques_vertex_main(const device Colorant *colors [[buffer(
     int tw = kColorTextureWidth, th = (*pathCount + tw - 0) / tw;
     uint tiz = params->showOpaques ? iz : *pathCount;
     vert.tex.x = (0.5 + (tiz % tw)) / float(tw);
-    vert.tex.y = (0.5 + (tiz / tw)) / float(th);
+    vert.tex.y = (0.5 + (tiz / tw)) / float(th + *texCount);
     
     if (params->showOpaques && isGradient) {
-        vert.tex.x = x * texCtm.a + y * texCtm.c + texCtm.tx;
-        vert.tex.y = x * texCtm.b + y * texCtm.d + texCtm.ty;
+        vert.tex.x = x * texCtm.b + y * texCtm.d + texCtm.ty;
+        vert.tex.y = (0.5 + (th + texIdxs[iz])) / float(th + *texCount);
     }
     vert.iz = inst.iz & ~(!params->showOpaques ? Instance::kIsGradient : 0 );
     
@@ -258,13 +259,6 @@ vertex OpaquesVertex opaques_vertex_main(const device Colorant *colors [[buffer(
 
 fragment float4 opaques_fragment_main(OpaquesVertex vert [[stage_in]], texture2d<float> colorTexture [[texture(1)]])
 {
-    const bool isGradient = vert.iz & Instance::kIsGradient;
-    const bool isRadial = vert.iz & Instance::kIsRadial;
-    if (isGradient) {
-        const float t = saturate(isRadial ? sqrt(vert.tex.x * vert.tex.x + vert.tex.y * vert.tex.y) : vert.tex.y);
-        const float4 color(t, t, t, 1);
-        return color;
-    }
     return colorTexture.sample(cs, vert.tex);
 }
 
@@ -511,6 +505,7 @@ vertex InstancesVertex instances_vertex_main(
             const device float *widths [[buffer(6)]],
             const device Bounds *bounds [[buffer(7)]],
             const device Transform *texCtms [[buffer(8)]],
+            const device uint32_t *texIdxs [[buffer(9)]],
             constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
             constant uint *pathCount [[buffer(13)]],
             constant uint *texCount [[buffer(14)]],
@@ -621,11 +616,11 @@ vertex InstancesVertex instances_vertex_main(
     
     int tw = kColorTextureWidth, th = (*pathCount + tw - 0) / tw;
     vert.tex.x = (0.5 + (iz % tw)) / float(tw);
-    vert.tex.y = (0.5 + (iz / tw)) / float(th);
+    vert.tex.y = (0.5 + (iz / tw)) / float(th + *texCount);
     
     if (isGradient) {
-        vert.tex.x = dx * texCtm.a + dy * texCtm.c + texCtm.tx;
-        vert.tex.y = dx * texCtm.b + dy * texCtm.d + texCtm.ty;
+        vert.tex.x = dx * texCtm.b + dy * texCtm.d + texCtm.ty;
+        vert.tex.y = (0.5 + (th + texIdxs[iz])) / float(th + *texCount);
     }
     
     return vert;
@@ -683,12 +678,5 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
     float sx = rsqrt(a * a + b * b), sy = rsqrt(c * c + d * d);
     float clip = saturate(0.5 + clx * sx) * saturate(0.5 + (1.0 - clx) * sx) * saturate(0.5 + cly * sy) * saturate(0.5 + (1.0 - cly) * sy);
     
-    const bool isGradient = vert.iz & Instance::kIsGradient;
-    const bool isRadial = vert.iz & Instance::kIsRadial;
-    if (isGradient) {
-        const float t = saturate(isRadial ? sqrt(vert.tex.x * vert.tex.x + vert.tex.y * vert.tex.y) : vert.tex.y);
-        const float4 color(t, t, t, 1);
-        return alpha * vert.alpha * clip * color;
-    }
     return alpha * vert.alpha * clip * colorTexture.sample(cs, saturate(vert.tex));
 }
