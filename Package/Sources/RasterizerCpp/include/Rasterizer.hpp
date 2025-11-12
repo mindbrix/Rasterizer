@@ -648,11 +648,12 @@ struct Rasterizer {
         
         void prepare(const SceneList& list) {
             pathsCount = list.pathsCount;
-            size_t i, sizes[] = { sizeof(BGRA), sizeof(Transform), sizeof(Transform), sizeof(float), sizeof(Bounds), sizeof(Transform) };
+            texCount = 0;
+            size_t i, sizes[] = { sizeof(BGRA), sizeof(Transform), sizeof(Transform), sizeof(float), sizeof(Bounds), sizeof(Transform), sizeof(uint32_t) };
             size_t count = sizeof(sizes) / sizeof(*sizes), base = 0, bases[count];
             for (i = 0; i < count; i++)
                 bases[i] = base, base += (pathsCount + 1) * sizes[i];
-            colors = bases[0], ctms = bases[1], clips = bases[2], widths = bases[3], bounds = bases[4], texCtms = bases[5];
+            colors = bases[0], ctms = bases[1], clips = bases[2], widths = bases[3], bounds = bases[4], texCtms = bases[5], texIdxs = bases[6];
             headerSize = (base + 15) & ~15, resize(headerSize), entries.empty();
         }
         void resize(size_t n, size_t copySize = 0) {
@@ -672,8 +673,8 @@ struct Rasterizer {
         }
         uint8_t *base = nullptr;  Row<Entry> entries;
         Params params;
-        size_t colors, ctms, clips, widths, bounds, texCtms;
-        size_t idxs, pathsCount, headerSize, size = 0, allocation = 0;
+        size_t colors, ctms, clips, widths, bounds, texCtms, texIdxs;
+        size_t idxs, pathsCount, texCount, headerSize, size = 0, allocation = 0;
     };
     struct Allocator {
         enum CountType { kFastEdges, kQuadEdges, kFastMolecules, kQuadMolecules };
@@ -719,6 +720,7 @@ struct Rasterizer {
             float *widths = (float *)(buffer->base + buffer->widths);
             Bounds *bounds = (Bounds *)(buffer->base + buffer->bounds);
             Transform *texCtms = (Transform *)(buffer->base + buffer->texCtms);
+            uint32_t *texIdxs = (uint32_t *)(buffer->base + buffer->texIdxs);
             bool clipActive = false;
             
             BGRA black(0, 0, 0, 255), red(0, 0, 255, 255);
@@ -757,8 +759,14 @@ struct Rasterizer {
                         bool isOpaque = color->isOpaque();
                         bool isGradient = color->isGradient();
                         bool isRadial = color->radial;
-                        if (isGradient)
+                        if (isGradient) {
                             texCtms[iz] = color->ctm.concat(m).invert();
+                            
+                            texIdxs[iz] = uint32_t(texTotal), texTotal += kColorTextureWidth;
+                            size_t idx = scn->gradientIndices[is];
+                            assert(idx != ~0);
+                            texs.add(& scn->matchedGradients[idx]);
+                        }
                         
                         if (list.params.showOutlines)
                             colors[iz] = uw == 0.f ? black : red;
@@ -813,20 +821,23 @@ struct Rasterizer {
             }
         }
         void empty() {
-            p16total = 0, blends.empty(), opaques.empty(), outlines.empty(), segments.empty(), segmentsIndices.empty(), indices.empty();
+            p16total = texTotal = 0, blends.empty(), opaques.empty(), outlines.empty(), segments.empty(), segmentsIndices.empty(), indices.empty();
             p16s.resize(0);
+            texs.resize(0);
             for (int i = 0; i < samples.end(); i++)
                 samples[i].empty();
             entries = Vector<Buffer::Entry>();
         }
         void reset() { p16total = 0, blends.reset(), opaques.reset(), outlines.reset(), segments.reset(), segmentsIndices.reset(), indices.reset(), entries = Vector<Buffer::Entry>();
             p16s.resize(0);
+            texs.resize(0);
             samples.resize(0);
         }
         
-        size_t p16total;
+        size_t p16total, texTotal;
         Allocator allocator;  Vector<Buffer::Entry> entries;
         Vector<Row<Point16>*> p16s;
+        Vector<BGRA *> texs;
         Row<Opaque> opaques;  Row<Blend> blends;  Row<Instance> outlines;  Row<Segment> segments;
         Row<Sample::Index> indices;  RefVector<Row<Sample>> samples;  Row<uint32_t> segmentsIndices;
     };
@@ -1273,9 +1284,15 @@ struct Rasterizer {
         uint32_t iz;  Row<Instance> *outlines = nullptr;  Row<Opaque> *opaques = nullptr;
     };
     static size_t resizeBuffer(const SceneList& list, Context *contexts, size_t count, size_t *begins, Buffer& buffer) {
-        size_t size = buffer.headerSize, begin = buffer.headerSize, end = begin, sz, i, j, instances;
+        size_t size = buffer.headerSize, begin = size, end = begin, sz, i, j, instances;
         for (i = 0; i < count; i++)
             size += contexts[i].opaques.end * sizeof(Opaque);
+        
+        for (sz = i = 0; i < count; i++)
+            sz += contexts[i].texs.end();
+        buffer.texCount = sz;
+        size += sz * kColorTextureWidth * sizeof(BGRA);
+        
         Context *ctx = contexts;   Allocator::Pass *pass;
         for (ctx = contexts, i = 0; i < count; i++, ctx++) {
             for (instances = 0, pass = ctx->allocator.passes.base, j = 0; j < ctx->allocator.passes.end; j++, pass++)
@@ -1288,6 +1305,14 @@ struct Rasterizer {
                 memcpy(buffer.base + end, contexts[i].opaques.base, sz), end += sz;
         if (begin != end)
             new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::kOpaques, begin, end);
+        
+        sz = kColorTextureWidth * sizeof(BGRA);
+        for (i = 0; i < count; i++) {
+            for (j = 0; j < contexts[i].texs.end(); j++) {
+                memcpy(buffer.base + end, contexts[i].texs[j], sz), end += sz;
+            }
+        }
+        assert(end == begins[0]);
         return size;
     }
     static void writeContextToBuffer(const SceneList& list, Context *ctx, size_t begin, Buffer& buffer) {

@@ -193,8 +193,10 @@ vertex OpaquesVertex opaques_vertex_main(const device Colorant *colors [[buffer(
                                          const device float *widths [[buffer(6)]],
                                          const device Transform *texCtms [[buffer(8)]],
                                          constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
-                                         constant uint *reverse [[buffer(12)]], constant uint *pathCount [[buffer(13)]],
-                                         constant Params *params [[buffer(14)]],
+                                         constant uint *reverse [[buffer(12)]],
+                                         constant uint *pathCount [[buffer(13)]],
+                                         constant uint *texCount [[buffer(14)]],
+                                         constant Params *params [[buffer(15)]],
                                          uint vid [[vertex_id]], uint iid [[instance_id]])
 {
     const device Opaque& inst = opaques[*reverse - 1 - iid];
@@ -511,7 +513,8 @@ vertex InstancesVertex instances_vertex_main(
             const device Transform *texCtms [[buffer(8)]],
             constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
             constant uint *pathCount [[buffer(13)]],
-            constant Params *params [[buffer(14)]],
+            constant uint *texCount [[buffer(14)]],
+            constant Params *params [[buffer(15)]],
             uint vid [[vertex_id]], uint iid [[instance_id]])
 {
     InstancesVertex vert;
@@ -616,7 +619,7 @@ vertex InstancesVertex instances_vertex_main(
     vert.alpha = alpha;
     vert.iz = iz | flags;
     
-    int tw = kColorTextureWidth, th = (*pathCount + tw - 1) / tw;
+    int tw = kColorTextureWidth, th = (*pathCount + tw - 0) / tw;
     vert.tex.x = (0.5 + (iz % tw)) / float(tw);
     vert.tex.y = (0.5 + (iz / tw)) / float(th);
     

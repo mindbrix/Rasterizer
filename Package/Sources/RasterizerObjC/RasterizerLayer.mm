@@ -193,7 +193,7 @@
     edgesDescriptor.colorAttachments[0].loadAction = MTLLoadActionClear;
     edgesDescriptor.colorAttachments[0].clearColor = MTLClearColorMake(0, 0, 0, 0);
     
-    uint32_t reverse, pathsCount = uint32_t(buffer->pathsCount);
+    uint32_t reverse, pathsCount = uint32_t(buffer->pathsCount), texCount = uint32_t(buffer->texCount);
     float width = drawable.texture.width, height = drawable.texture.height;
     
     for (size_t segbase = 0, ptsbase = 0, instbase = 0, i = 0; i < buffer->entries.end; i++) {
@@ -219,7 +219,8 @@
                 [commandEncoder setVertexBytes:& height length:sizeof(height) atIndex:11];
                 [commandEncoder setVertexBytes:& reverse length:sizeof(reverse) atIndex:12];
                 [commandEncoder setVertexBytes:& pathsCount length:sizeof(pathsCount) atIndex:13];
-                [commandEncoder setVertexBytes:& buffer->params length:sizeof(Ra::Params) atIndex:14];
+                [commandEncoder setVertexBytes:& texCount length:sizeof(texCount) atIndex:14];
+                [commandEncoder setVertexBytes:& buffer->params length:sizeof(Ra::Params) atIndex:15];
                 [commandEncoder setFragmentTexture:colorTexture atIndex:1];
                 [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip
                                    vertexStart:0
@@ -273,7 +274,8 @@
                 [commandEncoder setVertexBytes:& width length:sizeof(width) atIndex:10];
                 [commandEncoder setVertexBytes:& height length:sizeof(height) atIndex:11];
                 [commandEncoder setVertexBytes:& pathsCount length:sizeof(pathsCount) atIndex:13];
-                [commandEncoder setVertexBytes:& buffer->params length:sizeof(Ra::Params) atIndex:14];
+                [commandEncoder setVertexBytes:& texCount length:sizeof(texCount) atIndex:14];
+                [commandEncoder setVertexBytes:& buffer->params length:sizeof(Ra::Params) atIndex:15];
                 [commandEncoder setFragmentTexture:_accumulationTexture atIndex:0];
                 [commandEncoder setFragmentTexture:colorTexture atIndex:1];
                 [commandEncoder setRenderPipelineState:_instancesPipelineState];
