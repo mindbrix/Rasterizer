@@ -184,8 +184,8 @@ float quadraticWinding(float x0, float y0, float x1, float y1, float x2, float y
 struct OpaquesVertex
 {
     float4 position [[position]];
-    float2 tex;
-    uint32_t iz;
+    float3 tex;
+    bool isRadial;
 };
 
 vertex OpaquesVertex opaques_vertex_main(const device Colorant *colors [[buffer(0)]],
@@ -203,6 +203,7 @@ vertex OpaquesVertex opaques_vertex_main(const device Colorant *colors [[buffer(
     const device Opaque& inst = opaques[*reverse - 1 - iid];
     const uint iz = inst.iz & kPathIndexMask;
     const bool isGradient = inst.iz & Instance::kIsGradient;
+    const bool isRadial = inst.iz & Instance::kIsRadial;
     const device Transform& texCtm = texCtms[iz];
     const device Cell& cell = inst.cell;
     const device Quadratic& q = inst.q;
@@ -251,15 +252,19 @@ vertex OpaquesVertex opaques_vertex_main(const device Colorant *colors [[buffer(
     if (params->showOpaques && isGradient) {
         vert.tex.x = x * texCtm.b + y * texCtm.d + texCtm.ty;
         vert.tex.y = (0.5 + (th + texIdxs[iz])) / float(th + *texCount);
+        vert.tex.z = x * texCtm.a + y * texCtm.c + texCtm.tx;
     }
-    vert.iz = inst.iz & ~(!params->showOpaques ? Instance::kIsGradient : 0 );
+    vert.isRadial = isGradient && isRadial;
     
     return vert;
 }
 
 fragment float4 opaques_fragment_main(OpaquesVertex vert [[stage_in]], texture2d<float> colorTexture [[texture(1)]])
 {
-    return colorTexture.sample(cs, vert.tex);
+    float x = vert.tex.x, y = vert.tex.y, z = vert.tex.z;
+    float t = vert.isRadial ? sqrt(x * x + z * z) : x;
+    return colorTexture.sample(cs, float2(t, y));
+//    return colorTexture.sample(cs, vert.tex.xy);
 }
 
 #pragma mark - Fast Molecules
@@ -492,7 +497,8 @@ fragment float4 quad_edges_fragment_main(EdgesVertex vert [[stage_in]]) {
 struct InstancesVertex
 {
     float4 position [[position]];
-    float2 clip, tex;
+    float2 clip;
+    float3 tex;
     float u, v, w, cover, alpha;
     float x, y, z;
     uint32_t iz;
@@ -615,12 +621,13 @@ vertex InstancesVertex instances_vertex_main(
     vert.iz = iz | flags;
     
     int tw = kColorTextureWidth, th = (*pathCount + tw - 0) / tw;
-    vert.tex.x = (0.5 + (iz % tw)) / float(tw);
-    vert.tex.y = (0.5 + (iz / tw)) / float(th + *texCount);
-    
     if (isGradient) {
         vert.tex.x = dx * texCtm.b + dy * texCtm.d + texCtm.ty;
         vert.tex.y = (0.5 + (th + texIdxs[iz])) / float(th + *texCount);
+        vert.tex.z = dx * texCtm.a + dy * texCtm.c + texCtm.tx;
+    } else {
+        vert.tex.x = (0.5 + (iz % tw)) / float(tw);
+        vert.tex.y = (0.5 + (iz / tw)) / float(th + *texCount);
     }
     
     return vert;
@@ -678,5 +685,9 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
     float sx = rsqrt(a * a + b * b), sy = rsqrt(c * c + d * d);
     float clip = saturate(0.5 + clx * sx) * saturate(0.5 + (1.0 - clx) * sx) * saturate(0.5 + cly * sy) * saturate(0.5 + (1.0 - cly) * sy);
     
-    return alpha * vert.alpha * clip * colorTexture.sample(cs, vert.tex);
+    const bool isRadial = (vert.iz & Instance::kIsGradient) && (vert.iz & Instance::kIsRadial);
+    float x = vert.tex.x, y = vert.tex.y, z = vert.tex.z;
+    float t = isRadial ? sqrt(x * x + z * z) : x;
+    return alpha * vert.alpha * clip * colorTexture.sample(cs, float2(t, y));
+//    return alpha * vert.alpha * clip * colorTexture.sample(cs, vert.tex.xy);
 }
