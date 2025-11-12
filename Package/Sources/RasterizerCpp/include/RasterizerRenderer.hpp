@@ -56,6 +56,10 @@ struct RasterizerRenderer {
                 scene->matchedColors = scene->colors.clone();
                 converter.matchColors(& scene->matchedColors[0], scene->matchedColors.end(), destSpace);
             }
+            if (scene->matchedGradients == scene->gradients && scene->gradients.end()) {
+                scene->matchedGradients = scene->gradients.clone();
+                converter.matchColors(& scene->matchedGradients[0], scene->matchedGradients.end(), destSpace);
+            }
         }
     }
     
