@@ -79,12 +79,14 @@ protocol RADrawable {
 class TestGradients: RADrawable {
     func getSceneAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RAScene {
         let width = bounds.width
-        let height = 0.0
-        
+        let height = bounds.height
+        let r = 0.5 * min(width, height)
+        let isRadial = state.flag
         let colors: [RAColor] = [RAColor(gray: 0, alpha: 1), RAColor(gray: 1, alpha: 1)]
         let locations: [NSNumber] = [ 0, 1 ]
-        let transform = CGAffineTransform(a: height, b: -width, c: width, d: height, tx: 0, ty: 0)
-        let gradient = RAColor(colors: colors, locations: locations, transform: transform, isRadial: false)
+        let linear = CGAffineTransform(a: 0, b: -width, c: width, d: 0, tx: 0, ty: 0)
+        let radial = CGAffineTransform(a: r, b: 0, c: 0, d: r, tx: bounds.midX, ty: bounds.midY)
+        let gradient = RAColor(colors: colors, locations: locations, transform: isRadial ? radial : linear, isRadial: isRadial)
         
         let path = RAPath()
         path.add(bounds);

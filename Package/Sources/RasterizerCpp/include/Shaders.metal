@@ -246,7 +246,8 @@ vertex OpaquesVertex opaques_vertex_main(const device Colorant *colors [[buffer(
     vert.tex.y = (0.5 + (tiz / tw)) / float(th);
     
     if (params->showOpaques && isGradient) {
-        vert.tex.x = x * texCtm.b + y * texCtm.d + texCtm.ty;
+        vert.tex.x = x * texCtm.a + y * texCtm.c + texCtm.tx;
+        vert.tex.y = x * texCtm.b + y * texCtm.d + texCtm.ty;
     }
     vert.iz = inst.iz & ~(!params->showOpaques ? Instance::kIsGradient : 0 );
     
@@ -256,8 +257,9 @@ vertex OpaquesVertex opaques_vertex_main(const device Colorant *colors [[buffer(
 fragment float4 opaques_fragment_main(OpaquesVertex vert [[stage_in]], texture2d<float> colorTexture [[texture(1)]])
 {
     const bool isGradient = vert.iz & Instance::kIsGradient;
+    const bool isRadial = vert.iz & Instance::kIsRadial;
     if (isGradient) {
-        const float t = saturate(vert.tex.x);
+        const float t = saturate(isRadial ? sqrt(vert.tex.x * vert.tex.x + vert.tex.y * vert.tex.y) : vert.tex.y);
         const float4 color(t, t, t, 1);
         return color;
     }
@@ -619,7 +621,8 @@ vertex InstancesVertex instances_vertex_main(
     vert.tex.y = (0.5 + (iz / tw)) / float(th);
     
     if (isGradient) {
-        vert.tex.x = dx * texCtm.b + dy * texCtm.d + texCtm.ty;
+        vert.tex.x = dx * texCtm.a + dy * texCtm.c + texCtm.tx;
+        vert.tex.y = dx * texCtm.b + dy * texCtm.d + texCtm.ty;
     }
     
     return vert;
@@ -678,8 +681,9 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
     float clip = saturate(0.5 + clx * sx) * saturate(0.5 + (1.0 - clx) * sx) * saturate(0.5 + cly * sy) * saturate(0.5 + (1.0 - cly) * sy);
     
     const bool isGradient = vert.iz & Instance::kIsGradient;
+    const bool isRadial = vert.iz & Instance::kIsRadial;
     if (isGradient) {
-        const float t = saturate(vert.tex.x);
+        const float t = saturate(isRadial ? sqrt(vert.tex.x * vert.tex.x + vert.tex.y * vert.tex.y) : vert.tex.y);
         const float4 color(t, t, t, 1);
         return alpha * vert.alpha * clip * color;
     }
