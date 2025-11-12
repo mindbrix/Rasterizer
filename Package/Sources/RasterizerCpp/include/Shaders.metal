@@ -258,7 +258,7 @@ fragment float4 opaques_fragment_main(OpaquesVertex vert [[stage_in]], texture2d
     const bool isGradient = vert.iz & Instance::kIsGradient;
     if (isGradient) {
         const float t = saturate(vert.tex.x);
-        const float4 color(t, 0, 0, 1);
+        const float4 color(t, t, t, 1);
         return color;
     }
     return colorTexture.sample(cs, vert.tex);
@@ -680,7 +680,7 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
     const bool isGradient = vert.iz & Instance::kIsGradient;
     if (isGradient) {
         const float t = saturate(vert.tex.x);
-        const float4 color(t, 0, 0, 1);
+        const float4 color(t, t, t, 1);
         return alpha * vert.alpha * clip * color;
     }
     return alpha * vert.alpha * clip * colorTexture.sample(cs, saturate(vert.tex));
