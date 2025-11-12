@@ -83,7 +83,7 @@ class TestGradients: RADrawable {
         
         let colors: [RAColor] = [RAColor(gray: 0, alpha: 1), RAColor(gray: 1, alpha: 1)]
         let locations: [NSNumber] = [ 0, 1 ]
-        let transform = CGAffineTransform(a: 0, b: -width, c: width, d: 0, tx: 0, ty: 0)
+        let transform = CGAffineTransform(a: width, b: 0, c: 0, d: height, tx: 0, ty: 0)
         let gradient = RAColor(colors: colors, locations: locations, transform: transform, isRadial: false)
         
         let path = RAPath()

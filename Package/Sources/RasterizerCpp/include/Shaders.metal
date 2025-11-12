@@ -246,7 +246,7 @@ vertex OpaquesVertex opaques_vertex_main(const device Colorant *colors [[buffer(
     vert.tex.y = (0.5 + (tiz / tw)) / float(th);
     
     if (params->showOpaques && isGradient) {
-        vert.tex.x = x * texCtm.a + y * texCtm.c + texCtm.tx;
+        vert.tex.x = x * texCtm.b + y * texCtm.d + texCtm.ty;
     }
     vert.iz = inst.iz & ~(!params->showOpaques ? Instance::kIsGradient : 0 );
     
@@ -619,7 +619,7 @@ vertex InstancesVertex instances_vertex_main(
     vert.tex.y = (0.5 + (iz / tw)) / float(th);
     
     if (isGradient) {
-        vert.tex.x = dx * texCtm.a + dy * texCtm.c + texCtm.tx;
+        vert.tex.x = dx * texCtm.b + dy * texCtm.d + texCtm.ty;
     }
     
     return vert;
