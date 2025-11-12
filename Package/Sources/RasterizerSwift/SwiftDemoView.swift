@@ -81,8 +81,12 @@ class TestGradients: RADrawable {
         let width = bounds.width
         let height = bounds.height
         let r = 0.5 * min(width, height)
-        let colors: [RAColor] = [RAColor(gray: 0, alpha: 1), RAColor(gray: 1, alpha: 1)]
-        let locations: [NSNumber] = [ 0, 1 ]
+        let colors: [RAColor] = [
+            RAColor(red: 1, green: 0, blue: 0, alpha: 1),
+            RAColor(red: 0, green: 1, blue: 0, alpha: 1),
+            RAColor(red: 0, green: 0, blue: 1, alpha: 1)
+        ]
+        let locations: [NSNumber] = [ 0, 0.5, 1 ]
         let linear = CGAffineTransform(a: 0, b: -width, c: width, d: 0, tx: 0, ty: 0)
         let radial = CGAffineTransform(a: r, b: 0, c: 0, d: r, tx: bounds.midX, ty: bounds.midY)
         return RAColor(colors: colors, locations: locations, transform: isRadial ? radial : linear, isRadial: isRadial)
@@ -159,7 +163,6 @@ class Test0: RADrawable {
             path.addEllipse(unitRect)
         }
         path.close()
-        let gradient = TestGradients.gradientForBounds(unitRect, isRadial: false)
         
         let scene = RAScene()
         let count = state.flag ? 2000 : 20
@@ -168,7 +171,7 @@ class Test0: RADrawable {
         let center = CGPoint(x: bounds.midX, y: bounds.midY)
         for i in 0 ..< count {
             let ti = Double(i) / Double(count)
-            let hsv = gradient // RAColor(hue: ti, saturation: 1, value: 1, alpha: 1)
+            let hsv = RAColor(hue: ti, saturation: 1, value: 1, alpha: 1)
             let radial = CGPoint(center: center, r: r0, theta: ti * 2 * Double.pi)
             
             let ctm = CGAffineTransform(

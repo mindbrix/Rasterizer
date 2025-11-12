@@ -678,5 +678,5 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
     float sx = rsqrt(a * a + b * b), sy = rsqrt(c * c + d * d);
     float clip = saturate(0.5 + clx * sx) * saturate(0.5 + (1.0 - clx) * sx) * saturate(0.5 + cly * sy) * saturate(0.5 + (1.0 - cly) * sy);
     
-    return alpha * vert.alpha * clip * colorTexture.sample(cs, saturate(vert.tex));
+    return alpha * vert.alpha * clip * colorTexture.sample(cs, vert.tex);
 }
