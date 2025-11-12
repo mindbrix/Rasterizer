@@ -76,6 +76,25 @@ protocol RADrawable {
     func getSceneAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RAScene
 }
 
+class TestGradients: RADrawable {
+    func getSceneAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RAScene {
+        let width = bounds.width
+        let height = bounds.height
+        
+        let colors: [RAColor] = [RAColor(gray: 0, alpha: 1), RAColor(gray: 1, alpha: 1)]
+        let locations: [NSNumber] = [ 0, 1 ]
+        let transform = CGAffineTransform(a: 0, b: -width, c: width, d: 0, tx: 0, ty: 0)
+        let gradient = RAColor(colors: colors, locations: locations, transform: transform, isRadial: false)
+        
+        let path = RAPath()
+        path.add(bounds);
+        
+        let scene = RAScene()
+        scene.add(path, ctm: .identity, color: gradient, width: 0, flags: 0, clip: .zero)
+        return scene
+    }
+}
+
 class TestQuadratics: RADrawable {
     func getSceneAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RAScene {
         let width = bounds.width
@@ -169,7 +188,8 @@ class SwiftDemo: NSObject, RASceneListDelegate {
     let drawables: [RADrawable] = [
         Test0(),
         TestQuadratics(),
-        TestCubics()
+        TestCubics(),
+        TestGradients()
     ]
     
     var index = 0

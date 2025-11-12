@@ -67,6 +67,27 @@
     return self;
 }
 
+- (id)initWithColors:(NSArray<RAColor *>*)colors
+               locations:(NSArray<NSNumber *>*)locations
+               transform:(CGAffineTransform)transform
+            isRadial:(BOOL)isRadial {
+    self = [super init];
+    if (!self)
+        return nil;
+    if (colors.count > 1 && colors.count == locations.count) {
+        NSInteger count = colors.count;
+        
+        Ra::BGRA stops[count];
+        float locs[count];
+        for (NSInteger i = 0; i < count; i++) {
+            stops[i] = colors[i].color.colorant;
+            locs[i] = locations[i].floatValue;
+        }
+        _color = Ra::Color(stops, locs, count, RaCG::transformFromCG(transform), isRadial);
+    }
+    return self;
+}
+
 @end
 
 

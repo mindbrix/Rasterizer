@@ -15,6 +15,12 @@
 - (id)initWithHue:(double)hue saturation:(double)saturation value:(double)value alpha:(double)alpha;
 - (id)initWithRed:(double)red green:(double)green blue:(double)blue alpha:(double)alpha;
 - (id)initWithCGColor:(CGColorRef)cgColor;
+
+- (id)initWithColors:(NSArray<RAColor *>*)colors
+           locations:(NSArray<NSNumber *>*)locations
+               transform:(CGAffineTransform)transform
+                isRadial:(BOOL)isRadial;
+
 @end
 
 

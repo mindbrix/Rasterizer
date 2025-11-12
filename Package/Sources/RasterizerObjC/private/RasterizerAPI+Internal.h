@@ -10,7 +10,7 @@
 
 
 @interface RAColor ()
-@property(nonatomic) Ra::BGRA color;
+@property(nonatomic) Ra::Color color;
 @end
 
 

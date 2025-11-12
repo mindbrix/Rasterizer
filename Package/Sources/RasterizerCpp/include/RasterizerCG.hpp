@@ -182,9 +182,7 @@ struct RasterizerCG {
         return gradient;
     }
     
-    static Ra::BGRA colorantFromCG(CGColorRef color) {
-        size_t count = CGColorGetNumberOfComponents(color);
-        const CGFloat *components = CGColorGetComponents(color);
+    static Ra::BGRA colorFromComponents(const CGFloat *components, size_t count) {
         uint8_t b = 0, g = 0, r = 0, a = 255;
         if (count == 2) {
             b = g = r = 255 * components[0];
@@ -196,6 +194,11 @@ struct RasterizerCG {
             a = 255 * components[3];
         }
         return Ra::BGRA(b, g, r, a);
+    }
+    static Ra::BGRA colorantFromCG(CGColorRef color) {
+        size_t count = CGColorGetNumberOfComponents(color);
+        const CGFloat *components = CGColorGetComponents(color);
+        return colorFromComponents(components, count);
     }
     static CGColorRef CGColorCreateFromColorant(Ra::BGRA color) {
         return CGColorCreateGenericRGB(color.r / 255.0, color.g / 255.0, color.b / 255.0, color.a / 255.0);
