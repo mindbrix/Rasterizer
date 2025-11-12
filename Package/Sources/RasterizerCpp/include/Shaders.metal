@@ -68,7 +68,9 @@ struct Opaque {
 
 struct Instance {
     enum Flags {
-        kIsCurve = 1 << 24,     kIsGradient = 1 << 24,
+        kIsRadial = 1 << 22,
+        kIsGradient = 1 << 23,
+        kIsCurve = 1 << 24,
         kMolecule = 1 << 25,    kPCap = 1 << 25,
         kFastEdges = 1 << 26,   kNCap = 1 << 26,
         kEdge = 1 << 27,        kF0 = 1 << 27,
@@ -76,7 +78,7 @@ struct Instance {
         kOutlines = 1 << 29,
         kSquareCap = 1 << 30,
         kEvenOdd = 1 << 31,
-        kFragmentMask = (kOutlines | kSquareCap | kEvenOdd)
+        kFragmentMask = (kOutlines | kSquareCap | kEvenOdd | kIsGradient | kIsRadial)
     };
     uint32_t iz;  union { Quad quad;  Outline outline; };
 };
@@ -183,6 +185,7 @@ struct OpaquesVertex
 {
     float4 position [[position]];
     float2 tex;
+    uint32_t iz;
 };
 
 vertex OpaquesVertex opaques_vertex_main(const device Colorant *colors [[buffer(0)]],
@@ -244,15 +247,16 @@ vertex OpaquesVertex opaques_vertex_main(const device Colorant *colors [[buffer(
     
     if (params->showOpaques && isGradient) {
         vert.tex.x = x * texCtm.a + y * texCtm.c + texCtm.tx;
-        vert.tex.y = FLT_MAX;
     }
+    vert.iz = inst.iz & ~(!params->showOpaques ? Instance::kIsGradient : 0 );
     
     return vert;
 }
 
 fragment float4 opaques_fragment_main(OpaquesVertex vert [[stage_in]], texture2d<float> colorTexture [[texture(1)]])
 {
-    if (vert.tex.y == FLT_MAX) {
+    const bool isGradient = vert.iz & Instance::kIsGradient;
+    if (isGradient) {
         const float t = saturate(vert.tex.x);
         const float4 color(t, 0, 0, 1);
         return color;
@@ -616,7 +620,6 @@ vertex InstancesVertex instances_vertex_main(
     
     if (isGradient) {
         vert.tex.x = dx * texCtm.a + dy * texCtm.c + texCtm.tx;
-        vert.tex.y = FLT_MAX;
     }
     
     return vert;
@@ -674,7 +677,8 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
     float sx = rsqrt(a * a + b * b), sy = rsqrt(c * c + d * d);
     float clip = saturate(0.5 + clx * sx) * saturate(0.5 + (1.0 - clx) * sx) * saturate(0.5 + cly * sy) * saturate(0.5 + (1.0 - cly) * sy);
     
-    if (vert.tex.y == FLT_MAX) {
+    const bool isGradient = vert.iz & Instance::kIsGradient;
+    if (isGradient) {
         const float t = saturate(vert.tex.x);
         const float4 color(t, 0, 0, 1);
         return alpha * vert.alpha * clip * color;

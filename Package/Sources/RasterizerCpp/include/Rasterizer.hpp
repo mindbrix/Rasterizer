@@ -606,7 +606,9 @@ struct Rasterizer {
     };
     struct Instance {
         enum Flags {
-            kIsCurve = 1 << 24,     kIsGradient = 1 << 24,
+            kIsRadial = 1 << 22,
+            kIsGradient = 1 << 23,
+            kIsCurve = 1 << 24,
             kMolecule = 1 << 25,    kPCap = 1 << 25,
             kFastEdges = 1 << 26,   kNCap = 1 << 26,
             kEdge = 1 << 27,        kF0 = 1 << 27,
@@ -614,7 +616,7 @@ struct Rasterizer {
             kOutlines = 1 << 29,
             kSquareCap = 1 << 30,
             kEvenOdd = 1 << 31,
-            kFragmentMask = (kOutlines | kSquareCap | kEvenOdd)
+            kFragmentMask = (kOutlines | kSquareCap | kEvenOdd | kIsGradient | kIsRadial)
         };
         Instance(size_t iz) : iz(uint32_t(iz)) {}
         uint32_t iz;  union { Quad quad;  Outline outline; };
@@ -754,6 +756,7 @@ struct Rasterizer {
                         Color *color = & scn->_colors[is];
                         bool isOpaque = color->isOpaque();
                         bool isGradient = color->isGradient();
+                        bool isRadial = color->radial;
                         if (isGradient)
                             texCtms[iz] = color->ctm.concat(m).invert();
                         
@@ -764,7 +767,7 @@ struct Rasterizer {
                         
                         ctms[iz] = m, widths[iz] = width, clips[iz] = invclip;
                         if (width) {
-                            Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kOutlines | bool(flags & Scene::kRoundCap) * Instance::kRoundCap | bool(flags & Scene::kSquareCap) * Instance::kSquareCap | isGradient * Instance::kIsGradient);
+                            Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kOutlines | bool(flags & Scene::kRoundCap) * Instance::kRoundCap | bool(flags & Scene::kSquareCap) * Instance::kSquareCap | isGradient * Instance::kIsGradient | isRadial * Instance::kIsRadial);
                             Bounds outlineClip = unclipped ? Bounds::huge() : clip.inset(-width, -width);
                             uint32_t i0 = uint32_t(outlines.idx), i1;
                             Outliner outliner;
@@ -783,7 +786,7 @@ struct Rasterizer {
                         } else if (useMolecules && clipWidth * clipHeight / g->types.end < kMoleculesPixelsPerEdge) {
                             bounds[iz] = *bnds;
                             bool fast = !buffer->params.useCurves || g->maxCurve * det < 16.f;
-                            Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kMolecule | bool(flags & Scene::kFillEvenOdd) * Instance::kEvenOdd | fast * Instance::kFastEdges | isGradient * Instance::kIsGradient);
+                            Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kMolecule | bool(flags & Scene::kFillEvenOdd) * Instance::kEvenOdd | fast * Instance::kFastEdges | isGradient * Instance::kIsGradient | isRadial * Instance::kIsRadial);
                             p16s.add(& g->p16s);
                             inst->g = g, inst->quad.cover = 0;
                             inst->quad.base = int(p16total);
@@ -802,7 +805,7 @@ struct Rasterizer {
                                 Bounds soft = Bounds(quad.concat(invclip));
                                 softunclipped = fmaxf(fmaxf(fabsf(soft.lx - 0.5f), fabsf(soft.ux - 0.5f)), fmaxf(fabsf(soft.ly - 0.5f), fabsf(soft.uy - 0.5f))) < softclipMargin;
                             }
-                            writeSegmentInstances(clip, flags & Scene::kFillEvenOdd, iz, isOpaque && softunclipped, fast, isGradient, *this);
+                            writeSegmentInstances(clip, flags & Scene::kFillEvenOdd, iz, isOpaque && softunclipped, fast, isGradient, isRadial, *this);
                             segments.idx = segments.end = idxr.dst - segments.base;
                         }
                     }
@@ -1153,10 +1156,10 @@ struct Rasterizer {
                 in[--counts[(tmp[i] >> 8) & 0x3F]] = tmp[i];
         }
     }
-    static void writeSegmentInstances(Bounds clip, bool even, size_t iz, bool opaque, bool fast, bool isGradient, Context& ctx) {
+    static void writeSegmentInstances(Bounds clip, bool even, size_t iz, bool opaque, bool fast, bool isGradient, bool isRadial, Context& ctx) {
         size_t ily = 0, iuy = ceilf(clip.height() * krfh), iy, i, begin, size;
-        size_t edgeIz = iz | Instance::kEdge | even * Instance::kEvenOdd | fast * Instance::kFastEdges | isGradient * Instance::kIsGradient;
-        uint32_t cellIz = uint32_t(iz | isGradient * Instance::kIsGradient);
+        size_t edgeIz = iz | Instance::kEdge | even * Instance::kEvenOdd | fast * Instance::kFastEdges | isGradient * Instance::kIsGradient | isRadial * Instance::kIsRadial;
+        uint32_t cellIz = uint32_t(iz | isGradient * Instance::kIsGradient | isRadial * Instance::kIsRadial);
         uint16_t counts[256], ly, uy, lx, ux;
         float h, cover, winding, wscale;
         Allocator::CountType type = fast ? Allocator::kFastEdges : Allocator::kQuadEdges;
