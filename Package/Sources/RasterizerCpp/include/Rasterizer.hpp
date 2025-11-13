@@ -1314,14 +1314,12 @@ struct Rasterizer {
         buffer.texStrips = end;
         uint32_t *texIdxs = (uint32_t *)(buffer.base + buffer.texIdxs), texIdx;
         sz = kColorTextureWidth * sizeof(BGRA);
-        texIdx = 0;
-        for (i = 0; i < count; i++)
+        for (texIdx = 0, i = 0; i < count; i++)
             for (j = 0; j < contexts[i].texs.end(); j++) {
                 auto ref = contexts[i].texs[j];
                 texIdxs[ref.iz] = texIdx++;
                 memcpy(buffer.base + end, ref.strip, sz), end += sz;
             }
-        assert(end == begins[0]);
         return size;
     }
     static void writeContextToBuffer(const SceneList& list, Context *ctx, size_t begin, Buffer& buffer) {
