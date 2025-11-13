@@ -168,7 +168,7 @@ struct RasterizerCG {
     static void drawGradient(const Ra::Color color, CGContextRef ctx) {
         CGGradientRef gradient = CGGradientFromColor(color);
         auto options = kCGGradientDrawsBeforeStartLocation | kCGGradientDrawsAfterEndLocation;
-        if (color.radial) {
+        if (color.isRadial()) {
             CGPoint center = CGPointMake(color.ctm.tx, color.ctm.ty);
             CGFloat radius = color.ctm.a;
             CGContextDrawRadialGradient(ctx, gradient, center, 0, center, radius, options);
