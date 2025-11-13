@@ -180,7 +180,8 @@ class Test0: RADrawable {
         let r0 = 0.5 * dim - r1 - unitWidth * r1
         let center = CGPoint(x: bounds.midX, y: bounds.midY)
         for i in 0 ..< count {
-            let ti = Double(i) / Double(count)
+            let tl = ts + Double(i) / Double(count)
+            let ti = tl - floor(tl)
             let colors: [RAColor] = [
                 RAColor(hue: ti, saturation: 1, value: 1, alpha: 1),
                 RAColor(gray: 0, alpha: 1)
@@ -195,7 +196,7 @@ class Test0: RADrawable {
             
             let ctm = CGAffineTransform(
                 center: unitCenter,
-                rotation: t * 2 * Double.pi,
+                rotation: -t * 2 * Double.pi,
                 scale: CGSize(width: 2 * r1, height: 2 * r1),
                 translation: CGVector(dx: radial.x - unitCenter.x, dy: radial.y - unitCenter.y)
             )
