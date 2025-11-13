@@ -462,7 +462,7 @@ struct Rasterizer {
             return stops.end();
         }
         inline bool isRadial() const {
-            return stops.end() && radial;
+            return radial;
         }
         void writeGradientStrip(BGRA *dst, size_t size) {
             size_t count = stops.end();
@@ -764,12 +764,11 @@ struct Rasterizer {
                         Geometry *g = scn->paths[is].ptr;
                         Color *color = & scn->_colors[is];
                         bool isOpaque = color->isOpaque();
-                        bool isGradient = color->isGradient();
-                        bool isRadial = color->isRadial();
+                        bool isGradient = list.params.showOutlines ? false : color->isGradient();
+                        bool isRadial = isGradient && color->isRadial();
                         if (isGradient) {
                             texCtms[iz] = color->ctm.concat(m).invert();
                             size_t idx = scn->gradientIndices[is];
-                            assert(idx != ~0);
                             texs.add(TexRef(iz, & scn->matchedGradients[idx]));
                         }
                         
