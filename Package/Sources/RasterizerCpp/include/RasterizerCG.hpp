@@ -134,7 +134,7 @@ struct RasterizerCG {
                             CGContextSaveGState(ctx);
                             CGContextReplacePathWithStrokedPath(ctx);
                             CGContextClip(ctx);
-                            drawGradient(color, ctx);
+                            drawGradient(ctx, color);
                             CGContextRestoreGState(ctx);
                         } else {
                             CGContextSetRGBStrokeColor(ctx, bgra.r / 255.0, bgra.g / 255.0, bgra.b / 255.0, bgra.a / 255.0);
@@ -147,7 +147,7 @@ struct RasterizerCG {
                                 CGContextEOClip(ctx);
                             else
                                 CGContextClip(ctx);
-                            drawGradient(color, ctx);
+                            drawGradient(ctx, color);
                             CGContextRestoreGState(ctx);
                         } else {
                             CGContextSetRGBFillColor(ctx, bgra.r / 255.0, bgra.g / 255.0, bgra.b / 255.0, bgra.a / 255.0);
@@ -165,19 +165,15 @@ struct RasterizerCG {
         }
     }
     
-    static void drawGradient(const Ra::Color color, CGContextRef ctx) {
+    static void drawGradient(CGContextRef ctx, const Ra::Color& color) {
         CGGradientRef gradient = CGGradientFromColor(color);
+        CGPoint zero = CGPointMake(0.0, 0.0), end = CGPointMake(0.0, 1.0);
         auto options = kCGGradientDrawsBeforeStartLocation | kCGGradientDrawsAfterEndLocation;
         CGContextConcatCTM(ctx, CGFromTransform(color.ctm));
-        if (color.isRadial()) {
-            CGPoint center = CGPointMake(0.0, 0.0);
-            CGFloat radius = 1;
-            CGContextDrawRadialGradient(ctx, gradient, center, 0, center, radius, options);
-        } else {
-            CGPoint begin = CGPointMake(0.0, 0.0);
-            CGPoint end = CGPointMake(0.0, 1.0);
-            CGContextDrawLinearGradient(ctx, gradient, begin, end, options);
-        }
+        if (color.isRadial())
+            CGContextDrawRadialGradient(ctx, gradient, zero, 0, zero, 1, options);
+        else
+            CGContextDrawLinearGradient(ctx, gradient, zero, end, options);
         CFRelease(gradient);
     }
     
