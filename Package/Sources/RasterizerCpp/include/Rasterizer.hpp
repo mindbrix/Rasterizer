@@ -601,11 +601,11 @@ struct Rasterizer {
         float x0, y0, x1, y1, x2, y2;
     };
     struct Outline {
-        Quadratic q;
+        Quadratic quad;
         short prev, next;
     };
     struct Opaque {
-        uint32_t iz;  union { Cell cell;  Quadratic q; };
+        uint32_t iz;  union { Cell cell;  Quadratic quad; };
     };
     struct Instance {
         enum Flags {
@@ -1272,7 +1272,7 @@ struct Rasterizer {
                 if (opaques) {
                     Opaque *opaque0 = opaques->alloc(dst - dst0), *opaque = opaque0;
                     for (Instance *src = dst0; src < dst; src++, opaque++)
-                        opaque->iz = iz, opaque->q = src->outline.q;
+                        opaque->iz = iz, opaque->quad = src->outline.quad;
                     if (!closed) {
                         opaque0->iz |= Instance::kPCap;
                         (opaque - 1)->iz |= Instance::kNCap;
@@ -1282,8 +1282,9 @@ struct Rasterizer {
         }
         inline void writeInstance(float x0, float y0, float x1, float y1, float x2, float y2) {
             Instance *dst = outlines->alloc(1);
-            Outline& o = dst->outline;
-            dst->iz = iz, o.q.x0 = x0, o.q.y0 = y0, o.q.x1 = x1, o.q.y1 = y1, o.q.x2 = x2, o.q.y2 = y2, o.prev = -1, o.next = 1;
+            struct Quadratic& quad = dst->outline.quad;
+            dst->iz = iz, quad.x0 = x0, quad.y0 = y0, quad.x1 = x1, quad.y1 = y1, quad.x2 = x2, quad.y2 = y2;
+            dst->outline.prev = -1, dst->outline.next = 1;
         }
         uint32_t iz;  Row<Instance> *outlines = nullptr;  Row<Opaque> *opaques = nullptr;
     };
