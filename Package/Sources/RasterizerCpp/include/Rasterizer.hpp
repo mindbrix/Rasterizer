@@ -437,6 +437,10 @@ struct Rasterizer {
         BGRA() : b(0), g(0), r(0), a(255) {}
         BGRA(uint32_t rgba) : b((rgba >> 16) & 0xFF), g((rgba >> 8) & 0xFF), r(rgba & 0xFF), a(rgba >> 24) {};
         BGRA(uint8_t b, uint8_t g, uint8_t r, uint8_t a) : b(b), g(g), r(r), a(a) {}
+        BGRA(const BGRA& c0, const BGRA& c1, float t) {
+            float s = 1.f - t;
+            b = s * c0.b + t * c1.b, g = s * c0.g + t * c1.g, r = s * c0.r + t * c1.r, a = s * c0.a + t * c1.a;
+        }
         uint8_t b, g, r, a;
     };
     
@@ -468,33 +472,21 @@ struct Rasterizer {
             size_t count = stops.end();
             if (count == 0)
                 return;
-            float *locations = & locs[0];
-            BGRA *colorants = & stops[0];
             
+            float *locations = & locs[0];
+            BGRA *colors = & stops[0];
             std::sort(locations, locations + count);
             float lower = locations[0], upper = locations[count - 1];
-            float s, t, *t0, *t1;
+            float t, *t0, *t1;
             size_t loc;
-            BGRA c0, c1, colorant;
             for (size_t i = 0; i < size; i++) {
-                t = float(i) / float(size - 1);
-                t = fmaxf(lower, fminf(upper, t));
+                t = fmaxf(lower, fminf(upper, float(i) / float(size - 1)));
                 t0 = locations, t1 = t0 + 1;
                 for (loc = 0; loc < count - 1; loc++, t0++, t1++)
                     if (t >= *t0 && t <= *t1)
                         break;
-                t = (t - *t0) / (*t1 - *t0);
-                t = fmaxf(0.f, fminf(1.f, t));
-                s = 1.f - t;
-                c0 = colorants[loc];
-                c1 = colorants[loc + 1];
-                colorant = BGRA(
-                    c0.b * s + c1.b * t,
-                    c0.g * s + c1.g * t,
-                    c0.r * s + c1.r * t,
-                    c0.a * s + c1.a * t
-                );
-                dst[i] = colorant;
+                t = fmaxf(0.f, fminf(1.f, (t - *t0) / (*t1 - *t0)));
+                dst[i] = BGRA(colors[loc], colors[loc + 1], t);
             }
         }
         BGRA colorant;
