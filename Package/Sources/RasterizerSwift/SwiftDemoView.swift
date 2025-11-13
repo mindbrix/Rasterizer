@@ -29,6 +29,16 @@ extension CGPoint {
     }
 }
 
+extension CGRect {
+    func linearGradientTransform() -> CGAffineTransform {
+        CGAffineTransform(a: 0, b: -width, c: width, d: 0, tx: 0, ty: 0)
+    }
+    
+    func radialGradientTransform() -> CGAffineTransform {
+        let radius = 0.5 * min(width, height)
+        return CGAffineTransform(a: radius, b: 0, c: 0, d: radius, tx: midX, ty: midY)
+    }
+}
 
 public class SwiftDemoView: RasterizerView {
     let demo = SwiftDemo()
@@ -78,18 +88,18 @@ protocol RADrawable {
 
 class TestGradients: RADrawable {
     static func gradientForBounds(_ bounds: CGRect, isRadial: Bool) -> RAColor {
-        let width = bounds.width
-        let height = bounds.height
-        let r = 0.5 * min(width, height)
         let colors: [RAColor] = [
             RAColor(red: 1, green: 0, blue: 0, alpha: 1),
             RAColor(red: 0, green: 1, blue: 0, alpha: 1),
             RAColor(red: 0, green: 0, blue: 1, alpha: 1)
         ]
         let locations: [NSNumber] = [ 0, 0.5, 1 ]
-        let linear = CGAffineTransform(a: 0, b: -0.5 * width, c: 0.5 * width, d: 0, tx: 0.5 * width, ty: 0)
-        let radial = CGAffineTransform(a: r, b: 0, c: 0, d: r, tx: bounds.midX, ty: bounds.midY)
-        return RAColor(colors: colors, locations: locations, transform: isRadial ? radial : linear, isRadial: isRadial)
+        let linear = bounds.linearGradientTransform()
+        let radial = bounds.radialGradientTransform()
+        return RAColor(colors: colors,
+                       locations: locations,
+                       transform: isRadial ? radial : linear,
+                       isRadial: isRadial)
     }
     
     func getSceneAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RAScene {
@@ -155,7 +165,7 @@ class Test0: RADrawable {
         let dim = min(bounds.width, bounds.height)
         let unitRect = CGRect(x: 0, y: 0, width: 1, height: 1)
         let unitCenter = CGPoint(x: unitRect.midX, y: unitRect.midY)
-        let unitWidth = 0.1
+        let unitWidth = 0.0// 0.1
         let path = RAPath()
         if (state.useRect) {
             path.add(unitRect)
@@ -171,7 +181,16 @@ class Test0: RADrawable {
         let center = CGPoint(x: bounds.midX, y: bounds.midY)
         for i in 0 ..< count {
             let ti = Double(i) / Double(count)
-            let hsv = RAColor(hue: ti, saturation: 1, value: 1, alpha: 1)
+            let colors: [RAColor] = [
+                RAColor(hue: ti, saturation: 1, value: 1, alpha: 1),
+                RAColor(gray: 0, alpha: 1)
+            ]
+            let locations: [NSNumber] = [ 0, 1 ]
+            let gradient = RAColor(colors: colors,
+                           locations: locations,
+                           transform: unitRect.radialGradientTransform(),
+                           isRadial: true)
+            
             let radial = CGPoint(center: center, r: r0, theta: ti * 2 * Double.pi)
             
             let ctm = CGAffineTransform(
@@ -180,7 +199,7 @@ class Test0: RADrawable {
                 scale: CGSize(width: 2 * r1, height: 2 * r1),
                 translation: CGVector(dx: radial.x - unitCenter.x, dy: radial.y - unitCenter.y)
             )
-            scene.add(path, ctm: ctm, color: hsv, width: unitWidth, flags: 0, clip: .zero)
+            scene.add(path, ctm: ctm, color: gradient, width: unitWidth, flags: 0, clip: .zero)
         }
         return scene
     }
