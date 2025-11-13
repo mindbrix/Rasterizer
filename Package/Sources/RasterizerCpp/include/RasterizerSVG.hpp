@@ -64,29 +64,28 @@ struct RasterizerSVG {
     }
     
     static void writePathFromShape(NSVGshape *shape, Ra::Path& p) {
-        size_t count = 0;
+        float *pts, dot, tolerance = 1e-6f;
+        size_t i, count = 0;
         for (NSVGpath *path = shape->paths; path != NULL; path = path->next)
             count += path->npts;
         p->prealloc(count / 2);
-        constexpr float tolerance = 1e-6f;  float *pts, dot;  int i;
         
         for (NSVGpath *path = shape->paths; path != NULL; path = path->next) {
-            for (dot = 0.f, i = path->npts - 1; i > 0 && dot < tolerance; i--) {
-                if ((dot = lengthsq(path->pts[0], path->pts[1], path->pts[i * 2], path->pts[i * 2 + 1])) < tolerance)
+            for (dot = 0.f, i = path->npts - 1; i > 0 && dot < tolerance; i--)
+                if ((dot = lengthSquared(path->pts, & path->pts[i * 2])) < tolerance)
                     path->pts[i * 2] = path->pts[0], path->pts[i * 2 + 1] = path->pts[1];
-            }
-            for (pts = path->pts, p->moveTo(pts[0], pts[1]), i = 0; i < path->npts - 1; i += 3, pts += 6) {
-                if (lengthsq(pts[0], pts[1], pts[6], pts[7]) > tolerance) {
+
+            for (pts = path->pts, p->moveTo(pts[0], pts[1]), i = 0; i < path->npts - 1; i += 3, pts += 6)
+                if (lengthSquared(pts, pts + 6) > tolerance)
                     p->cubicTo(pts[2], pts[3], pts[4], pts[5], pts[6], pts[7]);
-                }
-            }
+            
             if (path->closed)
                 p->close();
         }
     }
     
-    static inline float lengthsq(float x0, float y0, float x1, float y1) {
-        float dx = x1 - x0, dy = y1 - y0;
+    static inline float lengthSquared(const float *p0, const float *p1) {
+        float dx = p1[0] - p0[0], dy = p1[1] - p0[1];
         return dx * dx + dy * dy;
     }
     
