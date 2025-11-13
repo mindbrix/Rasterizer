@@ -58,12 +58,12 @@ struct Quadratic {
 };
 
 struct Outline {
-    Quadratic q;
+    Quadratic quad;
     short prev, next;
 };
 
 struct Opaque {
-    uint32_t iz;  union { Cell cell;  Quadratic q; };
+    uint32_t iz;  union { Cell cell;  Quadratic quad; };
 };
 
 struct Instance {
@@ -205,12 +205,12 @@ vertex OpaquesVertex opaques_vertex_main(const device Colorant *colors [[buffer(
     const bool isRadial = inst.iz & Instance::kIsRadial;
     const device Transform& texCtm = texCtms[iz];
     const device Cell& cell = inst.cell;
-    const device Quadratic& q = inst.q;
+    const device Quadratic& quad = inst.quad;
     float x, y, z = kDepthRange * float((inst.iz & kPathIndexMask) + 1) / float(*pathCount);
     
     if (inst.iz & Instance::kOutlines) {
         const float dw = 0.5 * (widths[inst.iz & kPathIndexMask] - 1.0);
-        const float x0 = q.x0, y0 = q.y0, x1 = q.x1, y1 = q.y1, x2 = q.x2, y2 = q.y2;
+        const float x0 = quad.x0, y0 = quad.y0, x1 = quad.x1, y1 = quad.y1, x2 = quad.x2, y2 = quad.y2;
         const bool isFlat = x1 == FLT_MAX;
         const bool isTop = vid >> 1, isRight = vid & 1;
         const bool pcap = inst.iz & Instance::kPCap;
@@ -533,7 +533,7 @@ vertex InstancesVertex instances_vertex_main(
         const bool squareCap = inst.iz & Instance::kSquareCap;
         const short prevIndex = inst.outline.prev, nextIndex = inst.outline.next;
         const device Instance & pinst = instances[iid + prevIndex], & ninst = instances[iid + nextIndex];
-        const device Quadratic& p = pinst.outline.q, & o = inst.outline.q, & n = ninst.outline.q;
+        const device Quadratic& p = pinst.outline.quad, & o = inst.outline.quad, & n = ninst.outline.quad;
         const bool pcurve = params->useCurves && p.x1 != FLT_MAX;
         const bool ncurve = params->useCurves && n.x1 != FLT_MAX;
         
