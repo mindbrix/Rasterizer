@@ -36,22 +36,6 @@ struct RasterizerSVG {
         return ctm;
     }
     
-    static Ra::Color colorFromPaint(const NSVGpaint& paint) {
-        if (paint.type == NSVG_PAINT_COLOR)
-            return Ra::Color(paint.color);
-        else {
-            auto gradient = paint.gradient;
-            size_t count = gradient->nstops;
-            Ra::BGRA stops[count];
-            float locs[count];
-            for (int i = 0; i < count; i++) {
-                stops[i] = Ra::BGRA(gradient->stops[i].color);
-                locs[i] = gradient->stops[i].offset;
-            }
-            return Ra::Color(stops, locs, count, *(Ra::Transform *)gradient->xform, paint.type != NSVG_PAINT_LINEAR_GRADIENT);
-        }
-    }
-    
     static void addSvgImageToScene(NSVGimage *image, Ra::SceneRef& scene) {
         if (image) {
             if (kWriteOneBigPath) {
@@ -70,27 +54,13 @@ struct RasterizerSVG {
                         scene->addPath(path, ctm, colorFromPaint(shape->fill), 0.f, flags);
                     }
                     if (shape->stroke.type != NSVG_PAINT_NONE && shape->strokeWidth) {
-                        int flags = 0;
-                        switch (shape->strokeLineCap) {
-                            case NSVG_CAP_ROUND:
-                                flags |= Ra::Scene::kRoundCap;
-                                break;
-                            case NSVG_CAP_SQUARE:
-                                flags |= Ra::Scene::kSquareCap;
-                                break;
-                            default:
-                                break;
-                        }
+                        char cap = shape->strokeLineCap;
+                        int flags = cap == NSVG_CAP_ROUND ? Ra::Scene::kRoundCap : cap == NSVG_CAP_SQUARE ? Ra::Scene::kSquareCap : 0;
                         scene->addPath(path, ctm, colorFromPaint(shape->stroke), shape->strokeWidth, flags);
                     }
                 }
             }
         }
-    }
-    
-    static inline float lengthsq(float x0, float y0, float x1, float y1) {
-        float dx = x1 - x0, dy = y1 - y0;
-        return dx * dx + dy * dy;
     }
     
     static void writePathFromShape(NSVGshape *shape, Ra::Path& p) {
@@ -112,6 +82,27 @@ struct RasterizerSVG {
             }
             if (path->closed)
                 p->close();
+        }
+    }
+    
+    static inline float lengthsq(float x0, float y0, float x1, float y1) {
+        float dx = x1 - x0, dy = y1 - y0;
+        return dx * dx + dy * dy;
+    }
+    
+    static Ra::Color colorFromPaint(const NSVGpaint& paint) {
+        if (paint.type == NSVG_PAINT_COLOR)
+            return Ra::Color(paint.color);
+        else {
+            auto gradient = paint.gradient;
+            size_t count = gradient->nstops;
+            Ra::BGRA stops[count];
+            float locs[count];
+            for (int i = 0; i < count; i++) {
+                stops[i] = Ra::BGRA(gradient->stops[i].color);
+                locs[i] = gradient->stops[i].offset;
+            }
+            return Ra::Color(stops, locs, count, *(Ra::Transform *)gradient->xform, paint.type != NSVG_PAINT_LINEAR_GRADIENT);
         }
     }
 };
