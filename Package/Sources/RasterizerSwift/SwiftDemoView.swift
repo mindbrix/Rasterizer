@@ -87,7 +87,7 @@ class TestGradients: RADrawable {
             RAColor(red: 0, green: 0, blue: 1, alpha: 1)
         ]
         let locations: [NSNumber] = [ 0, 0.5, 1 ]
-        let linear = CGAffineTransform(a: 0, b: -width, c: width, d: 0, tx: 0, ty: 0)
+        let linear = CGAffineTransform(a: 0, b: -0.5 * width, c: 0.5 * width, d: 0, tx: 0.5 * width, ty: 0)
         let radial = CGAffineTransform(a: r, b: 0, c: 0, d: r, tx: bounds.midX, ty: bounds.midY)
         return RAColor(colors: colors, locations: locations, transform: isRadial ? radial : linear, isRadial: isRadial)
     }

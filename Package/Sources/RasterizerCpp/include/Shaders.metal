@@ -260,7 +260,7 @@ vertex OpaquesVertex opaques_vertex_main(const device Colorant *colors [[buffer(
 fragment float4 opaques_fragment_main(OpaquesVertex vert [[stage_in]], texture2d<float> colorTexture [[texture(1)]])
 {
     float x = vert.tex.x, y = vert.tex.y, z = vert.tex.z;
-    return colorTexture.sample(cs, float2(sqrt(x * x + z * z), y));
+    return colorTexture.sample(cs, float2(saturate(z == 0.0 ? x : sqrt(x * x + z * z)), y));
 }
 
 #pragma mark - Fast Molecules
@@ -684,5 +684,5 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
     float clip = saturate(0.5 + clx * sx) * saturate(0.5 + (1.0 - clx) * sx) * saturate(0.5 + cly * sy) * saturate(0.5 + (1.0 - cly) * sy);
     
     float x = vert.tex.x, y = vert.tex.y, z = vert.tex.z;
-    return alpha * vert.alpha * clip * colorTexture.sample(cs, float2(sqrt(x * x + z * z), y));
+    return alpha * vert.alpha * clip * colorTexture.sample(cs, float2(saturate(z == 0.0 ? x : sqrt(x * x + z * z)), y));
 }
