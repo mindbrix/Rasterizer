@@ -600,12 +600,12 @@ vertex InstancesVertex instances_vertex_main(
         {
             vert.u = x0 - dx, vert.v = x1 - dx, vert.w = x2 - dx;
             vert.x = y0 - dy, vert.y = y1 - dy, vert.z = y2 - dy;
+            
+            flags = flags | (pcap ? !roundCap : !roundJoin) * Instance::kF0;
+            flags = flags | (ncap ? !roundCap : !roundJoin) * Instance::kF1;
         }
-        const bool f0 = pcap ? !roundCap : !roundJoin;
-        const bool f1 = ncap ? !roundCap : !roundJoin;
-
         vert.cover = dw;
-        flags = flags | pcap * Instance::kPCap | ncap * Instance::kNCap | isCurve * Instance::kIsCurve | f0 * Instance::kF0 | f1 * Instance::kF1 | roundCap * Instance::kEvenOdd;
+        flags = flags | pcap * Instance::kPCap | ncap * Instance::kNCap | isCurve * Instance::kIsCurve | roundCap * Instance::kEvenOdd;
     } else {
         const device Cell& cell = inst.quad.cell;
         dx = isRight ? cell.ux : cell.lx;
