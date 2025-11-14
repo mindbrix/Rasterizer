@@ -167,6 +167,10 @@ struct Rasterizer {
     };
     template<typename T, bool isRef = false>
     struct Vector {
+        Vector(size_t size = 0) {
+            if (size)
+                resize(size);
+        }
         inline void add(T obj) {
             *memory->alloc(1) = obj;
         }
