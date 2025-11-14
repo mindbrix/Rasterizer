@@ -129,6 +129,8 @@ struct RasterizerCG {
                         bool square = scn.flags[i] & Ra::Scene::kSquareCap;
                         bool round = scn.flags[i] & Ra::Scene::kRoundCap;
                         CGContextSetLineCap(ctx, round ? kCGLineCapRound : square ? kCGLineCapSquare : kCGLineCapButt);
+                        bool roundJoin = scn.flags[i] & Ra::Scene::kRoundJoin;
+                        CGContextSetLineJoin(ctx, roundJoin ? kCGLineJoinRound : kCGLineJoinMiter);
                         
                         if (color.isGradient()) {
                             CGContextSaveGState(ctx);

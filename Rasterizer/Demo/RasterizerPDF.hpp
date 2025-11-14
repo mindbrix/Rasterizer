@@ -142,6 +142,8 @@ struct RasterizerPDF {
                 int cap = FPDFPageObj_GetLineCap(pageObject);
                 flags |= cap == FPDF_LINECAP_ROUND ? Ra::Scene::kRoundCap : 0;
                 flags |= cap == FPDF_LINECAP_PROJECTING_SQUARE ? Ra::Scene::kSquareCap : 0;
+                int join = FPDFPageObj_GetLineJoin(pageObject);
+                flags |= join == FPDF_LINEJOIN_ROUND ? Ra::Scene::kRoundJoin : 0;
             } else {
                 FPDFPageObj_GetFillColor(pageObject, & R, & G, & B, & A);
                 if (pathIsRect(path))

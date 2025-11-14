@@ -497,7 +497,7 @@ struct Rasterizer {
     };
     struct Scene {
         enum CapStyle { kButt = 0, kSquare, kRound };
-        enum Flags { kInvisible = 1 << 0, kFillEvenOdd = 1 << 1, kRoundCap = 1 << 2, kSquareCap = 1 << 3 };
+        enum Flags { kInvisible = 1 << 0, kFillEvenOdd = 1 << 1, kRoundCap = 1 << 2, kSquareCap = 1 << 3, kRoundJoin = 1 << 4 };
         
         void addFill(Path path, Transform ctm, Color color, bool evenOdd, Bounds *clipBounds = nullptr) {
             addPath(path, ctm, color, 0.f, evenOdd ? kFillEvenOdd : 0, clipBounds);

@@ -56,6 +56,8 @@ struct RasterizerSVG {
                     if (shape->stroke.type != NSVG_PAINT_NONE && shape->strokeWidth) {
                         char cap = shape->strokeLineCap;
                         int flags = cap == NSVG_CAP_ROUND ? Ra::Scene::kRoundCap : cap == NSVG_CAP_SQUARE ? Ra::Scene::kSquareCap : 0;
+                        char join = shape->strokeLineJoin;
+                        flags |= join == NSVG_JOIN_ROUND ? Ra::Scene::kRoundJoin : 0;
                         scene->addPath(path, ctm, colorFromPaint(shape->stroke), shape->strokeWidth, flags);
                     }
                 }
