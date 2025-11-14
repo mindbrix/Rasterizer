@@ -20,7 +20,9 @@
 
 struct RasterizerRenderer {
     
-    void renderList(const Ra::SceneList& list, float scale, float w, float h, Ra::Buffer *buffer) {
+    void renderList(const Ra::SceneList& list, float scale, float w, float h, Ra::Buffer *buffer, CGColorSpaceRef destSpace) {
+        matchColors(list, destSpace);
+        
         Ra::Bounds device(0.f, 0.f, ceilf(scale * w), ceilf(scale * h));
         Ra::Transform view = list.ctm.concat(Ra::Transform(scale, 0.f, 0.f, scale, 0.f, 0.f));
         
@@ -38,16 +40,33 @@ struct RasterizerRenderer {
             Ra::writeContextToBuffer(list, contexts + i, pbegins[i], *buffer);
         });
         for (int i = 0; i < kContextCount; i++)
-            for (int j = 0; j < contexts[i].entries.size(); j++)
+            for (int j = 0; j < contexts[i].entries.end(); j++)
                 *(buffer->entries.alloc(1)) = contexts[i].entries[j];
         size_t end = buffer->entries.end == 0 ? 0 : buffer->entries.back().end;
         assert(size >= end);
+        
+        auto colors = (Ra::BGRA *)(buffer->base + buffer->colors);
+        colors[buffer->pathsCount] = buffer->params.clearColor;
+    }
+    
+    void matchColors(const Ra::SceneList& list, CGColorSpaceRef destSpace) {
+        for (size_t i = 0; i < list.scenes.size(); i++) {
+            auto scene = list.scenes[i];
+            if (scene->matchedColors == scene->colors) {
+                scene->matchedColors = scene->colors.clone();
+                converter.matchColors(& scene->matchedColors[0], scene->matchedColors.end(), destSpace);
+            }
+            if (scene->matchedGradients == scene->gradients && scene->gradients.end()) {
+                scene->matchedGradients = scene->gradients.clone();
+                converter.matchColors(& scene->matchedGradients[0], scene->matchedGradients.end(), destSpace);
+            }
+        }
     }
     
     void writeBalancedWeightDivisions(const Ra::SceneList& list, size_t *divisions) {
         size_t total = 0, count, si, i, iz, target;
         for (int j = 0; j < list.scenes.size(); j++)
-            total += list.scenes[j].weight;
+            total += list.scenes[j]->weight;
         if (total == 0)
             memset(divisions, 0, (kContextCount + 1) * sizeof(*divisions));
         else {
@@ -55,15 +74,17 @@ struct RasterizerRenderer {
             auto scene = & list.scenes[0];
             for (count = si = iz = 0, i = 1; i < kContextCount; i++) {
                 for (target = total * i / kContextCount; count < target; iz++, si++) {
-                    if (si == scene->count)
+                    if (si == (scene->ptr)->count)
                         scene++, si = 0;
-                    count += scene->paths[si]->types.end;
+                    count += (scene->ptr)->paths[si]->types.end;
                 }
                 divisions[i] = iz;
             }
         }
     }
     void reset() { for (auto& ctx : contexts) ctx.reset(); }
+    
+    RaCG::Converter converter;
     
     static const int kContextCount = 8;
     Ra::Context contexts[kContextCount];

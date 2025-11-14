@@ -79,27 +79,27 @@ struct Concentrichron {
         const char *years[10] = { "2020", "2021", "2022", "2023", "2024", "2025", "2026", "2027", "2028", "2029" };
         const char **labels[8] = { NULL, years, months, dates, days, NULL, NULL, NULL };
         const int divisions[8] = { 0, 10, 12, 31, 7, 24, 60, 60 };
-        const Ra::Colorant black(0, 0, 0, 255), red(0, 0, 255, 255), grey0(245, 245, 245, 255), grey1(250, 250, 250, 255);
+        const Ra::BGRA black(0, 0, 0, 255), red(0, 0, 255, 255), grey0(245, 245, 245, 255), grey1(250, 250, 250, 255);
         const float strokeWidth = 0.5f;
         float w = b.ux - b.lx, h = b.uy - b.ly, dim = w < h ? w : h, inset = dim / 30.f;
         float cx = 0.5f * (b.lx + b.ux), cy = 0.5f * (b.ly + b.uy);
         Ra::Bounds outer = b.inset(0.5f * (w - dim + strokeWidth), 0.5f * (h - dim + strokeWidth));
-        Ra::Scene background;
+        Ra::SceneRef background;
         for (int i = 1; i < 8; i++) {
             Ra::Bounds inner = outer.inset(inset * i, inset * i);
             Ra::Path bgPath;  bgPath->addEllipse(inner.inset(-inset * 0.5f, -inset * 0.5f));
-            background.addPath(bgPath, Ra::Transform(), i % 2 ? grey0 : grey1, inset, 0);
+            background->addPath(bgPath, Ra::Transform(), i % 2 ? grey0 : grey1, inset, 0);
         }
         Ra::Path ellipsePath; ellipsePath->addEllipse(outer);
-        background.addPath(ellipsePath, Ra::Transform(), black, strokeWidth, 0);
+        background->addPath(ellipsePath, Ra::Transform(), black, strokeWidth, 0);
         list.addScene(background);
         for (int i = 1; i < 8; i++) {
-            Ra::Scene ring;
+            Ra::SceneRef ring;
             Ra::Bounds inner = outer.inset(inset * i, inset * i);
             float step = 2.f * M_PI / divisions[i], theta0 = 0.5f * M_PI;
             float r0 = 0.5f * (inner.ux - inner.lx), r1 = r0 + (divisions[i] == 60 ? 0.25f : 0.5f) * inset;
             Ra::Path ellipsePath; ellipsePath->addEllipse(inner);
-            ring.addPath(ellipsePath, Ra::Transform(), black, strokeWidth, 0);
+            ring->addPath(ellipsePath, Ra::Transform(), black, strokeWidth, 0);
             
             Ra::Path path;
             for (int j = 0; j < divisions[i]; j++) {
@@ -107,7 +107,7 @@ struct Concentrichron {
                 path->moveTo(cx + r0 * cosf(theta), cy + r0 * sinf(theta));
                 path->lineTo(cx + r1 * cosf(theta), cy + r1 * sinf(theta));
             }
-            ring.addPath(path, Ra::Transform(), black, strokeWidth, 0);
+            ring->addPath(path, Ra::Transform(), black, strokeWidth, 0);
             
             float r = r0 + 0.25f * inset, da, a0;
             Ra::Row<char> str;
@@ -121,7 +121,7 @@ struct Concentrichron {
                     bzero(strbuf, sizeof(strbuf)), snprintf(strbuf, 32, "%d", j);
                     strcpy(str.alloc(strlen(strbuf) + 1), strbuf);
                 }
-                Ra::Scene glyphs;
+                Ra::SceneRef glyphs;
                 Ra::Bounds gb = RasterizerCoreText::addCStringToSceneInRect(str.base, fontName, inset * 0.666f, black, b, Ra::Transform(), Ra::Bounds(), glyphs);
                 da = (gb.ux - gb.lx) / r, a0 = theta0 + j * -step - 0.5f * (step - da);
                 
@@ -129,23 +129,23 @@ struct Concentrichron {
             }
             list.addScene(ring);
         }
-        Ra::Scene line;
+        Ra::SceneRef line;
         Ra::Path linePath;  linePath->moveTo(cx, outer.uy - inset * 7.f), linePath->lineTo(cx, outer.uy);
-        line.addPath(linePath, Ra::Transform(), red, 1.f, 0);
+        line->addPath(linePath, Ra::Transform(), red, 1.f, 0);
         list.addScene(line);
         return list;
     }
     
-    static void layoutGlyphsOnArc(Ra::Scene& glyphs, float cx, float cy, float r, float theta, Ra::Scene& scene) {
+    static void layoutGlyphsOnArc(Ra::SceneRef& glyphs, float cx, float cy, float r, float theta, Ra::SceneRef& scene) {
         Ra::Path path;  Ra::Transform m, ctm;  Ra::Bounds b;  float lx = 0.f, bx, by, rot, px, py, sine, cosine;
-        for (int i = 0; i < glyphs.count; i++) {
-            path = glyphs.paths[i], m = glyphs.ctms->base[i], b = Ra::Bounds(path->bounds.quad(m));
+        for (int i = 0; i < glyphs->count; i++) {
+            path = glyphs->paths[i], m = glyphs->ctms[i], b = Ra::Bounds(path->bounds.quad(m));
             lx = i == 0 ? b.lx : lx;
             bx = 0.5f * (b.lx + b.ux), by = m.ty, rot = theta - (bx - lx) / r;
             px = cx + r * cosf(rot), py = cy + r * sinf(rot);
             __sincosf(rot - 0.5 * M_PI, & sine, & cosine);
             ctm = m.concatAroundCenter(Ra::Transform(cosine, sine, -sine, cosine, 0, 0), bx, by), ctm.tx += px - bx, ctm.ty += py - by;
-            scene.addPath(path, ctm, glyphs.colors->base[i], 0.f, 0);
+            scene->addPath(path, ctm, glyphs->colors[i], 0.f, 0);
         }
     }
 };

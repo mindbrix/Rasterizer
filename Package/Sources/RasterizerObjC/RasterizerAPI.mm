@@ -22,7 +22,7 @@
     self = [super init];
     if (!self)
         return nil;
-    _color = Ra::Colorant(gray * 255, gray * 255, gray * 255, alpha * 255);
+    _color = Ra::BGRA(gray * 255, gray * 255, gray * 255, alpha * 255);
     return self;
 }
 
@@ -47,7 +47,7 @@
         r = X, g = 0.0, b = C;
     else
         r = C, g = 0.0, b = X;
-    _color = Ra::Colorant((b + m) * 255, (g + m) * 255, (r + m) * 255, alpha * 255);
+    _color = Ra::BGRA((b + m) * 255, (g + m) * 255, (r + m) * 255, alpha * 255);
     return self;
 }
 
@@ -55,7 +55,7 @@
     self = [super init];
     if (!self)
         return nil;
-    _color = Ra::Colorant(blue * 255, green * 255, red * 255, alpha * 255);
+    _color = Ra::BGRA(blue * 255, green * 255, red * 255, alpha * 255);
     return self;
 }
 
@@ -64,6 +64,27 @@
     if (!self)
         return nil;
     _color = RaCG::colorantFromCG(cgColor);
+    return self;
+}
+
+- (id)initWithColors:(NSArray<RAColor *>*)colors
+               locations:(NSArray<NSNumber *>*)locations
+               transform:(CGAffineTransform)transform
+            isRadial:(BOOL)isRadial {
+    self = [super init];
+    if (!self)
+        return nil;
+    if (colors.count > 1 && colors.count == locations.count) {
+        NSInteger count = colors.count;
+        
+        Ra::BGRA stops[count];
+        float locs[count];
+        for (NSInteger i = 0; i < count; i++) {
+            stops[i] = colors[i].color.colorant;
+            locs[i] = locations[i].floatValue;
+        }
+        _color = Ra::Color(stops, locs, count, RaCG::transformFromCG(transform), isRadial);
+    }
     return self;
 }
 
@@ -119,7 +140,7 @@
 @implementation RAScene: NSObject
 
 - (CGRect)bounds {
-    return RaCG::CGRectFromBounds(_scene.bounds());
+    return RaCG::CGRectFromBounds(_scene->bounds());
 }
 
 - (void)addPath:(RAPath *)path
@@ -130,7 +151,7 @@
             clip:(CGRect)clip {
     Ra::Path p = path.path;
     Ra::Bounds clipBounds = CGRectIsNull(clip) || CGRectIsEmpty(clip) || CGRectIsInfinite(clip) ? Ra::Bounds::huge() : RaCG::BoundsFromCGRect(clip);
-    _scene.addPath(p,
+    _scene->addPath(p,
                    RaCG::transformFromCG(ctm),
                    color.color,
                    width,

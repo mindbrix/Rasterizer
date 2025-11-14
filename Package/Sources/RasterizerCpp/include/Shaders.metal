@@ -23,6 +23,7 @@
 using namespace metal;
 
 constexpr sampler s = sampler(coord::normalized, address::clamp_to_zero, mag_filter::nearest, min_filter::nearest, mip_filter::linear);
+constexpr sampler cs = sampler(coord::normalized, address::clamp_to_edge, mag_filter::linear, min_filter::linear, mip_filter::linear);
 
 struct Transform {
     float a, b, c, d, tx, ty;
@@ -57,16 +58,18 @@ struct Quadratic {
 };
 
 struct Outline {
-    Quadratic q;
+    Quadratic quad;
     short prev, next;
 };
 
 struct Opaque {
-    uint32_t iz;  union { Cell cell;  Quadratic q; };
+    uint32_t iz;  union { Cell cell;  Quadratic quad; };
 };
 
 struct Instance {
     enum Flags {
+        kIsRadial = 1 << 22,
+        kIsGradient = 1 << 23,
         kIsCurve = 1 << 24,
         kMolecule = 1 << 25,    kPCap = 1 << 25,
         kFastEdges = 1 << 26,   kNCap = 1 << 26,
@@ -75,7 +78,7 @@ struct Instance {
         kOutlines = 1 << 29,
         kSquareCap = 1 << 30,
         kEvenOdd = 1 << 31,
-        kFragmentMask = (kOutlines | kSquareCap | kEvenOdd)
+        kFragmentMask = (kOutlines | kSquareCap | kEvenOdd | kIsGradient | kIsRadial)
     };
     uint32_t iz;  union { Quad quad;  Outline outline; };
 };
@@ -181,27 +184,33 @@ float quadraticWinding(float x0, float y0, float x1, float y1, float x2, float y
 struct OpaquesVertex
 {
     float4 position [[position]];
-    float4 color;
+    float3 tex;
 };
 
 vertex OpaquesVertex opaques_vertex_main(const device Colorant *colors [[buffer(0)]],
                                          const device Opaque *opaques [[buffer(1)]],
                                          const device float *widths [[buffer(6)]],
+                                         const device Transform *texCtms [[buffer(8)]],
+                                         const device uint32_t *texIdxs [[buffer(9)]],
                                          constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
-                                         constant uint *reverse [[buffer(12)]], constant uint *pathCount [[buffer(13)]],
-                                         constant Params *params [[buffer(14)]],
+                                         constant uint *reverse [[buffer(12)]],
+                                         constant uint *pathCount [[buffer(13)]],
+                                         constant uint *texCount [[buffer(14)]],
+                                         constant Params *params [[buffer(15)]],
                                          uint vid [[vertex_id]], uint iid [[instance_id]])
 {
     const device Opaque& inst = opaques[*reverse - 1 - iid];
-    const Colorant fillColor = colors[inst.iz & kPathIndexMask];
-    const Colorant color = params->showOpaques ? fillColor : params->clearColor;
+    const uint iz = inst.iz & kPathIndexMask;
+    const bool isGradient = inst.iz & Instance::kIsGradient;
+    const bool isRadial = inst.iz & Instance::kIsRadial;
+    const device Transform& texCtm = texCtms[iz];
     const device Cell& cell = inst.cell;
-    const device Quadratic& q = inst.q;
+    const device Quadratic& quad = inst.quad;
     float x, y, z = kDepthRange * float((inst.iz & kPathIndexMask) + 1) / float(*pathCount);
     
     if (inst.iz & Instance::kOutlines) {
         const float dw = 0.5 * (widths[inst.iz & kPathIndexMask] - 1.0);
-        const float x0 = q.x0, y0 = q.y0, x1 = q.x1, y1 = q.y1, x2 = q.x2, y2 = q.y2;
+        const float x0 = quad.x0, y0 = quad.y0, x1 = quad.x1, y1 = quad.y1, x2 = quad.x2, y2 = quad.y2;
         const bool isFlat = x1 == FLT_MAX;
         const bool isTop = vid >> 1, isRight = vid & 1;
         const bool pcap = inst.iz & Instance::kPCap;
@@ -234,13 +243,24 @@ vertex OpaquesVertex opaques_vertex_main(const device Colorant *colors [[buffer(
         z,
         1.0
     };
-    vert.color = float4(color.r / 255.0, color.g / 255.0, color.b / 255.0, 1.0);
+    int tw = kColorTextureWidth, th = (*pathCount + tw - 0) / tw;
+    uint tiz = params->showOpaques ? iz : *pathCount;
+    vert.tex.x = (0.5 + (tiz % tw)) / float(tw);
+    vert.tex.y = (0.5 + (tiz / tw)) / float(th + *texCount);
+    vert.tex.z = 0.0;
+    
+    if (params->showOpaques && isGradient) {
+        vert.tex.x = x * texCtm.b + y * texCtm.d + texCtm.ty;
+        vert.tex.y = (0.5 + (th + texIdxs[iz])) / float(th + *texCount);
+        vert.tex.z = isRadial ? x * texCtm.a + y * texCtm.c + texCtm.tx : 0;
+    }
     return vert;
 }
 
-fragment float4 opaques_fragment_main(OpaquesVertex vert [[stage_in]])
+fragment float4 opaques_fragment_main(OpaquesVertex vert [[stage_in]], texture2d<float> colorTexture [[texture(1)]])
 {
-    return vert.color;
+    float x = vert.tex.x, y = vert.tex.y, z = vert.tex.z;
+    return colorTexture.sample(cs, float2(z == 0.0 ? x : sqrt(x * x + z * z), y));
 }
 
 #pragma mark - Fast Molecules
@@ -474,6 +494,7 @@ struct InstancesVertex
 {
     float4 position [[position]];
     float2 clip;
+    float3 tex;
     float u, v, w, cover, alpha;
     float x, y, z;
     uint32_t iz;
@@ -485,9 +506,12 @@ vertex InstancesVertex instances_vertex_main(
             const device Transform *clips [[buffer(5)]],
             const device float *widths [[buffer(6)]],
             const device Bounds *bounds [[buffer(7)]],
+            const device Transform *texCtms [[buffer(8)]],
+            const device uint32_t *texIdxs [[buffer(9)]],
             constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
             constant uint *pathCount [[buffer(13)]],
-            constant Params *params [[buffer(14)]],
+            constant uint *texCount [[buffer(14)]],
+            constant Params *params [[buffer(15)]],
             uint vid [[vertex_id]], uint iid [[instance_id]])
 {
     InstancesVertex vert;
@@ -496,8 +520,12 @@ vertex InstancesVertex instances_vertex_main(
     const float sign = isRight ? -1.0 : 1.0;
     const device Instance& inst = instances[iid];
     uint iz = inst.iz & kPathIndexMask, flags = inst.iz & Instance::kFragmentMask;
+    const bool isGradient = inst.iz & Instance::kIsGradient;
+    const bool isRadial = inst.iz & Instance::kIsRadial;
     
-    Transform clip = clips[iz];
+    const device Transform& clip = clips[iz];
+    const device Transform& texCtm = texCtms[iz];
+    
     float w = widths[iz], cw = max(1.0, w), dw = 0.5 * (1.0 + cw);
     float alpha = select(1.0, w / cw, w != 0), dx, dy;
     if (inst.iz & Instance::kOutlines) {
@@ -505,7 +533,7 @@ vertex InstancesVertex instances_vertex_main(
         const bool squareCap = inst.iz & Instance::kSquareCap;
         const short prevIndex = inst.outline.prev, nextIndex = inst.outline.next;
         const device Instance & pinst = instances[iid + prevIndex], & ninst = instances[iid + nextIndex];
-        const device Quadratic& p = pinst.outline.q, & o = inst.outline.q, & n = ninst.outline.q;
+        const device Quadratic& p = pinst.outline.quad, & o = inst.outline.quad, & n = ninst.outline.quad;
         const bool pcurve = params->useCurves && p.x1 != FLT_MAX;
         const bool ncurve = params->useCurves && n.x1 != FLT_MAX;
         
@@ -588,12 +616,24 @@ vertex InstancesVertex instances_vertex_main(
     vert.clip = float2(dx * clip.a + dy * clip.c + clip.tx, dx * clip.b + dy * clip.d + clip.ty);
     vert.alpha = alpha;
     vert.iz = iz | flags;
+    
+    int tw = kColorTextureWidth, th = (*pathCount + tw - 0) / tw;
+    if (isGradient) {
+        vert.tex.x = dx * texCtm.b + dy * texCtm.d + texCtm.ty;
+        vert.tex.y = (0.5 + (th + texIdxs[iz])) / float(th + *texCount);
+        vert.tex.z = isRadial ? dx * texCtm.a + dy * texCtm.c + texCtm.tx : 0;
+    } else {
+        vert.tex.x = (0.5 + (iz % tw)) / float(tw);
+        vert.tex.y = (0.5 + (iz / tw)) / float(th + *texCount);
+        vert.tex.z = 0.0;
+    }
+    
     return vert;
 }
 
 fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
-                                        const device Colorant *colors [[buffer(0)]],
-                                        texture2d<float> accumulation [[texture(0)]]
+                                        texture2d<float> accumulation [[texture(0)]],
+                                        texture2d<float> colorTexture [[texture(1)]]
 )
 {
     float alpha = 1.0;
@@ -639,10 +679,10 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
         float cover = abs(vert.cover + accumulation.sample(s, float2(vert.u, vert.v)).x);
         alpha = vert.iz & Instance::kEvenOdd ? 1.0 - abs(fmod(cover, 2.0) - 1.0) : min(1.0, cover);
     }
-    Colorant color = colors[vert.iz & kPathIndexMask];
     float clx = vert.clip.x, cly = vert.clip.y, a = dfdx(clx), b = dfdy(clx), c = dfdx(cly), d = dfdy(cly);
     float sx = rsqrt(a * a + b * b), sy = rsqrt(c * c + d * d);
     float clip = saturate(0.5 + clx * sx) * saturate(0.5 + (1.0 - clx) * sx) * saturate(0.5 + cly * sy) * saturate(0.5 + (1.0 - cly) * sy);
-    float ma = 0.003921568627 * alpha * vert.alpha * clip;
-    return { color.r * ma, color.g * ma, color.b * ma, color.a * ma };
+    
+    float x = vert.tex.x, y = vert.tex.y, z = vert.tex.z;
+    return alpha * vert.alpha * clip * colorTexture.sample(cs, float2(z == 0.0 ? x : sqrt(x * x + z * z), y));
 }

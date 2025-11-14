@@ -25,7 +25,7 @@
 
 struct RasterizerCG {
     struct Converter {
-        void matchColors(Ra::Colorant *colorants, size_t size, CGColorSpaceRef destSpace) {
+        void matchColors(Ra::BGRA *colorants, size_t size, CGColorSpaceRef destSpace) {
             if (colorants == nullptr || size == 0 || destSpace == nil)
                 return;
             if (dstSpace != destSpace) {
@@ -44,9 +44,9 @@ struct RasterizerCG {
             auto colors = (uint32_t *)malloc(size * colorSize), counts = (uint32_t *)malloc(size * colorSize);
             uint32_t *cnt = counts, *src0 = (uint32_t *)colorants, *src = src0 + 1, *dst = colors, *end = src0 + size, last = *src0;
             do {
-                while (*src == last && src < end)
+                while (src < end && *src == last)
                     src++;
-                *dst++ = last, *cnt++ = uint32_t(src - src0), src0 = src, last = *src++;
+                *dst++ = last, *cnt++ = uint32_t(src - src0), src0 = src, last = src < end ? *src++ : 0;
             } while (src < end);
             
             size_t total = cnt - counts;
@@ -95,9 +95,9 @@ struct RasterizerCG {
             CGContextClipToRect(ctx, CGRectFromBounds(list.clips[j]));
             CGContextSaveGState(ctx);
             
-            const Ra::Scene& scn = list.scenes[j];
+            const Ra::Scene& scn = * list.scenes[j].ptr;
             for (size_t i = 0; i < scn.count; i++) {
-                if (scn.flags->base[i] & Ra::Scene::Flags::kInvisible)
+                if (scn.flags[i] & Ra::Scene::Flags::kInvisible)
                     continue;
                 
                 bool newClip = memcmp(& scn.clips[i], & lastClip, sizeof(Ra::Bounds)) != 0;
@@ -109,32 +109,55 @@ struct RasterizerCG {
                     CGContextClipToRect(ctx, CGRectFromBounds(lastClip));
                 }
                 Ra::Geometry *g = scn.paths[i].ptr;
-                Ra::Transform t = scn.ctms->base[i];
+                Ra::Transform t = scn.ctms[i];
                 
-                if (isVisible(g->bounds, t.concat(ctm), clip, bounds, scn.widths->base[i])) {
+                if (isVisible(g->bounds, t.concat(ctm), clip, bounds, scn.widths[i])) {
                     CGContextSaveGState(ctx);
                     CGContextConcatCTM(ctx, CGFromTransform(t));
                     writePathToCGContext(g, ctx);
+                    const auto& color = scn._colors[i];
+                    const auto bgra = color.colorant;
                     if (list.params.showOutlines) {
                         CGContextSetLineWidth(ctx, (CGFloat)-109.05473e+14);
-                        if (scn.widths->base[i])
+                        if (scn.widths[i])
                             CGContextSetRGBStrokeColor(ctx, 1, 0, 0, 1);
                         else
                             CGContextSetRGBStrokeColor(ctx, 0, 0, 0, 1);
                         CGContextStrokePath(ctx);
-                    } else if (scn.widths->base[i]) {
-                        CGContextSetRGBStrokeColor(ctx, scn.colors->base[i].r / 255.0, scn.colors->base[i].g / 255.0, scn.colors->base[i].b / 255.0, scn.colors->base[i].a / 255.0);
-                        CGContextSetLineWidth(ctx, scn.widths->base[i] < 0.f ? (CGFloat)-109.05473e+14 : scn.widths->base[i]);
-                        bool square = scn.flags->base[i] & Ra::Scene::kSquareCap;
-                        bool round = scn.flags->base[i] & Ra::Scene::kRoundCap;
+                    } else if (scn.widths[i]) {
+                        CGContextSetLineWidth(ctx, scn.widths[i] < 0.f ? (CGFloat)-109.05473e+14 : scn.widths[i]);
+                        bool square = scn.flags[i] & Ra::Scene::kSquareCap;
+                        bool round = scn.flags[i] & Ra::Scene::kRoundCap;
                         CGContextSetLineCap(ctx, round ? kCGLineCapRound : square ? kCGLineCapSquare : kCGLineCapButt);
-                        CGContextStrokePath(ctx);
+                        bool roundJoin = scn.flags[i] & Ra::Scene::kRoundJoin;
+                        CGContextSetLineJoin(ctx, roundJoin ? kCGLineJoinRound : kCGLineJoinMiter);
+                        
+                        if (color.isGradient()) {
+                            CGContextSaveGState(ctx);
+                            CGContextReplacePathWithStrokedPath(ctx);
+                            CGContextClip(ctx);
+                            drawGradient(ctx, color);
+                            CGContextRestoreGState(ctx);
+                        } else {
+                            CGContextSetRGBStrokeColor(ctx, bgra.r / 255.0, bgra.g / 255.0, bgra.b / 255.0, bgra.a / 255.0);
+                            CGContextStrokePath(ctx);
+                        }
                     } else {
-                        CGContextSetRGBFillColor(ctx, scn.colors->base[i].r / 255.0, scn.colors->base[i].g / 255.0, scn.colors->base[i].b / 255.0, scn.colors->base[i].a / 255.0);
-                        if (scn.flags->base[i] & Ra::Scene::kFillEvenOdd)
-                            CGContextEOFillPath(ctx);
-                        else
-                            CGContextFillPath(ctx);
+                        if (color.isGradient()) {
+                            CGContextSaveGState(ctx);
+                            if (scn.flags[i] & Ra::Scene::kFillEvenOdd)
+                                CGContextEOClip(ctx);
+                            else
+                                CGContextClip(ctx);
+                            drawGradient(ctx, color);
+                            CGContextRestoreGState(ctx);
+                        } else {
+                            CGContextSetRGBFillColor(ctx, bgra.r / 255.0, bgra.g / 255.0, bgra.b / 255.0, bgra.a / 255.0);
+                            if (scn.flags[i] & Ra::Scene::kFillEvenOdd)
+                                CGContextEOFillPath(ctx);
+                            else
+                                CGContextFillPath(ctx);
+                        }
                     }
                     CGContextRestoreGState(ctx);
                 }
@@ -144,9 +167,34 @@ struct RasterizerCG {
         }
     }
     
-    static Ra::Colorant colorantFromCG(CGColorRef color) {
-        size_t count = CGColorGetNumberOfComponents(color);
-        const CGFloat *components = CGColorGetComponents(color);
+    static void drawGradient(CGContextRef ctx, const Ra::Color& color) {
+        CGGradientRef gradient = CGGradientFromColor(color);
+        CGPoint zero = CGPointMake(0.0, 0.0), end = CGPointMake(0.0, 1.0);
+        auto options = kCGGradientDrawsBeforeStartLocation | kCGGradientDrawsAfterEndLocation;
+        CGContextConcatCTM(ctx, CGFromTransform(color.ctm));
+        if (color.isRadial())
+            CGContextDrawRadialGradient(ctx, gradient, zero, 0, zero, 1, options);
+        else
+            CGContextDrawLinearGradient(ctx, gradient, zero, end, options);
+        CFRelease(gradient);
+    }
+    
+    static CGGradientRef CGGradientFromColor(Ra::Color color) {
+        size_t count = color.stops.end();
+        auto stop = & color.stops[0];
+        CGFloat components[4 * count], *rgba = components;
+        for (size_t i = 0; i < count; i++, stop++)
+            *rgba++ = stop->r / 255.0, *rgba++ = stop->g / 255.0, *rgba++ = stop->b / 255.0, *rgba++ = stop->a / 255.0;
+        CGFloat locations[count];
+        for (size_t i = 0; i < count; i++)
+            locations[i] = color.locs[i];
+        CGColorSpaceRef space = CGColorSpaceCreateDeviceRGB();
+        CGGradientRef gradient = CGGradientCreateWithColorComponents(space, components, locations, count);
+        CFRelease(space);
+        return gradient;
+    }
+    
+    static Ra::BGRA colorFromComponents(const CGFloat *components, size_t count) {
         uint8_t b = 0, g = 0, r = 0, a = 255;
         if (count == 2) {
             b = g = r = 255 * components[0];
@@ -157,9 +205,14 @@ struct RasterizerCG {
             r = 255 * components[0];
             a = 255 * components[3];
         }
-        return Ra::Colorant(b, g, r, a);
+        return Ra::BGRA(b, g, r, a);
     }
-    static CGColorRef CGColorCreateFromColorant(Ra::Colorant color) {
+    static Ra::BGRA colorantFromCG(CGColorRef color) {
+        size_t count = CGColorGetNumberOfComponents(color);
+        const CGFloat *components = CGColorGetComponents(color);
+        return colorFromComponents(components, count);
+    }
+    static CGColorRef CGColorCreateFromColorant(Ra::BGRA color) {
         return CGColorCreateGenericRGB(color.r / 255.0, color.g / 255.0, color.b / 255.0, color.a / 255.0);
     }
     static Ra::Transform transformFromCG(CGAffineTransform t) {

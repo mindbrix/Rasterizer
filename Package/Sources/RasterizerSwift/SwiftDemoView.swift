@@ -29,6 +29,16 @@ extension CGPoint {
     }
 }
 
+extension CGRect {
+    func linearGradientTransform() -> CGAffineTransform {
+        CGAffineTransform(a: 0, b: -width, c: width, d: 0, tx: 0, ty: 0)
+    }
+    
+    func radialGradientTransform() -> CGAffineTransform {
+        let radius = 0.5 * min(width, height)
+        return CGAffineTransform(a: radius, b: 0, c: 0, d: radius, tx: midX, ty: midY)
+    }
+}
 
 public class SwiftDemoView: RasterizerView {
     let demo = SwiftDemo()
@@ -60,6 +70,9 @@ public class SwiftDemoView: RasterizerView {
     override public func magnify(with event: NSEvent) {
         _ = demo.handleEvent(.magnify(scale: 1.0 + event.magnification))
     }
+    override public func mouseDragged(with event: NSEvent) {
+        _ = demo.handleEvent(.translate(tx: event.deltaX, ty: -event.deltaY))
+    }
     override public func rotate(with event: NSEvent) {
         _ = demo.handleEvent(.rotate(angle: 0.1 * event.rotation))
     }
@@ -69,10 +82,131 @@ public class SwiftDemoView: RasterizerView {
     }
 }
 
+protocol RADrawable {
+    func getSceneAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RAScene
+}
+
+class TestGradients: RADrawable {
+    static func gradientForBounds(_ bounds: CGRect, isRadial: Bool) -> RAColor {
+        let colors: [RAColor] = [
+            RAColor(red: 1, green: 0, blue: 0, alpha: 1),
+            RAColor(red: 0, green: 1, blue: 0, alpha: 1),
+            RAColor(red: 0, green: 0, blue: 1, alpha: 1)
+        ]
+        let locations: [NSNumber] = [ 0, 0.5, 1 ]
+        let linear = bounds.linearGradientTransform()
+        let radial = bounds.radialGradientTransform()
+        return RAColor(colors: colors,
+                       locations: locations,
+                       transform: isRadial ? radial : linear,
+                       isRadial: isRadial)
+    }
+    
+    func getSceneAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RAScene {
+        let gradient = Self.gradientForBounds(bounds, isRadial: !state.useRect)
+        
+        let path = RAPath()
+        path.add(bounds);
+        
+        let scene = RAScene()
+        scene.add(path, ctm: .identity, color: gradient, width: 0, flags: 0, clip: .zero)
+        return scene
+    }
+}
+
+class TestQuadratics: RADrawable {
+    func getSceneAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RAScene {
+        let width = bounds.width
+        let height = bounds.height
+        let dim = min(width, height)
+        let stroke = (state.flag ? 1e-2 : 1e-1) * dim
+        let ts = 1 * time
+        let t = ts - floor(ts)
+        let sine = sin(t * 2 * Double.pi)
+        
+        let path = RAPath()
+        path.move(to: 0, y: 0)
+        path.quad(to: 0.5 * dim + sine * dim, y1: dim, x2: dim, y2: 0)
+        
+        let scene = RAScene()
+        scene.add(path, ctm: .identity, color: RAColor(gray: 0, alpha: 1), width: stroke, flags: 0, clip: .zero)
+        return scene
+    }
+}
+
+class TestCubics: RADrawable {
+    func getSceneAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RAScene {
+        let count = state.flag ? 72 : 36
+        let dim = min(bounds.width, bounds.height)
+        let radius = 0.25 * dim
+        let center = CGPoint(x: bounds.midX, y: bounds.midY)
+        let path = RAPath()
+        for i in 0 ..< count {
+            let ti = Double(i) / Double(count)
+            let ts = 0.01 * time + ti
+            let t = ts - floor(ts)
+            let origin = CGPoint(center: center, r: radius, theta: (i % 2 == 0 ? 1 : -1) * t * 2 * Double.pi)
+            if state.useRect {
+                path.add(CGRect(x: origin.x - radius, y: origin.y - radius, width: 2 * radius, height: 2 * radius))
+            } else {
+                path.addEllipse(CGRect(x: origin.x - radius, y: origin.y - radius, width: 2 * radius, height: 2 * radius))
+            }
+        }
+        let scene = RAScene()
+        scene.add(path, ctm: .identity, color: RAColor(gray: 0, alpha: 1), width: 0, flags: RASceneFlags.fillEvenOdd.rawValue, clip: .zero)
+        return scene
+    }
+}
+
+class Test0: RADrawable {
+    func getSceneAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RAScene {
+        let ts = 0.1 * time
+        let t = ts - floor(ts)
+        let dim = min(bounds.width, bounds.height)
+        let unitRect = CGRect(x: 0, y: 0, width: 1, height: 1)
+        let unitCenter = CGPoint(x: unitRect.midX, y: unitRect.midY)
+        let unitWidth = 0.0// 0.1
+        let path = RAPath()
+        if (state.useRect) {
+            path.add(unitRect)
+        } else {
+            path.addEllipse(unitRect)
+        }
+        path.close()
+        
+        let scene = RAScene()
+        let count = state.flag ? 2000 : 20
+        let r1 = 0.0625 * dim
+        let r0 = 0.5 * dim - r1 - unitWidth * r1
+        let center = CGPoint(x: bounds.midX, y: bounds.midY)
+        for i in 0 ..< count {
+            let tl = ts + Double(i) / Double(count)
+            let ti = tl - floor(tl)
+            let colors: [RAColor] = [
+                RAColor(hue: ti, saturation: 1, value: 1, alpha: 1),
+                RAColor(gray: 0, alpha: 1)
+            ]
+            let locations: [NSNumber] = [ 0, 1 ]
+            let gradient = RAColor(colors: colors,
+                           locations: locations,
+                           transform: unitRect.radialGradientTransform(),
+                           isRadial: true)
+            
+            let radial = CGPoint(center: center, r: r0, theta: ti * 2 * Double.pi)
+            
+            let ctm = CGAffineTransform(
+                center: unitCenter,
+                rotation: -t * 2 * Double.pi,
+                scale: CGSize(width: 2 * r1, height: 2 * r1),
+                translation: CGVector(dx: radial.x - unitCenter.x, dy: radial.y - unitCenter.y)
+            )
+            scene.add(path, ctm: ctm, color: gradient, width: unitWidth, flags: 0, clip: .zero)
+        }
+        return scene
+    }
+}
 
 class SwiftDemo: NSObject, RASceneListDelegate {
-    typealias ListClosure = (_ time: Double, _ width: Double, _ height: Double) -> RASceneList
-    
     enum Event {
         case keyDown(character: Character, flags: NSEvent.ModifierFlags)
         case magnify(scale: Double)
@@ -80,24 +214,11 @@ class SwiftDemo: NSObject, RASceneListDelegate {
         case translate(tx: Double, ty: Double)
     }
     
-    lazy var closures: [ListClosure] = [{ [weak self] time, width, height in
-        guard let self else {
-            return RASceneList()
-        }
-        return self.test0(time, width: width, height: height)
-    },
-    { [weak self] time, width, height in
-        guard let self else {
-            return RASceneList()
-        }
-        return self.testQuadratics(time, width: width, height: height)
-    },
-    { [weak self] time, width, height in
-        guard let self else {
-            return RASceneList()
-        }
-        return self.testCubics(time, width: width, height: height)
-    },
+    let drawables: [RADrawable] = [
+        Test0(),
+        TestQuadratics(),
+        TestCubics(),
+        TestGradients()
     ]
     
     var index = 0
@@ -117,10 +238,11 @@ class SwiftDemo: NSObject, RASceneListDelegate {
         case .keyDown(let character, let flags):
             switch character {
             case "1"..."9":
-                let i = Int(character.asciiValue ?? 0) - Int(Character("0").asciiValue ?? 0)
-                let idx = max(0, i - 1)
-                let limit = max(0, closures.count - 1)
-                index = min(limit, idx)
+                guard drawables.count > 0 else {
+                    break
+                }
+                let i = Int(character.asciiValue ?? 0) - Int(Character("1").asciiValue ?? 0)
+                index = min(drawables.count - 1, i)
             case "a":
                 if (flags.contains(.shift)) {
                     flag.toggle()
@@ -167,7 +289,9 @@ class SwiftDemo: NSObject, RASceneListDelegate {
     func getListAtTime(_ time: Double, width: Double, height: Double) -> RASceneList! {
         bounds = CGRect(x: 0, y: 0, width: width, height: height)
         t = paused ? t : time
-        let list = closures[index](t, width, height)
+        let list = RASceneList()
+        let scene = drawables[index].getSceneAtTime(t, bounds: bounds, state: self)
+        list.add(scene, ctm: .identity, clip: .zero)
         if let pasted = pastedScene {
             list.add(pasted,
                 ctm: .identity,
@@ -178,82 +302,6 @@ class SwiftDemo: NSObject, RASceneListDelegate {
         list.useCurves = useCurves
         list.showOpaques = showOpaques
         list.showOutlines = showOutlines
-        return list
-    }
-    
-    func testQuadratics(_ time: Double, width: Double, height: Double) -> RASceneList {
-        let path = RAPath()
-        path.move(to: 0, y: 0)
-        path.quad(to: -1.25 * width, y1: 0.5 * height, x2: width, y2: 0)
-        
-        let scene = RAScene()
-        scene.add(path, ctm: .identity, color: RAColor(gray: 0, alpha: 1), width: (flag ? 1e-2 : 1e-1) * width, flags: 0, clip: .zero)
-        
-        let list = RASceneList()
-        list.add(scene, ctm: .identity, clip: .zero)
-        return list
-    }
-    func testCubics(_ time: Double, width: Double, height: Double) -> RASceneList {
-        let count = 200
-        let bounds = CGRect(x: 0, y: 0, width: width, height: height)
-        let dim = min(bounds.width, bounds.height)
-        let radius = 0.5 * dim
-        let center = CGPoint(x: bounds.midX, y: bounds.midY)
-        let path = RAPath()
-        for i in 0 ..< count {
-            let ti = Double(i) / Double(count)
-            let origin = CGPoint(center: center, r: 0.5 * radius, theta: ti * 2 * Double.pi)
-            if useRect {
-                path.add(CGRect(x: origin.x - radius, y: origin.y - radius, width: dim, height: dim))
-            } else {
-                path.addEllipse(CGRect(x: origin.x - radius, y: origin.y - radius, width: dim, height: dim))
-            }
-        }
-        let scene = RAScene()
-        scene.add(path, ctm: .identity, color: RAColor(gray: 0, alpha: 1), width: 0, flags: RASceneFlags.fillEvenOdd.rawValue, clip: .zero)
-
-        let list = RASceneList()
-        list.add(scene, ctm: .identity, clip: .zero)
-        return list
-    }
-    
-    func test0(_ time: Double, width: Double, height: Double) -> RASceneList {
-        let ts = 0.1 * time
-        let t = ts - floor(ts)
-        let dim = min(width, height)
-        let unitRect = CGRect(x: 0, y: 0, width: 1, height: 1)
-        let unitCenter = CGPoint(x: unitRect.midX, y: unitRect.midY)
-        let path = RAPath()
-        if (useRect) {
-            path.add(unitRect)
-        } else {
-            path.addEllipse(unitRect)
-        }
-        path.close()
-        
-        let scene = RAScene()
-        let count = flag ? 2000 : 20
-        let r = 0.5 * dim
-        let center = CGPoint(x: r, y: r)
-        let scale = 0.125 * dim
-        for i in 0 ..< count {
-            let ti = Double(i) / Double(count)
-            let hsv = RAColor(hue: ti, saturation: 1, value: 1, alpha: 1)
-            let radial = CGPoint(center: center, r: r, theta: ti * 2 * Double.pi)
-            
-            let ctm = CGAffineTransform(
-                center: unitCenter,
-                rotation: t * 2 * Double.pi,
-                scale: CGSize(width: scale, height: scale),
-                translation: CGVector(dx: radial.x - unitCenter.x, dy: radial.y - unitCenter.y)
-            )
-            scene.add(path, ctm: ctm, color: hsv, width: 0.1, flags: 0, clip: .zero)
-        }
-        let list = RASceneList()
-        list.add(scene,
-            ctm: .identity,
-            clip: .zero
-        )
         return list
     }
 }

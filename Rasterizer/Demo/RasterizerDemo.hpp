@@ -160,16 +160,16 @@ struct RasterizerDemo {
 #pragma mark - Properties
     
     void clearHUD() {
-        hud = Ra::Scene();
+        hud = Ra::SceneRef();
     }
-    Ra::Scene getHUD(Ra::Bounds hudBounds) {
-        Ra::Scene hud;
+    Ra::SceneRef getHUD(Ra::Bounds hudBounds) {
+        Ra::SceneRef hud;
 
         float padding = 0.666 * hudBounds.height() / (kHudItemCount + 2);
         Ra::Bounds text = hudBounds.inset(padding, 0.666 * padding);
         
         Ra::Path bgPath;  bgPath->addBounds(hudBounds.inset(0.5 * kHudBorder, 0.5 * kHudBorder)), bgPath->close();
-        hud.addPath(bgPath, Ra::Transform(), bgColor, 0, 0);
+        hud->addPath(bgPath, Ra::Transform(), bgColor, 0, 0);
         
         float lineHeight = text.height() / kHudItemCount, uy;
         float fontSize = RasterizerCoreText::fontSizeForLineHeight(fontName.addr, lineHeight);
@@ -177,7 +177,7 @@ struct RasterizerDemo {
         for (size_t i = 0; i < kHudItemCount; i++) {
             HudItem& item = hudItems[i];
             uy = text.uy - i * lineHeight;
-            Ra::Colorant color = textColor;
+            Ra::BGRA color = textColor;
             if (  (*item.key == '0')
                 || (*item.key == 'A' && animating)
                 || (*item.key == 'G' && showGlyphGrid)
@@ -193,7 +193,7 @@ struct RasterizerDemo {
                 label = item.alt;
             RasterizerCoreText::addCStringToSceneInRect(label, fontName.addr, fontSize, color, Ra::Bounds(text.lx + 2 * fontSize, hudBounds.ly, text.ux, uy), Ra::Transform(), Ra::Bounds(), hud);
         }
-        hud.addPath(bgPath, Ra::Transform(), textColor, kHudBorder, 0);
+        hud->addPath(bgPath, Ra::Transform(), textColor, kHudBorder, 0);
         return hud;
     }
     Ra::SceneList getDrawList(double time, float w, float h) {
@@ -210,7 +210,7 @@ struct RasterizerDemo {
         list = Ra::SceneList();
         if (pastedString.size) {
             if (pasted.pathsCount == 0) {
-                Ra::Scene glyphs;
+                Ra::SceneRef glyphs;
                 RasterizerCoreText::addCStringToSceneInRect(pastedString.addr, fontName.addr, fontSize, textColor, bounds, Ra::Transform(), Ra::Bounds(), glyphs);
                 pasted.addScene(glyphs);
             }
@@ -224,7 +224,7 @@ struct RasterizerDemo {
             list.addList(concentrichron.writeList(fontName.addr));
         } else if (svgData.size) {
             if (document.pathsCount == 0) {
-                Ra::Scene scene;
+                Ra::SceneRef scene;
                 Ra::Transform m = RasterizerSVG::addSvgDataToScene(svgData.addr, svgData.size, scene);
                 document.addScene(scene, m);
                 fit = true;
@@ -232,21 +232,20 @@ struct RasterizerDemo {
             list.addList(document);
         } else if (pdfData.size) {
             if (document.pathsCount == 0) {
-                Ra::Scene scene;
+                Ra::SceneRef scene;
                 Ra::Transform m = RasterizerPDF::addPdfToScene(pdfData.addr, pdfData.size, pageIndex, scene);
                 document.addScene(scene, m);
                 fit = true;
             }
             list.addList(document);
         }
-        runTransferFunction(list, transferFunction, this);
         if (fit)
             ctm = bounds.fitTransform(list.bounds()), fit = false;
         Ra::SceneList draw = list;
         draw.ctm = ctm, draw.params = params;
         if (showHud) {
             Ra::Bounds hudBounds = Ra::Bounds(0, 0, kHudWidth, kHudHeight);
-            if (hud.weight == 0)
+            if (hud->weight == 0)
                 hud = getHUD(hudBounds);
             Ra::Transform m = Ra::Transform(1, 0, 0, 1, kHudInset, bounds.uy - kHudInset - kHudHeight).concat(ctm.invert());
             draw.addScene(hud, m, hudBounds);
@@ -292,11 +291,11 @@ struct RasterizerDemo {
         redraw = true, clearHUD();
     }
     
-    Ra::Colorant textColor = Ra::Colorant(0, 0, 0, 255), activeColor = Ra::Colorant(0, 0, 255, 255), bgColor = Ra::Colorant(255, 255, 255, 192);
+    Ra::BGRA textColor = Ra::BGRA(0, 0, 0, 255), activeColor = Ra::BGRA(0, 0, 255, 255), bgColor = Ra::BGRA(255, 255, 255, 192);
     float fontSize = 14;
     Concentrichron concentrichron;
     Ra::SceneList list, document, pasted, text;
-    Ra::Scene hud;
+    Ra::SceneRef hud;
     Ra::Memory<char> pastedString, fontName;
     bool showGlyphGrid = false, showTime = false, showHud = true;
     size_t pageCount, pageIndex;
@@ -311,61 +310,4 @@ struct RasterizerDemo {
     float mx, my;
     Rw::IndexPair indices = Rw::IndexPair(INT_MAX, INT_MAX), locked = Rw::IndexPair(INT_MAX, INT_MAX);
     size_t flags = 0;
-    
-#pragma mark - Static
-    typedef void (*TransferFunction)(size_t li, size_t ui, size_t si, Ra::Scene *scn, Ra::Transform ctm, void *info);
-    
-    
-    static void runTransferFunction(Ra::SceneList& list, TransferFunction function, void *info) {
-        if (function == nullptr)
-            return;
-        for (int si = 0; si < list.scenes.size(); si++) {
-            int threads = 8;
-            Ra::Scene *scn = & list.scenes[si];
-            Ra::Transform ctm = list.ctms[si];
-            std::vector<size_t> divisions;
-            divisions.emplace_back(0);
-            for (int i = 0; i < threads; i++)
-                divisions.emplace_back(ceilf(float(i + 1) / float(threads) * float(scn->count)));
-            dispatch_apply(threads, DISPATCH_APPLY_AUTO, ^(size_t i) {
-                (*function)(divisions[i], divisions[i + 1], si, scn, ctm, info);
-            });
-        }
-    }
-    
-    static void transferFunction(size_t li, size_t ui, size_t si, Ra::Scene *scn, Ra::Transform ctm, void *info) {
-        RasterizerDemo& demo = *((RasterizerDemo *)info);
-        Ra::Bounds *bounds = & scn->bnds[0];
-        Ra::Transform *srcCtms = scn->ctms->src.base, *dstCtms = scn->ctms->base;
-        Ra::Colorant *srcColors = scn->colors->src.base, *dstColors = scn->colors->base;
-        float *srcWidths = scn->widths->src.base, *dstWidths = scn->widths->base;
-        uint8_t *srcFlags = scn->flags->src.base, *dstFlags = scn->flags->base;
-        size_t count = ui - li;
-        Ra::Colorant black(0, 0, 0, 255), red(0, 0, 255, 255);
-        const float kScaleMin = 1.0f, kScaleMax = 1.2f;
-        float ftime = demo.clock - floor(demo.clock);
-        float t = sinf(kTau * ftime), s = 1.f - t;
-        float scale = s * kScaleMin + t * kScaleMax;
-        if (!demo.animating)
-            memcpy(dstCtms + li, srcCtms + li, count * sizeof(srcCtms[0]));
-        else {
-            float cx, cy, cos0 = cosf(M_PI * t), sin0 = sinf(M_PI * t), cos1 = cosf(M_PI * -t), sin1 = sinf(M_PI * -t);
-            Ra::Transform rsts[2] = {
-                { scale * cos0, scale * sin0, scale * -sin0, scale * cos0, 0, 0 },
-                { scale * cos1, scale * sin1, scale * -sin1, scale * cos1, 0, 0 }};
-            Ra::Transform *m = srcCtms + li;  Ra::Bounds *b = bounds + li;
-            for (size_t j = li; j < ui; j++, m++, b++) {
-                cx = 0.5f * (b->lx + b->ux), cy = 0.5f * (b->ly + b->uy);
-                dstCtms[j] = m->concatAroundCenter(rsts[j & 1], cx * m->a + cy * m->c + m->tx, cx * m->b + cy * m->d + m->ty);
-            }
-        }
-        memcpy(dstWidths + li, srcWidths + li, count * sizeof(srcWidths[0]));
-        
-        for (size_t j = li; j < ui; j++) {
-            dstColors[j] = (demo.indices.i0 == si && demo.indices.i1 == j) ? red : srcColors[j];
-        }
-        for (size_t j = li; j < ui; j++) {
-            dstFlags[j] = demo.locked.i0 == INT_MAX ? srcFlags[j] : si == demo.locked.i0 && j == demo.locked.i1 ? srcFlags[j] & ~Ra::Scene::kInvisible : srcFlags[j] | Ra::Scene::kInvisible;
-        }
-    }
 };

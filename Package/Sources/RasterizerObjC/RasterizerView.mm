@@ -29,7 +29,6 @@
 @property(nonatomic) CVDisplayLinkRef displayLink;
 @property(nonatomic) dispatch_semaphore_t inflight_semaphore;
 @property(nonatomic) RasterizerRenderer renderer;
-@property(nonatomic) RaCG::Converter converter;
 - (void)timerFired:(double)time;
 
 @end
@@ -95,8 +94,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
         RASceneList *list = [self.listDelegate getListAtTime: NSDate.timeIntervalSinceReferenceDate
                                                                width: w
                                                               height: h];
-        _renderer.renderList(list.list, scale, w, h, buffer);
-        _converter.matchColors((Ra::Colorant *)(buffer->base + buffer->colors), buffer->pathsCount, self.window.colorSpace.CGColorSpace);
+        _renderer.renderList(list.list, scale, w, h, buffer, self.window.colorSpace.CGColorSpace);
     }
 }
 
