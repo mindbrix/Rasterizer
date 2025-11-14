@@ -182,14 +182,15 @@ struct RasterizerCG {
     static CGGradientRef CGGradientFromColor(Ra::Color color) {
         size_t count = color.stops.end();
         auto stop = & color.stops[0];
-        CGFloat components[4 * count], *rgba = components;
+        Ra::Vector<CGFloat> components(4 * count);
+        CGFloat *rgba = & components[0];
         for (size_t i = 0; i < count; i++, stop++)
             *rgba++ = stop->r / 255.0, *rgba++ = stop->g / 255.0, *rgba++ = stop->b / 255.0, *rgba++ = stop->a / 255.0;
-        CGFloat locations[count];
+        Ra::Vector<CGFloat> locations(count);
         for (size_t i = 0; i < count; i++)
             locations[i] = color.locs[i];
         CGColorSpaceRef space = CGColorSpaceCreateDeviceRGB();
-        CGGradientRef gradient = CGGradientCreateWithColorComponents(space, components, locations, count);
+        CGGradientRef gradient = CGGradientCreateWithColorComponents(space, & components[0], & locations[0], count);
         CFRelease(space);
         return gradient;
     }
