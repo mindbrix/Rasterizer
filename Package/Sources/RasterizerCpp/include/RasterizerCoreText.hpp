@@ -40,7 +40,7 @@ struct RasterizerCoreText {
         CTFrameRef frame = CTFramesetterCreateFrame(framesetter, CFRangeMake(0, 0), rectPath, NULL);
         CFArrayRef lines = CTFrameGetLines(frame);
         CFIndex lineCount = CFArrayGetCount(lines);
-        CGPoint origins[lineCount];
+        CGPoint *origins = new CGPoint[lineCount];
         CTFrameGetLineOrigins(frame, CFRangeMake(0, 0), origins);
         for (int i = 0; i < lineCount; i++) {
             CGPoint origin = CGPointMake(rect.origin.x + origins[i].x, rect.origin.y + origins[i].y);
@@ -48,6 +48,7 @@ struct RasterizerCoreText {
             addCTLineToScene(line, origin, ctm, clip, glyphs);
         }
         scene->appendScene(*glyphs.ptr);
+        delete[] origins;
         CFRelease(frame);
         CGPathRelease(rectPath);
         CFRelease(framesetter);
@@ -69,9 +70,9 @@ struct RasterizerCoreText {
         for (int i = 0; i < CFArrayGetCount(glyphRuns); i++) {
             CTRunRef run = (CTRunRef)CFArrayGetValueAtIndex(glyphRuns, i);
             CFIndex count = CTRunGetGlyphCount(run);
-            CGGlyph glyphs[count];
+            CGGlyph *glyphs = new CGGlyph[count];
             CTRunGetGlyphs(run, CFRangeMake(0, count), glyphs);
-            CGPoint positions[count];
+            CGPoint *positions = new CGPoint[count];
             CTRunGetPositions(run, CFRangeMake(0, count), positions);
             CFDictionaryRef attributes = CTRunGetAttributes(run);
             CTFontRef font = (CTFontRef)CFDictionaryGetValue(attributes, kCTFontAttributeName);
@@ -96,6 +97,8 @@ struct RasterizerCoreText {
                 scene->addPath(path, m, color, 0, 0, & clipBounds);
                 CGPathRelease(cgPath);
             }
+            delete[] glyphs;
+            delete[] positions;
         }
     }
     
