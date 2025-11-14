@@ -97,13 +97,13 @@ struct RasterizerSVG {
         else {
             auto gradient = paint.gradient;
             size_t count = gradient->nstops;
-            Ra::BGRA stops[count];
-            float locs[count];
+            Ra::Vector<Ra::BGRA> stops(count);
+            Ra::Vector<float> locs(count);
             for (int i = 0; i < count; i++) {
                 stops[i] = Ra::BGRA(gradient->stops[i].color);
                 locs[i] = gradient->stops[i].offset;
             }
-            return Ra::Color(stops, locs, count, *(Ra::Transform *)gradient->xform, paint.type != NSVG_PAINT_LINEAR_GRADIENT);
+            return Ra::Color(& stops[0], & locs[0], count, *(Ra::Transform *)gradient->xform, paint.type != NSVG_PAINT_LINEAR_GRADIENT);
         }
     }
 };
