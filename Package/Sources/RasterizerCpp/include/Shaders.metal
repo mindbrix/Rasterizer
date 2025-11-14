@@ -68,6 +68,7 @@ struct Opaque {
 
 struct Instance {
     enum Flags {
+        kRoundJoin = 1 << 21,
         kIsRadial = 1 << 22,
         kIsGradient = 1 << 23,
         kIsCurve = 1 << 24,
@@ -78,7 +79,7 @@ struct Instance {
         kOutlines = 1 << 29,
         kSquareCap = 1 << 30,
         kEvenOdd = 1 << 31,
-        kFragmentMask = (kOutlines | kSquareCap | kEvenOdd | kIsGradient | kIsRadial)
+        kFragmentMask = (kOutlines | kSquareCap | kEvenOdd)
     };
     uint32_t iz;  union { Quad quad;  Outline outline; };
 };
@@ -531,6 +532,7 @@ vertex InstancesVertex instances_vertex_main(
     if (inst.iz & Instance::kOutlines) {
         const bool roundCap = inst.iz & Instance::kRoundCap;
         const bool squareCap = inst.iz & Instance::kSquareCap;
+        const bool roundJoin = inst.iz & Instance::kRoundJoin;
         const short prevIndex = inst.outline.prev, nextIndex = inst.outline.next;
         const device Instance & pinst = instances[iid + prevIndex], & ninst = instances[iid + nextIndex];
         const device Quadratic& p = pinst.outline.quad, & o = inst.outline.quad, & n = ninst.outline.quad;
@@ -590,15 +592,17 @@ vertex InstancesVertex instances_vertex_main(
         if (!isCurve) {
             vert.u = (dx - x0) * -no.y + (dy - y0) * no.x;
             float offset = roundCap ? 0.0 : squareCap ? dw : 0.5;
-            vert.w = !pcap ? FLT_MAX : offset + (dx - x0) * no.x + (dy - y0) * no.y;
-            vert.z = !ncap ? FLT_MAX : offset + (dx - x2) * -no.x + (dy - y2) * -no.y;
+            float d0 = (dx - x0) * no.x + (dy - y0) * no.y;
+            float d1 = (dx - x2) * -no.x + (dy - y2) * -no.y;
+            vert.w = pcap ? offset + d0 : roundJoin ? d0 : FLT_MAX;
+            vert.z = ncap ? offset + d1 : roundJoin ? d1 : FLT_MAX;
         } else
         {
             vert.u = x0 - dx, vert.v = x1 - dx, vert.w = x2 - dx;
             vert.x = y0 - dy, vert.y = y1 - dy, vert.z = y2 - dy;
         }
-        const bool f0 = pcap ? !roundCap : !isCurve || !pcurve;
-        const bool f1 = ncap ? !roundCap : !isCurve || !ncurve;
+        const bool f0 = pcap ? !roundCap : !roundJoin;
+        const bool f1 = ncap ? !roundCap : !roundJoin;
 
         vert.cover = dw;
         flags = flags | pcap * Instance::kPCap | ncap * Instance::kNCap | isCurve * Instance::kIsCurve | f0 * Instance::kF0 | f1 * Instance::kF1 | roundCap * Instance::kEvenOdd;
