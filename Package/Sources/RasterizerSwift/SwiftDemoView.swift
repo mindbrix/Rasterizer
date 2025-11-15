@@ -109,7 +109,7 @@ class TestGradients: RADrawable {
         path.add(bounds);
         
         let scene = RAScene()
-        scene.add(path, ctm: .identity, color: gradient, width: 0, flags: 0, clip: .zero)
+        scene.addFill(path, ctm: .identity, color: gradient, evenOdd: false, clip: .zero)
         return scene
     }
 }
@@ -123,13 +123,15 @@ class TestQuadratics: RADrawable {
         let ts = 1 * time
         let t = ts - floor(ts)
         let sine = sin(t * 2 * Double.pi)
+        let color = RAColor(gray: 0, alpha: 1)
         
         let path = RAPath()
         path.move(to: 0, y: 0)
         path.quad(to: 0.5 * dim + sine * dim, y1: dim, x2: dim, y2: 0)
         
         let scene = RAScene()
-        scene.add(path, ctm: .identity, color: RAColor(gray: 0, alpha: 1), width: stroke, flags: 0, clip: .zero)
+        
+        scene.addStroke(path, ctm: .identity, color: color, width: stroke, capStyle: .capButt, joinStyle: .joinMiter, clip: .zero)
         return scene
     }
 }
@@ -153,7 +155,7 @@ class TestCubics: RADrawable {
             }
         }
         let scene = RAScene()
-        scene.add(path, ctm: .identity, color: RAColor(gray: 0, alpha: 1), width: 0, flags: RASceneFlags.fillEvenOdd.rawValue, clip: .zero)
+        scene.addFill(path, ctm: .identity, color: RAColor(gray: 0, alpha: 1), evenOdd: true, clip: .zero)
         return scene
     }
 }
@@ -200,7 +202,7 @@ class Test0: RADrawable {
                 scale: CGSize(width: 2 * r1, height: 2 * r1),
                 translation: CGVector(dx: radial.x - unitCenter.x, dy: radial.y - unitCenter.y)
             )
-            scene.add(path, ctm: ctm, color: gradient, width: unitWidth, flags: 0, clip: .zero)
+            scene.addFill(path, ctm: ctm, color: gradient, evenOdd: false, clip: .zero)
         }
         return scene
     }
