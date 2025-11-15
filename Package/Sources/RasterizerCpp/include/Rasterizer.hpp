@@ -500,20 +500,19 @@ struct Rasterizer {
         bool opaque, radial;
     };
     struct Scene {
-        enum CapStyle { kButt = 0, kSquare, kRound };
+        enum CapStyle { kCapButt = 0, kCapSquare, kCapRound };
+        enum JoinStyle { kJoinMiter = 0, kJoinRound };
         enum Flags { kInvisible = 1 << 0, kFillEvenOdd = 1 << 1, kRoundCap = 1 << 2, kSquareCap = 1 << 3, kRoundJoin = 1 << 4 };
         
         void addFill(Path path, Transform ctm, Color color, bool evenOdd, Bounds *clipBounds = nullptr) {
             addPath(path, ctm, color, 0.f, evenOdd ? kFillEvenOdd : 0, clipBounds);
         }
-        void addStroke(Path path, Transform ctm, Color color, float width, CapStyle capStyle, Bounds *clipBounds = nullptr) {
-            uint8_t flags = capStyle == kButt ? 0 : capStyle == kSquare ? kSquareCap : kRoundCap;
-            addPath(path, ctm, color, width, flags, clipBounds);
+        void addStroke(Path path, Transform ctm, Color color, float width, CapStyle capStyle, JoinStyle joinStyle, Bounds *clipBounds = nullptr) {
+            uint8_t capFlags = capStyle == kCapButt ? 0 : capStyle == kCapSquare ? kSquareCap : kRoundCap;
+            uint8_t joinFlags = joinStyle == kJoinMiter ? 0 : kRoundJoin;
+            addPath(path, ctm, color, width, capFlags | joinFlags, clipBounds);
         }
         
-        void addPath(Path path, Transform ctm, BGRA colorant, float width, uint8_t flag, Bounds *clipBounds = nullptr) {
-            addPath(path, ctm, Color(colorant), width, flag, clipBounds);
-        }
         void addPath(Path path, Transform ctm, Color color, float width, uint8_t flag, Bounds *clipBounds = nullptr) {
             if (path->isValid()) {
                 Geometry *g = path.ptr;
