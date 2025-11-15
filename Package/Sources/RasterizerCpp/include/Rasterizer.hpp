@@ -531,7 +531,7 @@ struct Rasterizer {
                     gradientIndices.add(~0);
                 }
                 _colors.add(color);
-                paths.add(path), bnds.add(g->bounds), ctms.add(ctm), colors.add(color.colorant), widths.add(width), flags.add(flag);
+                paths.add(path), bnds.add(g->bounds), ctms.add(ctm), colors.add(color.colorant), widths.add(width), flags.add(flag & ~kRoundJoin);
                 clips.add(clipBounds ? *clipBounds : Bounds::huge());
             }
         }
