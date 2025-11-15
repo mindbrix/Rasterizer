@@ -176,7 +176,7 @@ struct RasterizerCG {
             CGContextDrawRadialGradient(ctx, gradient, zero, 0, zero, 1, options);
         else
             CGContextDrawLinearGradient(ctx, gradient, zero, end, options);
-        CFRelease(gradient);
+        CGGradientRelease(gradient);
     }
     
     static CGGradientRef CGGradientFromColor(Ra::Color color) {
@@ -191,7 +191,7 @@ struct RasterizerCG {
             locations[i] = color.locs[i];
         CGColorSpaceRef space = CGColorSpaceCreateDeviceRGB();
         CGGradientRef gradient = CGGradientCreateWithColorComponents(space, & components[0], & locations[0], count);
-        CFRelease(space);
+        CGColorSpaceRelease(space);
         return gradient;
     }
     
