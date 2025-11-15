@@ -29,17 +29,6 @@ extension CGPoint {
     }
 }
 
-extension CGRect {
-    func linearGradientTransform() -> CGAffineTransform {
-        CGAffineTransform(a: 0, b: -width, c: width, d: 0, tx: 0, ty: 0)
-    }
-    
-    func radialGradientTransform() -> CGAffineTransform {
-        let radius = 0.5 * min(width, height)
-        return CGAffineTransform(a: radius, b: 0, c: 0, d: radius, tx: midX, ty: midY)
-    }
-}
-
 public class SwiftDemoView: RasterizerView {
     let demo = SwiftDemo()
     
@@ -94,12 +83,15 @@ class TestGradients: RADrawable {
             RAColor(red: 0, green: 0, blue: 1, alpha: 1)
         ]
         let locations: [NSNumber] = [ 0, 0.5, 1 ]
-        let linear = bounds.linearGradientTransform()
-        let radial = bounds.radialGradientTransform()
-        return RAColor(colors: colors,
-                       locations: locations,
-                       transform: isRadial ? radial : linear,
-                       isRadial: isRadial)
+        if isRadial {
+            let center = CGPoint(x: bounds.midX, y: bounds.midY)
+            let radius = 0.5 * min(bounds.width, bounds.height)
+            return RAColor(radialWith: colors, locations: locations, center: center, radius: radius)
+        } else {
+            let start = CGPoint(x: bounds.minX, y: bounds.minY)
+            let end = CGPoint(x: bounds.maxX, y: bounds.minY)
+            return RAColor(linearWith: colors, locations: locations, start: start, end: end)
+        }
     }
     
     func getSceneAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RAScene {
@@ -189,11 +181,7 @@ class Test0: RADrawable {
                 RAColor(gray: 0, alpha: 1)
             ]
             let locations: [NSNumber] = [ 0, 1 ]
-            let gradient = RAColor(colors: colors,
-                           locations: locations,
-                           transform: unitRect.radialGradientTransform(),
-                           isRadial: true)
-            
+            let gradient = RAColor(radialWith: colors, locations: locations, center: unitCenter, radius: 0.5)
             let radial = CGPoint(center: center, r: r0, theta: ti * 2 * Double.pi)
             
             let ctm = CGAffineTransform(

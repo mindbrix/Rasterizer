@@ -67,6 +67,27 @@
     return self;
 }
 
+- (id)initLinearWithColors:(NSArray<RAColor *>*)colors
+                 locations:(NSArray<NSNumber *>*)locations
+                     start:(CGPoint)start
+                       end:(CGPoint)end {
+    double dx = end.x - start.x, dy = end.y - start.y;
+    return [self initWithColors:colors
+                      locations:locations
+                      transform:CGAffineTransformMake(dy, -dx, dx, dy, start.x, start.y)
+                       isRadial:NO];
+}
+
+- (id)initRadialWithColors:(NSArray<RAColor *>*)colors
+                 locations:(NSArray<NSNumber *>*)locations
+                    center:(CGPoint)center
+                    radius:(double)radius {
+    return [self initWithColors:colors
+                      locations:locations
+                      transform:CGAffineTransformMake(radius, 0, 0, radius, center.x, center.y)
+                       isRadial:YES];
+}
+
 - (id)initWithColors:(NSArray<RAColor *>*)colors
                locations:(NSArray<NSNumber *>*)locations
                transform:(CGAffineTransform)transform

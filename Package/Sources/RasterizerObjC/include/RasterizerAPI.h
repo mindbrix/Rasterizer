@@ -16,10 +16,15 @@
 - (id)initWithRed:(double)red green:(double)green blue:(double)blue alpha:(double)alpha;
 - (id)initWithCGColor:(CGColorRef)cgColor;
 
-- (id)initWithColors:(NSArray<RAColor *>*)colors
-           locations:(NSArray<NSNumber *>*)locations
-               transform:(CGAffineTransform)transform
-                isRadial:(BOOL)isRadial;
+- (id)initLinearWithColors:(NSArray<RAColor *>*)colors
+                 locations:(NSArray<NSNumber *>*)locations
+                     start:(CGPoint)start
+                       end:(CGPoint)end;
+
+- (id)initRadialWithColors:(NSArray<RAColor *>*)colors
+                 locations:(NSArray<NSNumber *>*)locations
+                    center:(CGPoint)center
+                    radius:(double)radius;
 
 @end
 
