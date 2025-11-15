@@ -196,14 +196,14 @@ struct RasterizerCG {
     }
     
     static Ra::BGRA colorFromComponents(const CGFloat *components, size_t count) {
-        uint8_t b = 0, g = 0, r = 0, a = 255;
+        uint8_t r = 0, g = 0, b = 0, a = 255;
         if (count == 2) {
-            b = g = r = 255 * components[0];
+            r = g = b = 255 * components[0];
             a = 255 * components[1];
         } else if (count == 4) {
-            b = 255 * components[2];
-            g = 255 * components[1];
             r = 255 * components[0];
+            g = 255 * components[1];
+            b = 255 * components[2];
             a = 255 * components[3];
         }
         return Ra::BGRA(b, g, r, a);
