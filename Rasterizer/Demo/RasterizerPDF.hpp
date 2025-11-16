@@ -145,6 +145,15 @@ struct RasterizerPDF {
                 flags |= cap == FPDF_LINECAP_PROJECTING_SQUARE ? Ra::Scene::kSquareCap : 0;
                 int join = FPDFPageObj_GetLineJoin(pageObject);
                 flags |= join == FPDF_LINEJOIN_ROUND ? Ra::Scene::kRoundJoin : 0;
+                size_t dashCount = FPDFPageObj_GetDashCount(pageObject);
+                if (dashCount) {
+                    float phase;
+                    Ra::Vector<float> lengths(dashCount);
+                    FPDFPageObj_GetDashPhase(pageObject, & phase);
+                    FPDFPageObj_GetDashArray(pageObject, & lengths[0], dashCount);
+                    Ra::Path dashed = Ra::Dasher::CreateDashedPath(path, phase, & lengths[0], dashCount);
+                    path = dashed;
+                }
             } else {
                 FPDFPageObj_GetFillColor(pageObject, & R, & G, & B, & A);
                 if (pathIsRect(path))
