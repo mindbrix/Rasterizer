@@ -1266,7 +1266,7 @@ struct Rasterizer {
             float A_32 = 2 * A * A_2;
             float C_2 = 2 * sqrt(C);
             float BA = B / A_2;
-            return (A_32 * Sabc + A_2 * B * (Sabc - C_2) + (4.f * C * A - B * B) * log((2.f * A_2 + BA + Sabc) /(BA + C_2))) / (4.f * A_32);
+            return (A_32 * Sabc + A_2 * B * (Sabc - C_2) + (4.f * C * A - B * B) * log((2.f * A_2 + BA + Sabc) / (BA + C_2))) / (4.f * A_32);
         }
         
         Dasher(float phase, float *pattern, size_t count) {
@@ -1277,35 +1277,39 @@ struct Rasterizer {
         }
         
         void writeSegment(float x0, float y0, float x1, float y1) {
-            float length, t0, t1;
-            length = segmentLength(x0, y0, x1, y1);
-            len1 = len0 + length;
+            float t0, t1;
+            len1 = len0 + segmentLength(x0, y0, x1, y1);
             t0 = fmaxf(0.f, fminf(1.f, (dash0 - len0) / (len1 - len0)));
             t1 = fmaxf(0.f, fminf(1.f, (dash1 - len0) / (len1 - len0)));
             while (t0 != t1) {
                 writeSegmentDash(x0, y0, x1, y1, t0, t1);
                 if (t1 == 1.f)
-                    t0 = t1;
+                    break;
                 else {
                     nextDash();
                     t0 = fmaxf(0.f, fminf(1.f, (dash0 - len0) / (len1 - len0)));
                     t1 = fmaxf(0.f, fminf(1.f, (dash1 - len0) / (len1 - len0)));
                 }
             }
-            len0 = len1, approxLength += length;
+            len0 = len1;
         }
         void Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
-            float mx, my;
-            mx = 0.5f * x1 + 0.25f * (x0 + x2);
-            my = 0.5f * y1 + 0.25f * (y0 + y2);
-            writeSegment(x0, y0, mx, my);
-            writeSegment(mx, my, x2, y2);
-            return;
-            
+            float t0, t1;
             len1 = len0 + exactQuadraticLength(x0, y0, x1, y1, x2, y2);
-            // Algorithm
+            
+            t0 = fmaxf(0.f, fminf(1.f, (dash0 - len0) / (len1 - len0)));
+            t1 = fmaxf(0.f, fminf(1.f, (dash1 - len0) / (len1 - len0)));
+            while (t0 != t1) {
+                writeQuadraticDash(x0, y0, x1, y1, x2, y2, t0, t1);
+                if (t1 == 1.f)
+                    break;
+                else {
+                    nextDash();
+                    t0 = fmaxf(0.f, fminf(1.f, (dash0 - len0) / (len1 - len0)));
+                    t1 = fmaxf(0.f, fminf(1.f, (dash1 - len0) / (len1 - len0)));
+                }
+            }
             len0 = len1;
-            approxLength += approxQuadraticLength(x0, y0, x1, y1, x2, y2);
         }
         void EndSubpath(float x0, float y0, float x1, float y1, bool closed) {
             if (0 && closed)
@@ -1322,6 +1326,33 @@ struct Rasterizer {
             }
             dashed->lineTo(tx1, ty1);
         }
+        void writeQuadraticDash(float x0, float y0, float x1, float y1, float x2, float y2, float t0, float t1) {
+            float t, s, w0, w1, w2, sx0, sy0, sx1, sy1, sx2, sy2;
+            
+            t = t0, s = 1.f - t;
+            w0 = s * s, w1 = 2.f * s * t, w2 = t * t;
+            sx0 = w0 * x0 + w1 * x1 + w2 * x2;
+            sy0 = w0 * y0 + w1 * y1 + w2 * y2;
+            
+            t = 0.5f * (t0 + t1), s = 1.f - t;
+            w0 = s * s, w1 = 2.f * s * t, w2 = t * t;
+            sx1 = w0 * x0 + w1 * x1 + w2 * x2;
+            sy1 = w0 * y0 + w1 * y1 + w2 * y2;
+            
+            t = t1, s = 1.f - t;
+            w0 = s * s, w1 = 2.f * s * t, w2 = t * t;
+            sx2 = w0 * x0 + w1 * x1 + w2 * x2;
+            sy2 = w0 * y0 + w1 * y1 + w2 * y2;
+            
+            sx1 = 2.f * sx1 - 0.5f * (sx0 + sx2);
+            sy1 = 2.f * sy1 - 0.5f * (sy0 + sy2);
+
+            if (moveTo) {
+                dashed->moveTo(sx0, sy0);
+                moveTo = false;
+            }
+            dashed->quadTo(sx1, sy1, sx2, sy2);
+        }
         void nextDash() {
             moveTo = true;
             dash0 = dash1 + dashPattern[++dashIndex % dashCount];
@@ -1332,7 +1363,6 @@ struct Rasterizer {
         size_t dashIndex = 0, dashCount = 1;
         float dashPhase = 0.f, *dashPattern = nullptr;
         float len0, len1, dash0, dash1;
-        float approxLength = 0;
         Path dashed;
     };
     
