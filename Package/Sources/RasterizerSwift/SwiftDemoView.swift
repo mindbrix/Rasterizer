@@ -87,7 +87,11 @@ class TestDasher: RADrawable {
         let b = bounds.insetBy(dx: width, dy: width)
         
         let path = RAPath()
-        path.add(b)
+        if state.useRect {
+            path.add(b)
+        } else {
+            path.addEllipse(b)
+        }
         
         let lengths: [NSNumber] = [ .init(value: t * length), .init(value: s * length) ]
         

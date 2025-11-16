@@ -497,7 +497,7 @@ struct Rasterizer {
         Vector<BGRA> stops;
         Vector<float> locs;
         Transform ctm;
-        bool opaque, radial;
+        bool opaque = true, radial;
     };
     struct Scene {
         enum CapStyle { kCapButt = 0, kCapSquare, kCapRound };
@@ -1249,7 +1249,7 @@ struct Rasterizer {
         }
         
         void writeSegment(float x0, float y0, float x1, float y1) {
-            float t0, t1;
+            float t0, t1, s0, s1;
             len1 = len0 + segmentLength(x0, y0, x1, y1);
             t0 = fmaxf(0.f, fminf(1.f, (dash0 - len0) / (len1 - len0)));
             t1 = fmaxf(0.f, fminf(1.f, (dash1 - len0) / (len1 - len0)));
@@ -1269,6 +1269,7 @@ struct Rasterizer {
             float t0, t1;
             len1 = len0 + exactQuadraticLength(x0, y0, x1, y1, x2, y2);
             
+//            approxQuadraticTs(x0, y0, x1, y1, x2, y2, & t0, & t1);
             t0 = fmaxf(0.f, fminf(1.f, (dash0 - len0) / (len1 - len0)));
             t1 = fmaxf(0.f, fminf(1.f, (dash1 - len0) / (len1 - len0)));
             while (t0 != t1) {
@@ -1277,6 +1278,7 @@ struct Rasterizer {
                     break;
                 else {
                     nextDash();
+//                    approxQuadraticTs(x0, y0, x1, y1, x2, y2, & t0, & t1);
                     t0 = fmaxf(0.f, fminf(1.f, (dash0 - len0) / (len1 - len0)));
                     t1 = fmaxf(0.f, fminf(1.f, (dash1 - len0) / (len1 - len0)));
                 }
@@ -1297,13 +1299,20 @@ struct Rasterizer {
             dash0 = dash1 + dashPattern[++dashIndex % dashCount];
             dash1 = dash0 + dashPattern[++dashIndex % dashCount];
         }
+        void approxQuadraticTs(float x0, float y0, float x1, float y1, float x2, float y2, float *pt0, float *pt1) {
+            float chord = segmentLength(x0, y0, x2, y2);
+            float hull = segmentLength(x0, y0, x1, y1) + segmentLength(x1, y1, x2, y2);
+            float ratio = hull / chord;
+            float t0 = 3.f * (dash0 - len0) / (2.f * chord + chord * ratio);
+            float t1 = 3.f * (dash1 - len0) / (2.f * chord + chord * ratio);
+            *pt0 = fmaxf(0.f, fminf(1.f, t0));
+            *pt1 = fmaxf(0.f, fminf(1.f, t1));
+        }
         void writeSegment(float x0, float y0, float x1, float y1, float t0, float t1) {
-            float sx0, sy0, sx1, sy1;
-            sx0 = x0 * (1.f - t0) + x1 * t0, sx1 = x0 * (1.f - t1) + x1 * t1;
-            sy0 = y0 * (1.f - t0) + y1 * t0, sy1 = y0 * (1.f - t1) + y1 * t1;
+            float s0 = 1.f - t0, s1 = 1.f - t1;
             if (moveTo)
-                moveTo = false, dashed->moveTo(sx0, sy0);
-            dashed->lineTo(sx1, sy1);
+                moveTo = false, dashed->moveTo(x0 * s0 + x1 * t0, y0 * s0 + y1 * t0);
+            dashed->lineTo(x0 * s1 + x1 * t1, y0 * s1 + y1 * t1);
         }
         void writeQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, float t0, float t1) {
             float t, s, w0, w1, w2, sx0, sy0, sx1, sy1, sx2, sy2;
