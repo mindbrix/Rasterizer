@@ -1249,7 +1249,7 @@ struct Rasterizer {
         }
         
         void writeSegment(float x0, float y0, float x1, float y1) {
-            float t0, t1, s0, s1;
+            float t0, t1;
             len1 = len0 + segmentLength(x0, y0, x1, y1);
             t0 = fmaxf(0.f, fminf(1.f, (dash0 - len0) / (len1 - len0)));
             t1 = fmaxf(0.f, fminf(1.f, (dash1 - len0) / (len1 - len0)));
@@ -1267,9 +1267,7 @@ struct Rasterizer {
         }
         void Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
             float t0, t1;
-            len1 = len0 + exactQuadraticLength(x0, y0, x1, y1, x2, y2);
-            
-//            approxQuadraticTs(x0, y0, x1, y1, x2, y2, & t0, & t1);
+            len1 = len0 + approxQuadraticLength(x0, y0, x1, y1, x2, y2);
             t0 = fmaxf(0.f, fminf(1.f, (dash0 - len0) / (len1 - len0)));
             t1 = fmaxf(0.f, fminf(1.f, (dash1 - len0) / (len1 - len0)));
             while (t0 != t1) {
@@ -1278,7 +1276,6 @@ struct Rasterizer {
                     break;
                 else {
                     nextDash();
-//                    approxQuadraticTs(x0, y0, x1, y1, x2, y2, & t0, & t1);
                     t0 = fmaxf(0.f, fminf(1.f, (dash0 - len0) / (len1 - len0)));
                     t1 = fmaxf(0.f, fminf(1.f, (dash1 - len0) / (len1 - len0)));
                 }
@@ -1298,15 +1295,6 @@ struct Rasterizer {
             moveTo = true;
             dash0 = dash1 + dashPattern[++dashIndex % dashCount];
             dash1 = dash0 + dashPattern[++dashIndex % dashCount];
-        }
-        void approxQuadraticTs(float x0, float y0, float x1, float y1, float x2, float y2, float *pt0, float *pt1) {
-            float chord = segmentLength(x0, y0, x2, y2);
-            float hull = segmentLength(x0, y0, x1, y1) + segmentLength(x1, y1, x2, y2);
-            float ratio = hull / chord;
-            float t0 = 3.f * (dash0 - len0) / (2.f * chord + chord * ratio);
-            float t1 = 3.f * (dash1 - len0) / (2.f * chord + chord * ratio);
-            *pt0 = fmaxf(0.f, fminf(1.f, t0));
-            *pt1 = fmaxf(0.f, fminf(1.f, t1));
         }
         void writeSegment(float x0, float y0, float x1, float y1, float t0, float t1) {
             float s0 = 1.f - t0, s1 = 1.f - t1;
@@ -1354,23 +1342,6 @@ struct Rasterizer {
             float chord = segmentLength(x0, y0, x2, y2);
             float hull = segmentLength(x0, y0, x1, y1) + segmentLength(x1, y1, x2, y2);
             return (2.f * chord + hull) / 3.f;
-        }
-        
-        // https://web.archive.org/web/20180418075534/http://www.malczak.linuxpl.com/blog/quadratic-bezier-curve-length/
-        //
-        static inline float exactQuadraticLength(float x0, float y0, float x1, float y1, float x2, float y2) {
-            float ax, ay, bx, by;
-            ax = x0 - x1 - x1 + x2, bx = 2.f * x1 - 2.f * x0;;
-            ay = y0 - y1 - y1 + y2, by = 2.f * y1 - 2.f * y0;
-            float A = 4.f * (ax * ax + ay * ay);
-            float B = 4.f * (ax * bx + ay * by);
-            float C = bx * bx + by * by;
-            float Sabc = 2.f * sqrt(A + B + C);
-            float A_2 = sqrt(A);
-            float A_32 = 2 * A * A_2;
-            float C_2 = 2 * sqrt(C);
-            float BA = B / A_2;
-            return (A_32 * Sabc + A_2 * B * (Sabc - C_2) + (4.f * C * A - B * B) * log((2.f * A_2 + BA + Sabc) / (BA + C_2))) / (4.f * A_32);
         }
     };
     
