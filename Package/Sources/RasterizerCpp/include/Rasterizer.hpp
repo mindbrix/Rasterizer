@@ -1249,30 +1249,10 @@ struct Rasterizer {
         }
         
         void writeSegment(float x0, float y0, float x1, float y1) {
-            float t0, t1;
-            len1 = len0 + segmentLength(x0, y0, x1, y1);
-            writeDashTs(& t0, & t1);
-            while (t0 != t1) {
-                writeSegment(x0, y0, x1, y1, t0, t1);
-                if (t1 == 1.f)
-                    break;
-                else
-                    nextDash(), writeDashTs(& t0, & t1);
-            }
-            len0 = len1;
+            writeCurve(x0, y0, FLT_MAX, FLT_MAX, x1, y1);
         }
         void Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
-            float t0, t1;
-            len1 = len0 + gravesenQuadraticLength(x0, y0, x1, y1, x2, y2);
-            writeDashTs(& t0, & t1);
-            while (t0 != t1) {
-                writeQuadratic(x0, y0, x1, y1, x2, y2, t0, t1);
-                if (t1 == 1.f)
-                    break;
-                else
-                    nextDash(), writeDashTs(& t0, & t1);
-            }
-            len0 = len1;
+            writeCurve(x0, y0, x1, y1, x2, y2);
         }
         void EndSubpath(float x0, float y0, float x1, float y1, bool closed) {
             reset();
@@ -1282,6 +1262,23 @@ struct Rasterizer {
             moveTo = true, dashIndex = 0, len0 = 0.f, dash0 = -dashPhase, dash1 = dash0 + dashPattern[0];
             while (dash1 < 0.f)
                 nextDash();
+        }
+        void writeCurve(float x0, float y0, float x1, float y1, float x2, float y2) {
+            float t0, t1;
+            bool isCurve = x1 != FLT_MAX;
+            len1 = len0 + (isCurve ? gravesenQuadraticLength(x0, y0, x1, y1, x2, y2) : segmentLength(x0, y0, x2, y2));
+            writeDashTs(& t0, & t1);
+            while (t0 != t1) {
+                if (isCurve)
+                    writeQuadratic(x0, y0, x1, y1, x2, y2, t0, t1);
+                else
+                    writeSegment(x0, y0, x2, y2, t0, t1);
+                if (t1 == 1.f)
+                    break;
+                else
+                    nextDash(), writeDashTs(& t0, & t1);
+            }
+            len0 = len1;
         }
         void nextDash() {
             moveTo = true;
