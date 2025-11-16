@@ -75,6 +75,25 @@ protocol RADrawable {
     func getSceneAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RAScene
 }
 
+class TestDasher: RADrawable {
+    func getSceneAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RAScene {
+        let dim = min(bounds.width, bounds.height)
+        let width = 0.05 * dim
+        let length = 10 * width
+        let t = 0.9
+        let s = 1 - t
+        let b = bounds.insetBy(dx: width, dy: width)
+        
+        let path = RAPath()
+        path.add(b)
+        let lengths: [NSNumber] = [ .init(value: t * length), .init(value: s * length) ]
+        let dashed = path.dashedCopy(withPhase: 0, lengths: lengths)
+        
+        let scene = RAScene()
+        scene.addStroke(dashed, ctm: .identity, color: RAColor(), width: width, capStyle: .capButt, joinStyle: .joinMiter, clip: .zero)
+        return scene
+    }
+}
 class TestGradients: RADrawable {
     static func gradientForBounds(_ bounds: CGRect, isRadial: Bool) -> RAColor {
         let colors: [RAColor] = [
@@ -208,7 +227,8 @@ class SwiftDemo: NSObject, RASceneListDelegate {
         Test0(),
         TestQuadratics(),
         TestCubics(),
-        TestGradients()
+        TestGradients(),
+        TestDasher()
     ]
     
     var index = 0

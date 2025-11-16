@@ -1271,9 +1271,7 @@ struct Rasterizer {
         
         Dasher(float phase, float *pattern, size_t count) {
             dashPhase = phase, dashPattern = pattern, dashCount = count;
-            len0 = 0.f;
-            moveTo = true;
-            dash0 = dashPhase, dash1 = dash0 + dashPattern[dashIndex];
+            moveTo = true, dashIndex = 0, len0 = 0.f, dash0 = dashPhase, dash1 = dash0 + dashPattern[0];
         }
         
         void writeSegment(float x0, float y0, float x1, float y1) {
@@ -1316,15 +1314,18 @@ struct Rasterizer {
                 dashed->close();
         }
         
+        void nextDash() {
+            moveTo = true;
+            dash0 = dash1 + dashPattern[++dashIndex % dashCount];
+            dash1 = dash0 + dashPattern[++dashIndex % dashCount];
+        }
         void writeSegmentDash(float x0, float y0, float x1, float y1, float t0, float t1) {
-            float tx0, ty0, tx1, ty1;
-            tx0 = x0 * (1.f - t0) + x1 * t0, tx1 = x0 * (1.f - t1) + x1 * t1;
-            ty0 = y0 * (1.f - t0) + y1 * t0, ty1 = y0 * (1.f - t1) + y1 * t1;
-            if (moveTo) {
-                dashed->moveTo(tx0, ty0);
-                moveTo = false;
-            }
-            dashed->lineTo(tx1, ty1);
+            float sx0, sy0, sx1, sy1;
+            sx0 = x0 * (1.f - t0) + x1 * t0, sx1 = x0 * (1.f - t1) + x1 * t1;
+            sy0 = y0 * (1.f - t0) + y1 * t0, sy1 = y0 * (1.f - t1) + y1 * t1;
+            if (moveTo)
+                moveTo = false, dashed->moveTo(sx0, sy0);
+            dashed->lineTo(sx1, sy1);
         }
         void writeQuadraticDash(float x0, float y0, float x1, float y1, float x2, float y2, float t0, float t1) {
             float t, s, w0, w1, w2, sx0, sy0, sx1, sy1, sx2, sy2;
@@ -1347,20 +1348,13 @@ struct Rasterizer {
             sx1 = 2.f * sx1 - 0.5f * (sx0 + sx2);
             sy1 = 2.f * sy1 - 0.5f * (sy0 + sy2);
 
-            if (moveTo) {
-                dashed->moveTo(sx0, sy0);
-                moveTo = false;
-            }
+            if (moveTo)
+                moveTo = false, dashed->moveTo(sx0, sy0);
             dashed->quadTo(sx1, sy1, sx2, sy2);
         }
-        void nextDash() {
-            moveTo = true;
-            dash0 = dash1 + dashPattern[++dashIndex % dashCount];
-            dash1 = dash0 + dashPattern[++dashIndex % dashCount];
-        }
-        
+    
         bool moveTo;
-        size_t dashIndex = 0, dashCount = 1;
+        size_t dashIndex, dashCount;
         float dashPhase = 0.f, *dashPattern = nullptr;
         float len0, len1, dash0, dash1;
         Path dashed;
