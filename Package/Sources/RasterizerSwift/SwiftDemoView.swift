@@ -92,9 +92,7 @@ class TestDasher: RADrawable {
         } else {
             path.addEllipse(b)
         }
-        
-        let lengths: [NSNumber] = [ .init(value: t * length), .init(value: s * length) ]
-        
+        let lengths = [t * length as NSNumber, s * length as NSNumber]
         let cgDashed = path.dashedCGCopy(withPhase: tick * length, lengths: lengths)
         let dashed = state.flag ? cgDashed : path.dashedCopy(withPhase: tick * length, lengths: lengths)
         
