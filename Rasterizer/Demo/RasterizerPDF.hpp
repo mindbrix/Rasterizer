@@ -128,8 +128,9 @@ struct RasterizerPDF {
     static void writePathToScene(FPDF_PAGEOBJECT pageObject, FS_MATRIX m, Ra::Bounds* clipBounds, std::vector<Ra::Path>& clipPaths, Ra::SceneRef& scene) {
         int fillmode;
         FPDF_BOOL stroke;
-         
+        
         if (FPDFPath_GetDrawMode(pageObject, & fillmode, & stroke)) {
+            Ra::Bounds clipUnion = clipBounds ? *clipBounds : Ra::Bounds::huge();
             Ra::Path path = PathWriter().createPathFromObject(pageObject);
             Ra::Transform ctm = Ra::Transform(m.a, m.b, m.c, m.d, m.e, m.f);
             unsigned int R = 0, G = 0, B = 0, A = 255;
@@ -148,11 +149,14 @@ struct RasterizerPDF {
                 FPDFPageObj_GetFillColor(pageObject, & R, & G, & B, & A);
                 if (pathIsRect(path))
                     for (auto clip : clipPaths)
-                        if (!pathIsRect(clip))
+                        if (!pathIsRect(clip)) {
+                            clipUnion = clipUnion.intersect(path->bounds);
                             path = clip;
+                            break;
+                        }
                 flags |= fillmode == FPDF_FILLMODE_ALTERNATE ? Ra::Scene::kFillEvenOdd : 0;
             }
-            scene->addPath(path, ctm, Ra::BGRA(B, G, R, A), width, flags, clipBounds);
+            scene->addPath(path, ctm, Ra::BGRA(B, G, R, A), width, flags, & clipUnion);
         }
     }
     
@@ -240,7 +244,6 @@ struct RasterizerPDF {
                         hash = XXH64(& clipCount, sizeof(clipCount), hash);
                         for (int j = 0; j < clipCount; j++) {
                             int segmentCount = FPDFClipPath_CountPathSegments(clipPath, j);
-                            assert(segmentCount);
                             hash = XXH64(& segmentCount, sizeof(segmentCount), hash);
                             for (int k = 0; k < 1; k++) {
                                 FPDF_PATHSEGMENT segment = FPDFClipPath_GetPathSegment(clipPath, j, k);
