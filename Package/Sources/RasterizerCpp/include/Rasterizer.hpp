@@ -1246,10 +1246,9 @@ struct Rasterizer {
             return sqrtf(dx * dx + dy * dy);
         }
         static inline float approxQuadraticLength(float x0, float y0, float x1, float y1, float x2, float y2) {
-            constexpr const float w0 = 2.f / 3.f, w1 = 1.f - w0;
             float chord = segmentLength(x0, y0, x2, y2);
             float hull = segmentLength(x0, y0, x1, y1) + segmentLength(x1, y1, x2, y2);
-            return w0 * chord + w1 * hull;
+            return (2.f * chord + hull) / 3.f;
         }
         
         // https://web.archive.org/web/20180418075534/http://www.malczak.linuxpl.com/blog/quadratic-bezier-curve-length/
@@ -1271,7 +1270,7 @@ struct Rasterizer {
         
         Dasher(float phase, float *pattern, size_t count) {
             dashPhase = phase, dashPattern = pattern, dashCount = count;
-            moveTo = true, dashIndex = 0, len0 = 0.f, dash0 = dashPhase, dash1 = dash0 + dashPattern[0];
+            reset();
         }
         
         void writeSegment(float x0, float y0, float x1, float y1) {
@@ -1280,7 +1279,7 @@ struct Rasterizer {
             t0 = fmaxf(0.f, fminf(1.f, (dash0 - len0) / (len1 - len0)));
             t1 = fmaxf(0.f, fminf(1.f, (dash1 - len0) / (len1 - len0)));
             while (t0 != t1) {
-                writeSegmentDash(x0, y0, x1, y1, t0, t1);
+                writeSegment(x0, y0, x1, y1, t0, t1);
                 if (t1 == 1.f)
                     break;
                 else {
@@ -1298,7 +1297,7 @@ struct Rasterizer {
             t0 = fmaxf(0.f, fminf(1.f, (dash0 - len0) / (len1 - len0)));
             t1 = fmaxf(0.f, fminf(1.f, (dash1 - len0) / (len1 - len0)));
             while (t0 != t1) {
-                writeQuadraticDash(x0, y0, x1, y1, x2, y2, t0, t1);
+                writeQuadratic(x0, y0, x1, y1, x2, y2, t0, t1);
                 if (t1 == 1.f)
                     break;
                 else {
@@ -1310,16 +1309,20 @@ struct Rasterizer {
             len0 = len1;
         }
         void EndSubpath(float x0, float y0, float x1, float y1, bool closed) {
+            reset();
             if (0 && closed)
                 dashed->close();
         }
         
+        void reset() {
+            moveTo = true, dashIndex = 0, len0 = 0.f, dash0 = dashPhase, dash1 = dash0 + dashPattern[0];
+        }
         void nextDash() {
             moveTo = true;
             dash0 = dash1 + dashPattern[++dashIndex % dashCount];
             dash1 = dash0 + dashPattern[++dashIndex % dashCount];
         }
-        void writeSegmentDash(float x0, float y0, float x1, float y1, float t0, float t1) {
+        void writeSegment(float x0, float y0, float x1, float y1, float t0, float t1) {
             float sx0, sy0, sx1, sy1;
             sx0 = x0 * (1.f - t0) + x1 * t0, sx1 = x0 * (1.f - t1) + x1 * t1;
             sy0 = y0 * (1.f - t0) + y1 * t0, sy1 = y0 * (1.f - t1) + y1 * t1;
@@ -1327,7 +1330,7 @@ struct Rasterizer {
                 moveTo = false, dashed->moveTo(sx0, sy0);
             dashed->lineTo(sx1, sy1);
         }
-        void writeQuadraticDash(float x0, float y0, float x1, float y1, float x2, float y2, float t0, float t1) {
+        void writeQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, float t0, float t1) {
             float t, s, w0, w1, w2, sx0, sy0, sx1, sy1, sx2, sy2;
             
             t = t0, s = 1.f - t;
