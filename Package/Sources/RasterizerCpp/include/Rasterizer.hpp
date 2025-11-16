@@ -1235,9 +1235,8 @@ struct Rasterizer {
     
     struct Dasher: GeometryWriter {
         static Path CreateDashedPath(Path path, float phase, float *pattern, size_t count) {
-            if (pattern == nullptr || count < 2)
+            if (pattern == nullptr || count < 2 || count % 2 == 1)
                 return path;
-            
             Dasher dasher(phase, pattern, count);
             divideGeometry(path.ptr, Transform(), Bounds(), true, false, dasher);
             return dasher.dashed;
@@ -1270,9 +1269,9 @@ struct Rasterizer {
             writeDashTs(& t0, & t1);
             while (t0 != t1) {
                 if (isCurve)
-                    writeQuadratic(x0, y0, x1, y1, x2, y2, t0, t1);
+                    writeDash(x0, y0, x1, y1, x2, y2, t0, t1);
                 else
-                    writeSegment(x0, y0, x2, y2, t0, t1);
+                    writeDash(x0, y0, x2, y2, t0, t1);
                 if (t1 == 1.f)
                     break;
                 else
@@ -1289,13 +1288,13 @@ struct Rasterizer {
             *t0 = fmaxf(0.f, fminf(1.f, (dash0 - len0) / (len1 - len0)));
             *t1 = fmaxf(0.f, fminf(1.f, (dash1 - len0) / (len1 - len0)));
         }
-        void writeSegment(float x0, float y0, float x1, float y1, float t0, float t1) {
+        void writeDash(float x0, float y0, float x1, float y1, float t0, float t1) {
             float s0 = 1.f - t0, s1 = 1.f - t1;
             if (moveTo)
                 moveTo = false, dashed->moveTo(x0 * s0 + x1 * t0, y0 * s0 + y1 * t0);
             dashed->lineTo(x0 * s1 + x1 * t1, y0 * s1 + y1 * t1);
         }
-        void writeQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, float t0, float t1) {
+        void writeDash(float x0, float y0, float x1, float y1, float x2, float y2, float t0, float t1) {
             float t, s, w0, w1, w2, sx0, sy0, sx1, sy1, sx2, sy2;
             
             t = t0, s = 1.f - t;
