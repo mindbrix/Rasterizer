@@ -593,6 +593,7 @@ struct Rasterizer {
         Cell cell;  short cover;  int base, biid;
     };
     struct Quadratic {
+        Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) : x0(x0), y0(y0), x1(x1), y1(y1), x2(x2), y2(y2) {}
         float x0, y0, x1, y1, x2, y2;
     };
     struct Outline {
@@ -1241,32 +1242,6 @@ struct Rasterizer {
             divideGeometry(path.ptr, Transform(), Bounds(), true, false, dasher);
             return dasher.dashed;
         }
-        static inline float segmentLength(float x0, float y0, float x1, float y1) {
-            float dx = x1 - x0, dy = y1 - y0;
-            return sqrtf(dx * dx + dy * dy);
-        }
-        static inline float approxQuadraticLength(float x0, float y0, float x1, float y1, float x2, float y2) {
-            float chord = segmentLength(x0, y0, x2, y2);
-            float hull = segmentLength(x0, y0, x1, y1) + segmentLength(x1, y1, x2, y2);
-            return (2.f * chord + hull) / 3.f;
-        }
-        
-        // https://web.archive.org/web/20180418075534/http://www.malczak.linuxpl.com/blog/quadratic-bezier-curve-length/
-        //
-        static inline float exactQuadraticLength(float x0, float y0, float x1, float y1, float x2, float y2) {
-            float ax, ay, bx, by;
-            ax = x0 - x1 - x1 + x2, bx = 2.f * x1 - 2.f * x0;;
-            ay = y0 - y1 - y1 + y2, by = 2.f * y1 - 2.f * y0;
-            float A = 4.f * (ax * ax + ay * ay);
-            float B = 4.f * (ax * bx + ay * by);
-            float C = bx * bx + by * by;
-            float Sabc = 2.f * sqrt(A + B + C);
-            float A_2 = sqrt(A);
-            float A_32 = 2 * A * A_2;
-            float C_2 = 2 * sqrt(C);
-            float BA = B / A_2;
-            return (A_32 * Sabc + A_2 * B * (Sabc - C_2) + (4.f * C * A - B * B) * log((2.f * A_2 + BA + Sabc) / (BA + C_2))) / (4.f * A_32);
-        }
         
         Dasher(float phase, float *pattern, size_t count) {
             dashPhase = phase, dashPattern = pattern, dashCount = count;
@@ -1310,12 +1285,12 @@ struct Rasterizer {
         }
         void EndSubpath(float x0, float y0, float x1, float y1, bool closed) {
             reset();
-            if (0 && closed)
-                dashed->close();
         }
         
         void reset() {
-            moveTo = true, dashIndex = 0, len0 = 0.f, dash0 = dashPhase, dash1 = dash0 + dashPattern[0];
+            moveTo = true, dashIndex = 0, len0 = 0.f, dash0 = -dashPhase, dash1 = dash0 + dashPattern[0];
+            while (dash1 < 0.f)
+                nextDash();
         }
         void nextDash() {
             moveTo = true;
@@ -1361,6 +1336,33 @@ struct Rasterizer {
         float dashPhase = 0.f, *dashPattern = nullptr;
         float len0, len1, dash0, dash1;
         Path dashed;
+        
+        static inline float segmentLength(float x0, float y0, float x1, float y1) {
+            float dx = x1 - x0, dy = y1 - y0;
+            return sqrtf(dx * dx + dy * dy);
+        }
+        static inline float approxQuadraticLength(float x0, float y0, float x1, float y1, float x2, float y2) {
+            float chord = segmentLength(x0, y0, x2, y2);
+            float hull = segmentLength(x0, y0, x1, y1) + segmentLength(x1, y1, x2, y2);
+            return (2.f * chord + hull) / 3.f;
+        }
+        
+        // https://web.archive.org/web/20180418075534/http://www.malczak.linuxpl.com/blog/quadratic-bezier-curve-length/
+        //
+        static inline float exactQuadraticLength(float x0, float y0, float x1, float y1, float x2, float y2) {
+            float ax, ay, bx, by;
+            ax = x0 - x1 - x1 + x2, bx = 2.f * x1 - 2.f * x0;;
+            ay = y0 - y1 - y1 + y2, by = 2.f * y1 - 2.f * y0;
+            float A = 4.f * (ax * ax + ay * ay);
+            float B = 4.f * (ax * bx + ay * by);
+            float C = bx * bx + by * by;
+            float Sabc = 2.f * sqrt(A + B + C);
+            float A_2 = sqrt(A);
+            float A_32 = 2 * A * A_2;
+            float C_2 = 2 * sqrt(C);
+            float BA = B / A_2;
+            return (A_32 * Sabc + A_2 * B * (Sabc - C_2) + (4.f * C * A - B * B) * log((2.f * A_2 + BA + Sabc) / (BA + C_2))) / (4.f * A_32);
+        }
     };
     
     struct Outliner: GeometryWriter {

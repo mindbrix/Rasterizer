@@ -77,6 +77,8 @@ protocol RADrawable {
 
 class TestDasher: RADrawable {
     func getSceneAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RAScene {
+        let ts = 0.1 * time
+        let tick = ts - floor(ts)
         let dim = min(bounds.width, bounds.height)
         let width = 0.05 * dim
         let length = 10 * width
@@ -86,8 +88,11 @@ class TestDasher: RADrawable {
         
         let path = RAPath()
         path.add(b)
+        
         let lengths: [NSNumber] = [ .init(value: t * length), .init(value: s * length) ]
-        let dashed = path.dashedCopy(withPhase: 0, lengths: lengths)
+        
+        let cgDashed = path.dashedCGCopy(withPhase: tick * length, lengths: lengths)
+        let dashed = state.flag ? cgDashed : path.dashedCopy(withPhase: tick * length, lengths: lengths)
         
         let scene = RAScene()
         scene.addStroke(dashed, ctm: .identity, color: RAColor(), width: width, capStyle: .capButt, joinStyle: .joinMiter, clip: .zero)
