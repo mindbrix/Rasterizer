@@ -1322,8 +1322,7 @@ struct Rasterizer {
     
         bool moveTo;
         size_t dashIndex, dashCount;
-        float dashPhase = 0.f, *dashPattern = nullptr;
-        float len0, len1, dash0, dash1;
+        float dashPhase, *dashPattern, len0, len1, dash0, dash1;
         Path dashed;
         
         static inline float segmentLength(float x0, float y0, float x1, float y1) {
