@@ -1232,6 +1232,110 @@ struct Rasterizer {
         }
     }
     
+    struct Dasher: GeometryWriter {
+        static Path CreateDashedPath(Path path, float phase, float *pattern, size_t count) {
+            if (pattern == nullptr || count < 2)
+                return path;
+            
+            Dasher dasher(phase, pattern, count);
+            divideGeometry(path.ptr, Transform(), Bounds(), true, false, dasher);
+            return dasher.dashed;
+        }
+        static inline float segmentLength(float x0, float y0, float x1, float y1) {
+            float dx = x1 - x0, dy = y1 - y0;
+            return sqrtf(dx * dx + dy * dy);
+        }
+        static inline float approxQuadraticLength(float x0, float y0, float x1, float y1, float x2, float y2) {
+            constexpr const float w0 = 2.f / 3.f, w1 = 1.f - w0;
+            float chord = segmentLength(x0, y0, x2, y2);
+            float hull = segmentLength(x0, y0, x1, y1) + segmentLength(x1, y1, x2, y2);
+            return w0 * chord + w1 * hull;
+        }
+        
+        // https://web.archive.org/web/20180418075534/http://www.malczak.linuxpl.com/blog/quadratic-bezier-curve-length/
+        //
+        static inline float exactQuadraticLength(float x0, float y0, float x1, float y1, float x2, float y2) {
+            float ax, ay, bx, by;
+            ax = x0 - x1 - x1 + x2, bx = 2.f * x1 - 2.f * x0;;
+            ay = y0 - y1 - y1 + y2, by = 2.f * y1 - 2.f * y0;
+            float A = 4.f * (ax * ax + ay * ay);
+            float B = 4.f * (ax * bx + ay * by);
+            float C = bx * bx + by * by;
+            float Sabc = 2.f * sqrt(A + B + C);
+            float A_2 = sqrt(A);
+            float A_32 = 2 * A * A_2;
+            float C_2 = 2 * sqrt(C);
+            float BA = B / A_2;
+            return (A_32 * Sabc + A_2 * B * (Sabc - C_2) + (4.f * C * A - B * B) * log((2.f * A_2 + BA + Sabc) /(BA + C_2))) / (4.f * A_32);
+        }
+        
+        Dasher(float phase, float *pattern, size_t count) {
+            dashPhase = phase, dashPattern = pattern, dashCount = count;
+            len0 = 0.f;
+            moveTo = true;
+            dash0 = dashPhase, dash1 = dash0 + dashPattern[dashIndex];
+        }
+        
+        void writeSegment(float x0, float y0, float x1, float y1) {
+            float length, t0, t1;
+            length = segmentLength(x0, y0, x1, y1);
+            len1 = len0 + length;
+            t0 = fmaxf(0.f, fminf(1.f, (dash0 - len0) / (len1 - len0)));
+            t1 = fmaxf(0.f, fminf(1.f, (dash1 - len0) / (len1 - len0)));
+            while (t0 != t1) {
+                writeSegmentDash(x0, y0, x1, y1, t0, t1);
+                if (t1 == 1.f)
+                    t0 = t1;
+                else {
+                    nextDash();
+                    t0 = fmaxf(0.f, fminf(1.f, (dash0 - len0) / (len1 - len0)));
+                    t1 = fmaxf(0.f, fminf(1.f, (dash1 - len0) / (len1 - len0)));
+                }
+            }
+            len0 = len1, approxLength += length;
+        }
+        void Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
+            float mx, my;
+            mx = 0.5f * x1 + 0.25f * (x0 + x2);
+            my = 0.5f * y1 + 0.25f * (y0 + y2);
+            writeSegment(x0, y0, mx, my);
+            writeSegment(mx, my, x2, y2);
+            return;
+            
+            len1 = len0 + exactQuadraticLength(x0, y0, x1, y1, x2, y2);
+            // Algorithm
+            len0 = len1;
+            approxLength += approxQuadraticLength(x0, y0, x1, y1, x2, y2);
+        }
+        void EndSubpath(float x0, float y0, float x1, float y1, bool closed) {
+            if (0 && closed)
+                dashed->close();
+        }
+        
+        void writeSegmentDash(float x0, float y0, float x1, float y1, float t0, float t1) {
+            float tx0, ty0, tx1, ty1;
+            tx0 = x0 * (1.f - t0) + x1 * t0, tx1 = x0 * (1.f - t1) + x1 * t1;
+            ty0 = y0 * (1.f - t0) + y1 * t0, ty1 = y0 * (1.f - t1) + y1 * t1;
+            if (moveTo) {
+                dashed->moveTo(tx0, ty0);
+                moveTo = false;
+            }
+            dashed->lineTo(tx1, ty1);
+        }
+        void nextDash() {
+            moveTo = true;
+            dash0 = dash1 + dashPattern[++dashIndex % dashCount];
+            dash1 = dash0 + dashPattern[++dashIndex % dashCount];
+        }
+        
+        bool moveTo;
+        size_t dashIndex = 0, dashCount = 1;
+        float dashPhase = 0.f, *dashPattern = nullptr;
+        float len0, len1, dash0, dash1;
+        float approxLength = 0;
+        Path dashed;
+    };
+    
     struct Outliner: GeometryWriter {
         void writeSegment(float x0, float y0, float x1, float y1) {
             writeInstance(x0, y0, FLT_MAX, 0.f, x1, y1);
