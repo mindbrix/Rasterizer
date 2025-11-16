@@ -151,8 +151,7 @@ struct RasterizerPDF {
                     Ra::Vector<float> lengths(dashCount);
                     FPDFPageObj_GetDashPhase(pageObject, & phase);
                     FPDFPageObj_GetDashArray(pageObject, & lengths[0], dashCount);
-                    Ra::Path dashed = Ra::Dasher::CreateDashedPath(path, phase, & lengths[0], dashCount);
-                    path = dashed;
+                    path = Ra::Dasher::CreateDashedPath(path, phase, & lengths[0], dashCount);;
                 }
             } else {
                 FPDFPageObj_GetFillColor(pageObject, & R, & G, & B, & A);

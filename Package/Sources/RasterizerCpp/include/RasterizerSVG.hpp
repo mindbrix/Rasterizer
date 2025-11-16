@@ -57,8 +57,7 @@ struct RasterizerSVG {
                     }
                     if (shape->stroke.type != NSVG_PAINT_NONE && shape->strokeWidth) {
                         if (shape->strokeDashCount) {
-                            Ra::Path dashed = Ra::Dasher::CreateDashedPath(path, shape->strokeDashOffset, shape->strokeDashArray, shape->strokeDashCount);
-                            path = dashed;
+                            path = Ra::Dasher::CreateDashedPath(path, shape->strokeDashOffset, shape->strokeDashArray, shape->strokeDashCount);
                         }
                         char cap = shape->strokeLineCap;
                         int flags = cap == NSVG_CAP_ROUND ? Ra::Scene::kRoundCap : cap == NSVG_CAP_SQUARE ? Ra::Scene::kSquareCap : 0;
