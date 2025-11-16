@@ -1256,25 +1256,21 @@ struct Rasterizer {
                 writeSegment(x0, y0, x1, y1, t0, t1);
                 if (t1 == 1.f)
                     break;
-                else {
-                    nextDash();
-                    writeDashTs(& t0, & t1);
-                }
+                else
+                    nextDash(), writeDashTs(& t0, & t1);
             }
             len0 = len1;
         }
         void Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
             float t0, t1;
-            len1 = len0 + approxQuadraticLength(x0, y0, x1, y1, x2, y2);
+            len1 = len0 + gravesenQuadraticLength(x0, y0, x1, y1, x2, y2);
             writeDashTs(& t0, & t1);
             while (t0 != t1) {
                 writeQuadratic(x0, y0, x1, y1, x2, y2, t0, t1);
                 if (t1 == 1.f)
                     break;
-                else {
-                    nextDash();
-                    writeDashTs(& t0, & t1);
-                }
+                else
+                    nextDash(), writeDashTs(& t0, & t1);
             }
             len0 = len1;
         }
@@ -1338,7 +1334,7 @@ struct Rasterizer {
             float dx = x1 - x0, dy = y1 - y0;
             return sqrtf(dx * dx + dy * dy);
         }
-        static inline float approxQuadraticLength(float x0, float y0, float x1, float y1, float x2, float y2) {
+        static inline float gravesenQuadraticLength(float x0, float y0, float x1, float y1, float x2, float y2) {
             float chord = segmentLength(x0, y0, x2, y2);
             float hull = segmentLength(x0, y0, x1, y1) + segmentLength(x1, y1, x2, y2);
             return (2.f * chord + hull) / 3.f;
