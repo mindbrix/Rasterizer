@@ -1251,16 +1251,14 @@ struct Rasterizer {
         void writeSegment(float x0, float y0, float x1, float y1) {
             float t0, t1;
             len1 = len0 + segmentLength(x0, y0, x1, y1);
-            t0 = fmaxf(0.f, fminf(1.f, (dash0 - len0) / (len1 - len0)));
-            t1 = fmaxf(0.f, fminf(1.f, (dash1 - len0) / (len1 - len0)));
+            writeDashTs(& t0, & t1);
             while (t0 != t1) {
                 writeSegment(x0, y0, x1, y1, t0, t1);
                 if (t1 == 1.f)
                     break;
                 else {
                     nextDash();
-                    t0 = fmaxf(0.f, fminf(1.f, (dash0 - len0) / (len1 - len0)));
-                    t1 = fmaxf(0.f, fminf(1.f, (dash1 - len0) / (len1 - len0)));
+                    writeDashTs(& t0, & t1);
                 }
             }
             len0 = len1;
@@ -1268,16 +1266,14 @@ struct Rasterizer {
         void Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
             float t0, t1;
             len1 = len0 + approxQuadraticLength(x0, y0, x1, y1, x2, y2);
-            t0 = fmaxf(0.f, fminf(1.f, (dash0 - len0) / (len1 - len0)));
-            t1 = fmaxf(0.f, fminf(1.f, (dash1 - len0) / (len1 - len0)));
+            writeDashTs(& t0, & t1);
             while (t0 != t1) {
                 writeQuadratic(x0, y0, x1, y1, x2, y2, t0, t1);
                 if (t1 == 1.f)
                     break;
                 else {
                     nextDash();
-                    t0 = fmaxf(0.f, fminf(1.f, (dash0 - len0) / (len1 - len0)));
-                    t1 = fmaxf(0.f, fminf(1.f, (dash1 - len0) / (len1 - len0)));
+                    writeDashTs(& t0, & t1);
                 }
             }
             len0 = len1;
@@ -1295,6 +1291,10 @@ struct Rasterizer {
             moveTo = true;
             dash0 = dash1 + dashPattern[++dashIndex % dashCount];
             dash1 = dash0 + dashPattern[++dashIndex % dashCount];
+        }
+        void writeDashTs(float *t0, float *t1) {
+            *t0 = fmaxf(0.f, fminf(1.f, (dash0 - len0) / (len1 - len0)));
+            *t1 = fmaxf(0.f, fminf(1.f, (dash1 - len0) / (len1 - len0)));
         }
         void writeSegment(float x0, float y0, float x1, float y1, float t0, float t1) {
             float s0 = 1.f - t0, s1 = 1.f - t1;
