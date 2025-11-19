@@ -1288,6 +1288,11 @@ struct Rasterizer {
             *t0 = fmaxf(0.f, fminf(1.f, (dash0 - len0) / (len1 - len0)));
             *t1 = fmaxf(0.f, fminf(1.f, (dash1 - len0) / (len1 - len0)));
         }
+        void gravesenQuadraticTs(float x0, float y0, float x1, float y1, float x2, float y2) {
+            float chord = segmentLength(x0, y0, x2, y2);
+            float l0 = segmentLength(x0, y0, x1, y1), l1 = segmentLength(x1, y1, x2, y2);
+//            return (2.f * chord + hull) / 3.f;
+        }
         void writeDash(float x0, float y0, float x1, float y1, float t0, float t1) {
             float s0 = 1.f - t0, s1 = 1.f - t1;
             if (moveTo)
@@ -1295,29 +1300,18 @@ struct Rasterizer {
             dashed->lineTo(x0 * s1 + x1 * t1, y0 * s1 + y1 * t1);
         }
         void writeDash(float x0, float y0, float x1, float y1, float x2, float y2, float t0, float t1) {
-            float t, s, w0, w1, w2, sx0, sy0, sx1, sy1, sx2, sy2;
-            
-            t = t0, s = 1.f - t;
-            w0 = s * s, w1 = 2.f * s * t, w2 = t * t;
-            sx0 = w0 * x0 + w1 * x1 + w2 * x2;
-            sy0 = w0 * y0 + w1 * y1 + w2 * y2;
-            
-            t = 0.5f * (t0 + t1), s = 1.f - t;
-            w0 = s * s, w1 = 2.f * s * t, w2 = t * t;
-            sx1 = w0 * x0 + w1 * x1 + w2 * x2;
-            sy1 = w0 * y0 + w1 * y1 + w2 * y2;
-            
+            float t, s, sx0, sy0, sx1, sy1, sx2, sy2, tx0, ty0, tx1, ty1, tx2, ty2;
             t = t1, s = 1.f - t;
-            w0 = s * s, w1 = 2.f * s * t, w2 = t * t;
-            sx2 = w0 * x0 + w1 * x1 + w2 * x2;
-            sy2 = w0 * y0 + w1 * y1 + w2 * y2;
+            sx0 = s * x0 + t * x1, sx2 = s * x1 + t * x2, sx1 = s * sx0 + t * sx2;
+            sy0 = s * y0 + t * y1, sy2 = s * y1 + t * y2, sy1 = s * sy0 + t * sy2;
             
-            sx1 = 2.f * sx1 - 0.5f * (sx0 + sx2);
-            sy1 = 2.f * sy1 - 0.5f * (sy0 + sy2);
-
+            t = t0 / t1, s = 1.f - t;
+            tx0 = s * x0 + t * sx0, tx2 = s * sx0 + t * sx1, tx1 = s * tx0 + t * tx2;
+            ty0 = s * y0 + t * sy0, ty2 = s * sy0 + t * sy1, ty1 = s * ty0 + t * ty2;
+            
             if (moveTo)
-                moveTo = false, dashed->moveTo(sx0, sy0);
-            dashed->quadTo(sx1, sy1, sx2, sy2);
+                moveTo = false, dashed->moveTo(tx1, ty1);
+            dashed->quadTo(tx2, ty2, sx1, sy1);
         }
     
         bool moveTo;
