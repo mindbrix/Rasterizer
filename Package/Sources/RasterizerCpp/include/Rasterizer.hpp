@@ -1267,6 +1267,7 @@ struct Rasterizer {
             bool isCurve = x1 != FLT_MAX;
             len1 = len0 + (isCurve ? gravesenQuadraticLength(x0, y0, x1, y1, x2, y2) : segmentLength(x0, y0, x2, y2));
             writeDashTs(& t0, & t1);
+            refactorTs(x0, y0, x1, y1, x2, y2, & t0, & t1);
             while (t0 != t1) {
                 if (isCurve)
                     writeDash(x0, y0, x1, y1, x2, y2, t0, t1);
@@ -1275,7 +1276,7 @@ struct Rasterizer {
                 if (t1 == 1.f)
                     break;
                 else
-                    nextDash(), writeDashTs(& t0, & t1);
+                    nextDash(), writeDashTs(& t0, & t1), refactorTs(x0, y0, x1, y1, x2, y2, & t0, & t1);
             }
             len0 = len1;
         }
@@ -1288,10 +1289,20 @@ struct Rasterizer {
             *t0 = fmaxf(0.f, fminf(1.f, (dash0 - len0) / (len1 - len0)));
             *t1 = fmaxf(0.f, fminf(1.f, (dash1 - len0) / (len1 - len0)));
         }
-        void gravesenQuadraticTs(float x0, float y0, float x1, float y1, float x2, float y2) {
-            float chord = segmentLength(x0, y0, x2, y2);
+        void refactorTs(float x0, float y0, float x1, float y1, float x2, float y2, float *t0, float *t1) {
+            if (x1 == FLT_MAX)
+                return;
             float l0 = segmentLength(x0, y0, x1, y1), l1 = segmentLength(x1, y1, x2, y2);
-//            return (2.f * chord + hull) / 3.f;
+            float tm = l0 / (l0 + l1);
+            if (tm == 0.5f)
+                return;
+            float B = 2.f * tm, A = 1.f - B;
+            float rt0 = 0.5F * (-B + sqrtf(B * B - 4.f * A * -*t0)) / A;
+            float rt1 = 0.5F * (-B + sqrtf(B * B - 4.f * A * -*t1)) / A;
+            if (*t0 > 0.f && * t0 < 1.f)
+                *t0 = fmaxf(0.f, fminf(1.f, rt0));
+            if (*t1 > 0.f && * t1 < 1.f)
+                *t1 = fmaxf(0.f, fminf(1.f, rt1));
         }
         void writeDash(float x0, float y0, float x1, float y1, float t0, float t1) {
             float s0 = 1.f - t0, s1 = 1.f - t1;
