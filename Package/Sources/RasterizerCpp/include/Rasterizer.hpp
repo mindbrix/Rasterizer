@@ -1296,9 +1296,9 @@ struct Rasterizer {
             if (l0 == l1)
                 return;
             float tm = l0 / (l0 + l1), B = 2.f * tm, A = 1.f - B;
-            if (*t0 > 0.f && * t0 < 1.f)
+            if (*t0 > 0.f && *t0 < 1.f)
                 *t0 = fmaxf(0.f, fminf(1.f, 0.5F * (-B + sqrtf(B * B - 4.f * A * -*t0)) / A));
-            if (*t1 > 0.f && * t1 < 1.f)
+            if (*t1 > 0.f && *t1 < 1.f)
                 *t1 = fmaxf(0.f, fminf(1.f, 0.5F * (-B + sqrtf(B * B - 4.f * A * -*t1)) / A));
         }
         void writeDash(float x0, float y0, float x1, float y1, float x2, float y2, float t0, float t1) {
