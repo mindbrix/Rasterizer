@@ -1264,32 +1264,33 @@ struct Rasterizer {
         }
         void writeCurve(float x0, float y0, float x1, float y1, float x2, float y2) {
             float t0, t1;
-            bool isCurve = x1 != FLT_MAX;
-            len1 = len0 + (isCurve ? gravesenQuadraticLength(x0, y0, x1, y1, x2, y2) : segmentLength(x0, y0, x2, y2));
-            writeDashTs(& t0, & t1);
-            refactorTs(x0, y0, x1, y1, x2, y2, & t0, & t1);
+            len1 = len0 + curveLength(x0, y0, x1, y1, x2, y2);
+            writeDashTs(x0, y0, x1, y1, x2, y2, & t0, & t1);
             while (t0 != t1) {
-                if (isCurve)
-                    writeDash(x0, y0, x1, y1, x2, y2, t0, t1);
-                else
-                    writeDash(x0, y0, x2, y2, t0, t1);
+                writeDash(x0, y0, x1, y1, x2, y2, t0, t1);
                 if (t1 == 1.f)
                     break;
                 else
-                    nextDash(), writeDashTs(& t0, & t1), refactorTs(x0, y0, x1, y1, x2, y2, & t0, & t1);
+                    nextDash(), writeDashTs(x0, y0, x1, y1, x2, y2, & t0, & t1);
             }
             len0 = len1;
+        }
+        float curveLength(float x0, float y0, float x1, float y1, float x2, float y2) {
+            float chord = segmentLength(x0, y0, x2, y2);
+            if (x1 == FLT_MAX)
+                return chord;
+            float hull = segmentLength(x0, y0, x1, y1) + segmentLength(x1, y1, x2, y2);
+            return (2.f * chord + hull) / 3.f;
         }
         void nextDash() {
             moveTo = true;
             dash0 = dash1 + dashPattern[++dashIndex % dashCount];
             dash1 = dash0 + dashPattern[++dashIndex % dashCount];
         }
-        void writeDashTs(float *t0, float *t1) {
+        void writeDashTs(float x0, float y0, float x1, float y1, float x2, float y2, float *t0, float *t1) {
             *t0 = fmaxf(0.f, fminf(1.f, (dash0 - len0) / (len1 - len0)));
             *t1 = fmaxf(0.f, fminf(1.f, (dash1 - len0) / (len1 - len0)));
-        }
-        void refactorTs(float x0, float y0, float x1, float y1, float x2, float y2, float *t0, float *t1) {
+            
             if (x1 == FLT_MAX)
                 return;
             float l0 = segmentLength(x0, y0, x1, y1), l1 = segmentLength(x1, y1, x2, y2);
@@ -1304,25 +1305,26 @@ struct Rasterizer {
             if (*t1 > 0.f && * t1 < 1.f)
                 *t1 = fmaxf(0.f, fminf(1.f, rt1));
         }
-        void writeDash(float x0, float y0, float x1, float y1, float t0, float t1) {
-            float s0 = 1.f - t0, s1 = 1.f - t1;
-            if (moveTo)
-                moveTo = false, dashed->moveTo(x0 * s0 + x1 * t0, y0 * s0 + y1 * t0);
-            dashed->lineTo(x0 * s1 + x1 * t1, y0 * s1 + y1 * t1);
-        }
         void writeDash(float x0, float y0, float x1, float y1, float x2, float y2, float t0, float t1) {
-            float t, s, sx0, sy0, sx1, sy1, sx2, sy2, tx0, ty0, tx1, ty1, tx2, ty2;
-            t = t1, s = 1.f - t;
-            sx0 = s * x0 + t * x1, sx2 = s * x1 + t * x2, sx1 = s * sx0 + t * sx2;
-            sy0 = s * y0 + t * y1, sy2 = s * y1 + t * y2, sy1 = s * sy0 + t * sy2;
-            
-            t = t0 / t1, s = 1.f - t;
-            tx0 = s * x0 + t * sx0, tx2 = s * sx0 + t * sx1, tx1 = s * tx0 + t * tx2;
-            ty0 = s * y0 + t * sy0, ty2 = s * sy0 + t * sy1, ty1 = s * ty0 + t * ty2;
-            
-            if (moveTo)
-                moveTo = false, dashed->moveTo(tx1, ty1);
-            dashed->quadTo(tx2, ty2, sx1, sy1);
+            if (x1 == FLT_MAX) {
+                float s0 = 1.f - t0, s1 = 1.f - t1;
+                if (moveTo)
+                    moveTo = false, dashed->moveTo(x0 * s0 + x2 * t0, y0 * s0 + y2 * t0);
+                dashed->lineTo(x0 * s1 + x2 * t1, y0 * s1 + y2 * t1);
+            } else {
+                float t, s, sx0, sy0, sx1, sy1, sx2, sy2, tx0, ty0, tx1, ty1, tx2, ty2;
+                t = t1, s = 1.f - t;
+                sx0 = s * x0 + t * x1, sx2 = s * x1 + t * x2, sx1 = s * sx0 + t * sx2;
+                sy0 = s * y0 + t * y1, sy2 = s * y1 + t * y2, sy1 = s * sy0 + t * sy2;
+                
+                t = t0 / t1, s = 1.f - t;
+                tx0 = s * x0 + t * sx0, tx2 = s * sx0 + t * sx1, tx1 = s * tx0 + t * tx2;
+                ty0 = s * y0 + t * sy0, ty2 = s * sy0 + t * sy1, ty1 = s * ty0 + t * ty2;
+                
+                if (moveTo)
+                    moveTo = false, dashed->moveTo(tx1, ty1);
+                dashed->quadTo(tx2, ty2, sx1, sy1);
+            }
         }
     
         bool moveTo;
@@ -1333,11 +1335,6 @@ struct Rasterizer {
         static inline float segmentLength(float x0, float y0, float x1, float y1) {
             float dx = x1 - x0, dy = y1 - y0;
             return sqrtf(dx * dx + dy * dy);
-        }
-        static inline float gravesenQuadraticLength(float x0, float y0, float x1, float y1, float x2, float y2) {
-            float chord = segmentLength(x0, y0, x2, y2);
-            float hull = segmentLength(x0, y0, x1, y1) + segmentLength(x1, y1, x2, y2);
-            return (2.f * chord + hull) / 3.f;
         }
     };
     
