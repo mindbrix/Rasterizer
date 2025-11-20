@@ -1290,20 +1290,16 @@ struct Rasterizer {
         void writeDashTs(float x0, float y0, float x1, float y1, float x2, float y2, float *t0, float *t1) {
             *t0 = fmaxf(0.f, fminf(1.f, (dash0 - len0) / (len1 - len0)));
             *t1 = fmaxf(0.f, fminf(1.f, (dash1 - len0) / (len1 - len0)));
-            
             if (x1 == FLT_MAX)
                 return;
             float l0 = segmentLength(x0, y0, x1, y1), l1 = segmentLength(x1, y1, x2, y2);
-            float tm = l0 / (l0 + l1);
-            if (tm == 0.5f)
+            if (l0 == l1)
                 return;
-            float B = 2.f * tm, A = 1.f - B;
-            float rt0 = 0.5F * (-B + sqrtf(B * B - 4.f * A * -*t0)) / A;
-            float rt1 = 0.5F * (-B + sqrtf(B * B - 4.f * A * -*t1)) / A;
+            float tm = l0 / (l0 + l1), B = 2.f * tm, A = 1.f - B;
             if (*t0 > 0.f && * t0 < 1.f)
-                *t0 = fmaxf(0.f, fminf(1.f, rt0));
+                *t0 = fmaxf(0.f, fminf(1.f, 0.5F * (-B + sqrtf(B * B - 4.f * A * -*t0)) / A));
             if (*t1 > 0.f && * t1 < 1.f)
-                *t1 = fmaxf(0.f, fminf(1.f, rt1));
+                *t1 = fmaxf(0.f, fminf(1.f, 0.5F * (-B + sqrtf(B * B - 4.f * A * -*t1)) / A));
         }
         void writeDash(float x0, float y0, float x1, float y1, float x2, float y2, float t0, float t1) {
             if (x1 == FLT_MAX) {
