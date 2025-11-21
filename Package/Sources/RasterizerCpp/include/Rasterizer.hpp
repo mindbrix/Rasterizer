@@ -1259,7 +1259,7 @@ struct Rasterizer {
         
         void reset() {
             moveTo = true, dashIndex = 0, len0 = 0.f, dash0 = -dashPhase, dash1 = dash0 + dashPattern[0];
-            while (dash1 < 0.f)
+            while (dash1 < 1e-3f)
                 nextDash();
         }
         void writeCurve(float cx0, float cy0, float cx1, float cy1, float cx2, float cy2) {
