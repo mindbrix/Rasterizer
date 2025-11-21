@@ -22,6 +22,7 @@
 
 struct RasterizerWinding {
     struct IndexPair {
+        IndexPair() : i0(INT_MAX), i1(INT_MAX) {}
         IndexPair(size_t i0, size_t i1) : i0(int(i0)), i1(int(i1)) {}
         int i0, i1;
     };
@@ -49,7 +50,7 @@ struct RasterizerWinding {
                     }
                 }
             }
-        return IndexPair(INT_MAX, INT_MAX);
+        return IndexPair();
     }
     
     static int pointWinding(Ra::Geometry *g, Ra::Bounds bounds, Ra::Transform m, float px, float py, float w, uint8_t flags) {

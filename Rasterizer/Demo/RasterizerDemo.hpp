@@ -85,9 +85,9 @@ struct RasterizerDemo {
         else if (keyCode == KeyCode::kO)
             params.showOutlines = !params.showOutlines, keyUsed = true, clearHUD();
         else if (keyCode == KeyCode::kP)
-            mouseMove = !mouseMove, indices = mouseMove ? indices : Rw::IndexPair(INT_MAX, INT_MAX), keyUsed = true, clearHUD();
+            mouseMove = !mouseMove, indices = mouseMove ? indices : Rw::IndexPair(), keyUsed = true, clearHUD();
         else if (keyCode == KeyCode::kL)
-            locked = locked.i0 != INT_MAX ? Rw::IndexPair(INT_MAX, INT_MAX) : indices, keyUsed = true;
+            locked = locked.i0 != INT_MAX ? Rw::IndexPair() : indices, keyUsed = true;
         else if (keyCode == KeyCode::kS) {
             list.ctm = ctm;
             RaUtils::screenGrabToPDF(list, bounds), keyUsed = true;
@@ -124,14 +124,8 @@ struct RasterizerDemo {
     }
     void onMouseMove(float x, float y) {
         mx = x, my = y;
-        if (mouseMove) {
-            auto indices = RasterizerWinding::indicesForPoint(list, bounds, mx, my);
-            if (indices.i0 != INT_MAX) {
-                auto path = list.scenes[indices.i0]->paths[indices.i1];
-                int i = 0;
-            }
+        if (mouseMove)
             redraw = true;
-        }
     }
     void onMouseDown(float x, float y) {
         mouseDown = true;
@@ -249,6 +243,22 @@ struct RasterizerDemo {
             ctm = bounds.fitTransform(list.bounds()), fit = false;
         Ra::SceneList draw = list;
         draw.ctm = ctm, draw.params = params;
+        if (mouseMove) {
+            list.ctm = ctm;
+            indices = RasterizerWinding::indicesForPoint(list, bounds, mx, my);
+            if (indices.i0 != INT_MAX) {
+                size_t i0 = indices.i0, i1 = indices.i1;
+                const Ra::SceneRef& scene = list.scenes[i0];
+                const Ra::Path& path = scene->paths[i1];
+                const Ra::Transform& ctm = scene->ctms[i1];
+                const float width = scene->widths[i1];
+                auto flags = scene->flags[i1];
+                Ra::BGRA red(0, 0, 255, 255);
+                Ra::SceneRef mouseScene;
+                mouseScene->addPath(path, ctm, red, width, flags);
+                draw.addScene(mouseScene, list.ctms[i0], list.clips[i0]);
+            }
+        }
         if (showHud) {
             Ra::Bounds hudBounds = Ra::Bounds(0, 0, kHudWidth, kHudHeight);
             if (hud->weight == 0)
@@ -314,6 +324,6 @@ struct RasterizerDemo {
     bool gpu = true, redraw = false, fit = false, mouseDown = false, mouseMove = false, animating = false;
     double clock = 0.0, timeScale = 0.333;
     float mx, my;
-    Rw::IndexPair indices = Rw::IndexPair(INT_MAX, INT_MAX), locked = Rw::IndexPair(INT_MAX, INT_MAX);
+    Rw::IndexPair indices = Rw::IndexPair(), locked = Rw::IndexPair();
     size_t flags = 0;
 };
