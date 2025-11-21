@@ -1265,13 +1265,13 @@ struct Rasterizer {
         void writeCurve(float x0, float y0, float x1, float y1, float x2, float y2) {
             float t0, t1;
             len1 = len0 + curveLength(x0, y0, x1, y1, x2, y2);
-            writeDashTs(x0, y0, x1, y1, x2, y2, & t0, & t1);
+            getDash(x0, y0, x1, y1, x2, y2, & t0, & t1);
             while (t0 != t1) {
                 writeDash(x0, y0, x1, y1, x2, y2, t0, t1);
                 if (t1 == 1.f)
                     break;
                 else
-                    nextDash(), writeDashTs(x0, y0, x1, y1, x2, y2, & t0, & t1);
+                    nextDash(), getDash(x0, y0, x1, y1, x2, y2, & t0, & t1);
             }
             len0 = len1;
         }
@@ -1282,12 +1282,7 @@ struct Rasterizer {
             float hull = segmentLength(x0, y0, x1, y1) + segmentLength(x1, y1, x2, y2);
             return (2.f * chord + hull) / 3.f;
         }
-        void nextDash() {
-            moveTo = true;
-            dash0 = dash1 + dashPattern[++dashIndex % dashCount];
-            dash1 = dash0 + dashPattern[++dashIndex % dashCount];
-        }
-        void writeDashTs(float x0, float y0, float x1, float y1, float x2, float y2, float *t0, float *t1) {
+        void getDash(float x0, float y0, float x1, float y1, float x2, float y2, float *t0, float *t1) {
             *t0 = fmaxf(0.f, fminf(1.f, (dash0 - len0) / (len1 - len0)));
             *t1 = fmaxf(0.f, fminf(1.f, (dash1 - len0) / (len1 - len0)));
             if (x1 == FLT_MAX)
@@ -1322,7 +1317,12 @@ struct Rasterizer {
                 dashed->quadTo(tx2, ty2, sx1, sy1);
             }
         }
-    
+        void nextDash() {
+            moveTo = true;
+            dash0 = dash1 + dashPattern[++dashIndex % dashCount];
+            dash1 = dash0 + dashPattern[++dashIndex % dashCount];
+        }
+        
         bool moveTo;
         size_t dashIndex, dashCount;
         float dashPhase, *dashPattern, len0, len1, dash0, dash1;
