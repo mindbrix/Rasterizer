@@ -124,8 +124,14 @@ struct RasterizerDemo {
     }
     void onMouseMove(float x, float y) {
         mx = x, my = y;
-        if (mouseMove)
+        if (mouseMove) {
+            auto indices = RasterizerWinding::indicesForPoint(list, bounds, mx, my);
+            if (indices.i0 != INT_MAX) {
+                auto path = list.scenes[indices.i0]->paths[indices.i1];
+                int i = 0;
+            }
             redraw = true;
+        }
     }
     void onMouseDown(float x, float y) {
         mouseDown = true;
