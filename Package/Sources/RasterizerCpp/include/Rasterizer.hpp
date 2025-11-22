@@ -583,6 +583,7 @@ struct Rasterizer {
                 pathsCount += scene->count, scenes.emplace_back(scene), ctms.emplace_back(ctm), clips.emplace_back(clip);
             return *this;
         }
+        Path clipPath;
         Transform ctm;  Params params;
         size_t pathsCount = 0;  std::vector<SceneRef> scenes;  std::vector<Transform> ctms;  std::vector<Bounds> clips;
     };
@@ -593,7 +594,6 @@ struct Rasterizer {
         Cell cell;  short cover;  int base, biid;
     };
     struct Quadratic {
-        Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) : x0(x0), y0(y0), x1(x1), y1(y1), x2(x2), y2(y2) {}
         float x0, y0, x1, y1, x2, y2;
     };
     struct Outline {
@@ -639,7 +639,7 @@ struct Rasterizer {
         int16_t lx, ux, cover;  uint32_t is;
     };
     struct Buffer {
-        enum Type { kQuadEdges, kFastEdges, kFastMolecules, kQuadMolecules, kOpaques, kInstances, kSegmentsBase, kPointsBase, kInstancesBase };
+        enum Type { kQuadEdges, kFastEdges, kFastMolecules, kQuadMolecules, kOpaques, kInstances, kSegmentsBase, kPointsBase, kInstancesBase, kStencils };
         struct Entry {
             Entry(Type type, size_t begin, size_t end) : type(type), begin(begin), end(end) {}
             Type type;  size_t begin, end;

@@ -124,6 +124,14 @@
     return self;
 }
 
+- (id)initWithRect:(CGRect)rect {
+    self = [super init];
+    if (!self)
+        return nil;
+    [self addRect:rect];
+    return self;
+}
+
 - (CGRect)bounds {
     return RaCG::CGRectFromBounds(_path->bounds);
 }
@@ -219,6 +227,15 @@
 
 @implementation RASceneList: NSObject
 
+- (RAPath *)clipPath {
+    RAPath *clip = [RAPath new];
+    clip.path = _list.clipPath;
+    return clip;
+}
+- (void)setClipPath:(RAPath *)clipPath {
+    if (clipPath.path->isValid())
+        _list.clipPath = clipPath.path;
+}
 - (CGRect)bounds {
     return RaCG::CGRectFromBounds(_list.bounds());
 }

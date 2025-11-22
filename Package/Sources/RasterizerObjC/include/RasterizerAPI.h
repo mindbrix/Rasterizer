@@ -32,6 +32,7 @@
 @property(nonatomic, readonly) CGRect bounds;
 
 - (id)initWithCGPath:(CGPathRef)cgPath;
+- (id)initWithRect:(CGRect)rect;
 - (void)moveTo:(double)x y:(double)y;
 - (void)lineTo:(double)x y:(double)y;
 - (void)quadTo:(double)x1 y1:(double)y1 x2:(double)x2 y2:(double)y2;
@@ -84,6 +85,7 @@ typedef NS_ENUM(NSUInteger, RAJoinStyle) {
 
 
 @interface RASceneList: NSObject
+@property(nonatomic) RAPath *clipPath;
 @property(nonatomic, readonly) CGRect bounds;
 @property(nonatomic) CGAffineTransform ctm;
 @property(nonatomic) BOOL useCurves;

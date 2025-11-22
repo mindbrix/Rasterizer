@@ -250,6 +250,7 @@ class SwiftDemo: NSObject, RASceneListDelegate {
         TestDasher()
     ]
     
+    var clip = false
     var index = 0
     var flag = false
     var paused = false
@@ -273,9 +274,7 @@ class SwiftDemo: NSObject, RASceneListDelegate {
                 let i = Int(character.asciiValue ?? 0) - Int(Character("1").asciiValue ?? 0)
                 index = min(drawables.count - 1, i)
             case "a":
-                if (flags.contains(.shift)) {
-                    flag.toggle()
-                }
+                flag.toggle()
             case "c":
                 useCurves.toggle()
             case "f":
@@ -288,6 +287,8 @@ class SwiftDemo: NSObject, RASceneListDelegate {
                 paused.toggle()
             case "r":
                 useRect.toggle()
+            case "u":
+                clip.toggle()
             case "v":
                 if (flags.contains(.command)) {
                     let objects = NSPasteboard.general.readObjects(forClasses: [NSAttributedString.self])
@@ -327,6 +328,7 @@ class SwiftDemo: NSObject, RASceneListDelegate {
                 clip: .zero
             )
         }
+        list.clipPath = clip ? RAPath(rect: bounds.insetBy(dx: 20, dy: 20)) : RAPath()
         list.ctm = ctm
         list.useCurves = useCurves
         list.showOpaques = showOpaques

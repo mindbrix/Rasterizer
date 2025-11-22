@@ -180,6 +180,36 @@ float quadraticWinding(float x0, float y0, float x1, float y1, float x2, float y
     return w;
 }
 
+#pragma mark - Stencil
+
+struct StencilVertex
+{
+    float4 position [[position]];
+};
+
+vertex StencilVertex stencil_vertex_main(const device Opaque *stencils [[buffer(1)]],
+                                         constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
+                                         uint vid [[vertex_id]], uint iid [[instance_id]])
+{
+    const device Opaque& inst = stencils[iid];
+    const device Quadratic& quad = inst.quad;
+    float x = vid == 0 ? quad.x0 : vid == 1 ? quad.x1 : quad.x2;
+    float y = vid == 0 ? quad.y0 : vid == 1 ? quad.y1 : quad.y2;
+    StencilVertex vert;
+    vert.position = {
+        x / *width * 2.0 - 1.0,
+        y / *height * 2.0 - 1.0,
+        1.0,
+        1.0
+    };
+    return vert;
+}
+
+fragment float4 stencil_fragment_main(StencilVertex vert [[stage_in]])
+{
+    return 1;
+}
+
 #pragma mark - Opaques
 
 struct OpaquesVertex
