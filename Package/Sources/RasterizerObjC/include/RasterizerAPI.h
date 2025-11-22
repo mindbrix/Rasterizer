@@ -25,7 +25,6 @@
                  locations:(NSArray<NSNumber *>*)locations
                     center:(CGPoint)center
                     radius:(double)radius;
-
 @end
 
 
@@ -43,7 +42,6 @@
 - (void)addEllipse:(CGRect)rect;
 - (RAPath *)dashedCopyWithPhase:(double)phase
                         lengths:(NSArray<NSNumber *>*)lengths;
-
 @end
 
 
@@ -72,8 +70,15 @@ typedef NS_ENUM(NSUInteger, RAJoinStyle) {
         joinStyle:(RAJoinStyle)joinStyle
              clip:(CGRect)clip;
 
-- (CGRect)addTextLine:(NSAttributedString *)string ctm:(CGAffineTransform)ctm clip:(CGRect)clip;
-- (CGRect)addText:(NSAttributedString *)string inRect:(CGRect)rect ctm:(CGAffineTransform)ctm clip:(CGRect)clip;
+- (CGRect)addTextLine:(NSAttributedString *)string
+                  ctm:(CGAffineTransform)ctm
+                 clip:(CGRect)clip;
+
+- (CGRect)addText:(NSAttributedString *)string
+           inRect:(CGRect)rect
+              ctm:(CGAffineTransform)ctm
+             clip:(CGRect)clip;
+
 - (CGAffineTransform)addSvgFromData:(NSData *)data;
 @end
 
