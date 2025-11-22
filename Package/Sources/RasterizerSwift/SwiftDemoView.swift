@@ -82,8 +82,8 @@ class TestDasher: RADrawable {
     func getSceneAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RAScene {
         let ts = time
         let tick = ts - floor(ts)
-        let width = 80.0
-        let b = bounds.insetBy(dx: width, dy: width)
+        let width = 10.0
+        let b = bounds.insetBy(dx: 0.5 * width, dy: 0.5 * width)
         if b.width == 0 || b.height == 0 {
             return RAScene()
         }
@@ -95,15 +95,17 @@ class TestDasher: RADrawable {
         }
         let perimeter = state.useRect ? 2 * (bounds.width + bounds.height) : ellipsePerimeter(a: 0.5 * b.width, b: 0.5 * b.height)
         
+        let capStyle: RACapStyle = state.flag ? .capRound : .capButt
+        
         let length = perimeter / 60
-        let t = 0.666
-        let s = 1 - t
-        let lengths = [t * length as NSNumber, s * length as NSNumber]
-        let cgDashed = path.dashedCGCopy(withPhase: tick * length, lengths: lengths)
-        let dashed = state.flag ? cgDashed : path.dashedCopy(withPhase: tick * length, lengths: lengths)
+        let l0 = max(1, 0.666 * length - (capStyle == .capRound ? width : 1))
+        let lengths = [l0 as NSNumber, length - l0 as NSNumber]
+        let dashed = path.dashedCopy(withPhase: tick * length, lengths: lengths)
+//        let cgDashed = path.dashedCGCopy(withPhase: tick * length, lengths: lengths)
+//        let dashed = state.flag ? cgDashed : path.dashedCopy(withPhase: tick * length, lengths: lengths)
         
         let scene = RAScene()
-        scene.addStroke(dashed, ctm: .identity, color: RAColor(), width: width, capStyle: .capButt, joinStyle: .joinMiter, clip: .zero)
+        scene.addStroke(dashed, ctm: .identity, color: RAColor(), width: width, capStyle: capStyle, joinStyle: .joinMiter, clip: .zero)
         return scene
     }
 }

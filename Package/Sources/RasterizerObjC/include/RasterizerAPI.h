@@ -50,7 +50,7 @@
 
 
 typedef NS_ENUM(NSUInteger, RACapStyle) {
-    kCapButt = 0, kCapRound, kCapSquare
+    kCapButt = 0, kCapSquare, kCapRound
 };
 
 typedef NS_ENUM(NSUInteger, RAJoinStyle) {

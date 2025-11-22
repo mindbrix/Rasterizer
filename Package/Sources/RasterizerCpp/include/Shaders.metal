@@ -554,7 +554,6 @@ vertex InstancesVertex instances_vertex_main(
         ax = x1 - x2, bx = x1 - x0, cx = x2 - x0;
         ay = y1 - y2, by = y1 - y0, cy = y2 - y0;
         float cdot = cx * cx + cy * cy, rc = rsqrt(cdot);
-        alpha *= min(1.0, cdot * 1e3);
         float area = cx * by - cy * bx;
         float tc = abs(area / cdot);
         
