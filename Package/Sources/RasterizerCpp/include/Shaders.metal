@@ -603,11 +603,12 @@ vertex InstancesVertex instances_vertex_main(
             vert.u = x0 - dx, vert.v = x1 - dx, vert.w = x2 - dx;
             vert.x = y0 - dy, vert.y = y1 - dy, vert.z = y2 - dy;
             
+            flags = flags | Instance::kIsCurve;
             flags = flags | (pcap ? !roundCap : !roundJoin) * Instance::kF0;
             flags = flags | (ncap ? !roundCap : !roundJoin) * Instance::kF1;
         }
         vert.cover = dw;
-        flags = flags | pcap * Instance::kPCap | ncap * Instance::kNCap | isCurve * Instance::kIsCurve | roundCap * Instance::kEvenOdd;
+        flags = flags | pcap * Instance::kPCap | ncap * Instance::kNCap;
     } else {
         const device Cell& cell = inst.quad.cell;
         dx = isRight ? cell.ux : cell.lx;
@@ -646,7 +647,6 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
     if (vert.iz & Instance::kOutlines) {
         bool isCurve = vert.iz & Instance::kIsCurve;
         bool squareCap = vert.iz & Instance::kSquareCap;
-        bool roundCap = vert.iz & Instance::kEvenOdd;
         bool pcap = vert.iz & Instance::kPCap, ncap = vert.iz & Instance::kNCap;
         bool f0 = vert.iz & Instance::kF0, f1 = vert.iz & Instance::kF1;
         const float dw = vert.cover;
