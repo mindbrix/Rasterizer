@@ -76,22 +76,28 @@ protocol RADrawable {
 }
 
 class TestDasher: RADrawable {
+    func ellipsePerimeter(a: Double, b: Double) -> Double {
+        .pi * (3 * (a + b) - sqrt((3 * a + b) * (a + 3 * b)))
+    }
     func getSceneAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RAScene {
-        let ts = 0.1 * time
+        let ts = time
         let tick = ts - floor(ts)
-        let dim = min(bounds.width, bounds.height)
-        let width = 0.05 * dim
-        let length = 10 * width
-        let t = 0.9
-        let s = 1 - t
+        let width = 80.0
         let b = bounds.insetBy(dx: width, dy: width)
-        
+        if b.width == 0 || b.height == 0 {
+            return RAScene()
+        }
         let path = RAPath()
         if state.useRect {
             path.add(b)
         } else {
             path.addEllipse(b)
         }
+        let perimeter = state.useRect ? 2 * (bounds.width + bounds.height) : ellipsePerimeter(a: 0.5 * b.width, b: 0.5 * b.height)
+        
+        let length = perimeter / 60
+        let t = 0.666
+        let s = 1 - t
         let lengths = [t * length as NSNumber, s * length as NSNumber]
         let cgDashed = path.dashedCGCopy(withPhase: tick * length, lengths: lengths)
         let dashed = state.flag ? cgDashed : path.dashedCopy(withPhase: tick * length, lengths: lengths)
