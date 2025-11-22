@@ -1386,6 +1386,35 @@ struct Rasterizer {
         }
         uint32_t iz;  Row<Instance> *outlines = nullptr;  Row<Opaque> *opaques = nullptr;
     };
+    
+    struct Stenciler: GeometryWriter {
+        static Row<Opaque> CreateStencils(Path path, Bounds bounds, Transform m = Transform()) {
+            Stenciler stenciler(path, bounds);
+            divideGeometry(path.ptr, m, bounds, true, true, stenciler);
+            return stenciler.stencils;
+        }
+        
+        Stenciler(Path path, Bounds bounds) : bounds(bounds), molecule(path->molecules.base) {}
+        
+        void writeSegment(float x0, float y0, float x1, float y1) {
+            Opaque *stencil = stencils.alloc(1);
+            struct Quadratic& quad = stencil->quad;
+            quad.x0 = molecule->cx(), quad.y0 = molecule->cy();
+            quad.x1 = x0, quad.y1 = y0;
+            quad.x2 = x1, quad.y2 = y1;
+        }
+        void Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
+            float mx = 0.5 * x1 + 0.25 * (x0 + x2);
+            float my = 0.5 * y1 + 0.25 * (y0 + y2);
+            writeSegment(x0, y0, mx, my);
+            writeSegment(mx, my, x2, y2);
+        }
+        void EndSubpath(float x0, float y0, float x1, float y1, bool closed) {
+            molecule++;
+        }
+        Bounds bounds, *molecule;
+        Row<Opaque> stencils;
+    };
     static size_t resizeBuffer(const SceneList& list, Context *contexts, size_t count, size_t *begins, Buffer& buffer) {
         size_t size = buffer.headerSize, begin = size, end = begin, sz, i, j, instances;
         for (i = 0; i < count; i++)
