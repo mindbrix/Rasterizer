@@ -596,6 +596,9 @@ vertex InstancesVertex instances_vertex_main(
             float d1 = (dx - x2) * -no.x + (dy - y2) * -no.y;
             vert.w = pcap ? offset + d0 : roundJoin ? d0 : FLT_MAX;
             vert.z = ncap ? offset + d1 : roundJoin ? d1 : FLT_MAX;
+            
+            flags = flags | ((pcap && roundCap) || (!pcap && roundJoin)) * Instance::kF0;
+            flags = flags | ((ncap && roundCap) || (!ncap && roundJoin)) * Instance::kF1;
         } else
         {
             vert.u = x0 - dx, vert.v = x1 - dx, vert.w = x2 - dx;
@@ -653,7 +656,7 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
             float dx = vert.u, dy = min(vert.w, vert.z), ry = min(0.0, dy);
             float rect = saturate(dw - abs(dx)) * saturate(dy);
             float lozenge = saturate(dw - sqrt(dx * dx + ry * ry));
-            alpha = roundCap ? lozenge : rect;
+            alpha = vert.w < vert.z ? (f0 ? lozenge : rect) : (f1 ? lozenge : rect);
         } else
         {
             float x0, y0, x1, y1, x2, y2, d0, dm0, d1, dm1, sqdist, sd0, sd1, cap, cap0, cap1;
