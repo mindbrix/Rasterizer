@@ -42,9 +42,7 @@
 - (void)addRect:(CGRect)rect;
 - (void)addEllipse:(CGRect)rect;
 - (RAPath *)dashedCopyWithPhase:(double)phase
-                  lengths:(NSArray<NSNumber *>*)lengths;
-- (RAPath *)dashedCGCopyWithPhase:(double)phase
-                    lengths:(NSArray<NSNumber *>*)lengths;
+                        lengths:(NSArray<NSNumber *>*)lengths;
 
 @end
 

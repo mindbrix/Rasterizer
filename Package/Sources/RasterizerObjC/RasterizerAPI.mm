@@ -166,24 +166,6 @@
     return dashed;
 }
 
-- (RAPath *)dashedCGCopyWithPhase:(double)phase
-                    lengths:(NSArray<NSNumber *>*)lengths {
-    NSInteger count = lengths.count;
-    if (count < 2)
-        return self;
-    Ra::Vector<CGFloat> lens(count);
-    for (NSInteger i = 0; i < count; i++)
-        lens[i] = lengths[i].doubleValue;
-    
-    CGMutablePathRef cgPath = CGPathCreateMutable();
-    RaCG::writePathToCGPath(self.path.ptr, cgPath);
-    CGPathRef cgDashed = CGPathCreateCopyByDashingPath(cgPath, NULL, phase, & lens[0], count);
-    RAPath *dashed = [[RAPath alloc] initWithCGPath:cgDashed];
-    CGPathRelease(cgDashed);
-    CGPathRelease(cgPath);
-    return dashed;
-}
-
 @end
 
 

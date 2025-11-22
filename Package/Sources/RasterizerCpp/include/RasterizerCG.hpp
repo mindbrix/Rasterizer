@@ -259,33 +259,6 @@ struct RasterizerCG {
             }
         });
     }
-    static void writePathToCGPath(Ra::Geometry *g, CGMutablePathRef path) {
-        for (size_t index = 0; index < g->types.end; ) {
-            float *p = g->points.base + index * 2;
-            switch (*(g->types.base + index)) {
-                case Ra::Geometry::kMove:
-                    CGPathMoveToPoint(path, NULL, p[0], p[1]);
-                    index++;
-                    break;
-                case Ra::Geometry::kLine:
-                    CGPathAddLineToPoint(path, NULL, p[0], p[1]);
-                    index++;
-                    break;
-                case Ra::Geometry::kQuadratic:
-                    CGPathAddQuadCurveToPoint(path, NULL, p[0], p[1], p[2], p[3]);
-                    index += 2;
-                    break;
-                case Ra::Geometry::kCubic:
-                    CGPathAddCurveToPoint(path, NULL, p[0], p[1], p[2], p[3], p[4], p[5]);
-                    index += 3;
-                    break;
-                case Ra::Geometry::kClose:
-                    CGPathCloseSubpath(path);
-                    index++;
-                    break;
-            }
-        }
-    }
     static void writePathToCGContext(Ra::Geometry *g, CGContextRef ctx) {
         for (size_t index = 0; index < g->types.end; ) {
             float *p = g->points.base + index * 2;

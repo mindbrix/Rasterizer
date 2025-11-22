@@ -93,20 +93,23 @@ class TestDasher: RADrawable {
         } else {
             path.addEllipse(b)
         }
+        
         let perimeter = state.useRect ? 2 * (bounds.width + bounds.height) : ellipsePerimeter(a: 0.5 * b.width, b: 0.5 * b.height)
-        
         let capStyle: RACapStyle = state.flag ? .capRound : .capButt
-        
         let length = perimeter / 60
         let capLen = capStyle == .capRound ? width : 1
         let l0 = max(0, 0.666 * length - capLen)
         let lengths = [l0 as NSNumber, length - l0 as NSNumber]
         let dashed = path.dashedCopy(withPhase: tick * length - 0.5 * capLen, lengths: lengths)
-//        let cgDashed = path.dashedCGCopy(withPhase: tick * length, lengths: lengths)
-//        let dashed = state.flag ? cgDashed : path.dashedCopy(withPhase: tick * length, lengths: lengths)
         
         let scene = RAScene()
-        scene.addStroke(dashed, ctm: .identity, color: RAColor(), width: width, capStyle: capStyle, joinStyle: .joinRound, clip: .zero)
+        scene.addStroke(dashed,
+                        ctm: .identity,
+                        color: RAColor(),
+                        width: width,
+                        capStyle: capStyle,
+                        joinStyle: .joinRound,
+                        clip: .zero)
         return scene
     }
 }
