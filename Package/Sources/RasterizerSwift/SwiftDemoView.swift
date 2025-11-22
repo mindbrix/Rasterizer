@@ -98,9 +98,10 @@ class TestDasher: RADrawable {
         let capStyle: RACapStyle = state.flag ? .capRound : .capButt
         
         let length = perimeter / 60
-        let l0 = max(1, 0.666 * length - (capStyle == .capRound ? width : 1))
+        let capLen = capStyle == .capRound ? width : 1
+        let l0 = max(0, 0.666 * length - capLen)
         let lengths = [l0 as NSNumber, length - l0 as NSNumber]
-        let dashed = path.dashedCopy(withPhase: tick * length, lengths: lengths)
+        let dashed = path.dashedCopy(withPhase: tick * length - 0.5 * capLen, lengths: lengths)
 //        let cgDashed = path.dashedCGCopy(withPhase: tick * length, lengths: lengths)
 //        let dashed = state.flag ? cgDashed : path.dashedCopy(withPhase: tick * length, lengths: lengths)
         
