@@ -106,7 +106,7 @@ class TestDasher: RADrawable {
 //        let dashed = state.flag ? cgDashed : path.dashedCopy(withPhase: tick * length, lengths: lengths)
         
         let scene = RAScene()
-        scene.addStroke(dashed, ctm: .identity, color: RAColor(), width: width, capStyle: capStyle, joinStyle: .joinMiter, clip: .zero)
+        scene.addStroke(dashed, ctm: .identity, color: RAColor(), width: width, capStyle: capStyle, joinStyle: .joinRound, clip: .zero)
         return scene
     }
 }
