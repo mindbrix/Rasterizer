@@ -40,8 +40,8 @@ struct RasterizerCoreText {
         CTFrameRef frame = CTFramesetterCreateFrame(framesetter, CFRangeMake(0, 0), rectPath, NULL);
         CFArrayRef lines = CTFrameGetLines(frame);
         CFIndex lineCount = CFArrayGetCount(lines);
-        CGPoint origins[lineCount];
-        CTFrameGetLineOrigins(frame, CFRangeMake(0, 0), origins);
+        Ra::Vector<CGPoint> origins(lineCount);
+        CTFrameGetLineOrigins(frame, CFRangeMake(0, 0), & origins[0]);
         for (int i = 0; i < lineCount; i++) {
             CGPoint origin = CGPointMake(rect.origin.x + origins[i].x, rect.origin.y + origins[i].y);
             CTLineRef line = (CTLineRef)CFArrayGetValueAtIndex(lines, i);
@@ -69,10 +69,10 @@ struct RasterizerCoreText {
         for (int i = 0; i < CFArrayGetCount(glyphRuns); i++) {
             CTRunRef run = (CTRunRef)CFArrayGetValueAtIndex(glyphRuns, i);
             CFIndex count = CTRunGetGlyphCount(run);
-            CGGlyph glyphs[count];
-            CTRunGetGlyphs(run, CFRangeMake(0, count), glyphs);
-            CGPoint positions[count];
-            CTRunGetPositions(run, CFRangeMake(0, count), positions);
+            Ra::Vector<CGPoint> positions(count);
+            Ra::Vector<CGGlyph> glyphs(count);
+            CTRunGetGlyphs(run, CFRangeMake(0, count), & glyphs[0]);
+            CTRunGetPositions(run, CFRangeMake(0, count), & positions[0]);
             CFDictionaryRef attributes = CTRunGetAttributes(run);
             CTFontRef font = (CTFontRef)CFDictionaryGetValue(attributes, kCTFontAttributeName);
             CGColorRef cgColor = GetCGColor(attributes, CFSTR("NSColor"), kCTForegroundColorAttributeName);

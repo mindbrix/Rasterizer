@@ -167,6 +167,10 @@ struct Rasterizer {
     };
     template<typename T, bool isRef = false>
     struct Vector {
+        Vector(size_t size = 0) {
+            if (size)
+                resize(size);
+        }
         inline void add(T obj) {
             *memory->alloc(1) = obj;
         }
@@ -493,23 +497,22 @@ struct Rasterizer {
         Vector<BGRA> stops;
         Vector<float> locs;
         Transform ctm;
-        bool opaque, radial;
+        bool opaque = true, radial;
     };
     struct Scene {
-        enum CapStyle { kButt = 0, kSquare, kRound };
+        enum CapStyle { kCapButt = 0, kCapSquare, kCapRound };
+        enum JoinStyle { kJoinMiter = 0, kJoinRound };
         enum Flags { kInvisible = 1 << 0, kFillEvenOdd = 1 << 1, kRoundCap = 1 << 2, kSquareCap = 1 << 3, kRoundJoin = 1 << 4 };
         
         void addFill(Path path, Transform ctm, Color color, bool evenOdd, Bounds *clipBounds = nullptr) {
             addPath(path, ctm, color, 0.f, evenOdd ? kFillEvenOdd : 0, clipBounds);
         }
-        void addStroke(Path path, Transform ctm, Color color, float width, CapStyle capStyle, Bounds *clipBounds = nullptr) {
-            uint8_t flags = capStyle == kButt ? 0 : capStyle == kSquare ? kSquareCap : kRoundCap;
-            addPath(path, ctm, color, width, flags, clipBounds);
+        void addStroke(Path path, Transform ctm, Color color, float width, CapStyle capStyle, JoinStyle joinStyle, Bounds *clipBounds = nullptr) {
+            uint8_t capFlags = capStyle == kCapButt ? 0 : capStyle == kCapSquare ? kSquareCap : kRoundCap;
+            uint8_t joinFlags = joinStyle == kJoinMiter ? 0 : kRoundJoin;
+            addPath(path, ctm, color, width, capFlags | joinFlags, clipBounds);
         }
         
-        void addPath(Path path, Transform ctm, BGRA colorant, float width, uint8_t flag, Bounds *clipBounds = nullptr) {
-            addPath(path, ctm, Color(colorant), width, flag, clipBounds);
-        }
         void addPath(Path path, Transform ctm, Color color, float width, uint8_t flag, Bounds *clipBounds = nullptr) {
             if (path->isValid()) {
                 Geometry *g = path.ptr;
@@ -590,6 +593,7 @@ struct Rasterizer {
         Cell cell;  short cover;  int base, biid;
     };
     struct Quadratic {
+        Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) : x0(x0), y0(y0), x1(x1), y1(y1), x2(x2), y2(y2) {}
         float x0, y0, x1, y1, x2, y2;
     };
     struct Outline {
@@ -601,6 +605,7 @@ struct Rasterizer {
     };
     struct Instance {
         enum Flags {
+            kRoundJoin = 1 << 21,
             kIsRadial = 1 << 22,
             kIsGradient = 1 << 23,
             kIsCurve = 1 << 24,
@@ -611,7 +616,7 @@ struct Rasterizer {
             kOutlines = 1 << 29,
             kSquareCap = 1 << 30,
             kEvenOdd = 1 << 31,
-            kFragmentMask = (kOutlines | kSquareCap | kEvenOdd | kIsGradient | kIsRadial)
+            kFragmentMask = (kOutlines | kSquareCap | kEvenOdd)
         };
         Instance(size_t iz) : iz(uint32_t(iz)) {}
         uint32_t iz;  union { Quad quad;  Outline outline; };
@@ -771,7 +776,8 @@ struct Rasterizer {
                         
                         ctms[iz] = m, widths[iz] = width, clips[iz] = invclip;
                         if (width) {
-                            Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kOutlines | bool(flags & Scene::kRoundCap) * Instance::kRoundCap | bool(flags & Scene::kSquareCap) * Instance::kSquareCap | isGradient * Instance::kIsGradient | isRadial * Instance::kIsRadial);
+                            Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kOutlines | bool(flags & Scene::kRoundCap) * Instance::kRoundCap | bool(flags & Scene::kSquareCap) * Instance::kSquareCap | isGradient * Instance::kIsGradient | isRadial * Instance::kIsRadial | bool(flags & Scene::kRoundJoin) * Instance::kRoundJoin
+                            );
                             Bounds outlineClip = unclipped ? Bounds::huge() : clip.inset(-width, -width);
                             uint32_t i0 = uint32_t(outlines.idx), i1;
                             Outliner outliner;
@@ -1226,6 +1232,106 @@ struct Rasterizer {
             }
         }
     }
+    
+    struct Dasher: GeometryWriter {
+        static Path CreateDashedPath(Path path, float phase, float *pattern, size_t count) {
+            if (pattern == nullptr || count < 2 || count % 2 == 1)
+                return path;
+            Dasher dasher(phase, pattern, count);
+            divideGeometry(path.ptr, Transform(), Bounds(), true, false, dasher);
+            return dasher.dashed;
+        }
+        
+        Dasher(float phase, float *pattern, size_t count) {
+            dashPhase = phase, dashPattern = pattern, dashCount = count;
+            reset();
+        }
+        
+        void writeSegment(float x0, float y0, float x1, float y1) {
+            writeCurve(x0, y0, FLT_MAX, FLT_MAX, x1, y1);
+        }
+        void Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
+            writeCurve(x0, y0, x1, y1, x2, y2);
+        }
+        void EndSubpath(float x0, float y0, float x1, float y1, bool closed) {
+            reset();
+        }
+        
+        void reset() {
+            moveTo = true, dashIndex = 0, len0 = 0.f, dash0 = -dashPhase, dash1 = dash0 + dashPattern[0];
+            while (dash1 < FLT_MIN)
+                nextDash();
+        }
+        void writeCurve(float cx0, float cy0, float cx1, float cy1, float cx2, float cy2) {
+            x0 = cx0, y0 = cy0, x1 = cx1, y1 = cy1, x2 = cx2, y2 = cy2;
+            
+            len1 = len0 + curveLength();
+            getDash();
+            while (t0 != t1) {
+                writeDash();
+                if (t1 == 1.f)
+                    break;
+                else
+                    nextDash(), getDash();
+            }
+            len0 = len1;
+        }
+        float curveLength() {
+            float chord = segmentLength(x0, y0, x2, y2);
+            if (x1 == FLT_MAX)
+                return chord;
+            float l0 = segmentLength(x0, y0, x1, y1), l1 = segmentLength(x1, y1, x2, y2);
+            B = 2.f * l0 / (l0 + l1), A = 1.f - B;
+            return (2.f * chord + l0 + l1) / 3.f;
+        }
+        void getDash() {
+            t0 = fmaxf(0.f, fminf(1.f, (dash0 - len0) / (len1 - len0)));
+            t1 = fmaxf(0.f, fminf(1.f, (dash1 - len0) / (len1 - len0)));
+            if (x1 == FLT_MAX || fabsf(A) < 1e-3f)
+                return;
+            if (t0 > 0.f && t0 < 1.f)
+                t0 = fmaxf(0.f, fminf(1.f, 0.5F * (-B + sqrtf(B * B - 4.f * A * -t0)) / A));
+            if (t1 > 0.f && t1 < 1.f)
+                t1 = fmaxf(0.f, fminf(1.f, 0.5F * (-B + sqrtf(B * B - 4.f * A * -t1)) / A));
+        }
+        void writeDash() {
+            if (x1 == FLT_MAX) {
+                float s0 = 1.f - t0, s1 = 1.f - t1;
+                if (moveTo)
+                    moveTo = false, dashed->moveTo(x0 * s0 + x2 * t0, y0 * s0 + y2 * t0);
+                dashed->lineTo(x0 * s1 + x2 * t1, y0 * s1 + y2 * t1);
+            } else {
+                float t, s, sx0, sy0, sx1, sy1, sx2, sy2, tx0, ty0, tx1, ty1, tx2, ty2;
+                t = t1, s = 1.f - t;
+                sx0 = s * x0 + t * x1, sx2 = s * x1 + t * x2, sx1 = s * sx0 + t * sx2;
+                sy0 = s * y0 + t * y1, sy2 = s * y1 + t * y2, sy1 = s * sy0 + t * sy2;
+                
+                t = t0 / t1, s = 1.f - t;
+                tx0 = s * x0 + t * sx0, tx2 = s * sx0 + t * sx1, tx1 = s * tx0 + t * tx2;
+                ty0 = s * y0 + t * sy0, ty2 = s * sy0 + t * sy1, ty1 = s * ty0 + t * ty2;
+                
+                if (moveTo)
+                    moveTo = false, dashed->moveTo(tx1, ty1);
+                dashed->quadTo(tx2, ty2, sx1, sy1);
+            }
+        }
+        void nextDash() {
+            moveTo = true;
+            dash0 = dash1 + dashPattern[++dashIndex % dashCount];
+            dash1 = dash0 + dashPattern[++dashIndex % dashCount];
+        }
+        
+        size_t dashIndex, dashCount;
+        float dashPhase, *dashPattern;
+        bool moveTo;
+        float A, B, t0, t1, x0, y0, x1, y1, x2, y2, len0, len1, dash0, dash1;
+        Path dashed;
+        
+        static inline float segmentLength(float x0, float y0, float x1, float y1) {
+            float dx = x1 - x0, dy = y1 - y0;
+            return sqrtf(dx * dx + dy * dy);
+        }
+    };
     
     struct Outliner: GeometryWriter {
         void writeSegment(float x0, float y0, float x1, float y1) {

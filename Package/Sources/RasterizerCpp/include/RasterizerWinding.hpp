@@ -22,6 +22,7 @@
 
 struct RasterizerWinding {
     struct IndexPair {
+        IndexPair() : i0(INT_MAX), i1(INT_MAX) {}
         IndexPair(size_t i0, size_t i1) : i0(int(i0)), i1(int(i1)) {}
         int i0, i1;
     };
@@ -49,8 +50,25 @@ struct RasterizerWinding {
                     }
                 }
             }
-        return IndexPair(INT_MAX, INT_MAX);
+        return IndexPair();
     }
+    
+    static int pointWinding(Ra::Geometry *g, Ra::Bounds bounds, Ra::Transform m, float px, float py, float w, uint8_t flags) {
+        float ws = m.scale(), uw = w < 0.f ? -w / ws : w;
+        Counter cntr;  cntr.dx = px, cntr.dy = py, cntr.dw = w * (w < 0.f ? -1.f : ws), cntr.flags = flags;
+        cntr.quadraticScale = cntr.cubicScale = 1.f;
+        Ra::Transform unit = bounds.inset(-uw, -uw).quad(m), inv = unit.invert();
+        Ra::Bounds clip = Ra::Bounds(unit);
+        bool visible = clip.lx < clip.ux && clip.ly < clip.uy;
+        float ux = inv.a * px + inv.c * py + inv.tx, uy = inv.b * px + inv.d * py + inv.ty;
+        bool inBounds = fmaxf(fabsf(ux - 0.5f), fabsf(uy - 0.5f)) <= 0.5f;
+        if (visible && inBounds) {
+            bool polygon = w != 0.f;
+            Ra::divideGeometry(g, m, clip, false, polygon, cntr);
+        }
+        return cntr.winding;
+    }
+    
     struct Counter: Ra::GeometryWriter {
         float dx, dy, dw;  int winding = 0;  uint8_t flags = 0;
         
@@ -94,22 +112,6 @@ struct RasterizerWinding {
             writeSegment(x0, y0, x2, y2);
         }
     };
-    
-    static int pointWinding(Ra::Geometry *g, Ra::Bounds bounds, Ra::Transform m, float px, float py, float w, uint8_t flags) {
-        float ws = m.scale(), uw = w < 0.f ? -w / ws : w;
-        Counter cntr;  cntr.dx = px, cntr.dy = py, cntr.dw = w * (w < 0.f ? -1.f : ws), cntr.flags = flags;
-        cntr.quadraticScale = cntr.cubicScale = 1.f;
-        Ra::Transform unit = bounds.inset(-uw, -uw).quad(m), inv = unit.invert();
-        Ra::Bounds clip = Ra::Bounds(unit);
-        bool visible = clip.lx < clip.ux && clip.ly < clip.uy;
-        float ux = inv.a * px + inv.c * py + inv.tx, uy = inv.b * px + inv.d * py + inv.ty;
-        bool inBounds = fmaxf(fabsf(ux - 0.5f), fabsf(uy - 0.5f)) <= 0.5f;
-        if (visible && inBounds) {
-            bool polygon = w != 0.f;
-            Ra::divideGeometry(g, m, clip, false, polygon, cntr);
-        }
-        return cntr.winding;
-    }
 };
 
 typedef RasterizerWinding Rw;

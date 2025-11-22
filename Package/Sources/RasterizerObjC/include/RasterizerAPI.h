@@ -16,11 +16,15 @@
 - (id)initWithRed:(double)red green:(double)green blue:(double)blue alpha:(double)alpha;
 - (id)initWithCGColor:(CGColorRef)cgColor;
 
-- (id)initWithColors:(NSArray<RAColor *>*)colors
-           locations:(NSArray<NSNumber *>*)locations
-               transform:(CGAffineTransform)transform
-                isRadial:(BOOL)isRadial;
+- (id)initLinearWithColors:(NSArray<RAColor *>*)colors
+                 locations:(NSArray<NSNumber *>*)locations
+                     start:(CGPoint)start
+                       end:(CGPoint)end;
 
+- (id)initRadialWithColors:(NSArray<RAColor *>*)colors
+                 locations:(NSArray<NSNumber *>*)locations
+                    center:(CGPoint)center
+                    radius:(double)radius;
 @end
 
 
@@ -36,27 +40,45 @@
 - (void)addCGPath:(CGPathRef)path;
 - (void)addRect:(CGRect)rect;
 - (void)addEllipse:(CGRect)rect;
+- (RAPath *)dashedCopyWithPhase:(double)phase
+                        lengths:(NSArray<NSNumber *>*)lengths;
 @end
 
 
-typedef NS_ENUM(NSUInteger, RASceneFlags) {
-    kInvisible = 1 << 0,
-    kFillEvenOdd = 1 << 1,
-    kRoundCap = 1 << 2,
-    kSquareCap = 1 << 3
+typedef NS_ENUM(NSUInteger, RACapStyle) {
+    kCapButt = 0, kCapSquare, kCapRound
+};
+
+typedef NS_ENUM(NSUInteger, RAJoinStyle) {
+    kJoinMiter = 0, kJoinRound
 };
 
 @interface RAScene: NSObject
 @property(nonatomic, readonly) CGRect bounds;
 
-- (void)addPath:(RAPath *)path
+- (void)addFill:(RAPath *)path
             ctm:(CGAffineTransform)ctm
            color:(RAColor *)color
-          width:(double)width
-          flags:(NSUInteger)flags
+        evenOdd:(BOOL)evenOdd
            clip:(CGRect)clip;
-- (CGRect)addTextLine:(NSAttributedString *)string ctm:(CGAffineTransform)ctm clip:(CGRect)clip;
-- (CGRect)addText:(NSAttributedString *)string inRect:(CGRect)rect ctm:(CGAffineTransform)ctm clip:(CGRect)clip;
+
+- (void)addStroke:(RAPath *)path
+              ctm:(CGAffineTransform)ctm
+            color:(RAColor *)color
+            width:(double)width
+         capStyle:(RACapStyle)capStyle
+        joinStyle:(RAJoinStyle)joinStyle
+             clip:(CGRect)clip;
+
+- (CGRect)addTextLine:(NSAttributedString *)string
+                  ctm:(CGAffineTransform)ctm
+                 clip:(CGRect)clip;
+
+- (CGRect)addText:(NSAttributedString *)string
+           inRect:(CGRect)rect
+              ctm:(CGAffineTransform)ctm
+             clip:(CGRect)clip;
+
 - (CGAffineTransform)addSvgFromData:(NSData *)data;
 @end
 

@@ -68,6 +68,7 @@ struct Opaque {
 
 struct Instance {
     enum Flags {
+        kRoundJoin = 1 << 21,
         kIsRadial = 1 << 22,
         kIsGradient = 1 << 23,
         kIsCurve = 1 << 24,
@@ -78,7 +79,7 @@ struct Instance {
         kOutlines = 1 << 29,
         kSquareCap = 1 << 30,
         kEvenOdd = 1 << 31,
-        kFragmentMask = (kOutlines | kSquareCap | kEvenOdd | kIsGradient | kIsRadial)
+        kFragmentMask = (kOutlines | kSquareCap | kEvenOdd)
     };
     uint32_t iz;  union { Quad quad;  Outline outline; };
 };
@@ -531,6 +532,7 @@ vertex InstancesVertex instances_vertex_main(
     if (inst.iz & Instance::kOutlines) {
         const bool roundCap = inst.iz & Instance::kRoundCap;
         const bool squareCap = inst.iz & Instance::kSquareCap;
+        const bool roundJoin = inst.iz & Instance::kRoundJoin;
         const short prevIndex = inst.outline.prev, nextIndex = inst.outline.next;
         const device Instance & pinst = instances[iid + prevIndex], & ninst = instances[iid + nextIndex];
         const device Quadratic& p = pinst.outline.quad, & o = inst.outline.quad, & n = ninst.outline.quad;
@@ -552,7 +554,6 @@ vertex InstancesVertex instances_vertex_main(
         ax = x1 - x2, bx = x1 - x0, cx = x2 - x0;
         ay = y1 - y2, by = y1 - y0, cy = y2 - y0;
         float cdot = cx * cx + cy * cy, rc = rsqrt(cdot);
-        alpha *= min(1.0, cdot * 1e3);
         float area = cx * by - cy * bx;
         float tc = abs(area / cdot);
         
@@ -590,18 +591,24 @@ vertex InstancesVertex instances_vertex_main(
         if (!isCurve) {
             vert.u = (dx - x0) * -no.y + (dy - y0) * no.x;
             float offset = roundCap ? 0.0 : squareCap ? dw : 0.5;
-            vert.w = !pcap ? FLT_MAX : offset + (dx - x0) * no.x + (dy - y0) * no.y;
-            vert.z = !ncap ? FLT_MAX : offset + (dx - x2) * -no.x + (dy - y2) * -no.y;
+            float d0 = (dx - x0) * no.x + (dy - y0) * no.y;
+            float d1 = (dx - x2) * -no.x + (dy - y2) * -no.y;
+            vert.w = pcap ? offset + d0 : roundJoin ? d0 : FLT_MAX;
+            vert.z = ncap ? offset + d1 : roundJoin ? d1 : FLT_MAX;
+            
+            flags = flags | ((pcap && roundCap) || (!pcap && roundJoin)) * Instance::kF0;
+            flags = flags | ((ncap && roundCap) || (!ncap && roundJoin)) * Instance::kF1;
         } else
         {
             vert.u = x0 - dx, vert.v = x1 - dx, vert.w = x2 - dx;
             vert.x = y0 - dy, vert.y = y1 - dy, vert.z = y2 - dy;
+            
+            flags = flags | Instance::kIsCurve;
+            flags = flags | (pcap ? !roundCap : !roundJoin) * Instance::kF0;
+            flags = flags | (ncap ? !roundCap : !roundJoin) * Instance::kF1;
         }
-        const bool f0 = pcap ? !roundCap : !isCurve || !pcurve;
-        const bool f1 = ncap ? !roundCap : !isCurve || !ncurve;
-
         vert.cover = dw;
-        flags = flags | pcap * Instance::kPCap | ncap * Instance::kNCap | isCurve * Instance::kIsCurve | f0 * Instance::kF0 | f1 * Instance::kF1 | roundCap * Instance::kEvenOdd;
+        flags = flags | pcap * Instance::kPCap | ncap * Instance::kNCap;
     } else {
         const device Cell& cell = inst.quad.cell;
         dx = isRight ? cell.ux : cell.lx;
@@ -640,7 +647,6 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
     if (vert.iz & Instance::kOutlines) {
         bool isCurve = vert.iz & Instance::kIsCurve;
         bool squareCap = vert.iz & Instance::kSquareCap;
-        bool roundCap = vert.iz & Instance::kEvenOdd;
         bool pcap = vert.iz & Instance::kPCap, ncap = vert.iz & Instance::kNCap;
         bool f0 = vert.iz & Instance::kF0, f1 = vert.iz & Instance::kF1;
         const float dw = vert.cover;
@@ -649,7 +655,7 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
             float dx = vert.u, dy = min(vert.w, vert.z), ry = min(0.0, dy);
             float rect = saturate(dw - abs(dx)) * saturate(dy);
             float lozenge = saturate(dw - sqrt(dx * dx + ry * ry));
-            alpha = roundCap ? lozenge : rect;
+            alpha = vert.w < vert.z ? (f0 ? lozenge : rect) : (f1 ? lozenge : rect);
         } else
         {
             float x0, y0, x1, y1, x2, y2, d0, dm0, d1, dm1, sqdist, sd0, sd1, cap, cap0, cap1;

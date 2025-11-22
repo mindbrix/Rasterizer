@@ -176,33 +176,34 @@ struct RasterizerCG {
             CGContextDrawRadialGradient(ctx, gradient, zero, 0, zero, 1, options);
         else
             CGContextDrawLinearGradient(ctx, gradient, zero, end, options);
-        CFRelease(gradient);
+        CGGradientRelease(gradient);
     }
     
     static CGGradientRef CGGradientFromColor(Ra::Color color) {
         size_t count = color.stops.end();
         auto stop = & color.stops[0];
-        CGFloat components[4 * count], *rgba = components;
+        Ra::Vector<CGFloat> components(4 * count);
+        CGFloat *rgba = & components[0];
         for (size_t i = 0; i < count; i++, stop++)
             *rgba++ = stop->r / 255.0, *rgba++ = stop->g / 255.0, *rgba++ = stop->b / 255.0, *rgba++ = stop->a / 255.0;
-        CGFloat locations[count];
+        Ra::Vector<CGFloat> locations(count);
         for (size_t i = 0; i < count; i++)
             locations[i] = color.locs[i];
         CGColorSpaceRef space = CGColorSpaceCreateDeviceRGB();
-        CGGradientRef gradient = CGGradientCreateWithColorComponents(space, components, locations, count);
-        CFRelease(space);
+        CGGradientRef gradient = CGGradientCreateWithColorComponents(space, & components[0], & locations[0], count);
+        CGColorSpaceRelease(space);
         return gradient;
     }
     
     static Ra::BGRA colorFromComponents(const CGFloat *components, size_t count) {
-        uint8_t b = 0, g = 0, r = 0, a = 255;
+        uint8_t r = 0, g = 0, b = 0, a = 255;
         if (count == 2) {
-            b = g = r = 255 * components[0];
+            r = g = b = 255 * components[0];
             a = 255 * components[1];
         } else if (count == 4) {
-            b = 255 * components[2];
-            g = 255 * components[1];
             r = 255 * components[0];
+            g = 255 * components[1];
+            b = 255 * components[2];
             a = 255 * components[3];
         }
         return Ra::BGRA(b, g, r, a);

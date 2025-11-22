@@ -29,17 +29,6 @@ extension CGPoint {
     }
 }
 
-extension CGRect {
-    func linearGradientTransform() -> CGAffineTransform {
-        CGAffineTransform(a: 0, b: -width, c: width, d: 0, tx: 0, ty: 0)
-    }
-    
-    func radialGradientTransform() -> CGAffineTransform {
-        let radius = 0.5 * min(width, height)
-        return CGAffineTransform(a: radius, b: 0, c: 0, d: radius, tx: midX, ty: midY)
-    }
-}
-
 public class SwiftDemoView: RasterizerView {
     let demo = SwiftDemo()
     
@@ -86,6 +75,44 @@ protocol RADrawable {
     func getSceneAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RAScene
 }
 
+class TestDasher: RADrawable {
+    func ellipsePerimeter(a: Double, b: Double) -> Double {
+        .pi * (3 * (a + b) - sqrt((3 * a + b) * (a + 3 * b)))
+    }
+    func getSceneAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RAScene {
+        let ts = time
+        let tick = ts - floor(ts)
+        let width = 10.0
+        let b = bounds.insetBy(dx: 0.5 * width, dy: 0.5 * width)
+        if b.width == 0 || b.height == 0 {
+            return RAScene()
+        }
+        let path = RAPath()
+        if state.useRect {
+            path.add(b)
+        } else {
+            path.addEllipse(b)
+        }
+        
+        let perimeter = state.useRect ? 2 * (bounds.width + bounds.height) : ellipsePerimeter(a: 0.5 * b.width, b: 0.5 * b.height)
+        let capStyle: RACapStyle = state.flag ? .capRound : .capButt
+        let length = perimeter / 60
+        let capLen = capStyle == .capRound ? width : 1
+        let l0 = max(0, 0.666 * length - capLen)
+        let lengths = [l0 as NSNumber, length - l0 as NSNumber]
+        let dashed = path.dashedCopy(withPhase: tick * length - 0.5 * capLen, lengths: lengths)
+        
+        let scene = RAScene()
+        scene.addStroke(dashed,
+                        ctm: .identity,
+                        color: RAColor(),
+                        width: width,
+                        capStyle: capStyle,
+                        joinStyle: .joinRound,
+                        clip: .zero)
+        return scene
+    }
+}
 class TestGradients: RADrawable {
     static func gradientForBounds(_ bounds: CGRect, isRadial: Bool) -> RAColor {
         let colors: [RAColor] = [
@@ -94,12 +121,15 @@ class TestGradients: RADrawable {
             RAColor(red: 0, green: 0, blue: 1, alpha: 1)
         ]
         let locations: [NSNumber] = [ 0, 0.5, 1 ]
-        let linear = bounds.linearGradientTransform()
-        let radial = bounds.radialGradientTransform()
-        return RAColor(colors: colors,
-                       locations: locations,
-                       transform: isRadial ? radial : linear,
-                       isRadial: isRadial)
+        if isRadial {
+            let center = CGPoint(x: bounds.midX, y: bounds.midY)
+            let radius = 0.5 * min(bounds.width, bounds.height)
+            return RAColor(radialWith: colors, locations: locations, center: center, radius: radius)
+        } else {
+            let start = CGPoint(x: bounds.minX, y: bounds.minY)
+            let end = CGPoint(x: bounds.maxX, y: bounds.minY)
+            return RAColor(linearWith: colors, locations: locations, start: start, end: end)
+        }
     }
     
     func getSceneAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RAScene {
@@ -109,7 +139,7 @@ class TestGradients: RADrawable {
         path.add(bounds);
         
         let scene = RAScene()
-        scene.add(path, ctm: .identity, color: gradient, width: 0, flags: 0, clip: .zero)
+        scene.addFill(path, ctm: .identity, color: gradient, evenOdd: false, clip: .zero)
         return scene
     }
 }
@@ -123,13 +153,15 @@ class TestQuadratics: RADrawable {
         let ts = 1 * time
         let t = ts - floor(ts)
         let sine = sin(t * 2 * Double.pi)
+        let color = RAColor(gray: 0, alpha: 1)
         
         let path = RAPath()
         path.move(to: 0, y: 0)
         path.quad(to: 0.5 * dim + sine * dim, y1: dim, x2: dim, y2: 0)
         
         let scene = RAScene()
-        scene.add(path, ctm: .identity, color: RAColor(gray: 0, alpha: 1), width: stroke, flags: 0, clip: .zero)
+        
+        scene.addStroke(path, ctm: .identity, color: color, width: stroke, capStyle: .capButt, joinStyle: .joinMiter, clip: .zero)
         return scene
     }
 }
@@ -153,7 +185,7 @@ class TestCubics: RADrawable {
             }
         }
         let scene = RAScene()
-        scene.add(path, ctm: .identity, color: RAColor(gray: 0, alpha: 1), width: 0, flags: RASceneFlags.fillEvenOdd.rawValue, clip: .zero)
+        scene.addFill(path, ctm: .identity, color: RAColor(gray: 0, alpha: 1), evenOdd: true, clip: .zero)
         return scene
     }
 }
@@ -187,11 +219,7 @@ class Test0: RADrawable {
                 RAColor(gray: 0, alpha: 1)
             ]
             let locations: [NSNumber] = [ 0, 1 ]
-            let gradient = RAColor(colors: colors,
-                           locations: locations,
-                           transform: unitRect.radialGradientTransform(),
-                           isRadial: true)
-            
+            let gradient = RAColor(radialWith: colors, locations: locations, center: unitCenter, radius: 0.5)
             let radial = CGPoint(center: center, r: r0, theta: ti * 2 * Double.pi)
             
             let ctm = CGAffineTransform(
@@ -200,7 +228,7 @@ class Test0: RADrawable {
                 scale: CGSize(width: 2 * r1, height: 2 * r1),
                 translation: CGVector(dx: radial.x - unitCenter.x, dy: radial.y - unitCenter.y)
             )
-            scene.add(path, ctm: ctm, color: gradient, width: unitWidth, flags: 0, clip: .zero)
+            scene.addFill(path, ctm: ctm, color: gradient, evenOdd: false, clip: .zero)
         }
         return scene
     }
@@ -218,7 +246,8 @@ class SwiftDemo: NSObject, RASceneListDelegate {
         Test0(),
         TestQuadratics(),
         TestCubics(),
-        TestGradients()
+        TestGradients(),
+        TestDasher()
     ]
     
     var index = 0
