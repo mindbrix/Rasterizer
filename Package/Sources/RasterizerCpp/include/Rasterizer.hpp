@@ -1392,10 +1392,8 @@ struct Rasterizer {
         static Row<Opaque> CreateStencils(Path path, Bounds device, Transform m = Transform()) {
             if (!path->isValid())
                 return Row<Opaque>();
-            Transform quad = path->bounds.quad(m);
-            bool unclipped = device.contains(quad);
             Stenciler stenciler(path, m);
-            divideGeometry(path.ptr, m, device, unclipped, true, stenciler);
+            divideGeometry(path.ptr, m, device, true, true, stenciler);
             return stenciler.stencils;
         }
         
