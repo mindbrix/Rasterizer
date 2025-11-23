@@ -741,8 +741,7 @@ struct Rasterizer {
                     if ((flags = scn->flags[is]) & Scene::Flags::kInvisible)
                         continue;
                     
-                    bool newClip = memcmp(& scn->clips[is], & lastClip, sizeof(Bounds)) != 0;
-                    if (newClip) {
+                    if (memcmp(& scn->clips[is], & lastClip, sizeof(Bounds)) != 0) {
                         lastClip = scn->clips[is];
                         clipActive = !lastClip.isHuge() || !sceneclip.isHuge();
                         clipquad = clipActive ? sceneclip.intersect(lastClip).quad(ctm) : Transform(1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f);
@@ -1432,12 +1431,12 @@ struct Rasterizer {
         Bounds *molecule;
         Row<Opaque> stencils;
     };
-    static size_t resizeBuffer(const SceneList& list, Context *contexts, size_t count, size_t *begins, Transform view, Bounds bounds, Buffer& buffer) {
+    static size_t resizeBuffer(const SceneList& list, Context *contexts, size_t count, size_t *begins, Transform view, Bounds device, Buffer& buffer) {
         size_t size = buffer.headerSize, begin = size, end = begin, sz, i, j, instances;
         for (i = 0; i < count; i++)
             size += contexts[i].opaques.end * sizeof(Opaque);
         
-        auto stencils = Stenciler::CreateStencils(list.clipPath, bounds, view);
+        auto stencils = Stenciler::CreateStencils(list.clipPath, device, view);
         size += stencils.end * sizeof(*stencils.base);
         
         for (sz = i = 0; i < count; i++)
