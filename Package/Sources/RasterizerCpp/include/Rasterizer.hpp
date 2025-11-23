@@ -1389,17 +1389,21 @@ struct Rasterizer {
     
     struct Stenciler: GeometryWriter {
         static Row<Opaque> CreateStencils(Path path, Bounds bounds, Transform m = Transform()) {
-            Stenciler stenciler(path, bounds);
+            if (!path->isValid())
+                path->addBounds(bounds), path->validate();
+            Stenciler stenciler(path, bounds, m);
             divideGeometry(path.ptr, m, bounds, true, true, stenciler);
             return stenciler.stencils;
         }
         
-        Stenciler(Path path, Bounds bounds) : bounds(bounds), molecule(path->molecules.base) {}
+        Stenciler(Path path, Bounds bounds, Transform m) : bounds(bounds), molecule(path->molecules.base), m(m) {}
         
         void writeSegment(float x0, float y0, float x1, float y1) {
             Opaque *stencil = stencils.alloc(1);
             struct Quadratic& quad = stencil->quad;
-            quad.x0 = molecule->cx(), quad.y0 = molecule->cy();
+            float cx = molecule->cx(), cy = molecule->cy();
+            quad.x0 = m.a * cx + m.c * cy + m.tx;
+            quad.y0 = m.b * cx + m.d * cy + m.ty;
             quad.x1 = x0, quad.y1 = y0;
             quad.x2 = x1, quad.y2 = y1;
         }
@@ -1412,13 +1416,17 @@ struct Rasterizer {
         void EndSubpath(float x0, float y0, float x1, float y1, bool closed) {
             molecule++;
         }
+        Transform m;
         Bounds bounds, *molecule;
         Row<Opaque> stencils;
     };
-    static size_t resizeBuffer(const SceneList& list, Context *contexts, size_t count, size_t *begins, Buffer& buffer) {
+    static size_t resizeBuffer(const SceneList& list, Context *contexts, size_t count, size_t *begins, Transform view, Bounds bounds, Buffer& buffer) {
         size_t size = buffer.headerSize, begin = size, end = begin, sz, i, j, instances;
         for (i = 0; i < count; i++)
             size += contexts[i].opaques.end * sizeof(Opaque);
+        
+        auto stencils = Stenciler::CreateStencils(list.clipPath, bounds, view);
+        size += stencils.end * sizeof(*stencils.base);
         
         for (sz = i = 0; i < count; i++)
             sz += contexts[i].texs.end();
@@ -1432,6 +1440,13 @@ struct Rasterizer {
             begins[i] = size, size += instances * sizeof(Edge) + (ctx->outlines.end + ctx->blends.end) * sizeof(Instance) + ctx->segments.end * sizeof(Segment) + ctx->p16total * sizeof(Point16);
         }
         buffer.resize(size, buffer.headerSize);
+        
+        if ((sz = stencils.end * sizeof(*stencils.base))) {
+            memcpy(buffer.base + end, stencils.base, sz), end += sz;
+            new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::kStencils, begin, end);
+            begin = end;
+        }
+        
         for (i = 0; i < count; i++)
             if ((sz = contexts[i].opaques.end * sizeof(Opaque)))
                 memcpy(buffer.base + end, contexts[i].opaques.base, sz), end += sz;

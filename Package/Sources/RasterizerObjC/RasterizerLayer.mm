@@ -80,19 +80,21 @@
     MTLDepthStencilDescriptor *depthStencilDescriptor = [MTLDepthStencilDescriptor new];
     depthStencilDescriptor.depthWriteEnabled = YES;
     depthStencilDescriptor.depthCompareFunction = MTLCompareFunctionGreater;
-    depthStencilDescriptor.frontFaceStencil.stencilCompareFunction = MTLCompareFunctionAlways;
+    depthStencilDescriptor.frontFaceStencil.stencilCompareFunction = MTLCompareFunctionNotEqual;
     depthStencilDescriptor.frontFaceStencil.depthStencilPassOperation = MTLStencilOperationKeep;
     depthStencilDescriptor.backFaceStencil = depthStencilDescriptor.frontFaceStencil;
     self.opaquesDepthState = [self.device newDepthStencilStateWithDescriptor:depthStencilDescriptor];
     
     depthStencilDescriptor.depthWriteEnabled = NO;
     depthStencilDescriptor.frontFaceStencil = nil;
-    depthStencilDescriptor.frontFaceStencil.stencilCompareFunction = MTLCompareFunctionAlways;
+    depthStencilDescriptor.frontFaceStencil.stencilCompareFunction = MTLCompareFunctionNotEqual;
     depthStencilDescriptor.frontFaceStencil.depthStencilPassOperation = MTLStencilOperationKeep;
     depthStencilDescriptor.backFaceStencil = depthStencilDescriptor.frontFaceStencil;
     self.instancesDepthState = [self.device newDepthStencilStateWithDescriptor:depthStencilDescriptor];
     
     MTLRenderPipelineDescriptor *stencilDescriptor = [MTLRenderPipelineDescriptor new];
+    stencilDescriptor.colorAttachments[0].pixelFormat = self.pixelFormat;
+    stencilDescriptor.depthAttachmentPixelFormat = MTLPixelFormatDepth32Float_Stencil8;
     stencilDescriptor.stencilAttachmentPixelFormat = MTLPixelFormatDepth32Float_Stencil8;
     stencilDescriptor.vertexFunction = [self.defaultLibrary newFunctionWithName:@"stencil_vertex_main"];
     stencilDescriptor.fragmentFunction = [self.defaultLibrary newFunctionWithName:@"stencil_fragment_main"];
@@ -264,7 +266,7 @@
                 break;
             case Ra::Buffer::kOpaques:
                 [commandEncoder setDepthStencilState:_opaquesDepthState];
-                [commandEncoder setStencilReferenceValue:1];
+                [commandEncoder setStencilReferenceValue:0];
                 [commandEncoder setRenderPipelineState:_opaquesPipelineState];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->widths atIndex:6];
@@ -321,7 +323,7 @@
                 [commandEncoder endEncoding];
                 commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:drawableDescriptor];
                 [commandEncoder setDepthStencilState:_instancesDepthState];
-                [commandEncoder setStencilReferenceValue:1];
+                [commandEncoder setStencilReferenceValue:0];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->ctms atIndex:4];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->clips atIndex:5];
