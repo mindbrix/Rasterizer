@@ -1392,12 +1392,12 @@ struct Rasterizer {
         static Row<Opaque> CreateStencils(Path path, Bounds device, Transform m = Transform()) {
             if (!path->isValid())
                 return Row<Opaque>();
-            Stenciler stenciler(path, m);
+            Stenciler stenciler(path, device, m);
             divideGeometry(path.ptr, m, device, true, true, stenciler);
             return stenciler.stencils;
         }
         
-        Stenciler(Path path, Transform m) : molecule(path->molecules.base), m(m) {}
+        Stenciler(Path path, Bounds device, Transform m) : device(device), molecule(path->molecules.base), m(m) {}
         
         void writeSegment(float x0, float y0, float x1, float y1) {
             Opaque *stencil = stencils.alloc(1);
@@ -1409,9 +1409,13 @@ struct Rasterizer {
             quad.x2 = x1, quad.y2 = y1;
         }
         void Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
+            Bounds quad, clip;
+            quad.extend(x0, y0), quad.extend(x1, y1), quad.extend(x2, y2);
+            clip = quad.intersect(device);
+            bool offscreen = clip.lx == clip.ux || clip.ly == clip.uy;
             float ax, ay, a, count, dt, f2x, f1x, f2y, f1y;
             ax = x0 + x2 - x1 - x1, ay = y0 + y2 - y1 - y1, a = quadraticScale * (ax * ax + ay * ay);
-            count = a < quadraticScale ? 1.f : a < 8.f ? 2.f : 2.f + floorf(sqrtf(sqrtf(a))), dt = 1.f / count;
+            count = offscreen || a < quadraticScale ? 1.f : a < 8.f ? 2.f : 2.f + floorf(sqrtf(sqrtf(a))), dt = 1.f / count;
             ax *= dt * dt, f2x = 2.f * ax, f1x = ax + 2.f * (x1 - x0) * dt, x1 = x0;
             ay *= dt * dt, f2y = 2.f * ay, f1y = ay + 2.f * (y1 - y0) * dt, y1 = y0;
             while (--count) {
@@ -1426,7 +1430,7 @@ struct Rasterizer {
             molecule++;
         }
         Transform m;
-        Bounds *molecule;
+        Bounds device, *molecule;
         Row<Opaque> stencils;
     };
     static size_t resizeBuffer(const SceneList& list, Context *contexts, size_t count, size_t *begins, Transform view, Bounds device, Buffer& buffer) {

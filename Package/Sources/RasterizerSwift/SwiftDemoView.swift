@@ -334,11 +334,11 @@ class SwiftDemo: NSObject, RASceneListDelegate {
             )
         }
         let cubics = TestCubics().getPathAtTime(t, bounds: bounds, state: self)
-//        let inset = 20.0
-//        let ellipse = RAPath()
-//        ellipse.addEllipse(bounds.insetBy(dx: inset, dy: inset))
+        let inset = 20.0
+        let ellipse = RAPath()
+        ellipse.addEllipse(bounds.insetBy(dx: inset, dy: inset))
 //        ellipse.addEllipse(bounds.insetBy(dx: 2 * inset, dy: 2 * inset))
-        list.clipPath = clip ? cubics : RAPath()
+        list.clipPath = clip ? ellipse : RAPath()
         list.clipCtm = ctm
         list.ctm = ctm
         list.useCurves = useCurves
