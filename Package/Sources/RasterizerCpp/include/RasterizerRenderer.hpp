@@ -36,7 +36,7 @@ struct RasterizerRenderer {
             contexts[i].drawList(list, device, view, pdivs[i], pdivs[i + 1], buffer);
         });
         size_t begins[kContextCount], *pbegins = begins, size;
-        size = Ra::resizeBuffer(list, contexts, kContextCount, pbegins, retina, Ra::Bounds(0, 0, w, h), *buffer);
+        size = Ra::resizeBuffer(list, contexts, kContextCount, pbegins, retina, device, *buffer);
         dispatch_apply(kContextCount, DISPATCH_APPLY_AUTO, ^(size_t i) {
             Ra::writeContextToBuffer(list, contexts + i, pbegins[i], *buffer);
         });

@@ -1390,15 +1390,17 @@ struct Rasterizer {
     };
     
     struct Stenciler: GeometryWriter {
-        static Row<Opaque> CreateStencils(Path path, Bounds bounds, Transform m = Transform()) {
+        static Row<Opaque> CreateStencils(Path path, Bounds device, Transform m = Transform()) {
             if (!path->isValid())
                 return Row<Opaque>();
-            Stenciler stenciler(path, bounds, m);
-            divideGeometry(path.ptr, m, bounds, true, true, stenciler);
+            Transform quad = path->bounds.quad(m);
+            bool unclipped = device.contains(quad);
+            Stenciler stenciler(path, m);
+            divideGeometry(path.ptr, m, device, unclipped, true, stenciler);
             return stenciler.stencils;
         }
         
-        Stenciler(Path path, Bounds bounds, Transform m) : bounds(bounds), molecule(path->molecules.base), m(m) {}
+        Stenciler(Path path, Transform m) : molecule(path->molecules.base), m(m) {}
         
         void writeSegment(float x0, float y0, float x1, float y1) {
             Opaque *stencil = stencils.alloc(1);
@@ -1410,16 +1412,24 @@ struct Rasterizer {
             quad.x2 = x1, quad.y2 = y1;
         }
         void Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
-            float mx = 0.5 * x1 + 0.25 * (x0 + x2);
-            float my = 0.5 * y1 + 0.25 * (y0 + y2);
-            writeSegment(x0, y0, mx, my);
-            writeSegment(mx, my, x2, y2);
+            float ax, ay, a, count, dt, f2x, f1x, f2y, f1y;
+            ax = x0 + x2 - x1 - x1, ay = y0 + y2 - y1 - y1, a = quadraticScale * (ax * ax + ay * ay);
+            count = a < quadraticScale ? 1.f : a < 8.f ? 2.f : 2.f + floorf(sqrtf(sqrtf(a))), dt = 1.f / count;
+            ax *= dt * dt, f2x = 2.f * ax, f1x = ax + 2.f * (x1 - x0) * dt, x1 = x0;
+            ay *= dt * dt, f2y = 2.f * ay, f1y = ay + 2.f * (y1 - y0) * dt, y1 = y0;
+            while (--count) {
+                x1 += f1x, f1x += f2x, y1 += f1y, f1y += f2y;
+                writeSegment(x0, y0, x1, y1);
+                x0 = x1, y0 = y1;
+            }
+            writeSegment(x0, y0, x2, y2);
         }
+        
         void EndSubpath(float x0, float y0, float x1, float y1, bool closed) {
             molecule++;
         }
         Transform m;
-        Bounds bounds, *molecule;
+        Bounds *molecule;
         Row<Opaque> stencils;
     };
     static size_t resizeBuffer(const SceneList& list, Context *contexts, size_t count, size_t *begins, Transform view, Bounds bounds, Buffer& buffer) {
