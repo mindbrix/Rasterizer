@@ -41,6 +41,8 @@
 @property (nonatomic) id <MTLDepthStencilState> stencilDepthState;
 @property (nonatomic) id <MTLDepthStencilState> instancesDepthState;
 @property (nonatomic) id <MTLDepthStencilState> opaquesDepthState;
+@property (nonatomic) id <MTLDepthStencilState> instancesClipDepthState;
+@property (nonatomic) id <MTLDepthStencilState> opaquesClipDepthState;
 @property (nonatomic) id <MTLTexture> depthTexture;
 @property (nonatomic) id <MTLTexture> accumulationTexture;
 
@@ -80,17 +82,18 @@
     MTLDepthStencilDescriptor *depthStencilDescriptor = [MTLDepthStencilDescriptor new];
     depthStencilDescriptor.depthWriteEnabled = YES;
     depthStencilDescriptor.depthCompareFunction = MTLCompareFunctionGreater;
-    depthStencilDescriptor.frontFaceStencil.stencilCompareFunction = MTLCompareFunctionNotEqual;
-    depthStencilDescriptor.frontFaceStencil.depthStencilPassOperation = MTLStencilOperationKeep;
-    depthStencilDescriptor.backFaceStencil = depthStencilDescriptor.frontFaceStencil;
     self.opaquesDepthState = [self.device newDepthStencilStateWithDescriptor:depthStencilDescriptor];
-    
+
     depthStencilDescriptor.depthWriteEnabled = NO;
-    depthStencilDescriptor.frontFaceStencil = nil;
+    self.instancesDepthState = [self.device newDepthStencilStateWithDescriptor:depthStencilDescriptor];
+    
     depthStencilDescriptor.frontFaceStencil.stencilCompareFunction = MTLCompareFunctionNotEqual;
     depthStencilDescriptor.frontFaceStencil.depthStencilPassOperation = MTLStencilOperationKeep;
     depthStencilDescriptor.backFaceStencil = depthStencilDescriptor.frontFaceStencil;
-    self.instancesDepthState = [self.device newDepthStencilStateWithDescriptor:depthStencilDescriptor];
+    self.instancesClipDepthState = [self.device newDepthStencilStateWithDescriptor:depthStencilDescriptor];
+    
+    depthStencilDescriptor.depthWriteEnabled = YES;
+    self.opaquesClipDepthState = [self.device newDepthStencilStateWithDescriptor:depthStencilDescriptor];
     
     MTLRenderPipelineDescriptor *stencilDescriptor = [MTLRenderPipelineDescriptor new];
     stencilDescriptor.colorAttachments[0].pixelFormat = self.pixelFormat;
@@ -265,7 +268,7 @@
                 commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:drawableDescriptor];
                 break;
             case Ra::Buffer::kOpaques:
-                [commandEncoder setDepthStencilState:_opaquesDepthState];
+                [commandEncoder setDepthStencilState:buffer->hasClip ? _opaquesClipDepthState : _opaquesDepthState];
                 [commandEncoder setStencilReferenceValue:0];
                 [commandEncoder setRenderPipelineState:_opaquesPipelineState];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
@@ -322,7 +325,7 @@
             case Ra::Buffer::kInstances:
                 [commandEncoder endEncoding];
                 commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:drawableDescriptor];
-                [commandEncoder setDepthStencilState:_instancesDepthState];
+                [commandEncoder setDepthStencilState:buffer->hasClip ? _instancesClipDepthState : _instancesDepthState];
                 [commandEncoder setStencilReferenceValue:0];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->ctms atIndex:4];

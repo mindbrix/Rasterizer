@@ -647,6 +647,7 @@ struct Rasterizer {
         ~Buffer() { if (base) free(base); }
         
         void prepare(const SceneList& list) {
+            hasClip = false;
             pathsCount = list.pathsCount;
             texCount = 0;
             size_t i, sizes[] = { sizeof(BGRA), sizeof(Transform), sizeof(Transform), sizeof(float), sizeof(Bounds), sizeof(Transform), sizeof(uint32_t) };
@@ -671,6 +672,7 @@ struct Rasterizer {
                 base = resized;
             }
         }
+        bool hasClip;
         uint8_t *base = nullptr;  Row<Entry> entries;
         Params params;
         size_t colors, ctms, clips, widths, bounds, texCtms, texIdxs, texStrips;
@@ -1390,7 +1392,7 @@ struct Rasterizer {
     struct Stenciler: GeometryWriter {
         static Row<Opaque> CreateStencils(Path path, Bounds bounds, Transform m = Transform()) {
             if (!path->isValid())
-                path->addBounds(bounds), path->validate();
+                return Row<Opaque>();
             Stenciler stenciler(path, bounds, m);
             divideGeometry(path.ptr, m, bounds, true, true, stenciler);
             return stenciler.stencils;
@@ -1442,6 +1444,7 @@ struct Rasterizer {
         buffer.resize(size, buffer.headerSize);
         
         if ((sz = stencils.end * sizeof(*stencils.base))) {
+            buffer.hasClip = true;
             memcpy(buffer.base + end, stencils.base, sz), end += sz;
             new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::kStencils, begin, end);
             begin = end;
