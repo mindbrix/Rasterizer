@@ -68,7 +68,7 @@ struct Opaque {
 
 struct Instance {
     enum Flags {
-        kRoundJoin = 1 << 21,
+        kRoundJoin = 1 << 21,   kStencil = 1 << 21,
         kIsRadial = 1 << 22,
         kIsGradient = 1 << 23,
         kIsCurve = 1 << 24,

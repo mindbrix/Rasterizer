@@ -533,10 +533,15 @@ struct Rasterizer {
                 clips.add(clipBounds ? *clipBounds : Bounds::huge());
                 
                 if (clipPath && (*clipPath)->isValid()) {
-                    size_t count = clipPaths.end();
-                    if (count == 0 || (clipPaths.back()->hash() != (*clipPath)->hash()))
+                    size_t idx = 0;
+                    if (clipPaths.end() == 0)
                         clipPaths.add(*clipPath);
-                    clipIndices.add(count);
+                    else {
+                        if (clipPaths.back()->hash() != (*clipPath)->hash())
+                            clipPaths.add(*clipPath);
+                        idx = clipPaths.end() - 1;
+                    }
+                    clipIndices.add(idx);
                 } else
                     clipIndices.add(~0);
             }
@@ -614,7 +619,7 @@ struct Rasterizer {
     };
     struct Instance {
         enum Flags {
-            kRoundJoin = 1 << 21,
+            kRoundJoin = 1 << 21,   kStencil = 1 << 21,
             kIsRadial = 1 << 22,
             kIsGradient = 1 << 23,
             kIsCurve = 1 << 24,
@@ -739,7 +744,7 @@ struct Rasterizer {
             bool clipActive = false;
             
             BGRA black(0, 0, 0, 255), red(0, 0, 255, 255);
-            size_t lz, uz, i, clz, cuz, iz, is, size, cnt;  uint8_t flags;
+            size_t lz, uz, i, clz, cuz, iz, is, size, cnt, lastIdx = ~0;  uint8_t flags;
             float det, width, uw, softclipMargin = 0.5f;
             for (lz = uz = i = 0; i < list.scenes.size(); i++, lz = uz) {
                 const Scene *scn = list.scenes[i].ptr;
@@ -757,6 +762,14 @@ struct Rasterizer {
                         softclipMargin = 0.5f + 1e-1f / fmaxf(1.f, clipquad.scale());
                         invclip = clipquad.invert();
                         clipBounds = Bounds(clipquad).integral().intersect(device);
+                    }
+                    size_t idx = scn->clipIndices[is];
+                    if (idx != lastIdx) {
+                        lastIdx = idx;
+                        if (~idx) {
+                            Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kStencil);
+                            inst->g = scn->clipPaths[idx].ptr;
+                        }
                     }
                     m = scn->ctms[is].concat(ctm), det = fabsf(m.a * m.d - m.b * m.c);
                     uw = scn->widths[is];
@@ -1538,7 +1551,10 @@ struct Rasterizer {
                     ic = dst - dst0, dst++;
                     
                     bool fast = inst->iz & Instance::kFastEdges;
-                    if (inst->iz & Instance::kMolecule) {
+                    if (inst->iz & Instance::kStencil) {
+                        auto g = inst->g;
+                        dst--;
+                    } else if (inst->iz & Instance::kMolecule) {
                         uint16_t ux = inst->quad.cell.ux;  Transform& ctm = ctms[iz];
                         float *molx = (float *)g->molecules.base + (ctm.a > 0.f ? 2 : 0), *moly = (float *)g->molecules.base + (ctm.c > 0.f ? 3 : 1);
                         Edge *molecule = fast ? fastMolecule : quadMolecule;
