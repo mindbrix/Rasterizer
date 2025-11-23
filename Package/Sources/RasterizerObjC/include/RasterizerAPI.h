@@ -33,6 +33,7 @@
 
 - (id)initWithCGPath:(CGPathRef)cgPath;
 - (id)initWithRect:(CGRect)rect;
+- (id)initWithEllipse:(CGRect)rect;
 - (void)moveTo:(double)x y:(double)y;
 - (void)lineTo:(double)x y:(double)y;
 - (void)quadTo:(double)x1 y1:(double)y1 x2:(double)x2 y2:(double)y2;

@@ -132,6 +132,14 @@
     return self;
 }
 
+- (id)initWithEllipse:(CGRect)rect {
+    self = [super init];
+    if (!self)
+        return nil;
+    [self addEllipse:rect];
+    return self;
+}
+
 - (CGRect)bounds {
     return RaCG::CGRectFromBounds(_path->bounds);
 }

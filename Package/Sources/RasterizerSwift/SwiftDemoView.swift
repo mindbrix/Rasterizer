@@ -328,7 +328,7 @@ class SwiftDemo: NSObject, RASceneListDelegate {
                 clip: .zero
             )
         }
-        list.clipPath = clip ? RAPath(rect: bounds.insetBy(dx: 20, dy: 20)) : RAPath()
+        list.clipPath = clip ? RAPath(ellipse: bounds.insetBy(dx: 20, dy: 20)) : RAPath()
         list.ctm = ctm
         list.useCurves = useCurves
         list.showOpaques = showOpaques
