@@ -128,7 +128,8 @@ struct RasterizerPDF {
     static void writePathToScene(FPDF_PAGEOBJECT pageObject, FS_MATRIX m, Ra::Bounds* clipBounds, std::vector<Ra::Path>& clipPaths, Ra::SceneRef& scene) {
         int fillmode;
         FPDF_BOOL stroke;
-         
+        Ra::Path *clipPath = clipPaths.size() == 0 || pathIsRect(clipPaths[0]) ? nullptr : & clipPaths[0];
+        
         if (FPDFPath_GetDrawMode(pageObject, & fillmode, & stroke)) {
             Ra::Path path = PathWriter().createPathFromObject(pageObject);
             Ra::Transform ctm = Ra::Transform(m.a, m.b, m.c, m.d, m.e, m.f);
@@ -157,10 +158,10 @@ struct RasterizerPDF {
                 if (pathIsRect(path))
                     for (auto clip : clipPaths)
                         if (!pathIsRect(clip))
-                            path = clip;
+                            path = clip, clipPath = nullptr;
                 flags |= fillmode == FPDF_FILLMODE_ALTERNATE ? Ra::Scene::kFillEvenOdd : 0;
             }
-            scene->addPath(path, ctm, Ra::BGRA(B, G, R, A), width, flags, clipBounds);
+            scene->addPath(path, ctm, Ra::BGRA(B, G, R, A), width, flags, clipBounds, clipPath);
         }
     }
     

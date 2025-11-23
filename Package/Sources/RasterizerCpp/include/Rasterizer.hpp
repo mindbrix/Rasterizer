@@ -513,15 +513,14 @@ struct Rasterizer {
             addPath(path, ctm, color, width, capFlags | joinFlags, clipBounds);
         }
         
-        void addPath(Path path, Transform ctm, Color color, float width, uint8_t flag, Bounds *clipBounds = nullptr) {
+        void addPath(Path path, Transform ctm, Color color, float width, uint8_t flag, Bounds *clipBounds = nullptr, Path *clipPath = nullptr) {
             if (path->isValid()) {
                 Geometry *g = path.ptr;
                 count++, weight += g->types.end;
                 if (kMoleculesHeight && g->p16s.end == 0)
                     P16Writer().writeGeometry(g);
-                size_t count = color.stops.end();
                 
-                if (count) {
+                if (color.stops.end()) {
                     gradientIndices.add(gradients.end());
                     BGRA strip[kColorTextureWidth];
                     color.writeGradientStrip(strip, kColorTextureWidth);
@@ -532,6 +531,14 @@ struct Rasterizer {
                 _colors.add(color);
                 paths.add(path), bnds.add(g->bounds), ctms.add(ctm), colors.add(color.colorant), widths.add(width), flags.add(flag);
                 clips.add(clipBounds ? *clipBounds : Bounds::huge());
+                
+                if (clipPath && (*clipPath)->isValid()) {
+                    size_t count = clipPaths.end();
+                    if (count == 0 || (clipPaths.back()->hash() != (*clipPath)->hash()))
+                        clipPaths.add(*clipPath);
+                    clipIndices.add(count);
+                } else
+                    clipIndices.add(~0);
             }
         }
         void appendScene(const Scene& scene) {
@@ -549,6 +556,8 @@ struct Rasterizer {
         }
         size_t refCount, count = 0, weight = 0;
         RefVector<Path> paths;
+        RefVector<Path> clipPaths;
+        Vector<size_t> clipIndices;
         Vector<Bounds> bnds, clips;
         Vector<Transform> ctms;
         RefVector<Color> _colors;
