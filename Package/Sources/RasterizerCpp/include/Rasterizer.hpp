@@ -584,7 +584,7 @@ struct Rasterizer {
             return *this;
         }
         Path clipPath;
-        Transform ctm;  Params params;
+        Transform ctm, clipCtm;  Params params;
         size_t pathsCount = 0;  std::vector<SceneRef> scenes;  std::vector<Transform> ctms;  std::vector<Bounds> clips;
     };
     struct Cell {

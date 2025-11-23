@@ -89,6 +89,7 @@
     
     depthStencilDescriptor.frontFaceStencil.stencilCompareFunction = MTLCompareFunctionNotEqual;
     depthStencilDescriptor.frontFaceStencil.depthStencilPassOperation = MTLStencilOperationKeep;
+    depthStencilDescriptor.frontFaceStencil.readMask = 0x01;
     depthStencilDescriptor.backFaceStencil = depthStencilDescriptor.frontFaceStencil;
     self.instancesClipDepthState = [self.device newDepthStencilStateWithDescriptor:depthStencilDescriptor];
     

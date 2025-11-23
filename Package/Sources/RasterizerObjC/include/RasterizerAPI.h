@@ -87,6 +87,7 @@ typedef NS_ENUM(NSUInteger, RAJoinStyle) {
 
 @interface RASceneList: NSObject
 @property(nonatomic) RAPath *clipPath;
+@property(nonatomic) CGAffineTransform clipCtm;
 @property(nonatomic, readonly) CGRect bounds;
 @property(nonatomic) CGAffineTransform ctm;
 @property(nonatomic) BOOL useCurves;

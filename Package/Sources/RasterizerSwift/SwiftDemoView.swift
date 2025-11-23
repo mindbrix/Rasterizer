@@ -167,7 +167,7 @@ class TestQuadratics: RADrawable {
 }
 
 class TestCubics: RADrawable {
-    func getSceneAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RAScene {
+    func getPathAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RAPath {
         let count = state.flag ? 72 : 36
         let dim = min(bounds.width, bounds.height)
         let radius = 0.25 * dim
@@ -184,6 +184,11 @@ class TestCubics: RADrawable {
                 path.addEllipse(CGRect(x: origin.x - radius, y: origin.y - radius, width: 2 * radius, height: 2 * radius))
             }
         }
+        return path
+    }
+    func getSceneAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RAScene {
+        let path = getPathAtTime(time, bounds: bounds, state: state)
+        
         let scene = RAScene()
         scene.addFill(path, ctm: .identity, color: RAColor(gray: 0, alpha: 1), evenOdd: true, clip: .zero)
         return scene
@@ -328,7 +333,13 @@ class SwiftDemo: NSObject, RASceneListDelegate {
                 clip: .zero
             )
         }
-        list.clipPath = clip ? RAPath(ellipse: bounds.insetBy(dx: 20, dy: 20)) : RAPath()
+        let cubics = TestCubics().getPathAtTime(t, bounds: bounds, state: self)
+//        let inset = 20.0
+//        let ellipse = RAPath()
+//        ellipse.addEllipse(bounds.insetBy(dx: inset, dy: inset))
+//        ellipse.addEllipse(bounds.insetBy(dx: 2 * inset, dy: 2 * inset))
+        list.clipPath = clip ? cubics : RAPath()
+        list.clipCtm = ctm
         list.ctm = ctm
         list.useCurves = useCurves
         list.showOpaques = showOpaques

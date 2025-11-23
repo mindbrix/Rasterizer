@@ -244,6 +244,12 @@
     if (clipPath.path->isValid())
         _list.clipPath = clipPath.path;
 }
+- (CGAffineTransform)clipCtm {
+    return RaCG::CGFromTransform(_list.clipCtm);
+}
+- (void)setClipCtm:(CGAffineTransform)ctm {
+    _list.clipCtm = RaCG::transformFromCG(ctm);
+}
 - (CGRect)bounds {
     return RaCG::CGRectFromBounds(_list.bounds());
 }
