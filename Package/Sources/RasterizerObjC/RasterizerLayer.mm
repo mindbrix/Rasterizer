@@ -238,6 +238,7 @@
     edgesDescriptor.colorAttachments[0].loadAction = MTLLoadActionClear;
     edgesDescriptor.colorAttachments[0].clearColor = MTLClearColorMake(0, 0, 0, 0);
     
+    bool useClip = buffer->hasClip;
     uint32_t reverse, pathsCount = uint32_t(buffer->pathsCount), texCount = uint32_t(th);
     float width = drawable.texture.width, height = drawable.texture.height;
     
@@ -252,6 +253,9 @@
                 break;
             case Ra::Buffer::kInstancesBase:
                 instbase = entry.begin;
+                break;
+            case Ra::Buffer::kDisableClip:
+                useClip = false;
                 break;
             case Ra::Buffer::kStencils:
                 [commandEncoder setDepthStencilState:_stencilDepthState];
@@ -269,7 +273,7 @@
                 commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:drawableDescriptor];
                 break;
             case Ra::Buffer::kOpaques:
-                [commandEncoder setDepthStencilState:buffer->hasClip ? _opaquesClipDepthState : _opaquesDepthState];
+                [commandEncoder setDepthStencilState:useClip ? _opaquesClipDepthState : _opaquesDepthState];
                 [commandEncoder setStencilReferenceValue:0];
                 [commandEncoder setRenderPipelineState:_opaquesPipelineState];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
@@ -326,7 +330,7 @@
             case Ra::Buffer::kInstances:
                 [commandEncoder endEncoding];
                 commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:drawableDescriptor];
-                [commandEncoder setDepthStencilState:buffer->hasClip ? _instancesClipDepthState : _instancesDepthState];
+                [commandEncoder setDepthStencilState:useClip ? _instancesClipDepthState : _instancesDepthState];
                 [commandEncoder setStencilReferenceValue:0];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->ctms atIndex:4];
