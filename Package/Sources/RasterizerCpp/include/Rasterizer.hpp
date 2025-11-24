@@ -653,7 +653,7 @@ struct Rasterizer {
         int16_t lx, ux, cover;  uint32_t is;
     };
     struct Buffer {
-        enum Type { kQuadEdges, kFastEdges, kFastMolecules, kQuadMolecules, kOpaques, kInstances, kSegmentsBase, kPointsBase, kInstancesBase, kStencils, kDisableClip };
+        enum Type { kQuadEdges, kFastEdges, kFastMolecules, kQuadMolecules, kOpaques, kInstances, kSegmentsBase, kPointsBase, kInstancesBase, kStencils, kDisableClip, kEnableClip };
         struct Entry {
             Entry(Type type, size_t begin, size_t end) : type(type), begin(begin), end(end) {}
             Type type;  size_t begin, end;
@@ -661,7 +661,6 @@ struct Rasterizer {
         ~Buffer() { if (base) free(base); }
         
         void prepare(const SceneList& list) {
-            hasClip = false;
             pathsCount = list.pathsCount;
             texCount = 0;
             size_t i, sizes[] = { sizeof(BGRA), sizeof(Transform), sizeof(Transform), sizeof(float), sizeof(Bounds), sizeof(Transform), sizeof(uint32_t) };
@@ -686,7 +685,6 @@ struct Rasterizer {
                 base = resized;
             }
         }
-        bool hasClip;
         uint8_t *base = nullptr;  Row<Entry> entries;
         Params params;
         size_t colors, ctms, clips, widths, bounds, texCtms, texIdxs, texStrips;
@@ -1477,8 +1475,8 @@ struct Rasterizer {
         buffer.resize(size, buffer.headerSize);
         
         if ((sz = stencils.end * sizeof(*stencils.base))) {
-            buffer.hasClip = true;
             memcpy(buffer.base + end, stencils.base, sz), end += sz;
+            new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::kEnableClip, 0, 0);
             new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::kStencils, begin, end);
             begin = end;
         }

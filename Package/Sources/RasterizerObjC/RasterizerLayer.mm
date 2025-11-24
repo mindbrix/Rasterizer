@@ -238,7 +238,7 @@
     edgesDescriptor.colorAttachments[0].loadAction = MTLLoadActionClear;
     edgesDescriptor.colorAttachments[0].clearColor = MTLClearColorMake(0, 0, 0, 0);
     
-    bool useClip = buffer->hasClip;
+    bool useClip = false;
     uint32_t reverse, pathsCount = uint32_t(buffer->pathsCount), texCount = uint32_t(th);
     float width = drawable.texture.width, height = drawable.texture.height;
     
@@ -256,6 +256,9 @@
                 break;
             case Ra::Buffer::kDisableClip:
                 useClip = false;
+                break;
+            case Ra::Buffer::kEnableClip:
+                useClip = true;
                 break;
             case Ra::Buffer::kStencils:
                 [commandEncoder setDepthStencilState:_stencilDepthState];
