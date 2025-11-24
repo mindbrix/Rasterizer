@@ -97,8 +97,8 @@
     self.opaquesClipDepthState = [self.device newDepthStencilStateWithDescriptor:depthStencilDescriptor];
     
     MTLRenderPipelineDescriptor *stencilDescriptor = [MTLRenderPipelineDescriptor new];
-    stencilDescriptor.colorAttachments[0].pixelFormat = self.pixelFormat;
-    stencilDescriptor.depthAttachmentPixelFormat = MTLPixelFormatDepth32Float_Stencil8;
+    stencilDescriptor.colorAttachments[0].pixelFormat = MTLPixelFormatInvalid;
+    stencilDescriptor.depthAttachmentPixelFormat = MTLPixelFormatInvalid;
     stencilDescriptor.stencilAttachmentPixelFormat = MTLPixelFormatDepth32Float_Stencil8;
     stencilDescriptor.vertexFunction = [self.defaultLibrary newFunctionWithName:@"stencil_vertex_main"];
     stencilDescriptor.fragmentFunction = [self.defaultLibrary newFunctionWithName:@"stencil_fragment_main"];
@@ -222,15 +222,19 @@
     drawableDescriptor.depthAttachment.clearDepth = 0;
     
     drawableDescriptor.stencilAttachment.texture = _depthTexture;
-    drawableDescriptor.stencilAttachment.loadAction = MTLLoadActionClear;
+    drawableDescriptor.stencilAttachment.loadAction = MTLLoadActionLoad;
     drawableDescriptor.stencilAttachment.storeAction = MTLStoreActionStore;
-    drawableDescriptor.stencilAttachment.clearStencil = 0;
+    
+    MTLRenderPassDescriptor *clipDescriptor = [MTLRenderPassDescriptor renderPassDescriptor];
+    clipDescriptor.stencilAttachment.texture = _depthTexture;
+    clipDescriptor.stencilAttachment.loadAction = MTLLoadActionClear;
+    clipDescriptor.stencilAttachment.storeAction = MTLStoreActionStore;
+    clipDescriptor.stencilAttachment.clearStencil = 0;
     
     id <MTLRenderCommandEncoder> commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:drawableDescriptor];
     
     drawableDescriptor.colorAttachments[0].loadAction = MTLLoadActionLoad;
     drawableDescriptor.depthAttachment.loadAction = MTLLoadActionLoad;
-    drawableDescriptor.stencilAttachment.loadAction = MTLLoadActionLoad;
     
     MTLRenderPassDescriptor *edgesDescriptor = [MTLRenderPassDescriptor renderPassDescriptor];
     edgesDescriptor.colorAttachments[0].texture = _accumulationTexture;
@@ -261,6 +265,8 @@
                 useClip = true;
                 break;
             case Ra::Buffer::kStencils:
+                [commandEncoder endEncoding];
+                commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:clipDescriptor];
                 [commandEncoder setDepthStencilState:_stencilDepthState];
                 [commandEncoder setRenderPipelineState:_stencilPipelineState];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
