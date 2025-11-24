@@ -765,15 +765,22 @@ struct Rasterizer {
                     if (idx != lastIdx) {
                         lastIdx = idx;
                         Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kStencil);
+                        inst->data.count = 0;
                         inst->g = nullptr;
                         if (~idx) {
                             if (idx != lastClipIdx) {
                                 lastClipIdx = idx;
-                                inst->g = scn->clipPaths[idx].ptr;
-                            }
-                            inst->data.count = 1;
+                                size_t i0, i1;
+                                const Path& clip = scn->clipPaths[idx];
+                                i0 = stencils.end;
+                                Stenciler stenciler(clip, device, ctm, & stencils);
+                                divideGeometry(clip.ptr, ctm, device, false, true, stenciler);
+                                i1 = stencils.end;
+                                inst->data.idx = int(i0), inst->data.count = int(i1 - i0);
+                            } else
+                                inst->data.idx = 1;
                         } else {
-                            inst->data.count = 0;
+                            inst->data.idx = 0;
                         }
                     }
                     m = scn->ctms[is].concat(ctm), det = fabsf(m.a * m.d - m.b * m.c);
@@ -851,14 +858,14 @@ struct Rasterizer {
             }
         }
         void empty() {
-            p16total = texTotal = 0, blends.empty(), opaques.empty(), outlines.empty(), segments.empty(), segmentsIndices.empty(), indices.empty();
+            p16total = texTotal = 0, blends.empty(), opaques.empty(), stencils.empty(), outlines.empty(), segments.empty(), segmentsIndices.empty(), indices.empty();
             p16s.resize(0);
             texs.resize(0);
             for (int i = 0; i < samples.end(); i++)
                 samples[i].empty();
             entries = Vector<Buffer::Entry>();
         }
-        void reset() { p16total = 0, blends.reset(), opaques.reset(), outlines.reset(), segments.reset(), segmentsIndices.reset(), indices.reset(), entries = Vector<Buffer::Entry>();
+        void reset() { p16total = 0, blends.reset(), opaques.reset(), stencils.reset(), outlines.reset(), segments.reset(), segmentsIndices.reset(), indices.reset(), entries = Vector<Buffer::Entry>();
             p16s.resize(0);
             texs.resize(0);
             samples.resize(0);
@@ -868,7 +875,7 @@ struct Rasterizer {
         Allocator allocator;  Vector<Buffer::Entry> entries;
         Vector<Row<Point16>*> p16s;
         Vector<TexRef> texs;
-        Row<Opaque> opaques;  Row<Blend> blends;  Row<Instance> outlines;  Row<Segment> segments;
+        Row<Opaque> opaques, stencils;  Row<Blend> blends;  Row<Instance> outlines;  Row<Segment> segments;
         Row<Sample::Index> indices;  RefVector<Row<Sample>> samples;  Row<uint32_t> segmentsIndices;
     };
     static void divideGeometry(Geometry *g, Transform m, Bounds clip, bool unclipped, bool polygon, GeometryWriter& writer) {
@@ -1417,17 +1424,18 @@ struct Rasterizer {
     
     struct Stenciler: GeometryWriter {
         static Row<Opaque> CreateStencils(Path path, Bounds device, Transform m = Transform()) {
+            Row<Opaque> stencils;
             if (!path->isValid())
-                return Row<Opaque>();
-            Stenciler stenciler(path, device, m);
+                return stencils;
+            Stenciler stenciler(path, device, m, & stencils);
             divideGeometry(path.ptr, m, device, true, true, stenciler);
-            return stenciler.stencils;
+            return stencils;
         }
         
-        Stenciler(Path path, Bounds device, Transform m) : device(device), molecule(path->molecules.base), m(m) {}
+        Stenciler(Path path, Bounds device, Transform m, Row<Opaque> *stencils) : device(device), molecule(path->molecules.base), m(m), stencils(stencils) {}
         
         void writeSegment(float x0, float y0, float x1, float y1) {
-            Opaque *stencil = stencils.alloc(1);
+            Opaque *stencil = stencils->alloc(1);
             struct Quadratic& quad = stencil->quad;
             float cx = molecule->cx(), cy = molecule->cy();
             quad.x0 = m.a * cx + m.c * cy + m.tx;
@@ -1458,7 +1466,7 @@ struct Rasterizer {
         }
         Transform m;
         Bounds device, *molecule;
-        Row<Opaque> stencils;
+        Row<Opaque> *stencils;
     };
     static size_t resizeBuffer(const SceneList& list, Context *contexts, size_t count, size_t *begins, Transform view, Bounds device, Buffer& buffer) {
         size_t size = buffer.headerSize, begin = size, end = begin, sz, i, j, instances;
