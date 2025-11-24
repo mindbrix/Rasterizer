@@ -742,7 +742,7 @@ struct Rasterizer {
             bool clipActive = false;
             
             BGRA black(0, 0, 0, 255), red(0, 0, 255, 255);
-            size_t lz, uz, i, clz, cuz, iz, is, size, cnt, lastIdx = ~0;  uint8_t flags;
+            size_t lz, uz, i, clz, cuz, iz, is, size, cnt, lastIdx = ~0, lastClipIdx = ~0;  uint8_t flags;
             float det, width, uw, softclipMargin = 0.5f;
             for (lz = uz = i = 0; i < list.scenes.size(); i++, lz = uz) {
                 const Scene *scn = list.scenes[i].ptr;
@@ -764,9 +764,16 @@ struct Rasterizer {
                     size_t idx = scn->clipIndices[is];
                     if (idx != lastIdx) {
                         lastIdx = idx;
+                        Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kStencil);
+                        inst->g = nullptr;
                         if (~idx) {
-                            Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kStencil);
-                            inst->g = scn->clipPaths[idx].ptr;
+                            if (idx != lastClipIdx) {
+                                lastClipIdx = idx;
+                                inst->g = scn->clipPaths[idx].ptr;
+                            }
+                            inst->data.count = 1;
+                        } else {
+                            inst->data.count = 0;
                         }
                     }
                     m = scn->ctms[is].concat(ctm), det = fabsf(m.a * m.d - m.b * m.c);
@@ -1536,7 +1543,7 @@ struct Rasterizer {
                 assert(begin == instbegin);
             }
             
-            Instance *dst0 = (Instance *)(buffer.base + begin), *dst = dst0;  Outliner outliner;
+            Instance *dst0 = (Instance *)(buffer.base + begin), *dst = dst0;
             for (Blend *inst = ctx->blends.base + pass->idx, *endinst = inst + passsize; inst < endinst; inst++) {
                 iz = inst->iz & kPathIndexMask;
                 Geometry *g = inst->g;
@@ -1550,7 +1557,6 @@ struct Rasterizer {
                     
                     bool fast = inst->iz & Instance::kFastEdges;
                     if (inst->iz & Instance::kStencil) {
-                        auto g = inst->g;
                         dst--;
                     } else if (inst->iz & Instance::kMolecule) {
                         uint16_t ux = inst->quad.cell.ux;  Transform& ctm = ctms[iz];
