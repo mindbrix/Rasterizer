@@ -1423,7 +1423,7 @@ struct Rasterizer {
     };
     
     struct Stenciler: GeometryWriter {
-        static Row<Opaque> CreateStencils(Path path, Bounds device, Transform m = Transform()) {
+        static Row<Opaque> CreateStencils(const Path& path, Bounds device, Transform m = Transform()) {
             Row<Opaque> stencils;
             if (!path->isValid())
                 return stencils;
@@ -1432,7 +1432,7 @@ struct Rasterizer {
             return stencils;
         }
         
-        Stenciler(Path path, Bounds device, Transform m, Row<Opaque> *stencils) : device(device), molecule(path->molecules.base), m(m), stencils(stencils) {}
+        Stenciler(const Path& path, Bounds device, Transform m, Row<Opaque> *stencils) : device(device), molecule(path->molecules.base), m(m), stencils(stencils) {}
         
         void writeSegment(float x0, float y0, float x1, float y1) {
             Opaque *stencil = stencils->alloc(1);

@@ -143,7 +143,7 @@ class TestGradients: RADrawable {
         
         let scene = RAScene()
         scene.addFill(rect, ctm: .identity, color: gradient, evenOdd: false, clip: .zero, clipPath: clipPath)
-        scene.addFill(ellipse, ctm: .identity, color: RAColor(), evenOdd: false, clip: .zero, clipPath: clipPath)
+        scene.addFill(ellipse, ctm: .identity, color: RAColor(), evenOdd: false, clip: .zero, clipPath: nil)
         
         return scene
     }
@@ -326,7 +326,7 @@ class SwiftDemo: NSObject, RASceneListDelegate {
     func shouldRedraw(atTime time: Double) -> Bool {
         true
     }
-    func getListAtTime(_ time: Double, width: Double, height: Double) -> RASceneList! {
+    func getListAtTime(_ time: Double, width: Double, height: Double) -> RASceneList {
         bounds = CGRect(x: 0, y: 0, width: width, height: height)
         t = paused ? t : time
         let list = RASceneList()
