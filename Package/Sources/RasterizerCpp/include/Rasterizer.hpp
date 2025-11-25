@@ -698,7 +698,7 @@ struct Rasterizer {
             size_t idx, counts[4] = { 0, 0, 0, 0 };
         };
         void empty(Bounds device) {
-            full = device, sheet = Bounds(0.f, 0.f, 0.f, 0.f), bzero(strips, sizeof(strips)), passes.empty(), new (passes.alloc(1)) Pass(0);
+            full = device, sheet = Bounds(0.f, 0.f, 0.f, 0.f), bzero(strips, sizeof(strips)), passes.empty();
         }
         void refill(size_t idx) {
             sheet = full, bzero(strips, sizeof(strips)), new (passes.alloc(1)) Pass(idx);
@@ -726,7 +726,7 @@ struct Rasterizer {
     };
     struct Context {
         void drawList(const SceneList& list, Bounds device, Transform view, size_t slz, size_t suz, Buffer *buffer) {
-            empty(), allocator.empty(device);
+            empty(), allocator.empty(device), allocator.refill(0);
             size_t fatlines = 1.f + ceilf((device.uy - device.ly) * krfh);
             if (samples.end() != fatlines) {
                 samples.resize(0);
@@ -1617,6 +1617,9 @@ struct Rasterizer {
                 end = begin + size * sizeof(Instance);
                 size_t i0 = begin, i1;
                 for (i = 0; i <= clipBegins.end(); i++, i0 = i1) {
+                    i1 = i == clipBegins.end() ? end : clipBegins[i];
+                    if (i0 != i1)
+                        ctx->entries.add(Buffer::Entry(Buffer::kInstances, i0, i1));
                     if (i != clipBegins.end()) {
                         const Blend& clip = clips[i];
                         if (clip.data.count) {
@@ -1632,9 +1635,6 @@ struct Rasterizer {
                             
                         }
                     }
-                    i1 = i == clipBegins.end() ? end : clipBegins[i];
-                    if (i0 != i1)
-                        ctx->entries.add(Buffer::Entry(Buffer::kInstances, i0, i1));
                 }
 //                ctx->entries.add(Buffer::Entry(Buffer::kInstances, begin, end));
                 begin = end;
