@@ -1639,6 +1639,7 @@ struct Rasterizer {
 //                ctx->entries.add(Buffer::Entry(Buffer::kInstances, begin, end));
                 begin = end;
             }
+            ctx->entries.add(Buffer::Entry(Buffer::kDisableClip, 0, 0));
         }
     }
 };
