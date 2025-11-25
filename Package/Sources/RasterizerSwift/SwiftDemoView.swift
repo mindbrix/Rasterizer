@@ -133,13 +133,16 @@ class TestGradients: RADrawable {
     }
     
     func getSceneAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RAScene {
+        let inset = 40.0
+        let clipPath = RAPath(ellipse: bounds.insetBy(dx: inset, dy: inset))
+        
         let gradient = Self.gradientForBounds(bounds, isRadial: !state.useRect)
         
         let path = RAPath()
         path.add(bounds);
         
         let scene = RAScene()
-        scene.addFill(path, ctm: .identity, color: gradient, evenOdd: false, clip: .zero)
+        scene.addFill(path, ctm: .identity, color: gradient, evenOdd: false, clip: .zero, clipPath: clipPath)
         return scene
     }
 }
@@ -190,7 +193,7 @@ class TestCubics: RADrawable {
         let path = getPathAtTime(time, bounds: bounds, state: state)
         
         let scene = RAScene()
-        scene.addFill(path, ctm: .identity, color: RAColor(gray: 0, alpha: 1), evenOdd: true, clip: .zero)
+        scene.addFill(path, ctm: .identity, color: RAColor(gray: 0, alpha: 1), evenOdd: true, clip: .zero, clipPath: nil)
         return scene
     }
 }
@@ -233,7 +236,7 @@ class Test0: RADrawable {
                 scale: CGSize(width: 2 * r1, height: 2 * r1),
                 translation: CGVector(dx: radial.x - unitCenter.x, dy: radial.y - unitCenter.y)
             )
-            scene.addFill(path, ctm: ctm, color: gradient, evenOdd: false, clip: .zero)
+            scene.addFill(path, ctm: ctm, color: gradient, evenOdd: false, clip: .zero, clipPath: nil)
         }
         return scene
     }

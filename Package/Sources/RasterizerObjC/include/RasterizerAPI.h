@@ -11,18 +11,18 @@
 
 
 @interface RAColor: NSObject
-- (id)initWithGray:(double)gray alpha:(double)alpha;
-- (id)initWithHue:(double)hue saturation:(double)saturation value:(double)value alpha:(double)alpha;
-- (id)initWithRed:(double)red green:(double)green blue:(double)blue alpha:(double)alpha;
-- (id)initWithCGColor:(CGColorRef)cgColor;
+- (nonnull id)initWithGray:(double)gray alpha:(double)alpha;
+- (nonnull id)initWithHue:(double)hue saturation:(double)saturation value:(double)value alpha:(double)alpha;
+- (nonnull id)initWithRed:(double)red green:(double)green blue:(double)blue alpha:(double)alpha;
+- (nonnull id)initWithCGColor:(nonnull CGColorRef)cgColor;
 
-- (id)initLinearWithColors:(NSArray<RAColor *>*)colors
-                 locations:(NSArray<NSNumber *>*)locations
+- (nonnull id)initLinearWithColors:(nonnull NSArray<RAColor *>*)colors
+                 locations:(nonnull NSArray<NSNumber *>*)locations
                      start:(CGPoint)start
                        end:(CGPoint)end;
 
-- (id)initRadialWithColors:(NSArray<RAColor *>*)colors
-                 locations:(NSArray<NSNumber *>*)locations
+- (nonnull id)initRadialWithColors:(nonnull NSArray<RAColor *>*)colors
+                 locations:(nonnull NSArray<NSNumber *>*)locations
                     center:(CGPoint)center
                     radius:(double)radius;
 @end
@@ -31,19 +31,19 @@
 @interface RAPath: NSObject
 @property(nonatomic, readonly) CGRect bounds;
 
-- (id)initWithCGPath:(CGPathRef)cgPath;
-- (id)initWithRect:(CGRect)rect;
-- (id)initWithEllipse:(CGRect)rect;
+- (nonnull id)initWithCGPath:(nonnull CGPathRef)cgPath;
+- (nonnull id)initWithRect:(CGRect)rect;
+- (nonnull id)initWithEllipse:(CGRect)rect;
 - (void)moveTo:(double)x y:(double)y;
 - (void)lineTo:(double)x y:(double)y;
 - (void)quadTo:(double)x1 y1:(double)y1 x2:(double)x2 y2:(double)y2;
 - (void)cubicTo:(double)x1 y1:(double)y1 x2:(double)x2 y2:(double)y2 x3:(double)x3 y3:(double)y3;
 - (void)close;
-- (void)addCGPath:(CGPathRef)path;
+- (void)addCGPath:(nonnull CGPathRef)path;
 - (void)addRect:(CGRect)rect;
 - (void)addEllipse:(CGRect)rect;
-- (RAPath *)dashedCopyWithPhase:(double)phase
-                        lengths:(NSArray<NSNumber *>*)lengths;
+- (nonnull RAPath *)dashedCopyWithPhase:(double)phase
+                        lengths:(nonnull NSArray<NSNumber *>*)lengths;
 @end
 
 
@@ -58,35 +58,36 @@ typedef NS_ENUM(NSUInteger, RAJoinStyle) {
 @interface RAScene: NSObject
 @property(nonatomic, readonly) CGRect bounds;
 
-- (void)addFill:(RAPath *)path
+- (void)addFill:(nonnull RAPath *)path
             ctm:(CGAffineTransform)ctm
-           color:(RAColor *)color
+           color:(nonnull RAColor *)color
         evenOdd:(BOOL)evenOdd
-           clip:(CGRect)clip;
+           clip:(CGRect)clip
+       clipPath:(nullable RAPath *)clipPath;
 
-- (void)addStroke:(RAPath *)path
+- (void)addStroke:(nonnull RAPath *)path
               ctm:(CGAffineTransform)ctm
-            color:(RAColor *)color
+            color:(nonnull RAColor *)color
             width:(double)width
          capStyle:(RACapStyle)capStyle
         joinStyle:(RAJoinStyle)joinStyle
              clip:(CGRect)clip;
 
-- (CGRect)addTextLine:(NSAttributedString *)string
+- (CGRect)addTextLine:(nonnull NSAttributedString *)string
                   ctm:(CGAffineTransform)ctm
                  clip:(CGRect)clip;
 
-- (CGRect)addText:(NSAttributedString *)string
+- (CGRect)addText:(nonnull NSAttributedString *)string
            inRect:(CGRect)rect
               ctm:(CGAffineTransform)ctm
              clip:(CGRect)clip;
 
-- (CGAffineTransform)addSvgFromData:(NSData *)data;
+- (CGAffineTransform)addSvgFromData:(nonnull NSData *)data;
 @end
 
 
 @interface RASceneList: NSObject
-@property(nonatomic) RAPath *clipPath;
+@property(nonatomic, nonnull) RAPath *clipPath;
 @property(nonatomic) CGAffineTransform clipCtm;
 @property(nonatomic, readonly) CGRect bounds;
 @property(nonatomic) CGAffineTransform ctm;
@@ -94,12 +95,12 @@ typedef NS_ENUM(NSUInteger, RAJoinStyle) {
 @property(nonatomic) BOOL showOpaques;
 @property(nonatomic) BOOL showOutlines;
 
-- (void)addList:(RASceneList *)list;
-- (void)addScene:(RAScene *)scene ctm:(CGAffineTransform)ctm clip:(CGRect)clip;
+- (void)addList:(nonnull RASceneList *)list;
+- (void)addScene:(nonnull RAScene *)scene ctm:(CGAffineTransform)ctm clip:(CGRect)clip;
 @end
 
 
 @protocol RASceneListDelegate <NSObject>
 - (BOOL)shouldRedrawAtTime:(double)time;
-- (RASceneList *)getListAtTime:(double)time width:(double)width height:(double)height;
+- (nonnull RASceneList *)getListAtTime:(double)time width:(double)width height:(double)height;
 @end

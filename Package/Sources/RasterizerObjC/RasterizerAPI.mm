@@ -197,11 +197,13 @@
             ctm:(CGAffineTransform)ctm
            color:(RAColor *)color
         evenOdd:(BOOL)evenOdd
-           clip:(CGRect)clip {
+           clip:(CGRect)clip
+       clipPath:(nullable RAPath *)clipPath {
     Ra::Path p = path.path;
     Ra::Bounds clipBounds = CGRectIsNull(clip) || CGRectIsEmpty(clip) || CGRectIsInfinite(clip) ? Ra::Bounds::huge() : RaCG::BoundsFromCGRect(clip);
     auto m = RaCG::transformFromCG(ctm);
-    _scene->addFill(p, m, color.color, evenOdd, & clipBounds);
+    Ra::Path clp = clipPath != nil ? clipPath.path : Ra::Path();
+    _scene->addFill(p, m, color.color, evenOdd, & clipBounds, clipPath != nil ? & clp : nullptr);
     
 }
 
