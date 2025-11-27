@@ -246,12 +246,6 @@ struct RasterizerDemo {
             ctm = bounds.fitTransform(list.bounds()), fit = false;
         Ra::SceneList draw = list;
         draw.ctm = ctm, draw.params = params;
-        if (clip) {
-            float inset = 20;
-            Ra::Path path;
-            path->addEllipse(bounds.inset(inset, inset));
-            draw.clipPath = path;
-        }
         if (mouseMove) {
             list.ctm = ctm;
             indices = RasterizerWinding::indicesForPoint(list, bounds, mx, my);

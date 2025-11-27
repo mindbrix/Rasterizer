@@ -85,12 +85,6 @@ struct RasterizerCG {
     }
     
     static void renderList(const Ra::SceneList& list, Ra::Bounds bounds, CGContextRef ctx) {
-        if (list.clipPath->isValid()) {
-            CGContextConcatCTM(ctx, CGFromTransform(list.clipCtm));
-            writePathToCGContext(list.clipPath.ptr, ctx);
-            CGContextEOClip(ctx);
-            CGContextConcatCTM(ctx, CGFromTransform(list.clipCtm.invert()));
-        }
         CGContextConcatCTM(ctx, CGFromTransform(list.ctm));
         
         for (int j = 0; j < list.scenes.size(); j++) {

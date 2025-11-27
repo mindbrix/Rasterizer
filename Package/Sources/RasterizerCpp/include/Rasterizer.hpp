@@ -597,8 +597,7 @@ struct Rasterizer {
                 pathsCount += scene->count, scenes.emplace_back(scene), ctms.emplace_back(ctm), clips.emplace_back(clip);
             return *this;
         }
-        Path clipPath;
-        Transform ctm, clipCtm;  Params params;
+        Transform ctm;  Params params;
         size_t pathsCount = 0;  std::vector<SceneRef> scenes;  std::vector<Transform> ctms;  std::vector<Bounds> clips;
     };
     struct Cell {
@@ -1468,13 +1467,10 @@ struct Rasterizer {
         Bounds device, *molecule;
         Row<Opaque> *stencils;
     };
-    static size_t resizeBuffer(const SceneList& list, Context *contexts, size_t count, size_t *begins, Transform view, Bounds device, Buffer& buffer) {
+    static size_t resizeBuffer(const SceneList& list, Context *contexts, size_t count, size_t *begins, Buffer& buffer) {
         size_t size = buffer.headerSize, begin = size, end = begin, sz, i, j, instances;
         for (i = 0; i < count; i++)
             size += contexts[i].opaques.end * sizeof(Opaque);
-        
-        auto stencils = Stenciler::CreateStencils(list.clipPath, device, view);
-        size += stencils.end * sizeof(*stencils.base);
         
         for (sz = i = 0; i < count; i++)
             sz += contexts[i].texs.end();
@@ -1488,13 +1484,6 @@ struct Rasterizer {
             begins[i] = size, size += instances * sizeof(Edge) + (ctx->outlines.end + ctx->blends.end) * sizeof(Instance) + ctx->segments.end * sizeof(Segment) + ctx->p16total * sizeof(Point16) + ctx->stencils.end * sizeof(Opaque);
         }
         buffer.resize(size, buffer.headerSize);
-        
-        if ((sz = stencils.end * sizeof(*stencils.base))) {
-            memcpy(buffer.base + end, stencils.base, sz), end += sz;
-            new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::kEnableClip, 0, 0);
-            new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::kStencils, begin, end);
-            begin = end;
-        }
         
         for (i = 0; i < count; i++)
             if ((sz = contexts[i].opaques.end * sizeof(Opaque)))

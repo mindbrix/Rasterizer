@@ -254,21 +254,6 @@
 
 @implementation RASceneList: NSObject
 
-- (RAPath *)clipPath {
-    RAPath *clip = [RAPath new];
-    clip.path = _list.clipPath;
-    return clip;
-}
-- (void)setClipPath:(RAPath *)clipPath {
-    if (clipPath.path->isValid())
-        _list.clipPath = clipPath.path;
-}
-- (CGAffineTransform)clipCtm {
-    return RaCG::CGFromTransform(_list.clipCtm);
-}
-- (void)setClipCtm:(CGAffineTransform)ctm {
-    _list.clipCtm = RaCG::transformFromCG(ctm);
-}
 - (CGRect)bounds {
     return RaCG::CGRectFromBounds(_list.bounds());
 }

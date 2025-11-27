@@ -339,13 +339,6 @@ class SwiftDemo: NSObject, RASceneListDelegate {
                 clip: .zero
             )
         }
-        let cubics = TestCubics().getPathAtTime(t, bounds: bounds, state: self)
-        let inset = 20.0
-        let b = bounds.insetBy(dx: inset, dy: inset);
-        let ellipse = RAPath(ellipse: b)
-        let rect = RAPath(rect: b)
-        list.clipPath = clip ? (useRect ? rect : ellipse) : RAPath()
-//        list.clipCtm = ctm
         list.ctm = ctm
         list.useCurves = useCurves
         list.showOpaques = showOpaques
