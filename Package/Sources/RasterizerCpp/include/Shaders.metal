@@ -205,10 +205,6 @@ vertex StencilVertex stencil_vertex_main(const device Opaque *stencils [[buffer(
     return vert;
 }
 
-fragment float4 stencil_fragment_main(StencilVertex vert [[stage_in]])
-{
-    return 1;
-}
 
 #pragma mark - Opaques
 

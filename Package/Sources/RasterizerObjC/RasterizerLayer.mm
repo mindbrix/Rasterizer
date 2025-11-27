@@ -101,7 +101,7 @@
     stencilDescriptor.depthAttachmentPixelFormat = MTLPixelFormatInvalid;
     stencilDescriptor.stencilAttachmentPixelFormat = MTLPixelFormatDepth32Float_Stencil8;
     stencilDescriptor.vertexFunction = [self.defaultLibrary newFunctionWithName:@"stencil_vertex_main"];
-    stencilDescriptor.fragmentFunction = [self.defaultLibrary newFunctionWithName:@"stencil_fragment_main"];
+    stencilDescriptor.fragmentFunction = nil;
     stencilDescriptor.label = @"stencil";
     self.stencilPipelineState = [self.device newRenderPipelineStateWithDescriptor:stencilDescriptor error:nil];
     
