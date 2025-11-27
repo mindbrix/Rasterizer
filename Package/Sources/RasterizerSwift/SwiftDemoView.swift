@@ -109,7 +109,8 @@ class TestDasher: RADrawable {
                         width: width,
                         capStyle: capStyle,
                         joinStyle: .joinRound,
-                        clip: .zero)
+                        clip: .zero,
+                        clipPath: nil)
         return scene
     }
 }
@@ -166,7 +167,7 @@ class TestQuadratics: RADrawable {
         
         let scene = RAScene()
         
-        scene.addStroke(path, ctm: .identity, color: color, width: stroke, capStyle: .capButt, joinStyle: .joinMiter, clip: .zero)
+        scene.addStroke(path, ctm: .identity, color: color, width: stroke, capStyle: .capButt, joinStyle: .joinMiter)
         return scene
     }
 }
@@ -195,7 +196,7 @@ class TestCubics: RADrawable {
         let path = getPathAtTime(time, bounds: bounds, state: state)
         
         let scene = RAScene()
-        scene.addFill(path, ctm: .identity, color: RAColor(gray: 0, alpha: 1), evenOdd: true, clip: .zero, clipPath: nil)
+        scene.addFill(path, ctm: .identity, color: RAColor(gray: 0, alpha: 1), evenOdd: true)
         return scene
     }
 }
@@ -238,7 +239,7 @@ class Test0: RADrawable {
                 scale: CGSize(width: 2 * r1, height: 2 * r1),
                 translation: CGVector(dx: radial.x - unitCenter.x, dy: radial.y - unitCenter.y)
             )
-            scene.addFill(path, ctm: ctm, color: gradient, evenOdd: false, clip: .zero, clipPath: nil)
+            scene.addFill(path, ctm: ctm, color: gradient, evenOdd: false)
         }
         return scene
     }
