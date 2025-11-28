@@ -135,7 +135,8 @@ class TestGradients: RADrawable {
     
     func getSceneAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RAScene {
         let inset = 40.0
-        let clipPath = RAPath(rect: bounds.insetBy(dx: inset, dy: inset))
+        let b = bounds.insetBy(dx: inset, dy: inset)
+        let clipPath = state.useRect ? RAPath(rect: b) : RAPath(ellipse: b)
         
         let gradient = Self.gradientForBounds(bounds, isRadial: !state.useRect)
         
@@ -143,8 +144,8 @@ class TestGradients: RADrawable {
         let ellipse = RAPath(ellipse: bounds)
         
         let scene = RAScene()
-        scene.addFill(rect, ctm: .identity, color: gradient, evenOdd: false, clip: .zero, clipPath: clipPath)
-        scene.addFill(ellipse, ctm: .identity, color: RAColor(), evenOdd: false, clip: .zero, clipPath: nil)
+        scene.addFill(rect, ctm: .identity, color: gradient, evenOdd: false, clip: .zero, clipPath: state.clip ? RAPath(rect: b) : nil)
+        scene.addFill(ellipse, ctm: .identity, color: RAColor(gray: 1, alpha: 1), evenOdd: false, clip: .zero, clipPath: state.clip ? RAPath(ellipse: b) : nil)
         
         return scene
     }
