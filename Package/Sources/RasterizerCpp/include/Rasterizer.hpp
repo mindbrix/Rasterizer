@@ -465,10 +465,18 @@ struct Rasterizer {
             for (size_t i = 0; i < count && opaque; i++)
                 opaque = opaque && stops[i].a == 255;
         }
-        Color(BGRA *colorBuffer, size_t width, size_t height, size_t stride) {
-            if (colorBuffer == nullptr || width == 0 || height == 0 || stride == 0)
+        Color(BGRA *colorBuffer, size_t width, size_t height, size_t bpr) {
+            if (colorBuffer == nullptr || width == 0 || height == 0 || bpr == 0)
                 return;
+            assert(bpr / sizeof(BGRA) >= width);
             type = kImage, w = width, h = height;
+            size_t stride = bpr / sizeof(BGRA);
+            if (stride == width)
+                stops.add(colorBuffer, width * height);
+            else {
+                for (size_t i = 0; i < height; i++)
+                    stops.add(colorBuffer + i * stride, width);
+            }
         }
         inline bool isOpaque() const {
             return opaque;
@@ -506,8 +514,6 @@ struct Rasterizer {
         bool opaque = true;
     };
     
-    typedef Ref<Color> Paint;
-    
     struct Scene {
         enum Flags { kInvisible = 1 << 0, kFillEvenOdd = 1 << 1, kRoundCap = 1 << 2, kSquareCap = 1 << 3, kRoundJoin = 1 << 4 };
 
@@ -518,7 +524,7 @@ struct Rasterizer {
                 if (kMoleculesHeight && g->p16s.end == 0)
                     P16Writer().writeGeometry(g);
                 
-                if (color.stops.end()) {
+                if (color.isGradient()) {
                     gradientIndices.add(gradients.end());
                     BGRA strip[kColorTextureWidth];
                     color.writeGradientStrip(strip, kColorTextureWidth);
@@ -526,8 +532,6 @@ struct Rasterizer {
                 } else {
                     gradientIndices.add(~0);
                 }
-                Paint paint(color);
-                
                 _colors.add(color);
                 paths.add(path), bnds.add(g->bounds), ctms.add(ctm), colors.add(color.color), widths.add(width), flags.add(flag);
                 clips.add(clipBounds ? *clipBounds : Bounds::huge());

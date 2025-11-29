@@ -287,7 +287,13 @@ struct RasterizerPDF {
                                 FPDF_BITMAP bitmap = FPDFImageObj_GetRenderedBitmap(doc, page, pageObject);
                                 int format = FPDFBitmap_GetFormat(bitmap);
                                 if (format) {
-                                    scene->addPath(unitRectPath, ctm, Ra::BGRA(0, 0, 0, 64), 0, 0, clipPtr);
+                                    auto buffer = (Ra::BGRA *)FPDFBitmap_GetBuffer(bitmap);
+                                    size_t width = FPDFBitmap_GetWidth(bitmap);
+                                    size_t height = FPDFBitmap_GetHeight(bitmap);
+                                    size_t stride = FPDFBitmap_GetStride(bitmap);
+                                    Ra::Color image(buffer, width, height, stride);
+                                    
+                                    scene->addPath(unitRectPath, ctm, image, 0, 0, clipPtr);
                                 }
                                 FPDFBitmap_Destroy(bitmap);
                             }
