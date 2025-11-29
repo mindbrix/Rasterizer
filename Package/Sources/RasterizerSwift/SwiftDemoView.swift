@@ -136,7 +136,7 @@ class TestGradients: RADrawable {
     func getSceneAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RAScene {
         let inset = 40.0
         let b = bounds.insetBy(dx: inset, dy: inset)
-        let clipPath = state.useRect ? RAPath(rect: b) : RAPath(ellipse: b)
+//        let clipPath = state.useRect ? RAPath(rect: b) : RAPath(ellipse: b)
         
         let gradient = Self.gradientForBounds(bounds, isRadial: !state.useRect)
         
@@ -144,8 +144,8 @@ class TestGradients: RADrawable {
         let ellipse = RAPath(ellipse: bounds)
         
         let scene = RAScene()
-        scene.addFill(rect, ctm: .identity, color: gradient, evenOdd: false, clip: .zero, clipPath: state.clip ? RAPath(rect: b) : nil)
-        scene.addFill(ellipse, ctm: .identity, color: RAColor(gray: 1, alpha: 1), evenOdd: false, clip: .zero, clipPath: state.clip ? RAPath(ellipse: b) : nil)
+        scene.addFill(rect, ctm: .identity, color: gradient, evenOdd: false, clip: .zero, clipPath: RAPath(rect: b))
+        scene.addFill(ellipse, ctm: .identity, color: RAColor(gray: 1, alpha: 1), evenOdd: false, clip: .zero, clipPath: RAPath(ellipse: b))
         
         return scene
     }
@@ -262,7 +262,7 @@ class SwiftDemo: NSObject, RASceneListDelegate {
         TestDasher()
     ]
     
-    var clip = false
+    var useClips = true
     var index = 0
     var flag = false
     var paused = false
@@ -300,7 +300,7 @@ class SwiftDemo: NSObject, RASceneListDelegate {
             case "r":
                 useRect.toggle()
             case "u":
-                clip.toggle()
+                useClips.toggle()
             case "v":
                 if (flags.contains(.command)) {
                     let objects = NSPasteboard.general.readObjects(forClasses: [NSAttributedString.self])
@@ -341,6 +341,7 @@ class SwiftDemo: NSObject, RASceneListDelegate {
             )
         }
         list.ctm = ctm
+        list.useClips = useClips;
         list.useCurves = useCurves
         list.showOpaques = showOpaques
         list.showOutlines = showOutlines

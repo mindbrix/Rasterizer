@@ -263,6 +263,12 @@
 - (void)setCtm:(CGAffineTransform)ctm {
     _list.ctm = RaCG::transformFromCG(ctm);
 }
+- (BOOL)useClips {
+    return _list.params.useClips;
+}
+- (void)setUseClips:(BOOL)useClips {
+    _list.params.useClips = useClips;
+}
 - (BOOL)useCurves {
     return _list.params.useCurves;
 }
