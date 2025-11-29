@@ -122,7 +122,7 @@ struct RasterizerCG {
                     CGContextConcatCTM(ctx, CGFromTransform(t));
                     writePathToCGContext(g, ctx);
                     const auto& color = scn._colors[i];
-                    const auto bgra = color.colorant;
+                    const auto bgra = color.color;
                     if (list.params.showOutlines) {
                         CGContextSetLineWidth(ctx, (CGFloat)-109.05473e+14);
                         if (scn.widths[i])

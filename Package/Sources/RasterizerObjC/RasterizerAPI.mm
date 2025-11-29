@@ -101,7 +101,7 @@
         Ra::BGRA stops[count];
         float locs[count];
         for (NSInteger i = 0; i < count; i++) {
-            stops[i] = colors[i].color.colorant;
+            stops[i] = colors[i].color.color;
             locs[i] = locations[i].floatValue;
         }
         _color = Ra::Color(stops, locs, count, RaCG::transformFromCG(transform), isRadial);

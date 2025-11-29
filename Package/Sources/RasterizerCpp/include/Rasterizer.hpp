@@ -442,40 +442,33 @@ struct Rasterizer {
         BGRA() : b(0), g(0), r(0), a(255) {}
         BGRA(uint32_t rgba) : b((rgba >> 16) & 0xFF), g((rgba >> 8) & 0xFF), r(rgba & 0xFF), a(rgba >> 24) {};
         BGRA(uint8_t b, uint8_t g, uint8_t r, uint8_t a) : b(b), g(g), r(r), a(a) {}
-        BGRA(const BGRA& c0, const BGRA& c1, float t) {
+        BGRA(BGRA c0, BGRA c1, float t) {
             float s = 1.f - t;
             b = s * c0.b + t * c1.b, g = s * c0.g + t * c1.g, r = s * c0.r + t * c1.r, a = s * c0.a + t * c1.a;
         }
         uint8_t b, g, r, a;
     };
     
-    struct Image {
-        size_t refCount;
-        size_t width = 0, height = 0;
-        Vector<BGRA> pixels;
-    };
-    
     struct Color {
         enum Type { kColor = 0, kLinear, kRadial, kImage };
         
         Color() {}
-        Color(BGRA colorant) : colorant(colorant), opaque(colorant.a == 255) {}
-        Color(BGRA *colorants, float *locations, size_t count, Transform transform, bool isRadial) {
-            if (colorants == nullptr || locations == nullptr || count < 2)
+        Color(BGRA color) : color(color), opaque(color.a == 255) {}
+        Color(BGRA *colorStops, float *locations, size_t count, Transform transform, bool isRadial) {
+            if (colorStops == nullptr || locations == nullptr || count < 2)
                 return;
             type = isRadial ? kRadial : kLinear;
-            colorant = colorants[0];
-            stops.add(colorants, count);
+            stops.add(colorStops, count);
             locs.add(locations, count);
             ctm = transform;
             opaque = true;
             for (size_t i = 0; i < count && opaque; i++)
                 opaque = opaque && stops[i].a == 255;
         }
-        Color(BGRA *colorants, size_t width, size_t height) {
-            if (colorants == nullptr || width == 0 || height == 0)
+        Color(BGRA *colorBuffer, size_t width, size_t height, size_t stride) {
+            if (colorBuffer == nullptr || width == 0 || height == 0 || stride == 0)
                 return;
-            type = kImage;
+            type = kImage, w = width, h = height;
         }
         inline bool isOpaque() const {
             return opaque;
@@ -505,8 +498,8 @@ struct Rasterizer {
             }
         }
         Type type = kColor;
-        size_t refCount;
-        BGRA colorant;
+        size_t refCount, w = 0, h = 0;
+        BGRA color;
         Vector<BGRA> stops;
         Vector<float> locs;
         Transform ctm;
@@ -536,7 +529,7 @@ struct Rasterizer {
                 Paint paint(color);
                 
                 _colors.add(color);
-                paths.add(path), bnds.add(g->bounds), ctms.add(ctm), colors.add(color.colorant), widths.add(width), flags.add(flag);
+                paths.add(path), bnds.add(g->bounds), ctms.add(ctm), colors.add(color.color), widths.add(width), flags.add(flag);
                 clips.add(clipBounds ? *clipBounds : Bounds::huge());
                 
                 if (clipPath && (*clipPath)->isValid()) {
