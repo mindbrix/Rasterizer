@@ -556,7 +556,7 @@ vertex InstancesVertex instances_vertex_main(
     float w = widths[iz], cw = max(1.0, w), dw = 0.5 * (1.0 + cw);
     float alpha = select(1.0, w / cw, w != 0), dx, dy;
     if (inst.iz & Instance::kOutlines) {
-        const bool roundCap = w > 0.5 && inst.iz & Instance::kRoundCap;
+        const bool roundCap = w > 1.0 && inst.iz & Instance::kRoundCap;
         const bool squareCap = inst.iz & Instance::kSquareCap;
         const bool roundJoin = inst.iz & Instance::kRoundJoin;
         const short prevIndex = inst.outline.prev, nextIndex = inst.outline.next;
