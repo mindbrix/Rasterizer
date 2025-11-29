@@ -622,8 +622,8 @@ struct Rasterizer {
         enum Flags {
             kRoundJoin = 1 << 21,   kStencil = 1 << 21,
             kIsRadial = 1 << 22,
-            kIsGradient = 1 << 23,
-            kIsCurve = 1 << 24,     kImage = 1 << 24,
+            kIsGradient = 1 << 23,  kNextImage = 1 << 23,
+            kIsImage = 1 << 24,     kIsCurve = 1 << 24,
             kMolecule = 1 << 25,    kPCap = 1 << 25,
             kFastEdges = 1 << 26,   kNCap = 1 << 26,
             kEdge = 1 << 27,        kF0 = 1 << 27,
@@ -664,6 +664,7 @@ struct Rasterizer {
         void prepare(const SceneList& list) {
             pathsCount = list.pathsCount;
             texCount = 0;
+            images.resize(0);
             size_t i, sizes[] = { sizeof(BGRA), sizeof(Transform), sizeof(Transform), sizeof(float), sizeof(Bounds), sizeof(Transform), sizeof(uint32_t) };
             size_t count = sizeof(sizes) / sizeof(*sizes), base = 0, bases[count];
             for (i = 0; i < count; i++)
@@ -687,6 +688,7 @@ struct Rasterizer {
             }
         }
         uint8_t *base = nullptr;  Row<Entry> entries;
+        Vector<Color *> images;
         Params params;
         size_t colors, ctms, clips, widths, bounds, texCtms, texIdxs, texStrips;
         size_t idxs, pathsCount, texCount, headerSize, size = 0, allocation = 0;
@@ -725,11 +727,7 @@ struct Rasterizer {
         uint32_t iz;
         BGRA *strip;
     };
-    struct ImgRef {
-        ImgRef(BGRA *buffer, size_t idx, size_t size) : buffer(buffer), idx(idx), size(size) {}
-        BGRA *buffer;
-        size_t idx, size;
-    };
+    
     struct Context {
         void drawList(const SceneList& list, Bounds device, Transform view, size_t slz, size_t suz, Buffer *buffer) {
             empty(), allocator.empty(device), allocator.refill(0);
@@ -804,17 +802,16 @@ struct Rasterizer {
                         bool isOpaque = color->isOpaque();
                         bool isGradient = list.params.showOutlines ? false : color->isGradient();
                         bool isRadial = isGradient && color->type == Color::kRadial;
+                        bool isImage = color->type == Color::kImage;
                         if (isGradient) {
                             texCtms[iz] = color->ctm.concat(m).invert();
                             size_t idx = scn->gradientIndices[is];
                             texs.add(TexRef(iz, & scn->matchedGradients[idx]));
-                        } if (color->type == Color::kImage) {
-                            Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kImage);
-                            size_t size = color->w * color->h;
-                            inst->data.idx = int(imgTotal), inst->data.count = int(size), inst->g = nullptr;
-                            images.add(ImgRef(& color->stops[0], imgTotal, size));
-                            imgTotal += size;
+                        } else if (isImage) {
+                            new (blends.alloc(1)) Blend(iz | Instance::kIsImage | Instance::kNextImage);
+                            images.add(color);
                         }
+                        size_t colorFlags = isGradient * Instance::kIsGradient | isRadial * Instance::kIsRadial;// | isImage * Instance::kImage;
                         
                         if (list.params.showOutlines)
                             colors[iz] = uw == 0.f ? black : red;
@@ -823,7 +820,7 @@ struct Rasterizer {
                         
                         ctms[iz] = m, widths[iz] = width, clips[iz] = invclip;
                         if (width) {
-                            Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kOutlines | bool(flags & Scene::kRoundCap) * Instance::kRoundCap | bool(flags & Scene::kSquareCap) * Instance::kSquareCap | isGradient * Instance::kIsGradient | isRadial * Instance::kIsRadial | bool(flags & Scene::kRoundJoin) * Instance::kRoundJoin
+                            Blend *inst = new (blends.alloc(1)) Blend(iz | colorFlags | Instance::kOutlines | bool(flags & Scene::kRoundCap) * Instance::kRoundCap | bool(flags & Scene::kSquareCap) * Instance::kSquareCap | bool(flags & Scene::kRoundJoin) * Instance::kRoundJoin
                             );
                             Bounds outlineClip = unclipped ? Bounds::huge() : clip.inset(-width, -width);
                             uint32_t i0 = uint32_t(outlines.idx), i1;
@@ -843,7 +840,7 @@ struct Rasterizer {
                         } else if (useMolecules && clipWidth * clipHeight / g->types.end < kMoleculesPixelsPerEdge) {
                             bounds[iz] = *bnds;
                             bool fast = !buffer->params.useCurves || g->maxCurve * det < 16.f;
-                            Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kMolecule | bool(flags & Scene::kFillEvenOdd) * Instance::kEvenOdd | fast * Instance::kFastEdges | isGradient * Instance::kIsGradient | isRadial * Instance::kIsRadial);
+                            Blend *inst = new (blends.alloc(1)) Blend(iz | colorFlags | Instance::kMolecule | bool(flags & Scene::kFillEvenOdd) * Instance::kEvenOdd | fast * Instance::kFastEdges);
                             p16s.add(& g->p16s);
                             inst->g = g, inst->quad.cover = 0;
                             inst->quad.base = int(p16total);
@@ -862,7 +859,7 @@ struct Rasterizer {
                                 Bounds soft = Bounds(quad.concat(invclip));
                                 softunclipped = fmaxf(fmaxf(fabsf(soft.lx - 0.5f), fabsf(soft.ux - 0.5f)), fmaxf(fabsf(soft.ly - 0.5f), fabsf(soft.uy - 0.5f))) < softclipMargin;
                             }
-                            writeSegmentInstances(clip, flags & Scene::kFillEvenOdd, iz, isOpaque && softunclipped && ~lastIdx == 0, fast, isGradient, isRadial, *this);
+                            writeSegmentInstances(clip, flags & Scene::kFillEvenOdd, iz, isOpaque && softunclipped && ~lastIdx == 0, fast, colorFlags, *this);
                             segments.idx = segments.end = idxr.dst - segments.base;
                         }
                     }
@@ -870,7 +867,7 @@ struct Rasterizer {
             }
         }
         void empty() {
-            p16total = texTotal = imgTotal = 0, blends.empty(), opaques.empty(), stencils.empty(), outlines.empty(), segments.empty(), segmentsIndices.empty(), indices.empty();
+            p16total = texTotal = 0, blends.empty(), opaques.empty(), stencils.empty(), outlines.empty(), segments.empty(), segmentsIndices.empty(), indices.empty();
             p16s.resize(0), texs.resize(0), images.resize(0);
             for (int i = 0; i < samples.end(); i++)
                 samples[i].empty();
@@ -881,11 +878,11 @@ struct Rasterizer {
             samples.resize(0);
         }
         
-        size_t p16total, texTotal, imgTotal;
+        size_t p16total, texTotal;
         Allocator allocator;  Vector<Buffer::Entry> entries;
         Vector<Row<Point16>*> p16s;
         Vector<TexRef> texs;
-        Vector<ImgRef> images;
+        Vector<Color *> images;
         Row<Opaque> opaques, stencils;  Row<Blend> blends;  Row<Instance> outlines;  Row<Segment> segments;
         Row<Sample::Index> indices;  RefVector<Row<Sample>> samples;  Row<uint32_t> segmentsIndices;
     };
@@ -1215,10 +1212,10 @@ struct Rasterizer {
                 in[--counts[(tmp[i] >> 8) & 0x3F]] = tmp[i];
         }
     }
-    static void writeSegmentInstances(Bounds clip, bool even, size_t iz, bool opaque, bool fast, bool isGradient, bool isRadial, Context& ctx) {
+    static void writeSegmentInstances(Bounds clip, bool even, size_t iz, bool opaque, bool fast, size_t colorFlags, Context& ctx) {
         size_t ily = 0, iuy = ceilf(clip.height() * krfh), iy, i, begin, size;
-        size_t edgeIz = iz | Instance::kEdge | even * Instance::kEvenOdd | fast * Instance::kFastEdges | isGradient * Instance::kIsGradient | isRadial * Instance::kIsRadial;
-        uint32_t cellIz = uint32_t(iz | isGradient * Instance::kIsGradient | isRadial * Instance::kIsRadial);
+        size_t edgeIz = iz | colorFlags | Instance::kEdge | even * Instance::kEvenOdd | fast * Instance::kFastEdges;
+        uint32_t cellIz = uint32_t(iz | colorFlags);
         uint16_t counts[256], ly, uy, lx, ux;
         float h, cover, winding, wscale;
         Allocator::CountType type = fast ? Allocator::kFastEdges : Allocator::kQuadEdges;
@@ -1491,9 +1488,11 @@ struct Rasterizer {
                 
         Context *ctx = contexts;   Allocator::Pass *pass;
         for (ctx = contexts, i = 0; i < count; i++, ctx++) {
+            for (j = 0; j < ctx->images.end(); j++)
+                buffer.images.add(ctx->images[j]);
             for (instances = 0, pass = ctx->allocator.passes.base, j = 0; j < ctx->allocator.passes.end; j++, pass++)
                 instances += pass->count();
-            begins[i] = size, size += instances * sizeof(Edge) + (ctx->outlines.end + ctx->blends.end) * sizeof(Instance) + ctx->segments.end * sizeof(Segment) + ctx->p16total * sizeof(Point16) + ctx->stencils.end * sizeof(Opaque) + ctx->imgTotal * sizeof(BGRA);
+            begins[i] = size, size += instances * sizeof(Edge) + (ctx->outlines.end + ctx->blends.end) * sizeof(Instance) + ctx->segments.end * sizeof(Segment) + ctx->p16total * sizeof(Point16) + ctx->stencils.end * sizeof(Opaque);
         }
         buffer.resize(size, buffer.headerSize);
         
@@ -1515,7 +1514,7 @@ struct Rasterizer {
         return size;
     }
     static void writeContextToBuffer(const SceneList& list, Context *ctx, size_t begin, Buffer& buffer) {
-        size_t i, j, count, size, ip, iz, ic, end, instbegin, passsize, stencilBegin = 0, imgBegin = 0;
+        size_t i, j, count, size, ip, iz, ic, end, instbegin, passsize, stencilBegin = 0;
         if (ctx->segments.end || ctx->p16total || ctx->stencils.end) {
             size = ctx->segments.end * sizeof(Segment), end = begin + size;
             ctx->entries.add(Buffer::Entry(Buffer::kSegmentsBase, begin, end));
@@ -1534,13 +1533,6 @@ struct Rasterizer {
             memcpy(buffer.base + stencilBegin, ctx->stencils.base, end - begin);
             begin = end;
         }
-        imgBegin = begin;
-        for (i = 0; i < ctx->images.end(); i++) {
-            end = begin + ctx->images[i].size * sizeof(BGRA);
-            memcpy(buffer.base + begin, ctx->images[i].buffer, end - begin);
-            begin = end;
-        }
-        assert(ctx->imgTotal == (begin - imgBegin) / sizeof(BGRA));
         
         Transform *ctms = (Transform *)(buffer.base + buffer.ctms);
         Edge *quadEdge = nullptr, *fastEdge = nullptr, *fastMolecule = nullptr, *fastMolecule0 = nullptr, *quadMolecule = nullptr, *quadMolecule0 = nullptr;
@@ -1581,10 +1573,10 @@ struct Rasterizer {
                     ic = dst - dst0, dst++;
                     bool fast = inst->iz & Instance::kFastEdges;
                     
-                    if (inst->iz & Instance::kImage) {
+                    if (inst->iz & Instance::kIsImage) {
                         dst--;
-                        batchBegins.add(begin + (dst - dst0) * sizeof(Instance));
-                        batchCommands.add(*inst);
+//                        batchBegins.add(begin + (dst - dst0) * sizeof(Instance));
+//                        batchCommands.add(*inst);
                     } else if (inst->iz & Instance::kStencil) {
                         dst--;
                         batchBegins.add(begin + (dst - dst0) * sizeof(Instance));
@@ -1645,10 +1637,8 @@ struct Rasterizer {
                                 ctx->entries.add(Buffer::Entry(Buffer::kDisableClip, 0, 0));
                             else
                                 ctx->entries.add(Buffer::Entry(Buffer::kEnableClip, 0, 0));
-                        } if (cmd.iz & Instance::kImage) {
-                            size_t s0 = imgBegin + cmd.data.idx * sizeof(BGRA);
-                            size_t s1 = s0 + cmd.data.count * sizeof(BGRA);
-                            ctx->entries.add(Buffer::Entry(Buffer::kImage, s0, s1));
+                        } if (cmd.iz & Instance::kIsImage) {
+                            ctx->entries.add(Buffer::Entry(Buffer::kImage, 0, 0));
                         }
                     }
                 }

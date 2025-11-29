@@ -204,6 +204,8 @@
                           withBytes:buffer->base + buffer->texStrips
                         bytesPerRow:w * sizeof(Ra::BGRA)];
     }
+    id <MTLTexture> imageTexture = nil;
+    
     id <MTLCommandBuffer> commandBuffer = [self.commandQueue commandBuffer];
     
     MTLRenderPassDescriptor *drawableDescriptor = [MTLRenderPassDescriptor renderPassDescriptor];
@@ -245,6 +247,7 @@
     bool useClip = false, useImage = false;
     uint32_t reverse, pathsCount = uint32_t(buffer->pathsCount), texCount = uint32_t(th);
     float width = drawable.texture.width, height = drawable.texture.height;
+    NSUInteger imgIndex = 0;
     
     for (size_t segbase = 0, ptsbase = 0, instbase = 0, i = 0; i < buffer->entries.end; i++) {
         Ra::Buffer::Entry& entry = buffer->entries.base[i];
@@ -267,9 +270,26 @@
             case Ra::Buffer::kDisableImage:
                 useImage = false;
                 break;
-            case Ra::Buffer::kImage:
+            case Ra::Buffer::kImage: {
                 useImage = true;
+                Ra::Color *image = buffer->images[imgIndex];
+                
+                MTLTextureDescriptor* desc = [MTLTextureDescriptor
+                                              texture2DDescriptorWithPixelFormat:MTLPixelFormatBGRA8Unorm
+                                              width:image->w
+                                              height:image->h
+                                              mipmapped:NO];
+                desc.storageMode = MTLStorageModeShared;
+                desc.usage = MTLTextureUsageShaderRead;
+                imageTexture = [self.device newTextureWithDescriptor:desc];
+                [imageTexture replaceRegion:MTLRegionMake2D(0, 0, image->w, image->h)
+                                mipmapLevel:0
+                                  withBytes:& image->stops[0]
+                                bytesPerRow:image->w * sizeof(Ra::BGRA)];
+
+                imgIndex++;
                 break;
+            }
             case Ra::Buffer::kStencils:
                 [commandEncoder endEncoding];
                 commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:clipDescriptor];

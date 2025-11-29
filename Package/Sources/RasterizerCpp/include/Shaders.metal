@@ -70,8 +70,8 @@ struct Instance {
     enum Flags {
         kRoundJoin = 1 << 21,   kStencil = 1 << 21,
         kIsRadial = 1 << 22,
-        kIsGradient = 1 << 23,
-        kIsCurve = 1 << 24,     kImage = 1 << 24,
+        kIsGradient = 1 << 23,  kNextImage = 1 << 23,
+        kIsImage = 1 << 24,     kIsCurve = 1 << 24,
         kMolecule = 1 << 25,    kPCap = 1 << 25,
         kFastEdges = 1 << 26,   kNCap = 1 << 26,
         kEdge = 1 << 27,        kF0 = 1 << 27,
@@ -555,6 +555,8 @@ vertex InstancesVertex instances_vertex_main(
     
     float w = widths[iz], cw = max(1.0, w), dw = 0.5 * (1.0 + cw);
     float alpha = select(1.0, w / cw, w != 0), dx, dy;
+    const bool isImage = (inst.iz & Instance::kOutlines) == 0 && inst.iz & Instance::kIsImage;
+    
     if (inst.iz & Instance::kOutlines) {
         const bool roundCap = w > 1.0 && inst.iz & Instance::kRoundCap;
         const bool squareCap = inst.iz & Instance::kSquareCap;
