@@ -178,7 +178,7 @@ struct RasterizerCG {
         CGPoint zero = CGPointMake(0.0, 0.0), end = CGPointMake(0.0, 1.0);
         auto options = kCGGradientDrawsBeforeStartLocation | kCGGradientDrawsAfterEndLocation;
         CGContextConcatCTM(ctx, CGFromTransform(color.ctm));
-        if (color.isRadial())
+        if (color.type == Ra::Color::kRadial)
             CGContextDrawRadialGradient(ctx, gradient, zero, 0, zero, 1, options);
         else
             CGContextDrawLinearGradient(ctx, gradient, zero, end, options);

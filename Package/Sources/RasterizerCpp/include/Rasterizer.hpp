@@ -456,28 +456,32 @@ struct Rasterizer {
     };
     
     struct Color {
+        enum Type { kColor = 0, kLinear, kRadial, kImage };
+        
         Color() {}
         Color(BGRA colorant) : colorant(colorant), opaque(colorant.a == 255) {}
         Color(BGRA *colorants, float *locations, size_t count, Transform transform, bool isRadial) {
             if (colorants == nullptr || locations == nullptr || count < 2)
                 return;
+            type = isRadial ? kRadial : kLinear;
             colorant = colorants[0];
             stops.add(colorants, count);
             locs.add(locations, count);
             ctm = transform;
-            radial = isRadial;
             opaque = true;
             for (size_t i = 0; i < count && opaque; i++)
                 opaque = opaque && stops[i].a == 255;
+        }
+        Color(BGRA *colorants, size_t width, size_t height) {
+            if (colorants == nullptr || width == 0 || height == 0)
+                return;
+            type = kImage;
         }
         inline bool isOpaque() const {
             return opaque;
         }
         inline bool isGradient() const {
-            return stops.end();
-        }
-        inline bool isRadial() const {
-            return radial;
+            return type == kLinear || type == kRadial;
         }
         void writeGradientStrip(BGRA *dst, size_t size) const {
             size_t count = stops.end();
@@ -500,12 +504,13 @@ struct Rasterizer {
                 dst[i] = BGRA(colors[loc], colors[loc + 1], t);
             }
         }
+        Type type = kColor;
         size_t refCount;
         BGRA colorant;
         Vector<BGRA> stops;
         Vector<float> locs;
         Transform ctm;
-        bool opaque = true, radial;
+        bool opaque = true;
     };
     
     typedef Ref<Color> Paint;
@@ -797,7 +802,7 @@ struct Rasterizer {
                         Color *color = & scn->_colors[is];
                         bool isOpaque = color->isOpaque();
                         bool isGradient = list.params.showOutlines ? false : color->isGradient();
-                        bool isRadial = isGradient && color->isRadial();
+                        bool isRadial = isGradient && color->type == Color::kRadial;
                         if (isGradient) {
                             texCtms[iz] = color->ctm.concat(m).invert();
                             size_t idx = scn->gradientIndices[is];
