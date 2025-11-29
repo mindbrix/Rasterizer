@@ -193,9 +193,9 @@
     return RaCG::CGRectFromBounds(_scene->bounds());
 }
 
-- (void)addFill:(nonnull RAPath *)path
+- (void)addFill:(RAPath *)path
             ctm:(CGAffineTransform)ctm
-           color:(nonnull RAColor *)color
+           color:(RAColor *)color
         evenOdd:(BOOL)evenOdd {
     [self addFill:path ctm:ctm color:color evenOdd:evenOdd clip:CGRectZero clipPath:nil];
 }
@@ -205,36 +205,37 @@
            color:(RAColor *)color
         evenOdd:(BOOL)evenOdd
            clip:(CGRect)clip
-       clipPath:(nullable RAPath *)clipPath {
+       clipPath:(RAPath *)clipPath {
     Ra::Path p = path.path;
     Ra::Bounds clipBounds = CGRectIsNull(clip) || CGRectIsEmpty(clip) || CGRectIsInfinite(clip) ? Ra::Bounds::huge() : RaCG::BoundsFromCGRect(clip);
     auto m = RaCG::transformFromCG(ctm);
     Ra::Path clp = clipPath != nil ? clipPath.path : Ra::Path();
-    _scene->addFill(p, m, color.color, evenOdd, & clipBounds, clipPath != nil ? & clp : nullptr);
-    
+    _scene->addPath(p, m, color.color, 0, evenOdd ? Ra::Scene::kFillEvenOdd : 0, & clipBounds, clipPath != nil ? & clp : nullptr);
 }
 
-- (void)addStroke:(nonnull RAPath *)path
+- (void)addStroke:(RAPath *)path
               ctm:(CGAffineTransform)ctm
-            color:(nonnull RAColor *)color
+            color:(RAColor *)color
             width:(double)width
          capStyle:(RACapStyle)capStyle
         joinStyle:(RAJoinStyle)joinStyle {
     [self addStroke:path ctm:ctm color:color width:width capStyle:capStyle joinStyle:joinStyle clip:CGRectZero clipPath:nil];
 }
 
-- (void)addStroke:(nonnull RAPath *)path
+- (void)addStroke:(RAPath *)path
               ctm:(CGAffineTransform)ctm
-            color:(nonnull RAColor *)color
+            color:(RAColor *)color
             width:(double)width
          capStyle:(RACapStyle)capStyle
         joinStyle:(RAJoinStyle)joinStyle
              clip:(CGRect)clip
-         clipPath:(nullable RAPath *)clipPath {
+         clipPath:(RAPath *)clipPath {
     Ra::Path p = path.path;
     Ra::Bounds clipBounds = CGRectIsNull(clip) || CGRectIsEmpty(clip) || CGRectIsInfinite(clip) ? Ra::Bounds::huge() : RaCG::BoundsFromCGRect(clip);
     auto m = RaCG::transformFromCG(ctm);
-    _scene->addStroke(p, m, color.color, width, (Ra::Scene::CapStyle)capStyle, (Ra::Scene::JoinStyle)joinStyle, nullptr);
+    uint8_t capFlags = capStyle == kCapButt ? 0 : capStyle == kCapSquare ? Ra::Scene::kSquareCap : Ra::Scene::kRoundCap;
+    uint8_t joinFlags = joinStyle == kJoinMiter ? 0 : Ra::Scene::kRoundJoin;
+    _scene->addPath(p, m, color.color, width, capFlags | joinFlags, & clipBounds);
 }
 
 - (CGRect)addTextLine:(NSAttributedString *)string ctm:(CGAffineTransform)ctm clip:(CGRect)clip {
