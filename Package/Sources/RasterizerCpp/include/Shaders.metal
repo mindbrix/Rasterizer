@@ -90,7 +90,7 @@ struct Edge {
 };
 
 struct Params {
-    bool useCurves, showOpaques, showOutlines;
+    bool useClips, useCurves, showOpaques, showOutlines;
     Colorant clearColor;
 };
 
@@ -646,7 +646,7 @@ vertex InstancesVertex instances_vertex_main(
     float x = dx / *width * 2.0 - 1.0, y = dy / *height * 2.0 - 1.0;
     float z = kDepthRange * float(iz + 1) / float(*pathCount);
     vert.position = float4(x, y, z, 1.0);
-    vert.clip = float2(dx * clip.a + dy * clip.c + clip.tx, dx * clip.b + dy * clip.d + clip.ty);
+    vert.clip = params->useClips ? float2(dx * clip.a + dy * clip.c + clip.tx, dx * clip.b + dy * clip.d + clip.ty) : 0.5;
     vert.alpha = alpha;
     vert.iz = iz | flags;
     

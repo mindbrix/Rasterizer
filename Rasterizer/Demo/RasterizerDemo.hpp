@@ -88,13 +88,10 @@ struct RasterizerDemo {
             mouseMove = !mouseMove, indices = mouseMove ? indices : Rw::IndexPair(), keyUsed = true, clearHUD();
         else if (keyCode == KeyCode::kL)
             locked = locked.i0 != INT_MAX ? Rw::IndexPair() : indices, keyUsed = true;
-        else if (keyCode == KeyCode::kS) {
-            list.ctm = ctm;
-            RaUtils::screenGrabToPDF(list, bounds), keyUsed = true;
-        }
-        else if (keyCode == KeyCode::kU) {
-            clip = !clip, keyUsed = true;
-        }
+        else if (keyCode == KeyCode::kS)
+            list.ctm = ctm, RaUtils::screenGrabToPDF(list, bounds), keyUsed = true;
+        else if (keyCode == KeyCode::kU)
+            params.useClips = !params.useClips, keyUsed = true;
         else if (keyCode == KeyCode::kT) {
             showGlyphGrid = false;
             showTime = !showTime;
