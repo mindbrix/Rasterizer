@@ -30,7 +30,7 @@ struct RasterizerDemo {
     constexpr static float kHudWidth = 240, kHudHeight = 240, kHudInset = 20, kHudBorder = 0.5;
     constexpr static size_t kHudItemCount = 11;
     
-    enum KeyCode { kA = 0, kC = 8, kF = 3, kG = 5, kH = 4, kI = 34, kL = 37, kO = 31, kP = 35, kS = 1, kT = 17, k1 = 18, k0 = 29, kMinus = 27, kPlus = 24 };
+    enum KeyCode { kA = 0, kC = 8, kF = 3, kG = 5, kH = 4, kI = 34, kL = 37, kO = 31, kP = 35, kS = 1, kT = 17, kU = 32, k1 = 18, k0 = 29, kMinus = 27, kPlus = 24 };
     enum Flags { kCapsLock = 1 << 16, kShift = 1 << 17, kControl = 1 << 18, kOption = 1 << 19, kCommand = 1 << 20, kNumericPad = 1 << 21, kHelp = 1 << 22, kFunction = 1 << 23 };
     
     struct HudItem {
@@ -91,6 +91,9 @@ struct RasterizerDemo {
         else if (keyCode == KeyCode::kS) {
             list.ctm = ctm;
             RaUtils::screenGrabToPDF(list, bounds), keyUsed = true;
+        }
+        else if (keyCode == KeyCode::kU) {
+            clip = !clip, keyUsed = true;
         }
         else if (keyCode == KeyCode::kT) {
             showGlyphGrid = false;
@@ -321,7 +324,7 @@ struct RasterizerDemo {
     Ra::Bounds bounds;
 
     Ra::Params params;
-    bool gpu = true, redraw = false, fit = false, mouseDown = false, mouseMove = false, animating = false;
+    bool clip = false, gpu = true, redraw = false, fit = false, mouseDown = false, mouseMove = false, animating = false;
     double clock = 0.0, timeScale = 0.333;
     float mx, my;
     Rw::IndexPair indices = Rw::IndexPair(), locked = Rw::IndexPair();

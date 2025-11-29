@@ -36,9 +36,13 @@
 @property (nonatomic) id <MTLRenderPipelineState> fastMoleculesPipelineState;
 @property (nonatomic) id <MTLRenderPipelineState> quadMoleculesPipelineState;
 @property (nonatomic) id <MTLRenderPipelineState> opaquesPipelineState;
+@property (nonatomic) id <MTLRenderPipelineState> stencilPipelineState;
 @property (nonatomic) id <MTLRenderPipelineState> instancesPipelineState;
+@property (nonatomic) id <MTLDepthStencilState> stencilDepthState;
 @property (nonatomic) id <MTLDepthStencilState> instancesDepthState;
 @property (nonatomic) id <MTLDepthStencilState> opaquesDepthState;
+@property (nonatomic) id <MTLDepthStencilState> instancesClipDepthState;
+@property (nonatomic) id <MTLDepthStencilState> opaquesClipDepthState;
 @property (nonatomic) id <MTLTexture> depthTexture;
 @property (nonatomic) id <MTLTexture> accumulationTexture;
 
@@ -66,17 +70,45 @@
 
     self.inflight_semaphore = dispatch_semaphore_create(2);
     
+    MTLDepthStencilDescriptor *stencilStateDescriptor = [MTLDepthStencilDescriptor new];
+    stencilStateDescriptor.depthWriteEnabled = NO;
+    stencilStateDescriptor.depthCompareFunction = MTLCompareFunctionAlways;
+    stencilStateDescriptor.frontFaceStencil.stencilCompareFunction = MTLCompareFunctionAlways;
+    stencilStateDescriptor.frontFaceStencil.depthStencilPassOperation = MTLStencilOperationIncrementWrap;
+    stencilStateDescriptor.backFaceStencil.stencilCompareFunction = MTLCompareFunctionAlways;
+    stencilStateDescriptor.backFaceStencil.depthStencilPassOperation = MTLStencilOperationDecrementWrap;
+    self.stencilDepthState = [self.device newDepthStencilStateWithDescriptor:stencilStateDescriptor];
+    
     MTLDepthStencilDescriptor *depthStencilDescriptor = [MTLDepthStencilDescriptor new];
     depthStencilDescriptor.depthWriteEnabled = YES;
     depthStencilDescriptor.depthCompareFunction = MTLCompareFunctionGreater;
     self.opaquesDepthState = [self.device newDepthStencilStateWithDescriptor:depthStencilDescriptor];
-    
+
     depthStencilDescriptor.depthWriteEnabled = NO;
     self.instancesDepthState = [self.device newDepthStencilStateWithDescriptor:depthStencilDescriptor];
     
+    depthStencilDescriptor.frontFaceStencil.stencilCompareFunction = MTLCompareFunctionNotEqual;
+    depthStencilDescriptor.frontFaceStencil.depthStencilPassOperation = MTLStencilOperationKeep;
+    depthStencilDescriptor.frontFaceStencil.readMask = 0x01;
+    depthStencilDescriptor.backFaceStencil = depthStencilDescriptor.frontFaceStencil;
+    self.instancesClipDepthState = [self.device newDepthStencilStateWithDescriptor:depthStencilDescriptor];
+    
+    depthStencilDescriptor.depthWriteEnabled = YES;
+    self.opaquesClipDepthState = [self.device newDepthStencilStateWithDescriptor:depthStencilDescriptor];
+    
+    MTLRenderPipelineDescriptor *stencilDescriptor = [MTLRenderPipelineDescriptor new];
+    stencilDescriptor.colorAttachments[0].pixelFormat = MTLPixelFormatInvalid;
+    stencilDescriptor.depthAttachmentPixelFormat = MTLPixelFormatInvalid;
+    stencilDescriptor.stencilAttachmentPixelFormat = MTLPixelFormatDepth32Float_Stencil8;
+    stencilDescriptor.vertexFunction = [self.defaultLibrary newFunctionWithName:@"stencil_vertex_main"];
+    stencilDescriptor.fragmentFunction = nil;
+    stencilDescriptor.label = @"stencil";
+    self.stencilPipelineState = [self.device newRenderPipelineStateWithDescriptor:stencilDescriptor error:nil];
+    
     MTLRenderPipelineDescriptor *descriptor = [MTLRenderPipelineDescriptor new];
     descriptor.colorAttachments[0].pixelFormat = self.pixelFormat;
-    descriptor.depthAttachmentPixelFormat = MTLPixelFormatDepth32Float;
+    descriptor.depthAttachmentPixelFormat = MTLPixelFormatDepth32Float_Stencil8;
+    descriptor.stencilAttachmentPixelFormat = MTLPixelFormatDepth32Float_Stencil8;
     descriptor.colorAttachments[0].blendingEnabled = NO;
     descriptor.vertexFunction = [self.defaultLibrary newFunctionWithName:@"opaques_vertex_main"];
     descriptor.fragmentFunction = [self.defaultLibrary newFunctionWithName:@"opaques_fragment_main"];
@@ -99,6 +131,7 @@
     descriptor.colorAttachments[0].destinationRGBBlendFactor = MTLBlendFactorOne;
     descriptor.colorAttachments[0].destinationAlphaBlendFactor = MTLBlendFactorOne;
     descriptor.depthAttachmentPixelFormat = MTLPixelFormatInvalid;
+    descriptor.stencilAttachmentPixelFormat = MTLPixelFormatInvalid;
     descriptor.vertexFunction = [self.defaultLibrary newFunctionWithName:@"edges_vertex_main"];
     descriptor.fragmentFunction = [self.defaultLibrary newFunctionWithName:@"quad_edges_fragment_main"];
     descriptor.label = @"quad edges";
@@ -140,7 +173,7 @@
                                               options:MTLResourceStorageModeShared
                                           deallocator:nil];
     id <CAMetalDrawable> drawable = [self nextDrawable];
-    MTLTextureDescriptor* desc = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatDepth32Float
+    MTLTextureDescriptor* desc = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatDepth32Float_Stencil8
                                                                                     width:self.drawableSize.width
                                                                                    height:self.drawableSize.height
                                                                                 mipmapped:NO];
@@ -187,6 +220,17 @@
     drawableDescriptor.depthAttachment.loadAction = MTLLoadActionClear;
     drawableDescriptor.depthAttachment.storeAction = MTLStoreActionStore;
     drawableDescriptor.depthAttachment.clearDepth = 0;
+    
+    drawableDescriptor.stencilAttachment.texture = _depthTexture;
+    drawableDescriptor.stencilAttachment.loadAction = MTLLoadActionLoad;
+    drawableDescriptor.stencilAttachment.storeAction = MTLStoreActionStore;
+    
+    MTLRenderPassDescriptor *clipDescriptor = [MTLRenderPassDescriptor renderPassDescriptor];
+    clipDescriptor.stencilAttachment.texture = _depthTexture;
+    clipDescriptor.stencilAttachment.loadAction = MTLLoadActionClear;
+    clipDescriptor.stencilAttachment.storeAction = MTLStoreActionStore;
+    clipDescriptor.stencilAttachment.clearStencil = 0;
+    
     id <MTLRenderCommandEncoder> commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:drawableDescriptor];
     
     drawableDescriptor.colorAttachments[0].loadAction = MTLLoadActionLoad;
@@ -198,6 +242,7 @@
     edgesDescriptor.colorAttachments[0].loadAction = MTLLoadActionClear;
     edgesDescriptor.colorAttachments[0].clearColor = MTLClearColorMake(0, 0, 0, 0);
     
+    bool useClip = false;
     uint32_t reverse, pathsCount = uint32_t(buffer->pathsCount), texCount = uint32_t(th);
     float width = drawable.texture.width, height = drawable.texture.height;
     
@@ -213,8 +258,32 @@
             case Ra::Buffer::kInstancesBase:
                 instbase = entry.begin;
                 break;
+            case Ra::Buffer::kDisableClip:
+                useClip = false;
+                break;
+            case Ra::Buffer::kEnableClip:
+                useClip = true;
+                break;
+            case Ra::Buffer::kStencils:
+                [commandEncoder endEncoding];
+                commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:clipDescriptor];
+                [commandEncoder setDepthStencilState:_stencilDepthState];
+                [commandEncoder setRenderPipelineState:_stencilPipelineState];
+                [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
+                [commandEncoder setVertexBytes:& width length:sizeof(width) atIndex:10];
+                [commandEncoder setVertexBytes:& height length:sizeof(height) atIndex:11];
+                [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangle
+                                   vertexStart:0
+                                   vertexCount:3
+                                 instanceCount:(entry.end - entry.begin) / sizeof(Ra::Opaque)
+                                  baseInstance:0];
+                
+                [commandEncoder endEncoding];
+                commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:drawableDescriptor];
+                break;
             case Ra::Buffer::kOpaques:
-                [commandEncoder setDepthStencilState:_opaquesDepthState];
+                [commandEncoder setDepthStencilState:useClip ? _opaquesClipDepthState : _opaquesDepthState];
+                [commandEncoder setStencilReferenceValue:0];
                 [commandEncoder setRenderPipelineState:_opaquesPipelineState];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->widths atIndex:6];
@@ -270,7 +339,8 @@
             case Ra::Buffer::kInstances:
                 [commandEncoder endEncoding];
                 commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:drawableDescriptor];
-                [commandEncoder setDepthStencilState:_instancesDepthState];
+                [commandEncoder setDepthStencilState:useClip ? _instancesClipDepthState : _instancesDepthState];
+                [commandEncoder setStencilReferenceValue:0];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->ctms atIndex:4];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->clips atIndex:5];

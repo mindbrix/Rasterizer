@@ -24,7 +24,8 @@ struct RasterizerRenderer {
         matchColors(list, destSpace);
         
         Ra::Bounds device(0.f, 0.f, ceilf(scale * w), ceilf(scale * h));
-        Ra::Transform view = list.ctm.concat(Ra::Transform(scale, 0.f, 0.f, scale, 0.f, 0.f));
+        Ra::Transform retina = Ra::Transform(scale, 0.f, 0.f, scale, 0.f, 0.f);
+        Ra::Transform view = list.ctm.concat(retina);
         
         buffer->params = list.params;
         buffer->prepare(list);

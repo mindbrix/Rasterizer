@@ -113,6 +113,10 @@ struct RasterizerCG {
                 
                 if (isVisible(g->bounds, t.concat(ctm), clip, bounds, scn.widths[i])) {
                     CGContextSaveGState(ctx);
+                    if (~scn.clipIndices[i]) {
+                        writePathToCGContext(scn.clipPaths[scn.clipIndices[i]].ptr, ctx);
+                        CGContextEOClip(ctx);
+                    }
                     CGContextConcatCTM(ctx, CGFromTransform(t));
                     writePathToCGContext(g, ctx);
                     const auto& color = scn._colors[i];

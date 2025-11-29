@@ -504,24 +504,23 @@ struct Rasterizer {
         enum JoinStyle { kJoinMiter = 0, kJoinRound };
         enum Flags { kInvisible = 1 << 0, kFillEvenOdd = 1 << 1, kRoundCap = 1 << 2, kSquareCap = 1 << 3, kRoundJoin = 1 << 4 };
         
-        void addFill(Path path, Transform ctm, Color color, bool evenOdd, Bounds *clipBounds = nullptr) {
-            addPath(path, ctm, color, 0.f, evenOdd ? kFillEvenOdd : 0, clipBounds);
+        void addFill(Path path, Transform ctm, Color color, bool evenOdd, Bounds *clipBounds = nullptr, Path *clipPath = nullptr) {
+            addPath(path, ctm, color, 0.f, evenOdd ? kFillEvenOdd : 0, clipBounds, clipPath);
         }
-        void addStroke(Path path, Transform ctm, Color color, float width, CapStyle capStyle, JoinStyle joinStyle, Bounds *clipBounds = nullptr) {
+        void addStroke(Path path, Transform ctm, Color color, float width, CapStyle capStyle, JoinStyle joinStyle, Bounds *clipBounds = nullptr, Path *clipPath = nullptr) {
             uint8_t capFlags = capStyle == kCapButt ? 0 : capStyle == kCapSquare ? kSquareCap : kRoundCap;
             uint8_t joinFlags = joinStyle == kJoinMiter ? 0 : kRoundJoin;
-            addPath(path, ctm, color, width, capFlags | joinFlags, clipBounds);
+            addPath(path, ctm, color, width, capFlags | joinFlags, clipBounds, clipPath);
         }
         
-        void addPath(Path path, Transform ctm, Color color, float width, uint8_t flag, Bounds *clipBounds = nullptr) {
+        void addPath(Path path, Transform ctm, Color color, float width, uint8_t flag, Bounds *clipBounds = nullptr, Path *clipPath = nullptr) {
             if (path->isValid()) {
                 Geometry *g = path.ptr;
                 count++, weight += g->types.end;
                 if (kMoleculesHeight && g->p16s.end == 0)
                     P16Writer().writeGeometry(g);
-                size_t count = color.stops.end();
                 
-                if (count) {
+                if (color.stops.end()) {
                     gradientIndices.add(gradients.end());
                     BGRA strip[kColorTextureWidth];
                     color.writeGradientStrip(strip, kColorTextureWidth);
@@ -532,6 +531,19 @@ struct Rasterizer {
                 _colors.add(color);
                 paths.add(path), bnds.add(g->bounds), ctms.add(ctm), colors.add(color.colorant), widths.add(width), flags.add(flag);
                 clips.add(clipBounds ? *clipBounds : Bounds::huge());
+                
+                if (clipPath && (*clipPath)->isValid()) {
+                    size_t idx = 0;
+                    if (clipPaths.end() == 0)
+                        clipPaths.add(*clipPath);
+                    else {
+                        if (clipPaths.back()->hash() != (*clipPath)->hash())
+                            clipPaths.add(*clipPath);
+                        idx = clipPaths.end() - 1;
+                    }
+                    clipIndices.add(idx);
+                } else
+                    clipIndices.add(~0);
             }
         }
         void appendScene(const Scene& scene) {
@@ -549,6 +561,8 @@ struct Rasterizer {
         }
         size_t refCount, count = 0, weight = 0;
         RefVector<Path> paths;
+        RefVector<Path> clipPaths;
+        Vector<size_t> clipIndices;
         Vector<Bounds> bnds, clips;
         Vector<Transform> ctms;
         RefVector<Color> _colors;
@@ -593,7 +607,6 @@ struct Rasterizer {
         Cell cell;  short cover;  int base, biid;
     };
     struct Quadratic {
-        Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) : x0(x0), y0(y0), x1(x1), y1(y1), x2(x2), y2(y2) {}
         float x0, y0, x1, y1, x2, y2;
     };
     struct Outline {
@@ -605,7 +618,7 @@ struct Rasterizer {
     };
     struct Instance {
         enum Flags {
-            kRoundJoin = 1 << 21,
+            kRoundJoin = 1 << 21,   kStencil = 1 << 21,
             kIsRadial = 1 << 22,
             kIsGradient = 1 << 23,
             kIsCurve = 1 << 24,
@@ -639,7 +652,7 @@ struct Rasterizer {
         int16_t lx, ux, cover;  uint32_t is;
     };
     struct Buffer {
-        enum Type { kQuadEdges, kFastEdges, kFastMolecules, kQuadMolecules, kOpaques, kInstances, kSegmentsBase, kPointsBase, kInstancesBase };
+        enum Type { kQuadEdges, kFastEdges, kFastMolecules, kQuadMolecules, kOpaques, kInstances, kSegmentsBase, kPointsBase, kInstancesBase, kStencils, kDisableClip, kEnableClip };
         struct Entry {
             Entry(Type type, size_t begin, size_t end) : type(type), begin(begin), end(end) {}
             Type type;  size_t begin, end;
@@ -684,7 +697,7 @@ struct Rasterizer {
             size_t idx, counts[4] = { 0, 0, 0, 0 };
         };
         void empty(Bounds device) {
-            full = device, sheet = Bounds(0.f, 0.f, 0.f, 0.f), bzero(strips, sizeof(strips)), passes.empty(), new (passes.alloc(1)) Pass(0);
+            full = device, sheet = Bounds(0.f, 0.f, 0.f, 0.f), bzero(strips, sizeof(strips)), passes.empty();
         }
         void refill(size_t idx) {
             sheet = full, bzero(strips, sizeof(strips)), new (passes.alloc(1)) Pass(idx);
@@ -712,7 +725,7 @@ struct Rasterizer {
     };
     struct Context {
         void drawList(const SceneList& list, Bounds device, Transform view, size_t slz, size_t suz, Buffer *buffer) {
-            empty(), allocator.empty(device);
+            empty(), allocator.empty(device), allocator.refill(0);
             size_t fatlines = 1.f + ceilf((device.uy - device.ly) * krfh);
             if (samples.end() != fatlines) {
                 samples.resize(0);
@@ -728,7 +741,7 @@ struct Rasterizer {
             bool clipActive = false;
             
             BGRA black(0, 0, 0, 255), red(0, 0, 255, 255);
-            size_t lz, uz, i, clz, cuz, iz, is, size, cnt;  uint8_t flags;
+            size_t lz, uz, i, clz, cuz, iz, is, size, cnt, lastIdx = ~0, lastClipIdx = ~0;  uint8_t flags;
             float det, width, uw, softclipMargin = 0.5f;
             for (lz = uz = i = 0; i < list.scenes.size(); i++, lz = uz) {
                 const Scene *scn = list.scenes[i].ptr;
@@ -739,14 +752,35 @@ struct Rasterizer {
                     if ((flags = scn->flags[is]) & Scene::Flags::kInvisible)
                         continue;
                     
-                    bool newClip = memcmp(& scn->clips[is], & lastClip, sizeof(Bounds)) != 0;
-                    if (newClip) {
+                    if (memcmp(& scn->clips[is], & lastClip, sizeof(Bounds)) != 0) {
                         lastClip = scn->clips[is];
                         clipActive = !lastClip.isHuge() || !sceneclip.isHuge();
                         clipquad = clipActive ? sceneclip.intersect(lastClip).quad(ctm) : Transform(1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f);
                         softclipMargin = 0.5f + 1e-1f / fmaxf(1.f, clipquad.scale());
                         invclip = clipquad.invert();
                         clipBounds = Bounds(clipquad).integral().intersect(device);
+                    }
+                    size_t idx = scn->clipIndices[is];
+                    if (idx != lastIdx) {
+                        lastIdx = idx;
+                        Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kStencil);
+                        inst->data.count = 0;
+                        inst->g = nullptr;
+                        if (~idx) {
+                            if (idx != lastClipIdx) {
+                                lastClipIdx = idx;
+                                size_t i0, i1;
+                                const Path& clip = scn->clipPaths[idx];
+                                i0 = stencils.end;
+                                Stenciler stenciler(clip, device, ctm, & stencils);
+                                divideGeometry(clip.ptr, ctm, device, true, true, stenciler);
+                                i1 = stencils.end;
+                                inst->data.idx = int(i0), inst->data.count = int(i1 - i0);
+                            } else
+                                inst->data.idx = 1;
+                        } else {
+                            inst->data.idx = 0;
+                        }
                     }
                     m = scn->ctms[is].concat(ctm), det = fabsf(m.a * m.d - m.b * m.c);
                     uw = scn->widths[is];
@@ -782,7 +816,7 @@ struct Rasterizer {
                             uint32_t i0 = uint32_t(outlines.idx), i1;
                             Outliner outliner;
                             outliner.iz = inst->iz, outliner.outlines = & outlines;
-                            if (width > 4.f && isOpaque) {
+                            if (width > 4.f && isOpaque && ~lastIdx == 0) {
                                 bool softunclipped = true;
                                 if (clipActive) {
                                     Bounds soft = Bounds(quad.concat(invclip));
@@ -815,7 +849,7 @@ struct Rasterizer {
                                 Bounds soft = Bounds(quad.concat(invclip));
                                 softunclipped = fmaxf(fmaxf(fabsf(soft.lx - 0.5f), fabsf(soft.ux - 0.5f)), fmaxf(fabsf(soft.ly - 0.5f), fabsf(soft.uy - 0.5f))) < softclipMargin;
                             }
-                            writeSegmentInstances(clip, flags & Scene::kFillEvenOdd, iz, isOpaque && softunclipped, fast, isGradient, isRadial, *this);
+                            writeSegmentInstances(clip, flags & Scene::kFillEvenOdd, iz, isOpaque && softunclipped && ~lastIdx == 0, fast, isGradient, isRadial, *this);
                             segments.idx = segments.end = idxr.dst - segments.base;
                         }
                     }
@@ -823,14 +857,14 @@ struct Rasterizer {
             }
         }
         void empty() {
-            p16total = texTotal = 0, blends.empty(), opaques.empty(), outlines.empty(), segments.empty(), segmentsIndices.empty(), indices.empty();
+            p16total = texTotal = 0, blends.empty(), opaques.empty(), stencils.empty(), outlines.empty(), segments.empty(), segmentsIndices.empty(), indices.empty();
             p16s.resize(0);
             texs.resize(0);
             for (int i = 0; i < samples.end(); i++)
                 samples[i].empty();
             entries = Vector<Buffer::Entry>();
         }
-        void reset() { p16total = 0, blends.reset(), opaques.reset(), outlines.reset(), segments.reset(), segmentsIndices.reset(), indices.reset(), entries = Vector<Buffer::Entry>();
+        void reset() { p16total = 0, blends.reset(), opaques.reset(), stencils.reset(), outlines.reset(), segments.reset(), segmentsIndices.reset(), indices.reset(), entries = Vector<Buffer::Entry>();
             p16s.resize(0);
             texs.resize(0);
             samples.resize(0);
@@ -840,7 +874,7 @@ struct Rasterizer {
         Allocator allocator;  Vector<Buffer::Entry> entries;
         Vector<Row<Point16>*> p16s;
         Vector<TexRef> texs;
-        Row<Opaque> opaques;  Row<Blend> blends;  Row<Instance> outlines;  Row<Segment> segments;
+        Row<Opaque> opaques, stencils;  Row<Blend> blends;  Row<Instance> outlines;  Row<Segment> segments;
         Row<Sample::Index> indices;  RefVector<Row<Sample>> samples;  Row<uint32_t> segmentsIndices;
     };
     static void divideGeometry(Geometry *g, Transform m, Bounds clip, bool unclipped, bool polygon, GeometryWriter& writer) {
@@ -1386,6 +1420,53 @@ struct Rasterizer {
         }
         uint32_t iz;  Row<Instance> *outlines = nullptr;  Row<Opaque> *opaques = nullptr;
     };
+    
+    struct Stenciler: GeometryWriter {
+        static Row<Opaque> CreateStencils(const Path& path, Bounds device, Transform m = Transform()) {
+            Row<Opaque> stencils;
+            if (!path->isValid())
+                return stencils;
+            Stenciler stenciler(path, device, m, & stencils);
+            divideGeometry(path.ptr, m, device, true, true, stenciler);
+            return stencils;
+        }
+        
+        Stenciler(const Path& path, Bounds device, Transform m, Row<Opaque> *stencils) : device(device), molecule(path->molecules.base), m(m), stencils(stencils) {}
+        
+        void writeSegment(float x0, float y0, float x1, float y1) {
+            Opaque *stencil = stencils->alloc(1);
+            struct Quadratic& quad = stencil->quad;
+            float cx = molecule->cx(), cy = molecule->cy();
+            quad.x0 = m.a * cx + m.c * cy + m.tx;
+            quad.y0 = m.b * cx + m.d * cy + m.ty;
+            quad.x1 = x0, quad.y1 = y0;
+            quad.x2 = x1, quad.y2 = y1;
+        }
+        void Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
+            Bounds quad, clip;
+            quad.extend(x0, y0), quad.extend(x1, y1), quad.extend(x2, y2);
+            clip = quad.intersect(device);
+            bool offscreen = clip.lx == clip.ux || clip.ly == clip.uy;
+            float ax, ay, a, count, dt, f2x, f1x, f2y, f1y;
+            ax = x0 + x2 - x1 - x1, ay = y0 + y2 - y1 - y1, a = quadraticScale * (ax * ax + ay * ay);
+            count = offscreen || a < quadraticScale ? 1.f : a < 8.f ? 2.f : 2.f + floorf(sqrtf(sqrtf(a))), dt = 1.f / count;
+            ax *= dt * dt, f2x = 2.f * ax, f1x = ax + 2.f * (x1 - x0) * dt, x1 = x0;
+            ay *= dt * dt, f2y = 2.f * ay, f1y = ay + 2.f * (y1 - y0) * dt, y1 = y0;
+            while (--count) {
+                x1 += f1x, f1x += f2x, y1 += f1y, f1y += f2y;
+                writeSegment(x0, y0, x1, y1);
+                x0 = x1, y0 = y1;
+            }
+            writeSegment(x0, y0, x2, y2);
+        }
+        
+        void EndSubpath(float x0, float y0, float x1, float y1, bool closed) {
+            molecule++;
+        }
+        Transform m;
+        Bounds device, *molecule;
+        Row<Opaque> *stencils;
+    };
     static size_t resizeBuffer(const SceneList& list, Context *contexts, size_t count, size_t *begins, Buffer& buffer) {
         size_t size = buffer.headerSize, begin = size, end = begin, sz, i, j, instances;
         for (i = 0; i < count; i++)
@@ -1400,9 +1481,10 @@ struct Rasterizer {
         for (ctx = contexts, i = 0; i < count; i++, ctx++) {
             for (instances = 0, pass = ctx->allocator.passes.base, j = 0; j < ctx->allocator.passes.end; j++, pass++)
                 instances += pass->count();
-            begins[i] = size, size += instances * sizeof(Edge) + (ctx->outlines.end + ctx->blends.end) * sizeof(Instance) + ctx->segments.end * sizeof(Segment) + ctx->p16total * sizeof(Point16);
+            begins[i] = size, size += instances * sizeof(Edge) + (ctx->outlines.end + ctx->blends.end) * sizeof(Instance) + ctx->segments.end * sizeof(Segment) + ctx->p16total * sizeof(Point16) + ctx->stencils.end * sizeof(Opaque);
         }
         buffer.resize(size, buffer.headerSize);
+        
         for (i = 0; i < count; i++)
             if ((sz = contexts[i].opaques.end * sizeof(Opaque)))
                 memcpy(buffer.base + end, contexts[i].opaques.base, sz), end += sz;
@@ -1421,8 +1503,8 @@ struct Rasterizer {
         return size;
     }
     static void writeContextToBuffer(const SceneList& list, Context *ctx, size_t begin, Buffer& buffer) {
-        size_t i, j, count, size, ip, iz, ic, end, instbegin, passsize;
-        if (ctx->segments.end || ctx->p16total) {
+        size_t i, j, count, size, ip, iz, ic, end, instbegin, passsize, stencilBegin = 0;
+        if (ctx->segments.end || ctx->p16total || ctx->stencils.end) {
             size = ctx->segments.end * sizeof(Segment), end = begin + size;
             ctx->entries.add(Buffer::Entry(Buffer::kSegmentsBase, begin, end));
             memcpy(buffer.base + begin, ctx->segments.base, size), begin = end;
@@ -1434,6 +1516,11 @@ struct Rasterizer {
                 end += size;
             }
             ctx->entries.add(Buffer::Entry(Buffer::kPointsBase, begin, end)), begin = end;
+            
+            stencilBegin = begin;
+            end = begin + ctx->stencils.end * sizeof(Opaque);
+            memcpy(buffer.base + stencilBegin, ctx->stencils.base, end - begin);
+            begin = end;
         }
         Transform *ctms = (Transform *)(buffer.base + buffer.ctms);
         Edge *quadEdge = nullptr, *fastEdge = nullptr, *fastMolecule = nullptr, *fastMolecule0 = nullptr, *quadMolecule = nullptr, *quadMolecule0 = nullptr;
@@ -1458,7 +1545,10 @@ struct Rasterizer {
                 assert(begin == instbegin);
             }
             
-            Instance *dst0 = (Instance *)(buffer.base + begin), *dst = dst0;  Outliner outliner;
+            Vector<size_t> clipBegins;
+            Vector<Blend> clips;
+            
+            Instance *dst0 = (Instance *)(buffer.base + begin), *dst = dst0;
             for (Blend *inst = ctx->blends.base + pass->idx, *endinst = inst + passsize; inst < endinst; inst++) {
                 iz = inst->iz & kPathIndexMask;
                 Geometry *g = inst->g;
@@ -1471,7 +1561,11 @@ struct Rasterizer {
                     ic = dst - dst0, dst++;
                     
                     bool fast = inst->iz & Instance::kFastEdges;
-                    if (inst->iz & Instance::kMolecule) {
+                    if (inst->iz & Instance::kStencil) {
+                        dst--;
+                        clipBegins.add(begin + (dst - dst0) * sizeof(Instance));
+                        clips.add(*inst);
+                    } else if (inst->iz & Instance::kMolecule) {
                         uint16_t ux = inst->quad.cell.ux;  Transform& ctm = ctms[iz];
                         float *molx = (float *)g->molecules.base + (ctm.a > 0.f ? 2 : 0), *moly = (float *)g->molecules.base + (ctm.c > 0.f ? 3 : 1);
                         Edge *molecule = fast ? fastMolecule : quadMolecule;
@@ -1508,11 +1602,33 @@ struct Rasterizer {
                 }
             }
             
-            if ((size = dst - dst0)) {
+            if ((size = dst - dst0) || clipBegins.end()) {
                 end = begin + size * sizeof(Instance);
-                ctx->entries.add(Buffer::Entry(Buffer::kInstances, begin, end));
+                size_t i0 = begin, i1;
+                for (i = 0; i <= clipBegins.end(); i++, i0 = i1) {
+                    i1 = i == clipBegins.end() ? end : clipBegins[i];
+                    if (i0 != i1)
+                        ctx->entries.add(Buffer::Entry(Buffer::kInstances, i0, i1));
+                    if (i != clipBegins.end()) {
+                        const Blend& clip = clips[i];
+                        if (clip.data.count) {
+                            size_t s0 = stencilBegin + clip.data.idx * sizeof(Opaque);
+                            size_t s1 = s0 + clip.data.count * sizeof(Opaque);
+                            ctx->entries.add(Buffer::Entry(Buffer::kStencils, s0, s1));
+                            ctx->entries.add(Buffer::Entry(Buffer::kEnableClip, 0, 0));
+                        } else {
+                            if (clip.data.idx == 0)
+                                ctx->entries.add(Buffer::Entry(Buffer::kDisableClip, 0, 0));
+                            else
+                                ctx->entries.add(Buffer::Entry(Buffer::kEnableClip, 0, 0));
+                            
+                        }
+                    }
+                }
+//                ctx->entries.add(Buffer::Entry(Buffer::kInstances, begin, end));
                 begin = end;
             }
+            ctx->entries.add(Buffer::Entry(Buffer::kDisableClip, 0, 0));
         }
     }
 };

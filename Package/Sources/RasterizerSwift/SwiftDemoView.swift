@@ -109,7 +109,8 @@ class TestDasher: RADrawable {
                         width: width,
                         capStyle: capStyle,
                         joinStyle: .joinRound,
-                        clip: .zero)
+                        clip: .zero,
+                        clipPath: nil)
         return scene
     }
 }
@@ -133,13 +134,19 @@ class TestGradients: RADrawable {
     }
     
     func getSceneAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RAScene {
+        let inset = 40.0
+        let b = bounds.insetBy(dx: inset, dy: inset)
+        let clipPath = state.useRect ? RAPath(rect: b) : RAPath(ellipse: b)
+        
         let gradient = Self.gradientForBounds(bounds, isRadial: !state.useRect)
         
-        let path = RAPath()
-        path.add(bounds);
+        let rect = RAPath(rect: bounds)
+        let ellipse = RAPath(ellipse: bounds)
         
         let scene = RAScene()
-        scene.addFill(path, ctm: .identity, color: gradient, evenOdd: false, clip: .zero)
+        scene.addFill(rect, ctm: .identity, color: gradient, evenOdd: false, clip: .zero, clipPath: state.clip ? RAPath(rect: b) : nil)
+        scene.addFill(ellipse, ctm: .identity, color: RAColor(gray: 1, alpha: 1), evenOdd: false, clip: .zero, clipPath: state.clip ? RAPath(ellipse: b) : nil)
+        
         return scene
     }
 }
@@ -161,13 +168,13 @@ class TestQuadratics: RADrawable {
         
         let scene = RAScene()
         
-        scene.addStroke(path, ctm: .identity, color: color, width: stroke, capStyle: .capButt, joinStyle: .joinMiter, clip: .zero)
+        scene.addStroke(path, ctm: .identity, color: color, width: stroke, capStyle: .capButt, joinStyle: .joinMiter)
         return scene
     }
 }
 
 class TestCubics: RADrawable {
-    func getSceneAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RAScene {
+    func getPathAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RAPath {
         let count = state.flag ? 72 : 36
         let dim = min(bounds.width, bounds.height)
         let radius = 0.25 * dim
@@ -184,8 +191,13 @@ class TestCubics: RADrawable {
                 path.addEllipse(CGRect(x: origin.x - radius, y: origin.y - radius, width: 2 * radius, height: 2 * radius))
             }
         }
+        return path
+    }
+    func getSceneAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RAScene {
+        let path = getPathAtTime(time, bounds: bounds, state: state)
+        
         let scene = RAScene()
-        scene.addFill(path, ctm: .identity, color: RAColor(gray: 0, alpha: 1), evenOdd: true, clip: .zero)
+        scene.addFill(path, ctm: .identity, color: RAColor(gray: 0, alpha: 1), evenOdd: true)
         return scene
     }
 }
@@ -228,7 +240,7 @@ class Test0: RADrawable {
                 scale: CGSize(width: 2 * r1, height: 2 * r1),
                 translation: CGVector(dx: radial.x - unitCenter.x, dy: radial.y - unitCenter.y)
             )
-            scene.addFill(path, ctm: ctm, color: gradient, evenOdd: false, clip: .zero)
+            scene.addFill(path, ctm: ctm, color: gradient, evenOdd: false)
         }
         return scene
     }
@@ -250,6 +262,7 @@ class SwiftDemo: NSObject, RASceneListDelegate {
         TestDasher()
     ]
     
+    var clip = false
     var index = 0
     var flag = false
     var paused = false
@@ -273,9 +286,7 @@ class SwiftDemo: NSObject, RASceneListDelegate {
                 let i = Int(character.asciiValue ?? 0) - Int(Character("1").asciiValue ?? 0)
                 index = min(drawables.count - 1, i)
             case "a":
-                if (flags.contains(.shift)) {
-                    flag.toggle()
-                }
+                flag.toggle()
             case "c":
                 useCurves.toggle()
             case "f":
@@ -288,6 +299,8 @@ class SwiftDemo: NSObject, RASceneListDelegate {
                 paused.toggle()
             case "r":
                 useRect.toggle()
+            case "u":
+                clip.toggle()
             case "v":
                 if (flags.contains(.command)) {
                     let objects = NSPasteboard.general.readObjects(forClasses: [NSAttributedString.self])
@@ -315,7 +328,7 @@ class SwiftDemo: NSObject, RASceneListDelegate {
     func shouldRedraw(atTime time: Double) -> Bool {
         true
     }
-    func getListAtTime(_ time: Double, width: Double, height: Double) -> RASceneList! {
+    func getListAtTime(_ time: Double, width: Double, height: Double) -> RASceneList {
         bounds = CGRect(x: 0, y: 0, width: width, height: height)
         t = paused ? t : time
         let list = RASceneList()

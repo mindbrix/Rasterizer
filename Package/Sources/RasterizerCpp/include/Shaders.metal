@@ -68,7 +68,7 @@ struct Opaque {
 
 struct Instance {
     enum Flags {
-        kRoundJoin = 1 << 21,
+        kRoundJoin = 1 << 21,   kStencil = 1 << 21,
         kIsRadial = 1 << 22,
         kIsGradient = 1 << 23,
         kIsCurve = 1 << 24,
@@ -179,6 +179,32 @@ float quadraticWinding(float x0, float y0, float x1, float y1, float x2, float y
     }
     return w;
 }
+
+#pragma mark - Stencil
+
+struct StencilVertex
+{
+    float4 position [[position]];
+};
+
+vertex StencilVertex stencil_vertex_main(const device Opaque *stencils [[buffer(1)]],
+                                         constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
+                                         uint vid [[vertex_id]], uint iid [[instance_id]])
+{
+    const device Opaque& inst = stencils[iid];
+    const device Quadratic& quad = inst.quad;
+    float x = vid == 0 ? quad.x0 : vid == 1 ? quad.x1 : quad.x2;
+    float y = vid == 0 ? quad.y0 : vid == 1 ? quad.y1 : quad.y2;
+    StencilVertex vert;
+    vert.position = {
+        x / *width * 2.0 - 1.0,
+        y / *height * 2.0 - 1.0,
+        1.0,
+        1.0
+    };
+    return vert;
+}
+
 
 #pragma mark - Opaques
 
@@ -530,7 +556,7 @@ vertex InstancesVertex instances_vertex_main(
     float w = widths[iz], cw = max(1.0, w), dw = 0.5 * (1.0 + cw);
     float alpha = select(1.0, w / cw, w != 0), dx, dy;
     if (inst.iz & Instance::kOutlines) {
-        const bool roundCap = inst.iz & Instance::kRoundCap;
+        const bool roundCap = w > 1.0 && inst.iz & Instance::kRoundCap;
         const bool squareCap = inst.iz & Instance::kSquareCap;
         const bool roundJoin = inst.iz & Instance::kRoundJoin;
         const short prevIndex = inst.outline.prev, nextIndex = inst.outline.next;
