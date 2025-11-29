@@ -71,7 +71,7 @@ struct Instance {
         kRoundJoin = 1 << 21,   kStencil = 1 << 21,
         kIsRadial = 1 << 22,
         kIsGradient = 1 << 23,
-        kIsCurve = 1 << 24,
+        kIsCurve = 1 << 24,     kImage = 1 << 24,
         kMolecule = 1 << 25,    kPCap = 1 << 25,
         kFastEdges = 1 << 26,   kNCap = 1 << 26,
         kEdge = 1 << 27,        kF0 = 1 << 27,
