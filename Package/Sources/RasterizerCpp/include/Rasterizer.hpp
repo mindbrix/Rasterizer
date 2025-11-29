@@ -477,6 +477,7 @@ struct Rasterizer {
                 for (size_t i = 0; i < height; i++)
                     stops.add(colorBuffer + i * stride, width);
             }
+            opaque = false;
         }
         inline bool isOpaque() const {
             return opaque;
@@ -621,7 +622,7 @@ struct Rasterizer {
     struct Instance {
         enum Flags {
             kRoundJoin = 1 << 21,   kStencil = 1 << 21,
-            kIsRadial = 1 << 22,
+            kIsRadial = 1 << 22,    kDisableImage = 1 << 22,
             kIsGradient = 1 << 23,  kNextImage = 1 << 23,
             kIsImage = 1 << 24,     kIsCurve = 1 << 24,
             kMolecule = 1 << 25,    kPCap = 1 << 25,
@@ -803,15 +804,16 @@ struct Rasterizer {
                         bool isGradient = list.params.showOutlines ? false : color->isGradient();
                         bool isRadial = isGradient && color->type == Color::kRadial;
                         bool isImage = color->type == Color::kImage;
+                        size_t colorFlags = isImage ? Instance::kIsImage : (isGradient * Instance::kIsGradient | isRadial * Instance::kIsRadial);
                         if (isGradient) {
                             texCtms[iz] = color->ctm.concat(m).invert();
                             size_t idx = scn->gradientIndices[is];
                             texs.add(TexRef(iz, & scn->matchedGradients[idx]));
                         } else if (isImage) {
+                            texCtms[iz] = quad.invert();
                             new (blends.alloc(1)) Blend(iz | Instance::kIsImage | Instance::kNextImage);
                             images.add(color);
                         }
-                        size_t colorFlags = isGradient * Instance::kIsGradient | isRadial * Instance::kIsRadial;// | isImage * Instance::kImage;
                         
                         if (list.params.showOutlines)
                             colors[iz] = uw == 0.f ? black : red;
@@ -862,6 +864,8 @@ struct Rasterizer {
                             writeSegmentInstances(clip, flags & Scene::kFillEvenOdd, iz, isOpaque && softunclipped && ~lastIdx == 0, fast, colorFlags, *this);
                             segments.idx = segments.end = idxr.dst - segments.base;
                         }
+                        if (isImage)
+                            new (blends.alloc(1)) Blend(iz | Instance::kIsImage | Instance::kDisableImage);
                     }
                 }
             }
@@ -1573,10 +1577,10 @@ struct Rasterizer {
                     ic = dst - dst0, dst++;
                     bool fast = inst->iz & Instance::kFastEdges;
                     
-                    if (inst->iz & Instance::kIsImage) {
+                    if ((inst->iz & Instance::kIsImage) && ((inst->iz & Instance::kNextImage) || (inst->iz & Instance::kDisableImage))) {
                         dst--;
-//                        batchBegins.add(begin + (dst - dst0) * sizeof(Instance));
-//                        batchCommands.add(*inst);
+                        batchBegins.add(begin + (dst - dst0) * sizeof(Instance));
+                        batchCommands.add(*inst);
                     } else if (inst->iz & Instance::kStencil) {
                         dst--;
                         batchBegins.add(begin + (dst - dst0) * sizeof(Instance));
@@ -1638,14 +1642,16 @@ struct Rasterizer {
                             else
                                 ctx->entries.add(Buffer::Entry(Buffer::kEnableClip, 0, 0));
                         } if (cmd.iz & Instance::kIsImage) {
-                            ctx->entries.add(Buffer::Entry(Buffer::kImage, 0, 0));
+                            if (cmd.iz & Instance::kNextImage)
+                                ctx->entries.add(Buffer::Entry(Buffer::kImage, 0, 0));
+                            else if (cmd.iz & Instance::kDisableImage)
+                                ctx->entries.add(Buffer::Entry(Buffer::kDisableImage, 0, 0));
                         }
                     }
                 }
                 begin = end;
             }
             ctx->entries.add(Buffer::Entry(Buffer::kDisableClip, 0, 0));
-            ctx->entries.add(Buffer::Entry(Buffer::kDisableImage, 0, 0));
         }
     }
 };

@@ -69,7 +69,7 @@ struct Opaque {
 struct Instance {
     enum Flags {
         kRoundJoin = 1 << 21,   kStencil = 1 << 21,
-        kIsRadial = 1 << 22,
+        kIsRadial = 1 << 22,    kDisableImage = 1 << 22,
         kIsGradient = 1 << 23,  kNextImage = 1 << 23,
         kIsImage = 1 << 24,     kIsCurve = 1 << 24,
         kMolecule = 1 << 25,    kPCap = 1 << 25,
@@ -549,14 +549,13 @@ vertex InstancesVertex instances_vertex_main(
     uint iz = inst.iz & kPathIndexMask, flags = inst.iz & Instance::kFragmentMask;
     const bool isGradient = inst.iz & Instance::kIsGradient;
     const bool isRadial = inst.iz & Instance::kIsRadial;
+    const bool isImage = inst.iz & Instance::kIsImage;
     
     const device Transform& clip = clips[iz];
     const device Transform& texCtm = texCtms[iz];
     
     float w = widths[iz], cw = max(1.0, w), dw = 0.5 * (1.0 + cw);
     float alpha = select(1.0, w / cw, w != 0), dx, dy;
-    const bool isImage = (inst.iz & Instance::kOutlines) == 0 && inst.iz & Instance::kIsImage;
-    
     if (inst.iz & Instance::kOutlines) {
         const bool roundCap = w > 1.0 && inst.iz & Instance::kRoundCap;
         const bool squareCap = inst.iz & Instance::kSquareCap;
@@ -657,6 +656,10 @@ vertex InstancesVertex instances_vertex_main(
         vert.tex.x = dx * texCtm.b + dy * texCtm.d + texCtm.ty;
         vert.tex.y = (0.5 + (th + texIdxs[iz])) / float(th + *texCount);
         vert.tex.z = isRadial ? dx * texCtm.a + dy * texCtm.c + texCtm.tx : 0;
+    } else if (isImage) {
+        vert.tex.x = dx * texCtm.a + dy * texCtm.c + texCtm.tx;
+        vert.tex.y = 1.0 - (dx * texCtm.b + dy * texCtm.d + texCtm.ty);
+        vert.tex.z = 0.0;
     } else {
         vert.tex.x = (0.5 + (iz % tw)) / float(tw);
         vert.tex.y = (0.5 + (iz / tw)) / float(th + *texCount);
