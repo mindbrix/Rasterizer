@@ -485,6 +485,9 @@ struct Rasterizer {
         inline bool isGradient() const {
             return type == kLinear || type == kRadial;
         }
+        inline bool isImage() const {
+            return type == kImage;
+        }
         void writeGradientStrip(BGRA *dst, size_t size) const {
             size_t count = stops.end();
             if (count == 0)

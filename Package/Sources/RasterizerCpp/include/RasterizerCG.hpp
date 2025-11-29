@@ -138,24 +138,30 @@ struct RasterizerCG {
                         bool roundJoin = scn.flags[i] & Ra::Scene::kRoundJoin;
                         CGContextSetLineJoin(ctx, roundJoin ? kCGLineJoinRound : kCGLineJoinMiter);
                         
-                        if (color.isGradient()) {
+                        if (color.isGradient() || color.isImage()) {
                             CGContextSaveGState(ctx);
                             CGContextReplacePathWithStrokedPath(ctx);
                             CGContextClip(ctx);
-                            drawGradient(ctx, color);
+                            if (color.isGradient())
+                                drawGradient(ctx, color);
+                            else
+                                drawImage(ctx, color);
                             CGContextRestoreGState(ctx);
                         } else {
                             CGContextSetRGBStrokeColor(ctx, bgra.r / 255.0, bgra.g / 255.0, bgra.b / 255.0, bgra.a / 255.0);
                             CGContextStrokePath(ctx);
                         }
                     } else {
-                        if (color.isGradient()) {
+                        if (color.isGradient() || color.isImage()) {
                             CGContextSaveGState(ctx);
                             if (scn.flags[i] & Ra::Scene::kFillEvenOdd)
                                 CGContextEOClip(ctx);
                             else
                                 CGContextClip(ctx);
-                            drawGradient(ctx, color);
+                            if (color.isGradient())
+                                drawGradient(ctx, color);
+                            else
+                                drawImage(ctx, color);
                             CGContextRestoreGState(ctx);
                         } else {
                             CGContextSetRGBFillColor(ctx, bgra.r / 255.0, bgra.g / 255.0, bgra.b / 255.0, bgra.a / 255.0);
@@ -184,7 +190,19 @@ struct RasterizerCG {
             CGContextDrawLinearGradient(ctx, gradient, zero, end, options);
         CGGradientRelease(gradient);
     }
-    
+    static void drawImage(CGContextRef ctx, const Ra::Color& color) {
+        CGImageRef image = CGImageFromColor(color);
+        CGContextDrawImage(ctx, CGRectMake(0, 0, 1, 1), image);
+        CGImageRelease(image);
+    }
+    static CGImageRef CGImageFromColor(const Ra::Color& color) {
+        CGDataProviderRef provider = CGDataProviderCreateWithData(NULL, & color.stops[0], color.stops.end() * sizeof(Ra::BGRA), NULL);
+        CGColorSpaceRef rgb = CGColorSpaceCreateDeviceRGB();
+        CGImageRef image = CGImageCreate(color.w, color.h, 8, 32, color.w * sizeof(Ra::BGRA), rgb, kCGImageAlphaFirst | kCGBitmapByteOrder32Host, provider,  NULL, false, kCGRenderingIntentDefault);
+        CGColorSpaceRelease(rgb);
+        CGDataProviderRelease(provider);
+        return image;
+    }
     static CGGradientRef CGGradientFromColor(Ra::Color color) {
         size_t count = color.stops.end();
         auto stop = & color.stops[0];
