@@ -137,12 +137,12 @@ struct RasterizerCG {
         return dev.lx < dev.ux && dev.ly < dev.uy && soft.lx < 1.f && soft.ux > 0.f && soft.ly < 1.f && soft.uy > 0.f;
     }
     
-    static void drawGradient(CGContextRef ctx, const Ra::Paint& color) {
-        CGGradientRef gradient = CGGradientFromPaint(color);
+    static void drawGradient(CGContextRef ctx, const Ra::Paint& paint) {
+        CGGradientRef gradient = CGGradientFromPaint(paint);
         CGPoint zero = CGPointMake(0.0, 0.0), end = CGPointMake(0.0, 1.0);
         auto options = kCGGradientDrawsBeforeStartLocation | kCGGradientDrawsAfterEndLocation;
-        CGContextConcatCTM(ctx, CGFromTransform(color.ctm));
-        if (color.type == Ra::Paint::kRadial)
+        CGContextConcatCTM(ctx, CGFromTransform(paint.ctm));
+        if (paint.type == Ra::Paint::kRadial)
             CGContextDrawRadialGradient(ctx, gradient, zero, 0, zero, 1, options);
         else
             CGContextDrawLinearGradient(ctx, gradient, zero, end, options);
