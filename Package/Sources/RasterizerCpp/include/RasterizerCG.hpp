@@ -24,48 +24,6 @@
 
 
 struct RasterizerCG {
-    struct Converter {
-        void matchColors(Ra::Color *colorants, size_t size, CGColorSpaceRef destSpace) {
-            if (colorants == nullptr || size == 0 || destSpace == nil)
-                return;
-            if (dstSpace != destSpace) {
-                vImageConverter_Release(converter), CGColorSpaceRelease(dstSpace), dstSpace = CGColorSpaceRetain(destSpace);
-                vImage_CGImageFormat srcFormat;  bzero(& srcFormat, sizeof(srcFormat));
-                vImage_CGImageFormat dstFormat;  bzero(& dstFormat, sizeof(dstFormat));
-                srcFormat.bitsPerComponent = dstFormat.bitsPerComponent = 8;
-                srcFormat.bitsPerPixel = dstFormat.bitsPerPixel = 32;
-                srcFormat.renderingIntent = dstFormat.renderingIntent = kCGRenderingIntentDefault;
-                srcFormat.colorSpace = CGColorSpaceCreateDeviceRGB(), dstFormat.colorSpace = dstSpace;
-                srcFormat.bitmapInfo = kCGImageAlphaFirst | kCGBitmapByteOrder32Little;
-                dstFormat.bitmapInfo = kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little;
-                converter = vImageConverter_CreateWithCGImageFormat(& srcFormat, & dstFormat, NULL, kvImageNoFlags, NULL);
-            }
-            size_t colorSize = sizeof(uint32_t);
-            auto colors = (uint32_t *)malloc(size * colorSize), counts = (uint32_t *)malloc(size * colorSize);
-            uint32_t *cnt = counts, *src0 = (uint32_t *)colorants, *src = src0 + 1, *dst = colors, *end = src0 + size, last = *src0;
-            do {
-                while (src < end && *src == last)
-                    src++;
-                *dst++ = last, *cnt++ = uint32_t(src - src0), src0 = src, last = src < end ? *src++ : 0;
-            } while (src < end);
-            
-            size_t total = cnt - counts;
-            vImage_Buffer srcBuffer;  vImageBuffer_Init(& srcBuffer, 1, total, 32, 0);
-            vImage_Buffer dstBuffer;  vImageBuffer_Init(& dstBuffer, 1, total, 32, 0);
-            memcpy(srcBuffer.data, colors, total * colorSize);
-            vImageConvert_AnyToAny(converter, & srcBuffer, & dstBuffer, NULL, kvImageDoNotTile);
-            cnt = counts, src = (uint32_t *)dstBuffer.data, dst = (uint32_t *)colorants;
-            for (int i = 0; i < total; i++, src++, dst += *cnt, cnt++)
-                memset_pattern4(dst, src, *cnt * colorSize);
-            free(dstBuffer.data), free(srcBuffer.data), free(colors), free(counts);
-        }
-        ~Converter() {
-            vImageConverter_Release(converter), CGColorSpaceRelease(dstSpace);
-        }
-        vImageConverterRef converter = nil;
-        CGColorSpaceRef dstSpace = nil;
-    };
-    
     static bool isVisible(Ra::Bounds user, Ra::Transform ctm, Ra::Transform clip, Ra::Bounds deviceClip, float width) {
         if (clip.scale() == 0)
             return false;
