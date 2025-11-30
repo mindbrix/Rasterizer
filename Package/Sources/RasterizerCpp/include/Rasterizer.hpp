@@ -454,28 +454,28 @@ struct Rasterizer {
         
         Paint() {}
         Paint(Color color) : color(color), opaque(color.a == 255) {}
-        Paint(Color *colorStops, float *locations, size_t count, Transform transform, bool isRadial) {
-            if (colorStops == nullptr || locations == nullptr || count < 2)
+        Paint(Color *stops, float *locations, size_t count, Transform transform, bool isRadial) {
+            if (stops == nullptr || locations == nullptr || count < 2)
                 return;
             type = isRadial ? kRadial : kLinear;
-            colors.add(colorStops, count);
+            colors.add(stops, count);
             locs.add(locations, count);
             ctm = transform;
             opaque = true;
             for (size_t i = 0; i < count && opaque; i++)
                 opaque = opaque && colors[i].a == 255;
         }
-        Paint(Color *colorBuffer, size_t width, size_t height, size_t bpr) {
-            if (colorBuffer == nullptr || width == 0 || height == 0 || bpr == 0)
+        Paint(Color *buffer, size_t width, size_t height, size_t bpr) {
+            if (buffer == nullptr || width == 0 || height == 0 || bpr == 0)
                 return;
             assert(bpr / sizeof(Color) >= width);
             type = kImage, w = width, h = height;
             size_t stride = bpr / sizeof(Color);
             if (stride == width)
-                colors.add(colorBuffer, width * height);
+                colors.add(buffer, width * height);
             else {
                 for (size_t i = 0; i < height; i++)
-                    colors.add(colorBuffer + i * stride, width);
+                    colors.add(buffer + i * stride, width);
             }
             opaque = false;
         }
