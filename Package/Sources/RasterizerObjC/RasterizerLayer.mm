@@ -270,15 +270,13 @@
             case Ra::Buffer::kDisableImage:
                 useImage = false;
                 break;
-            case Ra::Buffer::kImage: {
-                useImage = true;
+            case Ra::Buffer::kNextImage: {
                 Ra::Paint *image = buffer->images[imgIndex];
-                
                 MTLTextureDescriptor* desc = [MTLTextureDescriptor
-                                              texture2DDescriptorWithPixelFormat:MTLPixelFormatBGRA8Unorm
-                                              width:image->w
-                                              height:image->h
-                                              mipmapped:NO];
+                    texture2DDescriptorWithPixelFormat:MTLPixelFormatBGRA8Unorm
+                                                 width:image->w
+                                                height:image->h
+                                             mipmapped:NO];
                 desc.storageMode = MTLStorageModeShared;
                 desc.usage = MTLTextureUsageShaderRead;
                 imageTexture = [self.device newTextureWithDescriptor:desc];
@@ -286,8 +284,8 @@
                                 mipmapLevel:0
                                   withBytes:& image->matched[0]
                                 bytesPerRow:image->w * sizeof(Ra::Color)];
-
                 imgIndex++;
+                useImage = true;
                 break;
             }
             case Ra::Buffer::kStencils:

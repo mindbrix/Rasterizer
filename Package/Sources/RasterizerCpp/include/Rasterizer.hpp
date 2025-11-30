@@ -658,7 +658,7 @@ struct Rasterizer {
         int16_t lx, ux, cover;  uint32_t is;
     };
     struct Buffer {
-        enum Type { kQuadEdges, kFastEdges, kFastMolecules, kQuadMolecules, kOpaques, kInstances, kSegmentsBase, kPointsBase, kInstancesBase, kStencils, kDisableClip, kEnableClip, kImage, kDisableImage };
+        enum Type { kQuadEdges, kFastEdges, kFastMolecules, kQuadMolecules, kOpaques, kInstances, kSegmentsBase, kPointsBase, kInstancesBase, kStencils, kDisableClip, kEnableClip, kNextImage, kDisableImage };
         struct Entry {
             Entry(Type type, size_t begin, size_t end) : type(type), begin(begin), end(end) {}
             Type type;  size_t begin, end;
@@ -1646,7 +1646,7 @@ struct Rasterizer {
                                 ctx->entries.add(Buffer::Entry(Buffer::kEnableClip, 0, 0));
                         } if (cmd.iz & Instance::kIsImage) {
                             if (cmd.iz & Instance::kNextImage)
-                                ctx->entries.add(Buffer::Entry(Buffer::kImage, 0, 0));
+                                ctx->entries.add(Buffer::Entry(Buffer::kNextImage, 0, 0));
                             else if (cmd.iz & Instance::kDisableImage)
                                 ctx->entries.add(Buffer::Entry(Buffer::kDisableImage, 0, 0));
                         }
