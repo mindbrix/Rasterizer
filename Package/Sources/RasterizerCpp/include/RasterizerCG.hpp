@@ -113,7 +113,7 @@ struct RasterizerCG {
                 Ra::Geometry *g = scn.paths[i].ptr;
                 Ra::Transform t = scn.ctms[i];
                 
-                if (isVisible(g->bounds, t.concat(ctm), clip, bounds, scn.widths[i])) {
+                if (!list.params.useClips || isVisible(g->bounds, t.concat(ctm), clip, bounds, scn.widths[i])) {
                     CGContextSaveGState(ctx);
                     if (list.params.useClips && ~scn.clipIndices[i]) {
                         writePathToCGContext(scn.clipPaths[scn.clipIndices[i]].ptr, ctx);
