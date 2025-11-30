@@ -800,8 +800,6 @@ struct Rasterizer {
                     if (clip.lx < clip.ux && clip.ly < clip.uy) {
                         bool unclipped = clip.contains(dev);
                         float clipWidth = clip.width(), clipHeight = clip.height();
-                        bool useMolecules = clipHeight <= kMoleculesHeight && clipWidth <= kMoleculesHeight;
-                        Geometry *g = scn->paths[is].ptr;
                         Color *color = & scn->_colors[is];
                         bool isOpaque = color->isOpaque();
                         bool isGradient = list.params.showOutlines ? false : color->isGradient();
@@ -824,6 +822,7 @@ struct Rasterizer {
                             colors[iz] = scn->matchedColors[is];
                         
                         ctms[iz] = m, widths[iz] = width, clips[iz] = invclip;
+                        Geometry *g = scn->paths[is].ptr;
                         if (width) {
                             Blend *inst = new (blends.alloc(1)) Blend(iz | colorFlags | Instance::kOutlines | bool(flags & Scene::kRoundCap) * Instance::kRoundCap | bool(flags & Scene::kSquareCap) * Instance::kSquareCap | bool(flags & Scene::kRoundJoin) * Instance::kRoundJoin
                             );
@@ -842,7 +841,8 @@ struct Rasterizer {
                             divideGeometry(g, m, outlineClip, unclipped, false, outliner);
                             i1 = uint32_t(outlines.idx);
                             inst->data.idx = i0, inst->data.count = i1 - i0;
-                        } else if (useMolecules && clipWidth * clipHeight / g->types.end < kMoleculesPixelsPerEdge) {
+                        } else if (clipHeight <= kMoleculesHeight && clipWidth <= kMoleculesHeight
+                                    && clipWidth * clipHeight / g->types.end < kMoleculesPixelsPerEdge) {
                             bounds[iz] = *bnds;
                             bool fast = !buffer->params.useCurves || g->maxCurve * det < 16.f;
                             Blend *inst = new (blends.alloc(1)) Blend(iz | colorFlags | Instance::kMolecule | bool(flags & Scene::kFillEvenOdd) * Instance::kEvenOdd | fast * Instance::kFastEdges);
