@@ -82,12 +82,12 @@ struct RasterizerCoreText {
                 CGRect bounds = CTRunGetImageBounds(run, NULL, CFRangeMake(0, 0));
                 Ra::Path bgPath;
                 bgPath->addBounds(RaCG::BoundsFromCGRect(bounds));
-                Ra::Color bgColor = RaCG::colorantFromCG(cgBackgroundColor);
+                Ra::Color bgColor = RaCG::colorFromCG(cgBackgroundColor);
                 Ra::Transform m = RaCG::transformFromCG(CGAffineTransformTranslate(ctm, origin.x, origin.y));
                 scene->addPath(bgPath, m, bgColor, 0, 0, & clipBounds);
             }
             
-            Ra::Color color = RaCG::colorantFromCG(cgColor);
+            Ra::Color color = RaCG::colorFromCG(cgColor);
             for (int j = 0; j < count; j++) {
                 CGPathRef cgPath = CTFontCreatePathForGlyph(font, glyphs[j], NULL);
                 Ra::Path path;

@@ -121,8 +121,8 @@ struct RasterizerCG {
                     }
                     CGContextConcatCTM(ctx, CGFromTransform(t));
                     writePathToCGContext(g, ctx);
-                    const auto& color = scn.paints[i];
-                    const auto bgra = color.color;
+                    const auto& paint = scn.paints[i];
+                    const auto color = paint.color;
                     if (list.params.showOutlines) {
                         CGContextSetLineWidth(ctx, (CGFloat)-109.05473e+14);
                         if (scn.widths[i])
@@ -138,33 +138,33 @@ struct RasterizerCG {
                         bool roundJoin = scn.flags[i] & Ra::Scene::kRoundJoin;
                         CGContextSetLineJoin(ctx, roundJoin ? kCGLineJoinRound : kCGLineJoinMiter);
                         
-                        if (color.isGradient() || color.isImage()) {
+                        if (paint.isGradient() || paint.isImage()) {
                             CGContextSaveGState(ctx);
                             CGContextReplacePathWithStrokedPath(ctx);
                             CGContextClip(ctx);
-                            if (color.isGradient())
-                                drawGradient(ctx, color);
+                            if (paint.isGradient())
+                                drawGradient(ctx, paint);
                             else
-                                drawImage(ctx, CGRectFromBounds(g->bounds), color);
+                                drawImage(ctx, CGRectFromBounds(g->bounds), paint);
                             CGContextRestoreGState(ctx);
                         } else {
-                            CGContextSetRGBStrokeColor(ctx, bgra.r / 255.0, bgra.g / 255.0, bgra.b / 255.0, bgra.a / 255.0);
+                            CGContextSetRGBStrokeColor(ctx, color.r / 255.0, color.g / 255.0, color.b / 255.0, color.a / 255.0);
                             CGContextStrokePath(ctx);
                         }
                     } else {
-                        if (color.isGradient() || color.isImage()) {
+                        if (paint.isGradient() || paint.isImage()) {
                             CGContextSaveGState(ctx);
                             if (scn.flags[i] & Ra::Scene::kFillEvenOdd)
                                 CGContextEOClip(ctx);
                             else
                                 CGContextClip(ctx);
-                            if (color.isGradient())
-                                drawGradient(ctx, color);
+                            if (paint.isGradient())
+                                drawGradient(ctx, paint);
                             else
-                                drawImage(ctx, CGRectFromBounds(g->bounds), color);
+                                drawImage(ctx, CGRectFromBounds(g->bounds), paint);
                             CGContextRestoreGState(ctx);
                         } else {
-                            CGContextSetRGBFillColor(ctx, bgra.r / 255.0, bgra.g / 255.0, bgra.b / 255.0, bgra.a / 255.0);
+                            CGContextSetRGBFillColor(ctx, color.r / 255.0, color.g / 255.0, color.b / 255.0, color.a / 255.0);
                             if (scn.flags[i] & Ra::Scene::kFillEvenOdd)
                                 CGContextEOFillPath(ctx);
                             else
@@ -219,7 +219,7 @@ struct RasterizerCG {
         return gradient;
     }
     
-    static Ra::Paint colorFromCGImage(CGImageRef image) {
+    static Ra::Paint paintFromCGImage(CGImageRef image) {
         Ra::Paint color;
         size_t width = CGImageGetWidth(image);
         size_t height = CGImageGetHeight(image);
@@ -246,7 +246,7 @@ struct RasterizerCG {
         }
         return Ra::Color(b, g, r, a);
     }
-    static Ra::Color colorantFromCG(CGColorRef color) {
+    static Ra::Color colorFromCG(CGColorRef color) {
         size_t count = CGColorGetNumberOfComponents(color);
         const CGFloat *components = CGColorGetComponents(color);
         return colorFromComponents(components, count);

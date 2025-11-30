@@ -521,23 +521,23 @@ struct Rasterizer {
     struct Scene {
         enum Flags { kInvisible = 1 << 0, kFillEvenOdd = 1 << 1, kRoundCap = 1 << 2, kSquareCap = 1 << 3, kRoundJoin = 1 << 4 };
 
-        void addPath(const Path& path, const Transform& ctm, const Paint& color, float width, uint8_t flag, Bounds *clipBounds = nullptr, Path *clipPath = nullptr) {
+        void addPath(const Path& path, const Transform& ctm, const Paint& paint, float width, uint8_t flag, Bounds *clipBounds = nullptr, Path *clipPath = nullptr) {
             if (path->isValid()) {
                 Geometry *g = path.ptr;
                 count++, weight += g->types.end;
                 if (kMoleculesHeight && g->p16s.end == 0)
                     P16Writer().writeGeometry(g);
                 
-                if (color.isGradient()) {
+                if (paint.isGradient()) {
                     gradientIndices.add(gradients.end());
                     Color strip[kColorTextureWidth];
-                    color.writeGradientStrip(strip, kColorTextureWidth);
+                    paint.writeGradientStrip(strip, kColorTextureWidth);
                     gradients.add(strip, kColorTextureWidth);
                 } else {
                     gradientIndices.add(~0);
                 }
-                paints.add(color);
-                paths.add(path), bnds.add(g->bounds), ctms.add(ctm), colors.add(color.color), widths.add(width), flags.add(flag);
+                paints.add(paint);
+                paths.add(path), bnds.add(g->bounds), ctms.add(ctm), colors.add(paint.color), widths.add(width), flags.add(flag);
                 clips.add(clipBounds ? *clipBounds : Bounds::huge());
                 
                 if (clipPath && (*clipPath)->isValid()) {
