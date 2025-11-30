@@ -24,16 +24,6 @@
 
 
 struct RasterizerCG {
-    static bool isVisible(Ra::Bounds user, Ra::Transform ctm, Ra::Transform clip, Ra::Bounds deviceClip, float width) {
-        if (clip.scale() == 0)
-            return false;
-        float uw = width < 0.f ? -width / ctm.scale() : width;
-        Ra::Transform quad = user.inset(-uw, -uw).quad(ctm);
-        Ra::Bounds dev = Ra::Bounds(quad).intersect(Ra::Bounds(clip)).intersect(deviceClip);
-        Ra::Bounds soft = Ra::Bounds(quad.concat(clip.invert()));
-        return dev.lx < dev.ux && dev.ly < dev.uy && soft.lx < 1.f && soft.ux > 0.f && soft.ly < 1.f && soft.uy > 0.f;
-    }
-    
     static void renderListToBitmap(const Ra::SceneList& list, float scale, float w, float h, CGContextRef ctx) {
         memset_pattern4(CGBitmapContextGetData(ctx), & list.params.clearColor.b, CGBitmapContextGetBytesPerRow(ctx) * CGBitmapContextGetHeight(ctx));
         
@@ -135,6 +125,16 @@ struct RasterizerCG {
             CGContextRestoreGState(ctx);
             CGContextRestoreGState(ctx);
         }
+    }
+    
+    static bool isVisible(Ra::Bounds user, Ra::Transform ctm, Ra::Transform clip, Ra::Bounds deviceClip, float width) {
+        if (clip.scale() == 0)
+            return false;
+        float uw = width < 0.f ? -width / ctm.scale() : width;
+        Ra::Transform quad = user.inset(-uw, -uw).quad(ctm);
+        Ra::Bounds dev = Ra::Bounds(quad).intersect(Ra::Bounds(clip)).intersect(deviceClip);
+        Ra::Bounds soft = Ra::Bounds(quad.concat(clip.invert()));
+        return dev.lx < dev.ux && dev.ly < dev.uy && soft.lx < 1.f && soft.ux > 0.f && soft.ly < 1.f && soft.uy > 0.f;
     }
     
     static void drawGradient(CGContextRef ctx, const Ra::Paint& color) {
