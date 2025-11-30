@@ -75,6 +75,19 @@ protocol RADrawable {
     func getSceneAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RAScene
 }
 
+class TestImage: RADrawable {
+    func getSceneAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RAScene {
+        let scene = RAScene()
+        if let image = NSImage(systemSymbolName: "airplane", accessibilityDescription: nil),
+           let imageRef = image.cgImage(forProposedRect: nil, context: nil, hints: nil) {
+            let color = RAColor(cgImage: imageRef)
+            let rect = CGRect(x: 0, y: 0, width: image.size.width, height: image.size.height)
+            let path = RAPath(rect: rect)
+            scene.addFill(path, ctm: .identity, color: color, evenOdd: false)
+        }
+        return scene
+    }
+}
 class TestDasher: RADrawable {
     func ellipsePerimeter(a: Double, b: Double) -> Double {
         .pi * (3 * (a + b) - sqrt((3 * a + b) * (a + 3 * b)))
@@ -259,7 +272,8 @@ class SwiftDemo: NSObject, RASceneListDelegate {
         TestQuadratics(),
         TestCubics(),
         TestGradients(),
-        TestDasher()
+        TestDasher(),
+        TestImage()
     ]
     
     var useClips = true

@@ -109,6 +109,13 @@
     return self;
 }
 
+- (nonnull id)initWithCGImage:(nonnull CGImageRef)cgImage {
+    self = [super init];
+    if (!self)
+        return nil;
+    _color = RaCG::colorFromCGImage(cgImage);
+    return self;
+}
 @end
 
 

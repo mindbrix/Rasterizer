@@ -25,6 +25,8 @@
                  locations:(nonnull NSArray<NSNumber *>*)locations
                     center:(CGPoint)center
                     radius:(double)radius;
+
+- (nonnull id)initWithCGImage:(nonnull CGImageRef)cgImage;
 @end
 
 

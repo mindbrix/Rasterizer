@@ -145,7 +145,7 @@ struct RasterizerCG {
                             if (color.isGradient())
                                 drawGradient(ctx, color);
                             else
-                                drawImage(ctx, color);
+                                drawImage(ctx, CGRectFromBounds(g->bounds), color);
                             CGContextRestoreGState(ctx);
                         } else {
                             CGContextSetRGBStrokeColor(ctx, bgra.r / 255.0, bgra.g / 255.0, bgra.b / 255.0, bgra.a / 255.0);
@@ -161,7 +161,7 @@ struct RasterizerCG {
                             if (color.isGradient())
                                 drawGradient(ctx, color);
                             else
-                                drawImage(ctx, color);
+                                drawImage(ctx, CGRectFromBounds(g->bounds), color);
                             CGContextRestoreGState(ctx);
                         } else {
                             CGContextSetRGBFillColor(ctx, bgra.r / 255.0, bgra.g / 255.0, bgra.b / 255.0, bgra.a / 255.0);
@@ -190,15 +190,15 @@ struct RasterizerCG {
             CGContextDrawLinearGradient(ctx, gradient, zero, end, options);
         CGGradientRelease(gradient);
     }
-    static void drawImage(CGContextRef ctx, const Ra::Color& color) {
+    static void drawImage(CGContextRef ctx, CGRect rect, const Ra::Color& color) {
         CGImageRef image = CGImageFromColor(color);
-        CGContextDrawImage(ctx, CGRectMake(0, 0, 1, 1), image);
+        CGContextDrawImage(ctx, rect, image);
         CGImageRelease(image);
     }
     static CGImageRef CGImageFromColor(const Ra::Color& color) {
         CGDataProviderRef provider = CGDataProviderCreateWithData(NULL, & color.stops[0], color.stops.end() * sizeof(Ra::BGRA), NULL);
         CGColorSpaceRef rgb = CGColorSpaceCreateDeviceRGB();
-        CGImageRef image = CGImageCreate(color.w, color.h, 8, 32, color.w * sizeof(Ra::BGRA), rgb, kCGImageAlphaFirst | kCGBitmapByteOrder32Host, provider,  NULL, false, kCGRenderingIntentDefault);
+        CGImageRef image = CGImageCreate(color.w, color.h, 8, 32, color.w * sizeof(Ra::BGRA), rgb, kCGImageAlphaFirst | kCGBitmapByteOrder32Little, provider, NULL, false, kCGRenderingIntentDefault);
         CGColorSpaceRelease(rgb);
         CGDataProviderRelease(provider);
         return image;
@@ -219,6 +219,20 @@ struct RasterizerCG {
         return gradient;
     }
     
+    static Ra::Color colorFromCGImage(CGImageRef image) {
+        Ra::Color color;
+        size_t width = CGImageGetWidth(image);
+        size_t height = CGImageGetHeight(image);
+        CGColorSpaceRef rgb = CGColorSpaceCreateDeviceRGB();
+        CGBitmapInfo bitmapInfo = (CGBitmapInfo)(kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little);
+        CGContextRef ctx = CGBitmapContextCreate(NULL, width, height, 8, width * sizeof(Ra::BGRA), rgb, bitmapInfo);
+        CGContextDrawImage(ctx, CGRectMake(0, 0, width, height), image);
+        auto buffer = (Ra::BGRA *)CGBitmapContextGetData(ctx);
+        color = Ra::Color(buffer, width, height, width * sizeof(Ra::BGRA));
+        CGColorSpaceRelease(rgb);
+        CGContextRelease(ctx);
+        return color;
+    }
     static Ra::BGRA colorFromComponents(const CGFloat *components, size_t count) {
         uint8_t r = 0, g = 0, b = 0, a = 255;
         if (count == 2) {
