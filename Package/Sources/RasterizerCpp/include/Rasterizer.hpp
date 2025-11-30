@@ -649,14 +649,6 @@ struct Rasterizer {
         uint32_t ic;  enum Flags { ue0 = 0xF << 28, ue1 = 0xF << 24, kMask = ~(ue0 | ue1) };
         uint16_t i0, ux;
     };
-    struct Sample {
-        struct Index {
-            uint16_t lx, i;
-            inline bool operator< (const Index& other) const { return lx < other.lx; }
-        };
-        Sample(float lx, float ux, float cover, size_t is): lx(lx), ux(ceilf(ux)), cover(int16_t(cover)), is(uint32_t(is)) {}
-        int16_t lx, ux, cover;  uint32_t is;
-    };
     struct Buffer {
         enum Type { kQuadEdges, kFastEdges, kFastMolecules, kQuadMolecules, kOpaques, kInstances, kSegmentsBase, kPointsBase, kInstancesBase, kStencils, kDisableClip, kEnableClip, kNextImage, kDisableImage };
         struct Entry {
@@ -724,6 +716,15 @@ struct Rasterizer {
         }
         Row<Pass> passes;
         Bounds full, sheet, strips[kStripCount];
+    };
+    
+    struct Sample {
+        struct Index {
+            uint16_t lx, i;
+            inline bool operator< (const Index& other) const { return lx < other.lx; }
+        };
+        Sample(float lx, float ux, float cover, size_t is): lx(lx), ux(ceilf(ux)), cover(int16_t(cover)), is(uint32_t(is)) {}
+        int16_t lx, ux, cover;  uint32_t is;
     };
     
     struct TexRef {
