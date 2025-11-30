@@ -804,7 +804,7 @@ struct Rasterizer {
                         bool isOpaque = color->isOpaque();
                         bool isGradient = list.params.showOutlines ? false : color->isGradient();
                         bool isRadial = isGradient && color->type == Color::kRadial;
-                        bool isImage = color->type == Color::kImage;
+                        bool isImage = list.params.showOutlines ? false : color->type == Color::kImage;
                         size_t colorFlags = isImage ? Instance::kIsImage : (isGradient * Instance::kIsGradient | isRadial * Instance::kIsRadial);
                         if (isGradient) {
                             texCtms[iz] = color->ctm.concat(m).invert();
