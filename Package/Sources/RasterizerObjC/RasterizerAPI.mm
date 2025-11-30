@@ -16,7 +16,7 @@
 
 #pragma mark - RAColor
 
-@implementation RAColor: NSObject
+@implementation RAPaint: NSObject
 
 - (id)initWithGray:(double)gray alpha:(double)alpha {
     self = [super init];
@@ -67,10 +67,10 @@
     return self;
 }
 
-- (id)initLinearWithColors:(NSArray<RAColor *>*)colors
-                 locations:(NSArray<NSNumber *>*)locations
-                     start:(CGPoint)start
-                       end:(CGPoint)end {
+- (nonnull id)initLinear:(NSArray<RAPaint *>*)colors
+               locations:(NSArray<NSNumber *>*)locations
+                   start:(CGPoint)start
+                     end:(CGPoint)end {
     double dx = end.x - start.x, dy = end.y - start.y;
     return [self initWithColors:colors
                       locations:locations
@@ -78,17 +78,17 @@
                        isRadial:NO];
 }
 
-- (id)initRadialWithColors:(NSArray<RAColor *>*)colors
-                 locations:(NSArray<NSNumber *>*)locations
-                    center:(CGPoint)center
-                    radius:(double)radius {
+- (id)initRadial:(NSArray<RAPaint *>*)colors
+       locations:(NSArray<NSNumber *>*)locations
+          center:(CGPoint)center
+          radius:(double)radius {
     return [self initWithColors:colors
                       locations:locations
                       transform:CGAffineTransformMake(radius, 0, 0, radius, center.x, center.y)
                        isRadial:YES];
 }
 
-- (id)initWithColors:(NSArray<RAColor *>*)colors
+- (id)initWithColors:(NSArray<RAPaint *>*)colors
                locations:(NSArray<NSNumber *>*)locations
                transform:(CGAffineTransform)transform
             isRadial:(BOOL)isRadial {
@@ -202,14 +202,14 @@
 
 - (void)addFill:(RAPath *)path
             ctm:(CGAffineTransform)ctm
-           color:(RAColor *)color
+           color:(RAPaint *)color
         evenOdd:(BOOL)evenOdd {
     [self addFill:path ctm:ctm color:color evenOdd:evenOdd clip:CGRectZero clipPath:nil];
 }
 
 - (void)addStroke:(RAPath *)path
               ctm:(CGAffineTransform)ctm
-            color:(RAColor *)color
+            color:(RAPaint *)color
             width:(double)width
          capStyle:(RACapStyle)capStyle
         joinStyle:(RAJoinStyle)joinStyle {
@@ -218,7 +218,7 @@
 
 - (void)addFill:(RAPath *)path
             ctm:(CGAffineTransform)ctm
-           color:(RAColor *)color
+           color:(RAPaint *)color
         evenOdd:(BOOL)evenOdd
            clip:(CGRect)clip
        clipPath:(RAPath *)clipPath {
@@ -231,7 +231,7 @@
 
 - (void)addStroke:(RAPath *)path
               ctm:(CGAffineTransform)ctm
-            color:(RAColor *)color
+            color:(RAPaint *)color
             width:(double)width
          capStyle:(RACapStyle)capStyle
         joinStyle:(RAJoinStyle)joinStyle

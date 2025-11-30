@@ -9,7 +9,7 @@
 #import "Rasterizer.hpp"
 
 
-@interface RAColor ()
+@interface RAPaint ()
 @property(nonatomic) Ra::Paint color;
 @end
 

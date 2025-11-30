@@ -10,21 +10,21 @@
 #import <CoreGraphics/CoreGraphics.h>
 
 
-@interface RAColor: NSObject
+@interface RAPaint: NSObject
 - (nonnull id)initWithGray:(double)gray alpha:(double)alpha;
 - (nonnull id)initWithHue:(double)hue saturation:(double)saturation value:(double)value alpha:(double)alpha;
 - (nonnull id)initWithRed:(double)red green:(double)green blue:(double)blue alpha:(double)alpha;
 - (nonnull id)initWithCGColor:(nonnull CGColorRef)cgColor;
 
-- (nonnull id)initLinearWithColors:(nonnull NSArray<RAColor *>*)colors
-                 locations:(nonnull NSArray<NSNumber *>*)locations
-                     start:(CGPoint)start
-                       end:(CGPoint)end;
+- (nonnull id)initLinear:(nonnull NSArray<RAPaint *>*)colors
+               locations:(nonnull NSArray<NSNumber *>*)locations
+                   start:(CGPoint)start
+                     end:(CGPoint)end;
 
-- (nonnull id)initRadialWithColors:(nonnull NSArray<RAColor *>*)colors
-                 locations:(nonnull NSArray<NSNumber *>*)locations
-                    center:(CGPoint)center
-                    radius:(double)radius;
+- (nonnull id)initRadial:(nonnull NSArray<RAPaint *>*)colors
+               locations:(nonnull NSArray<NSNumber *>*)locations
+                  center:(CGPoint)center
+                  radius:(double)radius;
 
 - (nonnull id)initWithCGImage:(nonnull CGImageRef)cgImage;
 @end
@@ -62,26 +62,26 @@ typedef NS_ENUM(NSUInteger, RAJoinStyle) {
 
 - (void)addFill:(nonnull RAPath *)path
             ctm:(CGAffineTransform)ctm
-           color:(nonnull RAColor *)color
+           color:(nonnull RAPaint *)color
         evenOdd:(BOOL)evenOdd;
 
 - (void)addStroke:(nonnull RAPath *)path
               ctm:(CGAffineTransform)ctm
-            color:(nonnull RAColor *)color
+            color:(nonnull RAPaint *)color
             width:(double)width
          capStyle:(RACapStyle)capStyle
         joinStyle:(RAJoinStyle)joinStyle;
 
 - (void)addFill:(nonnull RAPath *)path
             ctm:(CGAffineTransform)ctm
-           color:(nonnull RAColor *)color
+           color:(nonnull RAPaint *)color
         evenOdd:(BOOL)evenOdd
            clip:(CGRect)clip
        clipPath:(nullable RAPath *)clipPath;
 
 - (void)addStroke:(nonnull RAPath *)path
               ctm:(CGAffineTransform)ctm
-            color:(nonnull RAColor *)color
+            color:(nonnull RAPaint *)color
             width:(double)width
          capStyle:(RACapStyle)capStyle
         joinStyle:(RAJoinStyle)joinStyle
