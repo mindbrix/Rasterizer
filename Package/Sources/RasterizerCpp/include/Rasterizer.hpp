@@ -438,23 +438,23 @@ struct Rasterizer {
         }
         Row<Point16> *p16s;   Row<uint8_t> *p16cnts;  Row<Atom> *atoms;
     };
-    struct BGRA {
-        BGRA() : b(0), g(0), r(0), a(255) {}
-        BGRA(uint32_t rgba) : b((rgba >> 16) & 0xFF), g((rgba >> 8) & 0xFF), r(rgba & 0xFF), a(rgba >> 24) {};
-        BGRA(uint8_t b, uint8_t g, uint8_t r, uint8_t a) : b(b), g(g), r(r), a(a) {}
-        BGRA(BGRA c0, BGRA c1, float t) {
+    struct Color {
+        Color() : b(0), g(0), r(0), a(255) {}
+        Color(uint32_t rgba) : b((rgba >> 16) & 0xFF), g((rgba >> 8) & 0xFF), r(rgba & 0xFF), a(rgba >> 24) {};
+        Color(uint8_t b, uint8_t g, uint8_t r, uint8_t a) : b(b), g(g), r(r), a(a) {}
+        Color(Color c0, Color c1, float t) {
             float s = 1.f - t;
             b = s * c0.b + t * c1.b, g = s * c0.g + t * c1.g, r = s * c0.r + t * c1.r, a = s * c0.a + t * c1.a;
         }
         uint8_t b, g, r, a;
     };
     
-    struct Color {
+    struct Paint {
         enum Type { kColor = 0, kLinear, kRadial, kImage };
         
-        Color() {}
-        Color(BGRA color) : color(color), opaque(color.a == 255) {}
-        Color(BGRA *colorStops, float *locations, size_t count, Transform transform, bool isRadial) {
+        Paint() {}
+        Paint(Color color) : color(color), opaque(color.a == 255) {}
+        Paint(Color *colorStops, float *locations, size_t count, Transform transform, bool isRadial) {
             if (colorStops == nullptr || locations == nullptr || count < 2)
                 return;
             type = isRadial ? kRadial : kLinear;
@@ -465,12 +465,12 @@ struct Rasterizer {
             for (size_t i = 0; i < count && opaque; i++)
                 opaque = opaque && stops[i].a == 255;
         }
-        Color(BGRA *colorBuffer, size_t width, size_t height, size_t bpr) {
+        Paint(Color *colorBuffer, size_t width, size_t height, size_t bpr) {
             if (colorBuffer == nullptr || width == 0 || height == 0 || bpr == 0)
                 return;
-            assert(bpr / sizeof(BGRA) >= width);
+            assert(bpr / sizeof(Color) >= width);
             type = kImage, w = width, h = height;
-            size_t stride = bpr / sizeof(BGRA);
+            size_t stride = bpr / sizeof(Color);
             if (stride == width)
                 stops.add(colorBuffer, width * height);
             else {
@@ -488,13 +488,13 @@ struct Rasterizer {
         inline bool isImage() const {
             return type == kImage;
         }
-        void writeGradientStrip(BGRA *dst, size_t size) const {
+        void writeGradientStrip(Color *dst, size_t size) const {
             size_t count = stops.end();
             if (count == 0)
                 return;
             
             float *locations = & locs[0];
-            BGRA *colors = & stops[0];
+            Color *colors = & stops[0];
             std::sort(locations, locations + count);
             float lower = locations[0], upper = locations[count - 1];
             float t, *t0, *t1;
@@ -506,13 +506,13 @@ struct Rasterizer {
                     if (t >= *t0 && t <= *t1)
                         break;
                 t = fmaxf(0.f, fminf(1.f, (t - *t0) / (*t1 - *t0)));
-                dst[i] = BGRA(colors[loc], colors[loc + 1], t);
+                dst[i] = Color(colors[loc], colors[loc + 1], t);
             }
         }
         Type type = kColor;
         size_t refCount, w = 0, h = 0;
-        BGRA color;
-        Vector<BGRA> stops, matched = stops;
+        Color color;
+        Vector<Color> stops, matched = stops;
         Vector<float> locs;
         Transform ctm;
         bool opaque = true;
@@ -521,7 +521,7 @@ struct Rasterizer {
     struct Scene {
         enum Flags { kInvisible = 1 << 0, kFillEvenOdd = 1 << 1, kRoundCap = 1 << 2, kSquareCap = 1 << 3, kRoundJoin = 1 << 4 };
 
-        void addPath(const Path& path, const Transform& ctm, const Color& color, float width, uint8_t flag, Bounds *clipBounds = nullptr, Path *clipPath = nullptr) {
+        void addPath(const Path& path, const Transform& ctm, const Paint& color, float width, uint8_t flag, Bounds *clipBounds = nullptr, Path *clipPath = nullptr) {
             if (path->isValid()) {
                 Geometry *g = path.ptr;
                 count++, weight += g->types.end;
@@ -530,13 +530,13 @@ struct Rasterizer {
                 
                 if (color.isGradient()) {
                     gradientIndices.add(gradients.end());
-                    BGRA strip[kColorTextureWidth];
+                    Color strip[kColorTextureWidth];
                     color.writeGradientStrip(strip, kColorTextureWidth);
                     gradients.add(strip, kColorTextureWidth);
                 } else {
                     gradientIndices.add(~0);
                 }
-                _colors.add(color);
+                paints.add(color);
                 paths.add(path), bnds.add(g->bounds), ctms.add(ctm), colors.add(color.color), widths.add(width), flags.add(flag);
                 clips.add(clipBounds ? *clipBounds : Bounds::huge());
                 
@@ -573,10 +573,10 @@ struct Rasterizer {
         Vector<size_t> clipIndices;
         Vector<Bounds> bnds, clips;
         Vector<Transform> ctms;
-        RefVector<Color> _colors;
-        Vector<BGRA> colors, matchedColors = colors;
+        RefVector<Paint> paints;
+        Vector<Color> colors, matchedColors = colors;
         Vector<size_t> gradientIndices;
-        Vector<BGRA> gradients, matchedGradients = gradients;
+        Vector<Color> gradients, matchedGradients = gradients;
         Vector<float> widths;
         Vector<uint8_t> flags;
     };
@@ -584,7 +584,7 @@ struct Rasterizer {
     
     struct Params {
         bool useClips = true, useCurves = true, showOpaques = true, showOutlines = false;
-        BGRA clearColor = { 255, 255, 255, 255 };
+        Color clearColor = { 255, 255, 255, 255 };
     };
     struct SceneList {
         Bounds bounds() const {
@@ -669,7 +669,7 @@ struct Rasterizer {
             pathsCount = list.pathsCount;
             texCount = 0;
             images.resize(0);
-            size_t i, sizes[] = { sizeof(BGRA), sizeof(Transform), sizeof(Transform), sizeof(float), sizeof(Bounds), sizeof(Transform), sizeof(uint32_t) };
+            size_t i, sizes[] = { sizeof(Color), sizeof(Transform), sizeof(Transform), sizeof(float), sizeof(Bounds), sizeof(Transform), sizeof(uint32_t) };
             size_t count = sizeof(sizes) / sizeof(*sizes), base = 0, bases[count];
             for (i = 0; i < count; i++)
                 bases[i] = base, base += (pathsCount + 1) * sizes[i];
@@ -692,7 +692,7 @@ struct Rasterizer {
             }
         }
         uint8_t *base = nullptr;  Row<Entry> entries;
-        Vector<Color *> images;
+        Vector<Paint *> images;
         Params params;
         size_t colors, ctms, clips, widths, bounds, texCtms, texIdxs, texStrips;
         size_t idxs, pathsCount, texCount, headerSize, size = 0, allocation = 0;
@@ -727,9 +727,9 @@ struct Rasterizer {
     };
     
     struct TexRef {
-        TexRef(size_t iz, BGRA *strip) : iz(uint32_t(iz)), strip(strip) {}
+        TexRef(size_t iz, Color *strip) : iz(uint32_t(iz)), strip(strip) {}
         uint32_t iz;
-        BGRA *strip;
+        Color *strip;
     };
     
     struct Context {
@@ -741,7 +741,7 @@ struct Rasterizer {
                 for (int i = 0; i < fatlines; i++)
                     samples.add(Row<Sample>());
             }
-            BGRA *colors = (BGRA *)(buffer->base + buffer->colors);
+            Color *colors = (Color *)(buffer->base + buffer->colors);
             Transform *ctms = (Transform *)(buffer->base + buffer->ctms);
             Transform *clips = (Transform *)(buffer->base + buffer->clips);
             float *widths = (float *)(buffer->base + buffer->widths);
@@ -749,7 +749,7 @@ struct Rasterizer {
             Transform *texCtms = (Transform *)(buffer->base + buffer->texCtms);
             bool clipActive = false;
             
-            BGRA black(0, 0, 0, 255), red(0, 0, 255, 255);
+            Color black(0, 0, 0, 255), red(0, 0, 255, 255);
             size_t lz, uz, i, clz, cuz, iz, is, size, cnt, lastIdx = ~0, lastClipIdx = ~0;  uint8_t flags;
             float det, width, uw, softclipMargin = 0.5f;
             for (lz = uz = i = 0; i < list.scenes.size(); i++, lz = uz) {
@@ -800,11 +800,11 @@ struct Rasterizer {
                     if (clip.lx < clip.ux && clip.ly < clip.uy) {
                         bool unclipped = clip.contains(dev);
                         float clipWidth = clip.width(), clipHeight = clip.height();
-                        Color *color = & scn->_colors[is];
+                        Paint *color = & scn->paints[is];
                         bool isOpaque = color->isOpaque();
                         bool isGradient = list.params.showOutlines ? false : color->isGradient();
-                        bool isRadial = isGradient && color->type == Color::kRadial;
-                        bool isImage = list.params.showOutlines ? false : color->type == Color::kImage;
+                        bool isRadial = isGradient && color->type == Paint::kRadial;
+                        bool isImage = list.params.showOutlines ? false : color->type == Paint::kImage;
                         size_t colorFlags = isImage ? Instance::kIsImage : (isGradient * Instance::kIsGradient | isRadial * Instance::kIsRadial);
                         if (isGradient) {
                             texCtms[iz] = color->ctm.concat(m).invert();
@@ -889,7 +889,7 @@ struct Rasterizer {
         Allocator allocator;  Vector<Buffer::Entry> entries;
         Vector<Row<Point16>*> p16s;
         Vector<TexRef> texs;
-        Vector<Color *> images;
+        Vector<Paint *> images;
         Row<Opaque> opaques, stencils;  Row<Blend> blends;  Row<Instance> outlines;  Row<Segment> segments;
         Row<Sample::Index> indices;  RefVector<Row<Sample>> samples;  Row<uint32_t> segmentsIndices;
     };
@@ -1491,7 +1491,7 @@ struct Rasterizer {
         for (sz = i = 0; i < count; i++)
             sz += contexts[i].texs.end();
         buffer.texCount = sz;
-        size += sz * kColorTextureWidth * sizeof(BGRA);
+        size += sz * kColorTextureWidth * sizeof(Color);
                 
         Context *ctx = contexts;   Allocator::Pass *pass;
         for (ctx = contexts, i = 0; i < count; i++, ctx++) {
@@ -1511,7 +1511,7 @@ struct Rasterizer {
         
         buffer.texStrips = end;
         uint32_t *texIdxs = (uint32_t *)(buffer.base + buffer.texIdxs), texIdx;
-        sz = kColorTextureWidth * sizeof(BGRA);
+        sz = kColorTextureWidth * sizeof(Color);
         for (texIdx = 0, i = 0; i < count; i++)
             for (j = 0; j < contexts[i].texs.end(); j++) {
                 auto ref = contexts[i].texs[j];

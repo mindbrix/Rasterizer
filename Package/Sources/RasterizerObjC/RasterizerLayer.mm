@@ -197,12 +197,12 @@
     [colorTexture replaceRegion:MTLRegionMake2D(0, 0, w, h)
                     mipmapLevel:0
                       withBytes:buffer->base + buffer->colors
-                    bytesPerRow:w * sizeof(Ra::BGRA)];
+                    bytesPerRow:w * sizeof(Ra::Color)];
     if (th) {
         [colorTexture replaceRegion:MTLRegionMake2D(0, h, w, th)
                         mipmapLevel:0
                           withBytes:buffer->base + buffer->texStrips
-                        bytesPerRow:w * sizeof(Ra::BGRA)];
+                        bytesPerRow:w * sizeof(Ra::Color)];
     }
     id <MTLTexture> imageTexture = nil;
     
@@ -272,7 +272,7 @@
                 break;
             case Ra::Buffer::kImage: {
                 useImage = true;
-                Ra::Color *image = buffer->images[imgIndex];
+                Ra::Paint *image = buffer->images[imgIndex];
                 
                 MTLTextureDescriptor* desc = [MTLTextureDescriptor
                                               texture2DDescriptorWithPixelFormat:MTLPixelFormatBGRA8Unorm
@@ -285,7 +285,7 @@
                 [imageTexture replaceRegion:MTLRegionMake2D(0, 0, image->w, image->h)
                                 mipmapLevel:0
                                   withBytes:& image->matched[0]
-                                bytesPerRow:image->w * sizeof(Ra::BGRA)];
+                                bytesPerRow:image->w * sizeof(Ra::Color)];
 
                 imgIndex++;
                 break;

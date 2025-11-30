@@ -25,7 +25,7 @@
 
 struct RasterizerCG {
     struct Converter {
-        void matchColors(Ra::BGRA *colorants, size_t size, CGColorSpaceRef destSpace) {
+        void matchColors(Ra::Color *colorants, size_t size, CGColorSpaceRef destSpace) {
             if (colorants == nullptr || size == 0 || destSpace == nil)
                 return;
             if (dstSpace != destSpace) {
@@ -121,7 +121,7 @@ struct RasterizerCG {
                     }
                     CGContextConcatCTM(ctx, CGFromTransform(t));
                     writePathToCGContext(g, ctx);
-                    const auto& color = scn._colors[i];
+                    const auto& color = scn.paints[i];
                     const auto bgra = color.color;
                     if (list.params.showOutlines) {
                         CGContextSetLineWidth(ctx, (CGFloat)-109.05473e+14);
@@ -179,31 +179,31 @@ struct RasterizerCG {
         }
     }
     
-    static void drawGradient(CGContextRef ctx, const Ra::Color& color) {
+    static void drawGradient(CGContextRef ctx, const Ra::Paint& color) {
         CGGradientRef gradient = CGGradientFromColor(color);
         CGPoint zero = CGPointMake(0.0, 0.0), end = CGPointMake(0.0, 1.0);
         auto options = kCGGradientDrawsBeforeStartLocation | kCGGradientDrawsAfterEndLocation;
         CGContextConcatCTM(ctx, CGFromTransform(color.ctm));
-        if (color.type == Ra::Color::kRadial)
+        if (color.type == Ra::Paint::kRadial)
             CGContextDrawRadialGradient(ctx, gradient, zero, 0, zero, 1, options);
         else
             CGContextDrawLinearGradient(ctx, gradient, zero, end, options);
         CGGradientRelease(gradient);
     }
-    static void drawImage(CGContextRef ctx, CGRect rect, const Ra::Color& color) {
+    static void drawImage(CGContextRef ctx, CGRect rect, const Ra::Paint& color) {
         CGImageRef image = CGImageFromColor(color);
         CGContextDrawImage(ctx, rect, image);
         CGImageRelease(image);
     }
-    static CGImageRef CGImageFromColor(const Ra::Color& color) {
-        CGDataProviderRef provider = CGDataProviderCreateWithData(NULL, & color.stops[0], color.stops.end() * sizeof(Ra::BGRA), NULL);
+    static CGImageRef CGImageFromColor(const Ra::Paint& color) {
+        CGDataProviderRef provider = CGDataProviderCreateWithData(NULL, & color.stops[0], color.stops.end() * sizeof(Ra::Color), NULL);
         CGColorSpaceRef rgb = CGColorSpaceCreateDeviceRGB();
-        CGImageRef image = CGImageCreate(color.w, color.h, 8, 32, color.w * sizeof(Ra::BGRA), rgb, kCGImageAlphaFirst | kCGBitmapByteOrder32Little, provider, NULL, false, kCGRenderingIntentDefault);
+        CGImageRef image = CGImageCreate(color.w, color.h, 8, 32, color.w * sizeof(Ra::Color), rgb, kCGImageAlphaFirst | kCGBitmapByteOrder32Little, provider, NULL, false, kCGRenderingIntentDefault);
         CGColorSpaceRelease(rgb);
         CGDataProviderRelease(provider);
         return image;
     }
-    static CGGradientRef CGGradientFromColor(Ra::Color color) {
+    static CGGradientRef CGGradientFromColor(Ra::Paint color) {
         size_t count = color.stops.end();
         auto stop = & color.stops[0];
         Ra::Vector<CGFloat> components(4 * count);
@@ -219,21 +219,21 @@ struct RasterizerCG {
         return gradient;
     }
     
-    static Ra::Color colorFromCGImage(CGImageRef image) {
-        Ra::Color color;
+    static Ra::Paint colorFromCGImage(CGImageRef image) {
+        Ra::Paint color;
         size_t width = CGImageGetWidth(image);
         size_t height = CGImageGetHeight(image);
         CGColorSpaceRef rgb = CGColorSpaceCreateDeviceRGB();
         CGBitmapInfo bitmapInfo = (CGBitmapInfo)(kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little);
-        CGContextRef ctx = CGBitmapContextCreate(NULL, width, height, 8, width * sizeof(Ra::BGRA), rgb, bitmapInfo);
+        CGContextRef ctx = CGBitmapContextCreate(NULL, width, height, 8, width * sizeof(Ra::Color), rgb, bitmapInfo);
         CGContextDrawImage(ctx, CGRectMake(0, 0, width, height), image);
-        auto buffer = (Ra::BGRA *)CGBitmapContextGetData(ctx);
-        color = Ra::Color(buffer, width, height, width * sizeof(Ra::BGRA));
+        auto buffer = (Ra::Color *)CGBitmapContextGetData(ctx);
+        color = Ra::Paint(buffer, width, height, width * sizeof(Ra::Color));
         CGColorSpaceRelease(rgb);
         CGContextRelease(ctx);
         return color;
     }
-    static Ra::BGRA colorFromComponents(const CGFloat *components, size_t count) {
+    static Ra::Color colorFromComponents(const CGFloat *components, size_t count) {
         uint8_t r = 0, g = 0, b = 0, a = 255;
         if (count == 2) {
             r = g = b = 255 * components[0];
@@ -244,14 +244,14 @@ struct RasterizerCG {
             b = 255 * components[2];
             a = 255 * components[3];
         }
-        return Ra::BGRA(b, g, r, a);
+        return Ra::Color(b, g, r, a);
     }
-    static Ra::BGRA colorantFromCG(CGColorRef color) {
+    static Ra::Color colorantFromCG(CGColorRef color) {
         size_t count = CGColorGetNumberOfComponents(color);
         const CGFloat *components = CGColorGetComponents(color);
         return colorFromComponents(components, count);
     }
-    static CGColorRef CGColorCreateFromColorant(Ra::BGRA color) {
+    static CGColorRef CGColorCreateFromColorant(Ra::Color color) {
         return CGColorCreateGenericRGB(color.r / 255.0, color.g / 255.0, color.b / 255.0, color.a / 255.0);
     }
     static Ra::Transform transformFromCG(CGAffineTransform t) {

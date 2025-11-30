@@ -177,7 +177,7 @@ struct RasterizerDemo {
         for (size_t i = 0; i < kHudItemCount; i++) {
             HudItem& item = hudItems[i];
             uy = text.uy - i * lineHeight;
-            Ra::BGRA color = textColor;
+            Ra::Color color = textColor;
             if (  (*item.key == '0')
                 || (*item.key == 'A' && animating)
                 || (*item.key == 'G' && showGlyphGrid)
@@ -253,7 +253,7 @@ struct RasterizerDemo {
                 const Ra::Transform& ctm = scene->ctms[i1];
                 const float width = scene->widths[i1];
                 auto flags = scene->flags[i1];
-                Ra::BGRA red(0, 0, 255, 255);
+                Ra::Color red(0, 0, 255, 255);
                 Ra::SceneRef mouseScene;
                 mouseScene->addPath(path, ctm, red, width, flags);
                 draw.addScene(mouseScene, list.ctms[i0], list.clips[i0]);
@@ -307,7 +307,7 @@ struct RasterizerDemo {
         redraw = true, clearHUD();
     }
     
-    Ra::BGRA textColor = Ra::BGRA(0, 0, 0, 255), activeColor = Ra::BGRA(0, 0, 255, 255), bgColor = Ra::BGRA(255, 255, 255, 192);
+    Ra::Color textColor = Ra::Color(0, 0, 0, 255), activeColor = Ra::Color(0, 0, 255, 255), bgColor = Ra::Color(255, 255, 255, 192);
     float fontSize = 14;
     Concentrichron concentrichron;
     Ra::SceneList list, document, pasted, text;

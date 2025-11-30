@@ -46,7 +46,7 @@ struct RasterizerRenderer {
         size_t end = buffer->entries.end == 0 ? 0 : buffer->entries.back().end;
         assert(size >= end);
         
-        auto colors = (Ra::BGRA *)(buffer->base + buffer->colors);
+        auto colors = (Ra::Color *)(buffer->base + buffer->colors);
         colors[buffer->pathsCount] = buffer->params.clearColor;
     }
     
@@ -62,7 +62,7 @@ struct RasterizerRenderer {
                 converter.matchColors(& scene.matchedGradients[0], scene.matchedGradients.end(), destSpace);
             }
             for (size_t j = 0; j < scene.count; j++) {
-                auto& color = scene._colors[j];
+                auto& color = scene.paints[j];
                 if (color.isImage() && color.stops == color.matched) {
                     color.matched = color.stops.clone();
                     converter.matchColors(& color.matched[0], color.matched.end(), destSpace);

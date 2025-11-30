@@ -43,7 +43,7 @@ struct RasterizerSVG {
                 for (NSVGshape *shape = image->shapes; shape != NULL; shape = shape->next)
                     if (shape->fill.type != NSVG_PAINT_NONE)
                         writePathFromShape(shape, path);
-                scene->addPath(path, Ra::Transform(), Ra::Color(), 0.f, Ra::Scene::kFillEvenOdd);
+                scene->addPath(path, Ra::Transform(), Ra::Paint(), 0.f, Ra::Scene::kFillEvenOdd);
             } else {
                 for (NSVGshape *shape = image->shapes; shape != NULL; shape = shape->next) {
                     Ra::Path path;
@@ -96,19 +96,19 @@ struct RasterizerSVG {
         return dx * dx + dy * dy;
     }
     
-    static Ra::Color colorFromPaint(const NSVGpaint& paint) {
+    static Ra::Paint colorFromPaint(const NSVGpaint& paint) {
         if (paint.type == NSVG_PAINT_COLOR)
-            return Ra::Color(paint.color);
+            return Ra::Paint(paint.color);
         else {
             auto gradient = paint.gradient;
             size_t count = gradient->nstops;
-            Ra::Vector<Ra::BGRA> stops(count);
+            Ra::Vector<Ra::Color> stops(count);
             Ra::Vector<float> locs(count);
             for (int i = 0; i < count; i++) {
-                stops[i] = Ra::BGRA(gradient->stops[i].color);
+                stops[i] = Ra::Color(gradient->stops[i].color);
                 locs[i] = gradient->stops[i].offset;
             }
-            return Ra::Color(& stops[0], & locs[0], count, *(Ra::Transform *)gradient->xform, paint.type != NSVG_PAINT_LINEAR_GRADIENT);
+            return Ra::Paint(& stops[0], & locs[0], count, *(Ra::Transform *)gradient->xform, paint.type != NSVG_PAINT_LINEAR_GRADIENT);
         }
     }
 };

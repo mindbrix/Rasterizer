@@ -22,7 +22,7 @@
     self = [super init];
     if (!self)
         return nil;
-    _color = Ra::BGRA(gray * 255, gray * 255, gray * 255, alpha * 255);
+    _color = Ra::Color(gray * 255, gray * 255, gray * 255, alpha * 255);
     return self;
 }
 
@@ -47,7 +47,7 @@
         r = X, g = 0.0, b = C;
     else
         r = C, g = 0.0, b = X;
-    _color = Ra::BGRA((b + m) * 255, (g + m) * 255, (r + m) * 255, alpha * 255);
+    _color = Ra::Color((b + m) * 255, (g + m) * 255, (r + m) * 255, alpha * 255);
     return self;
 }
 
@@ -55,7 +55,7 @@
     self = [super init];
     if (!self)
         return nil;
-    _color = Ra::BGRA(blue * 255, green * 255, red * 255, alpha * 255);
+    _color = Ra::Color(blue * 255, green * 255, red * 255, alpha * 255);
     return self;
 }
 
@@ -98,13 +98,13 @@
     if (colors.count > 1 && colors.count == locations.count) {
         NSInteger count = colors.count;
         
-        Ra::BGRA stops[count];
+        Ra::Color stops[count];
         float locs[count];
         for (NSInteger i = 0; i < count; i++) {
             stops[i] = colors[i].color.color;
             locs[i] = locations[i].floatValue;
         }
-        _color = Ra::Color(stops, locs, count, RaCG::transformFromCG(transform), isRadial);
+        _color = Ra::Paint(stops, locs, count, RaCG::transformFromCG(transform), isRadial);
     }
     return self;
 }
