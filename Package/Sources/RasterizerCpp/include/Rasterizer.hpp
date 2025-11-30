@@ -263,6 +263,7 @@ struct Rasterizer {
     };
     struct Point16 {
         enum Flags { isCurve = 1 << 15, kMask = ~isCurve };
+        Point16(float x0, float y0) : x(fmaxf(0.f, fminf(kMoleculesRange, x0))), y(fmaxf(0.f, fminf(kMoleculesRange, y0))) {}
         uint16_t x, y;
     };
     
@@ -387,6 +388,61 @@ struct Rasterizer {
         inline Segment() {}
         inline Segment(float x0, float y0, float x1, float y1, bool curve) : ix0((*((uint32_t *)& x0) & ~1) | curve), y0(y0), x1(x1), y1(y1) {}
         union { float x0; uint32_t ix0; };  float y0, x1, y1;
+    };
+    
+    struct Molecule {
+        Point16 points[5], lower, upper;
+    };
+    
+    struct MoleculeWriter: GeometryWriter {
+        void writeMolecules(Geometry *g, Row<Molecule> *dst) {
+            molecules = dst;
+            float s = kMoleculesRange / fmaxf(g->bounds.ux - g->bounds.lx, g->bounds.uy - g->bounds.ly);
+            m = Transform(s, 0.f, 0.f, s, s * -g->bounds.lx, s * -g->bounds.ly);
+            bounds = g->molecules.base;
+            cubicScale = -kCubicPrecision * (kMoleculesRange / kMoleculesHeight);
+            divideGeometry(g, m, Bounds(), true, true, *this);
+        }
+        void writeSegment(float x0, float y0, float x1, float y1) {
+            if (idx == 5) {
+                dst = molecules->alloc(1), idx = 0;
+                writeMolecule(*bounds);
+            }
+            writePoint(x0, y0);
+            if (idx == 4)
+                writePoint(x1, y1);
+        }
+        void Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
+            float mx = 0.5f * x1 + 0.25f * (x0 + x2);
+            float my = 0.5f * y1 + 0.25f * (y0 + y2);
+            writeSegment(x0, y0, mx, my);
+            writeSegment(mx, my, x2, y2);
+        }
+        void EndSubpath(float x0, float y0, float x1, float y1, bool closed) {
+            if (idx == 5)
+                writeSegment(x0, y0, x1, y1);
+            while (idx < 5)
+                writePoint(x1, y1);
+            bounds++;
+        }
+        
+        inline void writePoint(float x0, float y0) {
+            dst->points[idx++] = Point16(x0, y0);
+        }
+        inline void writeMolecule(const Bounds& b) {
+            dst->lower = Point16(
+                b.lx * m.a + b.ly * m.c + m.tx,
+                b.lx * m.b + b.ly * m.d + m.ty);
+            dst->upper = Point16(
+                b.ux * m.a + b.uy * m.c + m.tx,
+                b.ux * m.b + b.uy * m.d + m.ty);
+        }
+
+        size_t idx = 5;
+        Transform m;
+        Bounds *bounds;
+        Molecule *dst;
+        Row<Molecule> *molecules;
     };
     
     struct P16Writer: GeometryWriter {
@@ -525,8 +581,14 @@ struct Rasterizer {
             if (path->isValid()) {
                 Geometry *g = path.ptr;
                 count++, weight += g->types.end;
-                if (kMoleculesHeight && g->p16s.end == 0)
+                if (kMoleculesHeight && g->p16s.end == 0) {
                     P16Writer().writeGeometry(g);
+                    
+                    Row<Molecule> molecules;
+                    MoleculeWriter writer;
+                    writer.writeMolecules(g, & molecules);
+                    int i = 0;
+                }
                 
                 if (paint.isGradient()) {
                     gradientIndices.add(gradients.end());
