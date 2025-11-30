@@ -65,19 +65,19 @@ typedef NS_ENUM(NSUInteger, RAJoinStyle) {
            color:(nonnull RAColor *)color
         evenOdd:(BOOL)evenOdd;
 
-- (void)addFill:(nonnull RAPath *)path
-            ctm:(CGAffineTransform)ctm
-           color:(nonnull RAColor *)color
-        evenOdd:(BOOL)evenOdd
-           clip:(CGRect)clip
-       clipPath:(nullable RAPath *)clipPath;
-
 - (void)addStroke:(nonnull RAPath *)path
               ctm:(CGAffineTransform)ctm
             color:(nonnull RAColor *)color
             width:(double)width
          capStyle:(RACapStyle)capStyle
         joinStyle:(RAJoinStyle)joinStyle;
+
+- (void)addFill:(nonnull RAPath *)path
+            ctm:(CGAffineTransform)ctm
+           color:(nonnull RAColor *)color
+        evenOdd:(BOOL)evenOdd
+           clip:(CGRect)clip
+       clipPath:(nullable RAPath *)clipPath;
 
 - (void)addStroke:(nonnull RAPath *)path
               ctm:(CGAffineTransform)ctm

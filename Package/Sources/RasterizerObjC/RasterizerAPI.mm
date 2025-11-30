@@ -207,6 +207,15 @@
     [self addFill:path ctm:ctm color:color evenOdd:evenOdd clip:CGRectZero clipPath:nil];
 }
 
+- (void)addStroke:(RAPath *)path
+              ctm:(CGAffineTransform)ctm
+            color:(RAColor *)color
+            width:(double)width
+         capStyle:(RACapStyle)capStyle
+        joinStyle:(RAJoinStyle)joinStyle {
+    [self addStroke:path ctm:ctm color:color width:width capStyle:capStyle joinStyle:joinStyle clip:CGRectZero clipPath:nil];
+}
+
 - (void)addFill:(RAPath *)path
             ctm:(CGAffineTransform)ctm
            color:(RAColor *)color
@@ -218,15 +227,6 @@
     auto m = RaCG::transformFromCG(ctm);
     Ra::Path clp = clipPath != nil ? clipPath.path : Ra::Path();
     _scene->addPath(p, m, color.color, 0, evenOdd ? Ra::Scene::kFillEvenOdd : 0, & clipBounds, clipPath != nil ? & clp : nullptr);
-}
-
-- (void)addStroke:(RAPath *)path
-              ctm:(CGAffineTransform)ctm
-            color:(RAColor *)color
-            width:(double)width
-         capStyle:(RACapStyle)capStyle
-        joinStyle:(RAJoinStyle)joinStyle {
-    [self addStroke:path ctm:ctm color:color width:width capStyle:capStyle joinStyle:joinStyle clip:CGRectZero clipPath:nil];
 }
 
 - (void)addStroke:(RAPath *)path
