@@ -69,9 +69,9 @@ struct Opaque {
 struct Instance {
     enum Flags {
         kRoundJoin = 1 << 21,   kStencil = 1 << 21,
-        kIsRadial = 1 << 22,
-        kIsGradient = 1 << 23,
-        kIsCurve = 1 << 24,
+        kIsRadial = 1 << 22,    kDisableImage = 1 << 22,
+        kIsGradient = 1 << 23,  kNextImage = 1 << 23,
+        kIsImage = 1 << 24,     kIsCurve = 1 << 24,
         kMolecule = 1 << 25,    kPCap = 1 << 25,
         kFastEdges = 1 << 26,   kNCap = 1 << 26,
         kEdge = 1 << 27,        kF0 = 1 << 27,
@@ -90,7 +90,7 @@ struct Edge {
 };
 
 struct Params {
-    bool useCurves, showOpaques, showOutlines;
+    bool useClips, useCurves, showOpaques, showOutlines;
     Colorant clearColor;
 };
 
@@ -549,6 +549,7 @@ vertex InstancesVertex instances_vertex_main(
     uint iz = inst.iz & kPathIndexMask, flags = inst.iz & Instance::kFragmentMask;
     const bool isGradient = inst.iz & Instance::kIsGradient;
     const bool isRadial = inst.iz & Instance::kIsRadial;
+    const bool isImage = inst.iz & Instance::kIsImage;
     
     const device Transform& clip = clips[iz];
     const device Transform& texCtm = texCtms[iz];
@@ -646,7 +647,7 @@ vertex InstancesVertex instances_vertex_main(
     float x = dx / *width * 2.0 - 1.0, y = dy / *height * 2.0 - 1.0;
     float z = kDepthRange * float(iz + 1) / float(*pathCount);
     vert.position = float4(x, y, z, 1.0);
-    vert.clip = float2(dx * clip.a + dy * clip.c + clip.tx, dx * clip.b + dy * clip.d + clip.ty);
+    vert.clip = params->useClips ? float2(dx * clip.a + dy * clip.c + clip.tx, dx * clip.b + dy * clip.d + clip.ty) : 0.5;
     vert.alpha = alpha;
     vert.iz = iz | flags;
     
@@ -655,6 +656,10 @@ vertex InstancesVertex instances_vertex_main(
         vert.tex.x = dx * texCtm.b + dy * texCtm.d + texCtm.ty;
         vert.tex.y = (0.5 + (th + texIdxs[iz])) / float(th + *texCount);
         vert.tex.z = isRadial ? dx * texCtm.a + dy * texCtm.c + texCtm.tx : 0;
+    } else if (isImage) {
+        vert.tex.x = dx * texCtm.a + dy * texCtm.c + texCtm.tx;
+        vert.tex.y = 1.0 - (dx * texCtm.b + dy * texCtm.d + texCtm.ty);
+        vert.tex.z = 0.0;
     } else {
         vert.tex.x = (0.5 + (iz % tw)) / float(tw);
         vert.tex.y = (0.5 + (iz / tw)) / float(th + *texCount);

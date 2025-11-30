@@ -75,6 +75,19 @@ protocol RADrawable {
     func getSceneAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RAScene
 }
 
+class TestImage: RADrawable {
+    func getSceneAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RAScene {
+        let scene = RAScene()
+        if let image = NSImage(systemSymbolName: "airplane", accessibilityDescription: nil),
+           let imageRef = image.cgImage(forProposedRect: nil, context: nil, hints: nil) {
+            let color = RAPaint(cgImage: imageRef)
+            let rect = CGRect(x: 0, y: 0, width: image.size.width, height: image.size.height)
+            let path = RAPath(rect: rect)
+            scene.addFill(path, ctm: .identity, color: color, evenOdd: false)
+        }
+        return scene
+    }
+}
 class TestDasher: RADrawable {
     func ellipsePerimeter(a: Double, b: Double) -> Double {
         .pi * (3 * (a + b) - sqrt((3 * a + b) * (a + 3 * b)))
@@ -105,7 +118,7 @@ class TestDasher: RADrawable {
         let scene = RAScene()
         scene.addStroke(dashed,
                         ctm: .identity,
-                        color: RAColor(),
+                        color: RAPaint(),
                         width: width,
                         capStyle: capStyle,
                         joinStyle: .joinRound,
@@ -115,28 +128,28 @@ class TestDasher: RADrawable {
     }
 }
 class TestGradients: RADrawable {
-    static func gradientForBounds(_ bounds: CGRect, isRadial: Bool) -> RAColor {
-        let colors: [RAColor] = [
-            RAColor(red: 1, green: 0, blue: 0, alpha: 1),
-            RAColor(red: 0, green: 1, blue: 0, alpha: 1),
-            RAColor(red: 0, green: 0, blue: 1, alpha: 1)
+    static func gradientForBounds(_ bounds: CGRect, isRadial: Bool) -> RAPaint {
+        let colors: [RAPaint] = [
+            RAPaint(red: 1, green: 0, blue: 0, alpha: 1),
+            RAPaint(red: 0, green: 1, blue: 0, alpha: 1),
+            RAPaint(red: 0, green: 0, blue: 1, alpha: 1)
         ]
         let locations: [NSNumber] = [ 0, 0.5, 1 ]
         if isRadial {
             let center = CGPoint(x: bounds.midX, y: bounds.midY)
             let radius = 0.5 * min(bounds.width, bounds.height)
-            return RAColor(radialWith: colors, locations: locations, center: center, radius: radius)
+            return RAPaint(radial: colors, locations: locations, center: center, radius: radius)
         } else {
             let start = CGPoint(x: bounds.minX, y: bounds.minY)
             let end = CGPoint(x: bounds.maxX, y: bounds.minY)
-            return RAColor(linearWith: colors, locations: locations, start: start, end: end)
+            return RAPaint(linear: colors, locations: locations, start: start, end: end)
         }
     }
     
     func getSceneAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RAScene {
         let inset = 40.0
         let b = bounds.insetBy(dx: inset, dy: inset)
-        let clipPath = state.useRect ? RAPath(rect: b) : RAPath(ellipse: b)
+//        let clipPath = state.useRect ? RAPath(rect: b) : RAPath(ellipse: b)
         
         let gradient = Self.gradientForBounds(bounds, isRadial: !state.useRect)
         
@@ -144,8 +157,8 @@ class TestGradients: RADrawable {
         let ellipse = RAPath(ellipse: bounds)
         
         let scene = RAScene()
-        scene.addFill(rect, ctm: .identity, color: gradient, evenOdd: false, clip: .zero, clipPath: state.clip ? RAPath(rect: b) : nil)
-        scene.addFill(ellipse, ctm: .identity, color: RAColor(gray: 1, alpha: 1), evenOdd: false, clip: .zero, clipPath: state.clip ? RAPath(ellipse: b) : nil)
+        scene.addFill(rect, ctm: .identity, color: gradient, evenOdd: false, clip: .zero, clipPath: RAPath(rect: b))
+        scene.addFill(ellipse, ctm: .identity, color: RAPaint(gray: 1, alpha: 1), evenOdd: false, clip: .zero, clipPath: RAPath(ellipse: b))
         
         return scene
     }
@@ -160,7 +173,7 @@ class TestQuadratics: RADrawable {
         let ts = 1 * time
         let t = ts - floor(ts)
         let sine = sin(t * 2 * Double.pi)
-        let color = RAColor(gray: 0, alpha: 1)
+        let color = RAPaint(gray: 0, alpha: 1)
         
         let path = RAPath()
         path.move(to: 0, y: 0)
@@ -197,7 +210,7 @@ class TestCubics: RADrawable {
         let path = getPathAtTime(time, bounds: bounds, state: state)
         
         let scene = RAScene()
-        scene.addFill(path, ctm: .identity, color: RAColor(gray: 0, alpha: 1), evenOdd: true)
+        scene.addFill(path, ctm: .identity, color: RAPaint(gray: 0, alpha: 1), evenOdd: true)
         return scene
     }
 }
@@ -226,12 +239,12 @@ class Test0: RADrawable {
         for i in 0 ..< count {
             let tl = ts + Double(i) / Double(count)
             let ti = tl - floor(tl)
-            let colors: [RAColor] = [
-                RAColor(hue: ti, saturation: 1, value: 1, alpha: 1),
-                RAColor(gray: 0, alpha: 1)
+            let colors: [RAPaint] = [
+                RAPaint(hue: ti, saturation: 1, value: 1, alpha: 1),
+                RAPaint(gray: 0, alpha: 1)
             ]
             let locations: [NSNumber] = [ 0, 1 ]
-            let gradient = RAColor(radialWith: colors, locations: locations, center: unitCenter, radius: 0.5)
+            let gradient = RAPaint(radial: colors, locations: locations, center: unitCenter, radius: 0.5)
             let radial = CGPoint(center: center, r: r0, theta: ti * 2 * Double.pi)
             
             let ctm = CGAffineTransform(
@@ -259,10 +272,11 @@ class SwiftDemo: NSObject, RASceneListDelegate {
         TestQuadratics(),
         TestCubics(),
         TestGradients(),
-        TestDasher()
+        TestDasher(),
+        TestImage()
     ]
     
-    var clip = false
+    var useClips = true
     var index = 0
     var flag = false
     var paused = false
@@ -287,6 +301,8 @@ class SwiftDemo: NSObject, RASceneListDelegate {
                 index = min(drawables.count - 1, i)
             case "a":
                 flag.toggle()
+            case "b":
+                useClips.toggle()
             case "c":
                 useCurves.toggle()
             case "f":
@@ -299,8 +315,6 @@ class SwiftDemo: NSObject, RASceneListDelegate {
                 paused.toggle()
             case "r":
                 useRect.toggle()
-            case "u":
-                clip.toggle()
             case "v":
                 if (flags.contains(.command)) {
                     let objects = NSPasteboard.general.readObjects(forClasses: [NSAttributedString.self])
@@ -341,6 +355,7 @@ class SwiftDemo: NSObject, RASceneListDelegate {
             )
         }
         list.ctm = ctm
+        list.useClips = useClips;
         list.useCurves = useCurves
         list.showOpaques = showOpaques
         list.showOutlines = showOutlines

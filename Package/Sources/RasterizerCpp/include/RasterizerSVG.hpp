@@ -53,7 +53,7 @@ struct RasterizerSVG {
                     Ra::Transform ctm;
                     if (shape->fill.type != NSVG_PAINT_NONE) {
                         int flags = shape->fillRule == NSVG_FILLRULE_EVENODD ? Ra::Scene::kFillEvenOdd : 0;
-                        scene->addPath(path, ctm, colorFromPaint(shape->fill), 0.f, flags);
+                        scene->addPath(path, ctm, paintFromPaint(shape->fill), 0.f, flags);
                     }
                     if (shape->stroke.type != NSVG_PAINT_NONE && shape->strokeWidth) {
                         if (shape->strokeDashCount) {
@@ -63,7 +63,7 @@ struct RasterizerSVG {
                         int flags = cap == NSVG_CAP_ROUND ? Ra::Scene::kRoundCap : cap == NSVG_CAP_SQUARE ? Ra::Scene::kSquareCap : 0;
                         char join = shape->strokeLineJoin;
                         flags |= join == NSVG_JOIN_ROUND ? Ra::Scene::kRoundJoin : 0;
-                        scene->addPath(path, ctm, colorFromPaint(shape->stroke), shape->strokeWidth, flags);
+                        scene->addPath(path, ctm, paintFromPaint(shape->stroke), shape->strokeWidth, flags);
                     }
                 }
             }
@@ -96,19 +96,19 @@ struct RasterizerSVG {
         return dx * dx + dy * dy;
     }
     
-    static Ra::Color colorFromPaint(const NSVGpaint& paint) {
+    static Ra::Paint paintFromPaint(const NSVGpaint& paint) {
         if (paint.type == NSVG_PAINT_COLOR)
-            return Ra::Color(paint.color);
+            return Ra::Paint(paint.color);
         else {
             auto gradient = paint.gradient;
             size_t count = gradient->nstops;
-            Ra::Vector<Ra::BGRA> stops(count);
+            Ra::Vector<Ra::Color> stops(count);
             Ra::Vector<float> locs(count);
             for (int i = 0; i < count; i++) {
-                stops[i] = Ra::BGRA(gradient->stops[i].color);
+                stops[i] = Ra::Color(gradient->stops[i].color);
                 locs[i] = gradient->stops[i].offset;
             }
-            return Ra::Color(& stops[0], & locs[0], count, *(Ra::Transform *)gradient->xform, paint.type != NSVG_PAINT_LINEAR_GRADIENT);
+            return Ra::Paint(& stops[0], & locs[0], count, *(Ra::Transform *)gradient->xform, paint.type != NSVG_PAINT_LINEAR_GRADIENT);
         }
     }
 };

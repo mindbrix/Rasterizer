@@ -16,13 +16,13 @@
 
 #pragma mark - RAColor
 
-@implementation RAColor: NSObject
+@implementation RAPaint: NSObject
 
 - (id)initWithGray:(double)gray alpha:(double)alpha {
     self = [super init];
     if (!self)
         return nil;
-    _color = Ra::BGRA(gray * 255, gray * 255, gray * 255, alpha * 255);
+    _paint = Ra::Color(gray * 255, gray * 255, gray * 255, alpha * 255);
     return self;
 }
 
@@ -47,7 +47,7 @@
         r = X, g = 0.0, b = C;
     else
         r = C, g = 0.0, b = X;
-    _color = Ra::BGRA((b + m) * 255, (g + m) * 255, (r + m) * 255, alpha * 255);
+    _paint = Ra::Color((b + m) * 255, (g + m) * 255, (r + m) * 255, alpha * 255);
     return self;
 }
 
@@ -55,7 +55,7 @@
     self = [super init];
     if (!self)
         return nil;
-    _color = Ra::BGRA(blue * 255, green * 255, red * 255, alpha * 255);
+    _paint = Ra::Color(blue * 255, green * 255, red * 255, alpha * 255);
     return self;
 }
 
@@ -63,14 +63,14 @@
     self = [super init];
     if (!self)
         return nil;
-    _color = RaCG::colorantFromCG(cgColor);
+    _paint = RaCG::colorFromCG(cgColor);
     return self;
 }
 
-- (id)initLinearWithColors:(NSArray<RAColor *>*)colors
-                 locations:(NSArray<NSNumber *>*)locations
-                     start:(CGPoint)start
-                       end:(CGPoint)end {
+- (nonnull id)initLinear:(NSArray<RAPaint *>*)colors
+               locations:(NSArray<NSNumber *>*)locations
+                   start:(CGPoint)start
+                     end:(CGPoint)end {
     double dx = end.x - start.x, dy = end.y - start.y;
     return [self initWithColors:colors
                       locations:locations
@@ -78,17 +78,17 @@
                        isRadial:NO];
 }
 
-- (id)initRadialWithColors:(NSArray<RAColor *>*)colors
-                 locations:(NSArray<NSNumber *>*)locations
-                    center:(CGPoint)center
-                    radius:(double)radius {
+- (id)initRadial:(NSArray<RAPaint *>*)colors
+       locations:(NSArray<NSNumber *>*)locations
+          center:(CGPoint)center
+          radius:(double)radius {
     return [self initWithColors:colors
                       locations:locations
                       transform:CGAffineTransformMake(radius, 0, 0, radius, center.x, center.y)
                        isRadial:YES];
 }
 
-- (id)initWithColors:(NSArray<RAColor *>*)colors
+- (id)initWithColors:(NSArray<RAPaint *>*)colors
                locations:(NSArray<NSNumber *>*)locations
                transform:(CGAffineTransform)transform
             isRadial:(BOOL)isRadial {
@@ -98,17 +98,24 @@
     if (colors.count > 1 && colors.count == locations.count) {
         NSInteger count = colors.count;
         
-        Ra::BGRA stops[count];
+        Ra::Color stops[count];
         float locs[count];
         for (NSInteger i = 0; i < count; i++) {
-            stops[i] = colors[i].color.colorant;
+            stops[i] = colors[i].paint.color;
             locs[i] = locations[i].floatValue;
         }
-        _color = Ra::Color(stops, locs, count, RaCG::transformFromCG(transform), isRadial);
+        _paint = Ra::Paint(stops, locs, count, RaCG::transformFromCG(transform), isRadial);
     }
     return self;
 }
 
+- (nonnull id)initWithCGImage:(nonnull CGImageRef)cgImage {
+    self = [super init];
+    if (!self)
+        return nil;
+    _paint = RaCG::paintFromCGImage(cgImage);
+    return self;
+}
 @end
 
 
@@ -170,7 +177,7 @@
 }
 
 - (RAPath *)dashedCopyWithPhase:(double)phase
-                  lengths:(NSArray<NSNumber *>*)lengths {
+                        lengths:(NSArray<NSNumber *>*)lengths {
     NSInteger count = lengths.count;
     if (count < 2)
         return self;
@@ -193,48 +200,49 @@
     return RaCG::CGRectFromBounds(_scene->bounds());
 }
 
-- (void)addFill:(nonnull RAPath *)path
+- (void)addFill:(RAPath *)path
             ctm:(CGAffineTransform)ctm
-           color:(nonnull RAColor *)color
+           color:(RAPaint *)color
         evenOdd:(BOOL)evenOdd {
     [self addFill:path ctm:ctm color:color evenOdd:evenOdd clip:CGRectZero clipPath:nil];
 }
 
-- (void)addFill:(RAPath *)path
-            ctm:(CGAffineTransform)ctm
-           color:(RAColor *)color
-        evenOdd:(BOOL)evenOdd
-           clip:(CGRect)clip
-       clipPath:(nullable RAPath *)clipPath {
-    Ra::Path p = path.path;
-    Ra::Bounds clipBounds = CGRectIsNull(clip) || CGRectIsEmpty(clip) || CGRectIsInfinite(clip) ? Ra::Bounds::huge() : RaCG::BoundsFromCGRect(clip);
-    auto m = RaCG::transformFromCG(ctm);
-    Ra::Path clp = clipPath != nil ? clipPath.path : Ra::Path();
-    _scene->addFill(p, m, color.color, evenOdd, & clipBounds, clipPath != nil ? & clp : nullptr);
-    
-}
-
-- (void)addStroke:(nonnull RAPath *)path
+- (void)addStroke:(RAPath *)path
               ctm:(CGAffineTransform)ctm
-            color:(nonnull RAColor *)color
+            color:(RAPaint *)color
             width:(double)width
          capStyle:(RACapStyle)capStyle
         joinStyle:(RAJoinStyle)joinStyle {
     [self addStroke:path ctm:ctm color:color width:width capStyle:capStyle joinStyle:joinStyle clip:CGRectZero clipPath:nil];
 }
 
-- (void)addStroke:(nonnull RAPath *)path
+- (void)addFill:(RAPath *)path
+            ctm:(CGAffineTransform)ctm
+           color:(RAPaint *)color
+        evenOdd:(BOOL)evenOdd
+           clip:(CGRect)clip
+       clipPath:(RAPath *)clipPath {
+    Ra::Path p = path.path;
+    Ra::Bounds clipBounds = CGRectIsNull(clip) || CGRectIsEmpty(clip) || CGRectIsInfinite(clip) ? Ra::Bounds::huge() : RaCG::BoundsFromCGRect(clip);
+    auto m = RaCG::transformFromCG(ctm);
+    Ra::Path clp = clipPath != nil ? clipPath.path : Ra::Path();
+    _scene->addPath(p, m, color.paint, 0, evenOdd ? Ra::Scene::kFillEvenOdd : 0, & clipBounds, clipPath != nil ? & clp : nullptr);
+}
+
+- (void)addStroke:(RAPath *)path
               ctm:(CGAffineTransform)ctm
-            color:(nonnull RAColor *)color
+            color:(RAPaint *)color
             width:(double)width
          capStyle:(RACapStyle)capStyle
         joinStyle:(RAJoinStyle)joinStyle
              clip:(CGRect)clip
-         clipPath:(nullable RAPath *)clipPath {
+         clipPath:(RAPath *)clipPath {
     Ra::Path p = path.path;
     Ra::Bounds clipBounds = CGRectIsNull(clip) || CGRectIsEmpty(clip) || CGRectIsInfinite(clip) ? Ra::Bounds::huge() : RaCG::BoundsFromCGRect(clip);
     auto m = RaCG::transformFromCG(ctm);
-    _scene->addStroke(p, m, color.color, width, (Ra::Scene::CapStyle)capStyle, (Ra::Scene::JoinStyle)joinStyle, nullptr);
+    uint8_t capFlags = capStyle == kCapButt ? 0 : capStyle == kCapSquare ? Ra::Scene::kSquareCap : Ra::Scene::kRoundCap;
+    uint8_t joinFlags = joinStyle == kJoinMiter ? 0 : Ra::Scene::kRoundJoin;
+    _scene->addPath(p, m, color.paint, width, capFlags | joinFlags, & clipBounds);
 }
 
 - (CGRect)addTextLine:(NSAttributedString *)string ctm:(CGAffineTransform)ctm clip:(CGRect)clip {
@@ -262,6 +270,12 @@
 }
 - (void)setCtm:(CGAffineTransform)ctm {
     _list.ctm = RaCG::transformFromCG(ctm);
+}
+- (BOOL)useClips {
+    return _list.params.useClips;
+}
+- (void)setUseClips:(BOOL)useClips {
+    _list.params.useClips = useClips;
 }
 - (BOOL)useCurves {
     return _list.params.useCurves;

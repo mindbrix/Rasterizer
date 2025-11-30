@@ -17,11 +17,14 @@
 //  misrepresented as being the original software.
 //  3. This notice may not be removed or altered from any source distribution.
 //
+#import <CoreGraphics/CoreGraphics.h>
+#import "RasterizerMatcher.hpp"
+
 
 struct RasterizerRenderer {
     
     void renderList(const Ra::SceneList& list, float scale, float w, float h, Ra::Buffer *buffer, CGColorSpaceRef destSpace) {
-        matchColors(list, destSpace);
+        colorMatcher.matchColors(list, destSpace);
         
         Ra::Bounds device(0.f, 0.f, ceilf(scale * w), ceilf(scale * h));
         Ra::Transform retina = Ra::Transform(scale, 0.f, 0.f, scale, 0.f, 0.f);
@@ -46,22 +49,8 @@ struct RasterizerRenderer {
         size_t end = buffer->entries.end == 0 ? 0 : buffer->entries.back().end;
         assert(size >= end);
         
-        auto colors = (Ra::BGRA *)(buffer->base + buffer->colors);
+        auto colors = (Ra::Color *)(buffer->base + buffer->colors);
         colors[buffer->pathsCount] = buffer->params.clearColor;
-    }
-    
-    void matchColors(const Ra::SceneList& list, CGColorSpaceRef destSpace) {
-        for (size_t i = 0; i < list.scenes.size(); i++) {
-            auto scene = list.scenes[i];
-            if (scene->matchedColors == scene->colors) {
-                scene->matchedColors = scene->colors.clone();
-                converter.matchColors(& scene->matchedColors[0], scene->matchedColors.end(), destSpace);
-            }
-            if (scene->matchedGradients == scene->gradients && scene->gradients.end()) {
-                scene->matchedGradients = scene->gradients.clone();
-                converter.matchColors(& scene->matchedGradients[0], scene->matchedGradients.end(), destSpace);
-            }
-        }
     }
     
     void writeBalancedWeightDivisions(const Ra::SceneList& list, size_t *divisions) {
@@ -83,9 +72,12 @@ struct RasterizerRenderer {
             }
         }
     }
-    void reset() { for (auto& ctx : contexts) ctx.reset(); }
+    void reset() {
+        for (auto& ctx : contexts)
+            ctx.reset();
+    }
     
-    RaCG::Converter converter;
+    RasterizerMatcher colorMatcher;
     
     static const int kContextCount = 8;
     Ra::Context contexts[kContextCount];

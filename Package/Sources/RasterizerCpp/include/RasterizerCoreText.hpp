@@ -54,8 +54,8 @@ struct RasterizerCoreText {
         return RaCG::CGRectFromBounds(glyphs->bounds());
     }
     
-    static Ra::Bounds addCStringToSceneInRect(const char *string, const char *fontName, float fontSize, Ra::BGRA color, Ra::Bounds rect, Ra::Transform ctm, Ra::Bounds clip, Ra::SceneRef& scene) {
-        CGColorRef cgColor = RaCG::CGColorCreateFromColorant(color);
+    static Ra::Bounds addCStringToSceneInRect(const char *string, const char *fontName, float fontSize, Ra::Color color, Ra::Bounds rect, Ra::Transform ctm, Ra::Bounds clip, Ra::SceneRef& scene) {
+        CGColorRef cgColor = RaCG::CGColorCreateFromColor(color);
         CFAttributedStringRef attr = createAttributedString(string, fontName, fontSize, cgColor);
         CGRect bounds = addTextToSceneInRect(attr, RaCG::CGRectFromBounds(rect), RaCG::CGFromTransform(ctm), clip.isNull() ? CGRectNull : RaCG::CGRectFromBounds(clip), scene);
         CGColorRelease(cgColor);
@@ -82,12 +82,12 @@ struct RasterizerCoreText {
                 CGRect bounds = CTRunGetImageBounds(run, NULL, CFRangeMake(0, 0));
                 Ra::Path bgPath;
                 bgPath->addBounds(RaCG::BoundsFromCGRect(bounds));
-                Ra::BGRA bgColor = RaCG::colorantFromCG(cgBackgroundColor);
+                Ra::Color bgColor = RaCG::colorFromCG(cgBackgroundColor);
                 Ra::Transform m = RaCG::transformFromCG(CGAffineTransformTranslate(ctm, origin.x, origin.y));
                 scene->addPath(bgPath, m, bgColor, 0, 0, & clipBounds);
             }
             
-            Ra::BGRA color = RaCG::colorantFromCG(cgColor);
+            Ra::Color color = RaCG::colorFromCG(cgColor);
             for (int j = 0; j < count; j++) {
                 CGPathRef cgPath = CTFontCreatePathForGlyph(font, glyphs[j], NULL);
                 Ra::Path path;
@@ -139,7 +139,7 @@ struct RasterizerCoreText {
         return height * height / defaultLineHeight;
     }
     
-    static Ra::SceneRef writeGlyphGrid(const char *fontName, float lineHeight, Ra::BGRA color) {
+    static Ra::SceneRef writeGlyphGrid(const char *fontName, float lineHeight, Ra::Color color) {
         Ra::SceneRef scene;
         CFStringRef cfFontName = CFStringCreateWithCString(kCFAllocatorDefault, fontName, kCFStringEncodingUTF8);
         CTFontRef ctFont = CTFontCreateWithName(cfFontName, 1, NULL);

@@ -30,7 +30,7 @@ struct RasterizerDemo {
     constexpr static float kHudWidth = 240, kHudHeight = 240, kHudInset = 20, kHudBorder = 0.5;
     constexpr static size_t kHudItemCount = 11;
     
-    enum KeyCode { kA = 0, kC = 8, kF = 3, kG = 5, kH = 4, kI = 34, kL = 37, kO = 31, kP = 35, kS = 1, kT = 17, kU = 32, k1 = 18, k0 = 29, kMinus = 27, kPlus = 24 };
+    enum KeyCode { kA = 0, kB = 11, kC = 8, kF = 3, kG = 5, kH = 4, kI = 34, kL = 37, kO = 31, kP = 35, kS = 1, kT = 17, k1 = 18, k0 = 29, kMinus = 27, kPlus = 24 };
     enum Flags { kCapsLock = 1 << 16, kShift = 1 << 17, kControl = 1 << 18, kOption = 1 << 19, kCommand = 1 << 20, kNumericPad = 1 << 21, kHelp = 1 << 22, kFunction = 1 << 23 };
     
     struct HudItem {
@@ -40,7 +40,7 @@ struct RasterizerDemo {
     
     HudItem hudItems[kHudItemCount] = {
         HudItem("0", "Rasterizer", "Core Graphics"),
-        HudItem("A", "Animate"),
+        HudItem("B", "Clips"),
         HudItem("C", "Curves"),
         HudItem("F", "Fit bounds"),
         HudItem("G", "Glyph grid"),
@@ -70,8 +70,8 @@ struct RasterizerDemo {
             return false;
         
         bool keyUsed = false;
-        if (keyCode == KeyCode::kA)
-            animating = !animating, clock = 0.0, keyUsed = true, clearHUD();
+        if (keyCode == KeyCode::kB)
+            params.useClips = !params.useClips, keyUsed = true, clearHUD();
         else if (keyCode == KeyCode::kC)
             params.useCurves = !params.useCurves, keyUsed = true, clearHUD();
         else if (keyCode == KeyCode::kF) {
@@ -88,13 +88,8 @@ struct RasterizerDemo {
             mouseMove = !mouseMove, indices = mouseMove ? indices : Rw::IndexPair(), keyUsed = true, clearHUD();
         else if (keyCode == KeyCode::kL)
             locked = locked.i0 != INT_MAX ? Rw::IndexPair() : indices, keyUsed = true;
-        else if (keyCode == KeyCode::kS) {
-            list.ctm = ctm;
-            RaUtils::screenGrabToPDF(list, bounds), keyUsed = true;
-        }
-        else if (keyCode == KeyCode::kU) {
-            clip = !clip, keyUsed = true;
-        }
+        else if (keyCode == KeyCode::kS)
+            list.ctm = ctm, RaUtils::screenGrabToPDF(list, bounds), keyUsed = true;
         else if (keyCode == KeyCode::kT) {
             showGlyphGrid = false;
             showTime = !showTime;
@@ -180,9 +175,9 @@ struct RasterizerDemo {
         for (size_t i = 0; i < kHudItemCount; i++) {
             HudItem& item = hudItems[i];
             uy = text.uy - i * lineHeight;
-            Ra::BGRA color = textColor;
+            Ra::Color color = textColor;
             if (  (*item.key == '0')
-                || (*item.key == 'A' && animating)
+                || (*item.key == 'B' && params.useClips)
                 || (*item.key == 'G' && showGlyphGrid)
                 || (*item.key == 'I' && params.showOpaques)
                 || (*item.key == 'O' && params.showOutlines)
@@ -202,8 +197,6 @@ struct RasterizerDemo {
     Ra::SceneList getDrawList(double time, float w, float h) {
         bounds = Ra::Bounds(0.f, 0.f, w, h);
         redraw = false;
-        if (animating)
-            clock += timeScale / 60.0;
         if (mouseMove) {
             list.ctm = ctm;
             indices = RasterizerWinding::indicesForPoint(list, bounds, mx, my);
@@ -256,7 +249,7 @@ struct RasterizerDemo {
                 const Ra::Transform& ctm = scene->ctms[i1];
                 const float width = scene->widths[i1];
                 auto flags = scene->flags[i1];
-                Ra::BGRA red(0, 0, 255, 255);
+                Ra::Color red(0, 0, 255, 255);
                 Ra::SceneRef mouseScene;
                 mouseScene->addPath(path, ctm, red, width, flags);
                 draw.addScene(mouseScene, list.ctms[i0], list.clips[i0]);
@@ -272,7 +265,7 @@ struct RasterizerDemo {
         return draw;
     }
     bool getShouldRedraw() const {
-        return animating || redraw || showTime;
+        return redraw || showTime;
     }
     void setFont(const char *url, const char *name, float size) {
         fontSize = size;
@@ -310,7 +303,7 @@ struct RasterizerDemo {
         redraw = true, clearHUD();
     }
     
-    Ra::BGRA textColor = Ra::BGRA(0, 0, 0, 255), activeColor = Ra::BGRA(0, 0, 255, 255), bgColor = Ra::BGRA(255, 255, 255, 192);
+    Ra::Color textColor = Ra::Color(0, 0, 0, 255), activeColor = Ra::Color(0, 0, 255, 255), bgColor = Ra::Color(255, 255, 255, 192);
     float fontSize = 14;
     Concentrichron concentrichron;
     Ra::SceneList list, document, pasted, text;
@@ -324,7 +317,7 @@ struct RasterizerDemo {
     Ra::Bounds bounds;
 
     Ra::Params params;
-    bool clip = false, gpu = true, redraw = false, fit = false, mouseDown = false, mouseMove = false, animating = false;
+    bool gpu = true, redraw = false, fit = false, mouseDown = false, mouseMove = false;
     double clock = 0.0, timeScale = 0.333;
     float mx, my;
     Rw::IndexPair indices = Rw::IndexPair(), locked = Rw::IndexPair();

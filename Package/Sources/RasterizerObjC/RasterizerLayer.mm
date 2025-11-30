@@ -197,13 +197,15 @@
     [colorTexture replaceRegion:MTLRegionMake2D(0, 0, w, h)
                     mipmapLevel:0
                       withBytes:buffer->base + buffer->colors
-                    bytesPerRow:w * sizeof(Ra::BGRA)];
+                    bytesPerRow:w * sizeof(Ra::Color)];
     if (th) {
         [colorTexture replaceRegion:MTLRegionMake2D(0, h, w, th)
                         mipmapLevel:0
                           withBytes:buffer->base + buffer->texStrips
-                        bytesPerRow:w * sizeof(Ra::BGRA)];
+                        bytesPerRow:w * sizeof(Ra::Color)];
     }
+    id <MTLTexture> imageTexture = nil;
+    
     id <MTLCommandBuffer> commandBuffer = [self.commandQueue commandBuffer];
     
     MTLRenderPassDescriptor *drawableDescriptor = [MTLRenderPassDescriptor renderPassDescriptor];
@@ -242,9 +244,10 @@
     edgesDescriptor.colorAttachments[0].loadAction = MTLLoadActionClear;
     edgesDescriptor.colorAttachments[0].clearColor = MTLClearColorMake(0, 0, 0, 0);
     
-    bool useClip = false;
+    bool useClip = false, useImage = false;
     uint32_t reverse, pathsCount = uint32_t(buffer->pathsCount), texCount = uint32_t(th);
     float width = drawable.texture.width, height = drawable.texture.height;
+    NSUInteger imgIndex = 0;
     
     for (size_t segbase = 0, ptsbase = 0, instbase = 0, i = 0; i < buffer->entries.end; i++) {
         Ra::Buffer::Entry& entry = buffer->entries.base[i];
@@ -264,6 +267,27 @@
             case Ra::Buffer::kEnableClip:
                 useClip = true;
                 break;
+            case Ra::Buffer::kDisableImage:
+                useImage = false;
+                break;
+            case Ra::Buffer::kNextImage: {
+                Ra::Paint *image = buffer->images[imgIndex];
+                MTLTextureDescriptor* desc = [MTLTextureDescriptor
+                    texture2DDescriptorWithPixelFormat:MTLPixelFormatBGRA8Unorm
+                                                 width:image->w
+                                                height:image->h
+                                             mipmapped:NO];
+                desc.storageMode = MTLStorageModeShared;
+                desc.usage = MTLTextureUsageShaderRead;
+                imageTexture = [self.device newTextureWithDescriptor:desc];
+                [imageTexture replaceRegion:MTLRegionMake2D(0, 0, image->w, image->h)
+                                mipmapLevel:0
+                                  withBytes:& image->matched[0]
+                                bytesPerRow:image->w * sizeof(Ra::Color)];
+                imgIndex++;
+                useImage = true;
+                break;
+            }
             case Ra::Buffer::kStencils:
                 [commandEncoder endEncoding];
                 commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:clipDescriptor];
@@ -354,7 +378,7 @@
                 [commandEncoder setVertexBytes:& texCount length:sizeof(texCount) atIndex:14];
                 [commandEncoder setVertexBytes:& buffer->params length:sizeof(Ra::Params) atIndex:15];
                 [commandEncoder setFragmentTexture:_accumulationTexture atIndex:0];
-                [commandEncoder setFragmentTexture:colorTexture atIndex:1];
+                [commandEncoder setFragmentTexture:useImage ? imageTexture : colorTexture atIndex:1];
                 [commandEncoder setRenderPipelineState:_instancesPipelineState];
                 [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip
                                    vertexStart:0
