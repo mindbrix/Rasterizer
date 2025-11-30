@@ -24,7 +24,7 @@
 struct RasterizerRenderer {
     
     void renderList(const Ra::SceneList& list, float scale, float w, float h, Ra::Buffer *buffer, CGColorSpaceRef destSpace) {
-        matcher.matchColors(list, destSpace);
+        colorMatcher.matchColors(list, destSpace);
         
         Ra::Bounds device(0.f, 0.f, ceilf(scale * w), ceilf(scale * h));
         Ra::Transform retina = Ra::Transform(scale, 0.f, 0.f, scale, 0.f, 0.f);
@@ -72,9 +72,12 @@ struct RasterizerRenderer {
             }
         }
     }
-    void reset() { for (auto& ctx : contexts) ctx.reset(); }
+    void reset() {
+        for (auto& ctx : contexts)
+            ctx.reset();
+    }
     
-    RasterizerMatcher matcher;
+    RasterizerMatcher colorMatcher;
     
     static const int kContextCount = 8;
     Ra::Context contexts[kContextCount];
