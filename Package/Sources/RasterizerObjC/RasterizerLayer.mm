@@ -284,7 +284,7 @@
                 imageTexture = [self.device newTextureWithDescriptor:desc];
                 [imageTexture replaceRegion:MTLRegionMake2D(0, 0, image->w, image->h)
                                 mipmapLevel:0
-                                  withBytes:& image->stops[0]
+                                  withBytes:& image->matched[0]
                                 bytesPerRow:image->w * sizeof(Ra::BGRA)];
 
                 imgIndex++;

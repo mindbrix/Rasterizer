@@ -184,7 +184,7 @@ struct Rasterizer {
         inline size_t end() const {
             return memory->end;
         }
-        inline Vector clone() {
+        inline Vector clone() const {
             auto cloned = Vector<T>();
             cloned.add(memory->addr, end());
             return cloned;
@@ -512,7 +512,7 @@ struct Rasterizer {
         Type type = kColor;
         size_t refCount, w = 0, h = 0;
         BGRA color;
-        Vector<BGRA> stops;
+        Vector<BGRA> stops, matched = stops;
         Vector<float> locs;
         Transform ctm;
         bool opaque = true;

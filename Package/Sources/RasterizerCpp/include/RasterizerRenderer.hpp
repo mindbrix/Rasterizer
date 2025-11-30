@@ -52,14 +52,21 @@ struct RasterizerRenderer {
     
     void matchColors(const Ra::SceneList& list, CGColorSpaceRef destSpace) {
         for (size_t i = 0; i < list.scenes.size(); i++) {
-            auto scene = list.scenes[i];
-            if (scene->matchedColors == scene->colors) {
-                scene->matchedColors = scene->colors.clone();
-                converter.matchColors(& scene->matchedColors[0], scene->matchedColors.end(), destSpace);
+            auto& scene = *list.scenes[i].ptr;
+            if (scene.matchedColors == scene.colors) {
+                scene.matchedColors = scene.colors.clone();
+                converter.matchColors(& scene.matchedColors[0], scene.matchedColors.end(), destSpace);
             }
-            if (scene->matchedGradients == scene->gradients && scene->gradients.end()) {
-                scene->matchedGradients = scene->gradients.clone();
-                converter.matchColors(& scene->matchedGradients[0], scene->matchedGradients.end(), destSpace);
+            if (scene.matchedGradients == scene.gradients && scene.gradients.end()) {
+                scene.matchedGradients = scene.gradients.clone();
+                converter.matchColors(& scene.matchedGradients[0], scene.matchedGradients.end(), destSpace);
+            }
+            for (size_t j = 0; j < scene.count; j++) {
+                auto& color = scene._colors[j];
+                if (color.isImage() && color.stops == color.matched) {
+                    color.matched = color.stops.clone();
+                    converter.matchColors(& color.matched[0], color.matched.end(), destSpace);
+                }
             }
         }
     }
