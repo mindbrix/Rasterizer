@@ -177,7 +177,7 @@
 }
 
 - (RAPath *)dashedCopyWithPhase:(double)phase
-                  lengths:(NSArray<NSNumber *>*)lengths {
+                        lengths:(NSArray<NSNumber *>*)lengths {
     NSInteger count = lengths.count;
     if (count < 2)
         return self;
