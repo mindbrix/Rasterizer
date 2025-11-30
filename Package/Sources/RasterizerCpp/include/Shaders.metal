@@ -41,6 +41,7 @@ struct Point16 {
     enum Flags { isCurve = 1 << 15, kMask = ~isCurve };
     uint16_t x, y;
 };
+
 struct Segment {
     union { float x0; uint32_t ix0; };  float y0, x1, y1;
 };
