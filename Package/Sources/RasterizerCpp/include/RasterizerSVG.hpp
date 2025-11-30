@@ -43,7 +43,7 @@ struct RasterizerSVG {
                 for (NSVGshape *shape = image->shapes; shape != NULL; shape = shape->next)
                     if (shape->fill.type != NSVG_PAINT_NONE)
                         writePathFromShape(shape, path);
-                scene->addPath(path, Ra::Transform(), Ra::Paint(), 0.f, Ra::Scene::kFillEvenOdd);
+                scene->addPath(path, Ra::Transform(), Ra::Color(), 0.f, Ra::Scene::kFillEvenOdd);
             } else {
                 for (NSVGshape *shape = image->shapes; shape != NULL; shape = shape->next) {
                     Ra::Path path;
@@ -53,7 +53,7 @@ struct RasterizerSVG {
                     Ra::Transform ctm;
                     if (shape->fill.type != NSVG_PAINT_NONE) {
                         int flags = shape->fillRule == NSVG_FILLRULE_EVENODD ? Ra::Scene::kFillEvenOdd : 0;
-                        scene->addPath(path, ctm, colorFromPaint(shape->fill), 0.f, flags);
+                        scene->addPath(path, ctm, paintFromPaint(shape->fill), 0.f, flags);
                     }
                     if (shape->stroke.type != NSVG_PAINT_NONE && shape->strokeWidth) {
                         if (shape->strokeDashCount) {
@@ -63,7 +63,7 @@ struct RasterizerSVG {
                         int flags = cap == NSVG_CAP_ROUND ? Ra::Scene::kRoundCap : cap == NSVG_CAP_SQUARE ? Ra::Scene::kSquareCap : 0;
                         char join = shape->strokeLineJoin;
                         flags |= join == NSVG_JOIN_ROUND ? Ra::Scene::kRoundJoin : 0;
-                        scene->addPath(path, ctm, colorFromPaint(shape->stroke), shape->strokeWidth, flags);
+                        scene->addPath(path, ctm, paintFromPaint(shape->stroke), shape->strokeWidth, flags);
                     }
                 }
             }
@@ -96,7 +96,7 @@ struct RasterizerSVG {
         return dx * dx + dy * dy;
     }
     
-    static Ra::Paint colorFromPaint(const NSVGpaint& paint) {
+    static Ra::Paint paintFromPaint(const NSVGpaint& paint) {
         if (paint.type == NSVG_PAINT_COLOR)
             return Ra::Paint(paint.color);
         else {
