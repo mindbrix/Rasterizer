@@ -34,10 +34,10 @@ struct RasterizerMatcher {
                 matchColors(& scene.matchedGradients[0], scene.matchedGradients.end(), destSpace);
             }
             for (size_t j = 0; j < scene.count; j++) {
-                auto& color = scene.paints[j];
-                if (color.isImage() && color.stops == color.matched) {
-                    color.matched = color.stops.clone();
-                    matchColors(& color.matched[0], color.matched.end(), destSpace);
+                auto& paint = scene.paints[j];
+                if (paint.isImage() && paint.colors == paint.matched) {
+                    paint.matched = paint.colors.clone();
+                    matchColors(& paint.matched[0], paint.matched.end(), destSpace);
                 }
             }
         }

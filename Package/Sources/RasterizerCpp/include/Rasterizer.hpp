@@ -458,12 +458,12 @@ struct Rasterizer {
             if (colorStops == nullptr || locations == nullptr || count < 2)
                 return;
             type = isRadial ? kRadial : kLinear;
-            stops.add(colorStops, count);
+            colors.add(colorStops, count);
             locs.add(locations, count);
             ctm = transform;
             opaque = true;
             for (size_t i = 0; i < count && opaque; i++)
-                opaque = opaque && stops[i].a == 255;
+                opaque = opaque && colors[i].a == 255;
         }
         Paint(Color *colorBuffer, size_t width, size_t height, size_t bpr) {
             if (colorBuffer == nullptr || width == 0 || height == 0 || bpr == 0)
@@ -472,10 +472,10 @@ struct Rasterizer {
             type = kImage, w = width, h = height;
             size_t stride = bpr / sizeof(Color);
             if (stride == width)
-                stops.add(colorBuffer, width * height);
+                colors.add(colorBuffer, width * height);
             else {
                 for (size_t i = 0; i < height; i++)
-                    stops.add(colorBuffer + i * stride, width);
+                    colors.add(colorBuffer + i * stride, width);
             }
             opaque = false;
         }
@@ -489,12 +489,12 @@ struct Rasterizer {
             return type == kImage;
         }
         void writeGradientStrip(Color *dst, size_t size) const {
-            size_t count = stops.end();
+            size_t count = colors.end();
             if (count == 0)
                 return;
             
             float *locations = & locs[0];
-            Color *colors = & stops[0];
+            Color *stops = & colors[0];
             std::sort(locations, locations + count);
             float lower = locations[0], upper = locations[count - 1];
             float t, *t0, *t1;
@@ -506,13 +506,13 @@ struct Rasterizer {
                     if (t >= *t0 && t <= *t1)
                         break;
                 t = fmaxf(0.f, fminf(1.f, (t - *t0) / (*t1 - *t0)));
-                dst[i] = Color(colors[loc], colors[loc + 1], t);
+                dst[i] = Color(stops[loc], stops[loc + 1], t);
             }
         }
         Type type = kColor;
         size_t refCount, w = 0, h = 0;
         Color color;
-        Vector<Color> stops, matched = stops;
+        Vector<Color> colors, matched = colors;
         Vector<float> locs;
         Transform ctm;
         bool opaque = true;

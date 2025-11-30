@@ -156,7 +156,7 @@ struct RasterizerCG {
     }
     
     static CGImageRef CGImageFromPaint(const Ra::Paint& paint) {
-        CGDataProviderRef provider = CGDataProviderCreateWithData(NULL, & paint.stops[0], paint.stops.end() * sizeof(Ra::Color), NULL);
+        CGDataProviderRef provider = CGDataProviderCreateWithData(NULL, & paint.colors[0], paint.colors.end() * sizeof(Ra::Color), NULL);
         CGColorSpaceRef rgb = CGColorSpaceCreateDeviceRGB();
         CGImageRef image = CGImageCreate(paint.w, paint.h, 8, 32, paint.w * sizeof(Ra::Color), rgb, kCGImageAlphaFirst | kCGBitmapByteOrder32Little, provider, NULL, false, kCGRenderingIntentDefault);
         CGColorSpaceRelease(rgb);
@@ -165,8 +165,8 @@ struct RasterizerCG {
     }
     
     static CGGradientRef CGGradientFromPaint(Ra::Paint paint) {
-        size_t count = paint.stops.end();
-        auto stop = & paint.stops[0];
+        size_t count = paint.colors.end();
+        auto stop = & paint.colors[0];
         Ra::Vector<CGFloat> components(4 * count);
         CGFloat *rgba = & components[0];
         for (size_t i = 0; i < count; i++, stop++)
