@@ -301,6 +301,8 @@ class SwiftDemo: NSObject, RASceneListDelegate {
                 index = min(drawables.count - 1, i)
             case "a":
                 flag.toggle()
+            case "b":
+                useClips.toggle()
             case "c":
                 useCurves.toggle()
             case "f":
@@ -313,8 +315,6 @@ class SwiftDemo: NSObject, RASceneListDelegate {
                 paused.toggle()
             case "r":
                 useRect.toggle()
-            case "u":
-                useClips.toggle()
             case "v":
                 if (flags.contains(.command)) {
                     let objects = NSPasteboard.general.readObjects(forClasses: [NSAttributedString.self])
