@@ -88,12 +88,14 @@ struct RasterizerPDF {
                 size_t lastHash = ~0;
                 float x, y;
                 FS_MATRIX m;
+                Ra::Transform ctm;
                 int objectCount = FPDFPage_CountObjects(page);
 
                 for (int i = 0; i < objectCount; i++) {
                     FPDF_PAGEOBJECT pageObject = FPDFPage_GetObject(page, i);
                     FPDFPageObj_GetMatrix(pageObject, & m);
-                        
+                    ctm = Ra::Transform(m.a, m.b, m.c, m.d, m.e, m.f);
+                    
                     size_t hash = 0;
                     FPDF_CLIPPATH clipPath = FPDFPageObj_GetClipPath(pageObject);
                     int clipCount = FPDFClipPath_CountPaths(clipPath);
@@ -124,13 +126,13 @@ struct RasterizerPDF {
                     }
                     switch (FPDFPageObj_GetType(pageObject)) {
                         case FPDF_PAGEOBJ_TEXT:
-                            writeTextToScene(pageObject, text_page, charMap, m, clipPtr, scene);
+                            writeTextToScene(pageObject, text_page, charMap, ctm, clipPtr, scene);
                             break;
                         case FPDF_PAGEOBJ_PATH:
-                            writePathToScene(pageObject, m, clipPtr, clipPaths, scene);
+                            writePathToScene(pageObject, ctm, clipPtr, clipPaths, scene);
                             break;
                         case FPDF_PAGEOBJ_IMAGE:
-                            writeImageToScene(doc, page, pageObject, m, clipPtr, clipPaths, scene);
+                            writeImageToScene(doc, page, pageObject, ctm, clipPtr, clipPaths, scene);
                             break;
                         case FPDF_PAGEOBJ_SHADING:
                             if (clipPaths.size())
@@ -161,11 +163,10 @@ struct RasterizerPDF {
         return pageCTM.concat(originCTM);
     }
 
-    static void writeTextToScene(FPDF_PAGEOBJECT pageObject, FPDF_TEXTPAGE text_page, CharMap& charMap, FS_MATRIX m, Ra::Bounds *clipBounds, Ra::SceneRef& scene) {
+    static void writeTextToScene(FPDF_PAGEOBJECT pageObject, FPDF_TEXTPAGE text_page, CharMap& charMap, Ra::Transform textCTM, Ra::Bounds *clipBounds, Ra::SceneRef& scene) {
         auto it = charMap.find((void *)pageObject);
         if (it != charMap.end()) {
             double left = 0, bottom = 0, right = 0, top = 0;
-            Ra::Transform textCTM(m.a, m.b, m.c, m.d, m.e, m.f);
             float hairline = -1.f;
             unsigned int R = 0, G = 0, B = 0, A = 255;
             FPDFPageObj_GetFillColor(pageObject, & R, & G, & B, & A);
@@ -187,37 +188,45 @@ struct RasterizerPDF {
         }
     }
     
-    static void writeImageToScene(FPDF_DOCUMENT doc, FPDF_PAGE page, FPDF_PAGEOBJECT pageObject, FS_MATRIX m, Ra::Bounds* clipBounds, std::vector<Ra::Path>& clipPaths, Ra::SceneRef& scene) {
+    static Ra::Paint paintFromImage(FPDF_DOCUMENT doc, FPDF_PAGE page, FPDF_PAGEOBJECT pageObject) {
+        unsigned long size = FPDFImageObj_GetImageDataRaw(pageObject, NULL, INT_MAX);
+        if (size == 0)
+            return Ra::Paint();
+        
+        FPDF_BITMAP bitmap = FPDFImageObj_GetRenderedBitmap(doc, page, pageObject);
+        int format = FPDFBitmap_GetFormat(bitmap);
+        if (format != 4)
+            return Ra::Paint();
+        
         FPDF_IMAGEOBJ_METADATA metadata;
         FPDFImageObj_GetImageMetadata(pageObject, page, & metadata);
-        Ra::Transform ctm = Ra::Transform(m.a, m.b, m.c, m.d, m.e, m.f);
-        unsigned long size = FPDFImageObj_GetImageDataRaw(pageObject, NULL, INT_MAX);
-        if (size) {
-            FPDF_BITMAP bitmap = FPDFImageObj_GetRenderedBitmap(doc, page, pageObject);
-            int format = FPDFBitmap_GetFormat(bitmap);
-            if (format) {
-                auto buffer = (Ra::Color *)FPDFBitmap_GetBuffer(bitmap);
-                size_t width = FPDFBitmap_GetWidth(bitmap);
-                size_t height = FPDFBitmap_GetHeight(bitmap);
-                size_t stride = FPDFBitmap_GetStride(bitmap);
-                Ra::Paint image(buffer, width, height, stride);
-                
-                Ra::Bounds unitBounds(0, 0, 1, 1);
-                Ra::Path unitRectPath;  unitRectPath->addBounds(unitBounds);
-                scene->addPath(unitRectPath, ctm, image, 0, 0, clipBounds);
-            }
-            FPDFBitmap_Destroy(bitmap);
-        }
+        
+        auto buffer = (Ra::Color *)FPDFBitmap_GetBuffer(bitmap);
+        size_t width = FPDFBitmap_GetWidth(bitmap);
+        size_t height = FPDFBitmap_GetHeight(bitmap);
+        size_t stride = FPDFBitmap_GetStride(bitmap);
+        Ra::Paint image(buffer, width, height, stride);
+        FPDFBitmap_Destroy(bitmap);
+        return image;
     }
     
-    static void writePathToScene(FPDF_PAGEOBJECT pageObject, FS_MATRIX m, Ra::Bounds* clipBounds, std::vector<Ra::Path>& clipPaths, Ra::SceneRef& scene) {
+    static void writeImageToScene(FPDF_DOCUMENT doc, FPDF_PAGE page, FPDF_PAGEOBJECT pageObject, Ra::Transform ctm, Ra::Bounds* clipBounds, std::vector<Ra::Path>& clipPaths, Ra::SceneRef& scene) {
+        auto image = paintFromImage(doc, page, pageObject);
+        if (!image.isImage())
+            return;
+        
+        Ra::Bounds unitBounds(0, 0, 1, 1);
+        Ra::Path unitRectPath;  unitRectPath->addBounds(unitBounds);
+        scene->addPath(unitRectPath, ctm, image, 0, 0, clipBounds);
+    }
+    
+    static void writePathToScene(FPDF_PAGEOBJECT pageObject, Ra::Transform ctm, Ra::Bounds* clipBounds, std::vector<Ra::Path>& clipPaths, Ra::SceneRef& scene) {
         int fillmode;
         FPDF_BOOL stroke;
         Ra::Path *clipPath = clipPaths.size() == 0 || pathIsRect(clipPaths[0]) ? nullptr : & clipPaths[0];
         
         if (FPDFPath_GetDrawMode(pageObject, & fillmode, & stroke)) {
             Ra::Path path = PathWriter().createPathFromObject(pageObject);
-            Ra::Transform ctm = Ra::Transform(m.a, m.b, m.c, m.d, m.e, m.f);
             unsigned int R = 0, G = 0, B = 0, A = 255;
             float width = 0.f;
             uint8_t flags = 0;
