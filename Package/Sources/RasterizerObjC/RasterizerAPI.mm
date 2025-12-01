@@ -9,7 +9,6 @@
 #import <Foundation/Foundation.h>
 #import "RasterizerAPI+Internal.h"
 #import "RasterizerCG.hpp"
-#import "RasterizerUtilities.h"
 #import "RasterizerSVG.hpp"
 #import "RasterizerCoreText.hpp"
 
