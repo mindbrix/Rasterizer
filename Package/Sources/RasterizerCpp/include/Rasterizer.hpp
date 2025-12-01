@@ -396,11 +396,23 @@ struct Rasterizer {
         void writeGeometry(Geometry *g) {
             float s = kMoleculesRange / fmaxf(g->bounds.ux - g->bounds.lx, g->bounds.uy - g->bounds.ly);
             size_t count = g->points.end / 2;
-            Transform m = Transform(s, 0.f, 0.f, s, s * -g->bounds.lx, s * -g->bounds.ly);
+            m = Transform(s, 0.f, 0.f, s, s * -g->bounds.lx, s * -g->bounds.ly);
             p16s = & g->p16s, p16cnts = & g->p16cnts, atoms = & g->atoms;
             p16s->prealloc(count), p16cnts->prealloc(count / kFastSegments), atoms->prealloc(count);
             cubicScale = -kCubicPrecision * (kMoleculesRange / kMoleculesHeight);
             divideGeometry(g, m, Bounds(), true, true, *this);
+            
+            assert(p16s->end % kFastSegments == 0);
+            Bounds *b = g->molecules.base;
+            Point16 *bnd16 = p16s->alloc(g->molecules.end * 2);
+            for (size_t i = 0; i < g->molecules.end; i++, b++) {
+                *bnd16++ = Point16(
+                   b->lx * m.a + b->ly * m.c + m.tx,
+                   b->lx * m.b + b->ly * m.d + m.ty);
+                *bnd16++ = Point16(
+                   b->ux * m.a + b->uy * m.c + m.tx,
+                   b->ux * m.b + b->uy * m.d + m.ty);
+            }
         }
         void writeSegment(float x0, float y0, float x1, float y1) {
             (atoms->alloc(1))->i = uint32_t(p16s->end);
@@ -432,6 +444,7 @@ struct Rasterizer {
             bzero(p16s->alloc(rem), rem * sizeof(*p));
             p16s->idx = p16s->end;
         }
+        Transform m;
         Row<Point16> *p16s;   Row<uint8_t> *p16cnts;  Row<Atom> *atoms;
     };
     struct Color {
@@ -839,14 +852,14 @@ struct Rasterizer {
                             i1 = uint32_t(outlines.idx);
                             inst->data.idx = i0, inst->data.count = i1 - i0;
                         } else if (clipHeight <= kMoleculesHeight && clipWidth <= kMoleculesHeight
-                                    && clipWidth * clipHeight / g->types.end < kMoleculesPixelsPerEdge) {
+                                   ) {//}  && clipWidth * clipHeight / g->types.end < kMoleculesPixelsPerEdge) {
                             bounds[iz] = *bnds;
                             bool fast = !buffer->params.useCurves || g->maxCurve * det < 16.f;
                             Blend *inst = new (blends.alloc(1)) Blend(iz | colorFlags | Instance::kMolecule | bool(flags & Scene::kFillEvenOdd) * Instance::kEvenOdd | fast * Instance::kFastEdges);
                             p16s.add(& g->p16s);
                             inst->g = g, inst->quad.cover = 0;
                             inst->quad.base = int(p16total);
-                            size = g->p16s.end, p16total += size;
+                            size = g->p16s.idx, p16total += g->p16s.end;
                             cnt = fast ? size / kFastSegments : g->atoms.end;
                             int type = fast ? Allocator::kFastMolecules : Allocator::kQuadMolecules;
                             allocator.alloc(clip.lx, clip.ly, clip.ux, clip.uy, blends.end - 1, & inst->quad.cell, type, cnt);
@@ -1593,12 +1606,17 @@ struct Rasterizer {
                         prev->quad.biid = int(molecule - (fast ? fastMolecule0 : quadMolecule0));
                         bool hasMolecules = g->molecules.end > 1;
                         if (fast) {
+                            size_t bnds = g->p16s.idx / 2;
                             uint8_t *p16cnt = g->p16cnts.base;
-                            for (j = 0, size = g->p16s.end / kFastSegments; j < size; j++, p16cnt++, molecule++) {
+                            for (j = 0, size = g->p16s.idx / kFastSegments; j < size; j++, p16cnt++, molecule++) {
                                 if (hasMolecules && (*p16cnt & P16Writer::isMoveTo))
                                     ux = ceilf(*molx * ctm.a + *moly * ctm.c + ctm.tx), molx += 4, moly += 4;
                                 molecule->ic = uint32_t(ic), molecule->i0 = *p16cnt & 0xF, molecule->ux = ux;
+//                                molecule->ux = bnds;
+                                bnds += (*p16cnt & P16Writer::isMoveTo) != 0;
                             }
+                            if (hasMolecules)
+                                assert(bnds - g->p16s.idx / 2 == g->molecules.end);
                         } else {
                             Atom *atom = g->atoms.base;
                             for (j = 0, size = g->atoms.end; j < size; j++, atom++, molecule++) {

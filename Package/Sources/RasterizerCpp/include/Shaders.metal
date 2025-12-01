@@ -317,6 +317,7 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
     const device Bounds& b = bounds[inst.iz & kPathIndexMask];
     const device Cell& cell = inst.quad.cell;
     const device Point16 *pts = & points[inst.quad.base + (iid - inst.quad.biid) * kFastSegments];
+    const device Point16 *molecule = & points[inst.quad.base + edge.ux * 2];
     thread float *dst = & vert.x0;
     float tx, ty, scale, ma, mb, mc, md, x16, y16, slx, sux, sly, suy, x0, y0;
     bool skip = false;
@@ -339,6 +340,15 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
     }
     
     float ux = edge.ux;
+    
+//    float molx = m.a > 0.0 ? b.ux : b.lx;
+//    float moly = m.c > 0.0 ? b.uy : b.ly;
+//    float ux = ceil(molx * m.a + moly * m.c + m.tx);
+    
+//    float molx = molecule[m.a > 0.0 ? 1 : 0].x;
+//    float moly = molecule[m.c > 0.0 ? 1 : 0].y;
+//    float ux = ceil(molx * ma + moly * mc + tx);
+    
     float dx = clamp(select(floor(slx), ux, vid & 1), float(cell.lx), float(cell.ux));
     float dy = clamp(select(floor(sly), ceil(suy), vid >> 1), float(cell.ly), float(cell.uy));
     float x = (cell.ox - cell.lx + dx) / *width * 2.0 - 1.0, offx = 0.5 - dx;
