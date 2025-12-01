@@ -189,17 +189,10 @@ struct RasterizerPDF {
     }
     
     static Ra::Paint paintFromImage(FPDF_DOCUMENT doc, FPDF_PAGE page, FPDF_PAGEOBJECT pageObject) {
-        unsigned long size = FPDFImageObj_GetImageDataRaw(pageObject, NULL, INT_MAX);
-        if (size == 0)
-            return Ra::Paint();
-        
         FPDF_BITMAP bitmap = FPDFImageObj_GetRenderedBitmap(doc, page, pageObject);
         int format = FPDFBitmap_GetFormat(bitmap);
         if (format != 4)
             return Ra::Paint();
-        
-        FPDF_IMAGEOBJ_METADATA metadata;
-        FPDFImageObj_GetImageMetadata(pageObject, page, & metadata);
         
         auto buffer = (Ra::Color *)FPDFBitmap_GetBuffer(bitmap);
         size_t width = FPDFBitmap_GetWidth(bitmap);
