@@ -1603,9 +1603,8 @@ struct Rasterizer {
                         Edge *molecule = fast ? fastMolecule : quadMolecule;
                         Instance *prev = dst - 1;
                         prev->quad.biid = int(molecule - (fast ? fastMolecule0 : quadMolecule0));
-                        bool hasMolecules = g->molecules.end > 1;
+                        size_t bnds = g->p16s.idx / 2;
                         if (fast) {
-                            size_t bnds = g->p16s.idx / 2;
                             uint8_t *p16cnt = g->p16cnts.base;
                             for (j = 0, size = g->p16s.idx / kFastSegments; j < size; j++, p16cnt++, molecule++) {
                                 if (*p16cnt & P16Writer::isMoveTo)
@@ -1615,9 +1614,9 @@ struct Rasterizer {
                         } else {
                             Atom *atom = g->atoms.base;
                             for (j = 0, size = g->atoms.end; j < size; j++, atom++, molecule++) {
-                                if (hasMolecules && (atom->i & Atom::isMoveTo))
-                                    ux = ceilf(*molx * ctm.a + *moly * ctm.c + ctm.tx), molx += 4, moly += 4;
-                                molecule->ic = uint32_t(ic) | ((atom->i & 0xF0000) << 12), molecule->i0 = atom->i & 0xFFFF, molecule->ux = ux;
+                                if (atom->i & Atom::isMoveTo)
+                                    bnds += j != 0;
+                                molecule->ic = uint32_t(ic) | ((atom->i & 0xF0000) << 12), molecule->i0 = atom->i & 0xFFFF, molecule->ux = bnds;
                             }
                         }
                         *(fast ? & fastMolecule : & quadMolecule) = molecule;
