@@ -1550,7 +1550,6 @@ struct Rasterizer {
             begin = end;
         }
         
-        Transform *ctms = (Transform *)(buffer.base + buffer.ctms);
         Edge *quadEdge = nullptr, *fastEdge = nullptr, *fastMolecule = nullptr, *fastMolecule0 = nullptr, *quadMolecule = nullptr, *quadMolecule0 = nullptr;
         for (count = ctx->allocator.passes.end, ip = 0; ip < count; ip++) {
             Allocator::Pass *pass = ctx->allocator.passes.base + ip;
@@ -1598,8 +1597,6 @@ struct Rasterizer {
                         batchBegins.add(begin + (dst - dst0) * sizeof(Instance));
                         batchCommands.add(*inst);
                     } else if (inst->iz & Instance::kMolecule) {
-                        uint16_t ux = inst->quad.cell.ux;  Transform& ctm = ctms[iz];
-                        float *molx = (float *)g->molecules.base + (ctm.a > 0.f ? 2 : 0), *moly = (float *)g->molecules.base + (ctm.c > 0.f ? 3 : 1);
                         Edge *molecule = fast ? fastMolecule : quadMolecule;
                         Instance *prev = dst - 1;
                         prev->quad.biid = int(molecule - (fast ? fastMolecule0 : quadMolecule0));
@@ -1607,15 +1604,13 @@ struct Rasterizer {
                         if (fast) {
                             uint8_t *p16cnt = g->p16cnts.base;
                             for (j = 0, size = g->p16s.idx / kFastSegments; j < size; j++, p16cnt++, molecule++) {
-                                if (*p16cnt & P16Writer::isMoveTo)
-                                    bnds += j != 0;
+                                bnds += (*p16cnt & P16Writer::isMoveTo) && j != 0;
                                 molecule->ic = uint32_t(ic), molecule->i0 = *p16cnt & 0xF, molecule->ux = bnds;
                             }
                         } else {
                             Atom *atom = g->atoms.base;
                             for (j = 0, size = g->atoms.end; j < size; j++, atom++, molecule++) {
-                                if (atom->i & Atom::isMoveTo)
-                                    bnds += j != 0;
+                                bnds += (atom->i & Atom::isMoveTo) && j != 0;
                                 molecule->ic = uint32_t(ic) | ((atom->i & 0xF0000) << 12), molecule->i0 = atom->i & 0xFFFF, molecule->ux = bnds;
                             }
                         }
