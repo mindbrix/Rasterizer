@@ -140,8 +140,7 @@ struct RasterizerPDF {
                     writeImageToScene(doc, page, pageObject, ctm, clipPtr, clipPaths, scene);
                     break;
                 case FPDF_PAGEOBJ_SHADING:
-                    if (clipPaths.size())
-                        scene->addPath(clipPaths[0], Ra::Transform(), Ra::Color(0, 0, 255, 64), 0, 0, clipPtr);
+                    writeShadingToScene(page, pageObject, clipPtr, clipPaths, scene);
                     break;
                 default:
                     break;
@@ -149,6 +148,71 @@ struct RasterizerPDF {
         }
         FPDFText_ClosePage(text_page);
     }
+    
+    static void writeShadingToScene(FPDF_PAGE page, FPDF_PAGEOBJECT page_object, Ra::Bounds* clipBounds, std::vector<Ra::Path>& clipPaths, Ra::SceneRef& scene) {
+        if (clipPaths.size()) {
+            int width = FPDF_GetPageWidth(page);
+            int height = FPDF_GetPageHeight(page);
+            auto paint = paintFromPageObject(page, page_object, width, height);
+            scene->addPath(clipPaths[0], Ra::Transform(), paint, 0, 0, clipBounds);
+        }
+    }
+    
+    static Ra::Paint paintFromPageObject(FPDF_PAGE page, FPDF_PAGEOBJECT page_object, int width, int height) {
+        FPDFPage_RemoveObject(page, page_object);
+        
+        float left, bottom, right, top;
+        FPDFPageObj_GetBounds(page_object, & left, & bottom, & right, & top);
+        auto bounds = Ra::Bounds(left, bottom, right, top).integral();
+        
+        FPDF_DOCUMENT doc = FPDF_CreateNewDocument();
+        FPDF_PAGE new_page = FPDFPage_New(doc, 0, width, height);
+        FPDFPage_InsertObject(new_page, page_object);
+        
+        float s = 2;
+        Ra::Transform ctm(s, 0.f, 0.f, s, 0.f, 0.f);
+        width *= s, height *= s;
+        
+        FS_RECTF clip;  clip.left = 0.f, clip.bottom = 0.f, clip.right = width, clip.top = height;
+        FPDF_BITMAP bitmap = FPDFBitmap_Create(width, height, 1);
+    
+        FPDF_RenderPageBitmapWithMatrix(bitmap, new_page, (FS_MATRIX *)& ctm, & clip, 0);
+        
+        int format = FPDFBitmap_GetFormat(bitmap);
+        if (format != 4)
+            return Ra::Paint();
+        auto buffer = (Ra::Color *)FPDFBitmap_GetBuffer(bitmap);
+        
+        size_t stride = FPDFBitmap_GetStride(bitmap);
+        size_t offset = (height - s * bounds.uy) * stride / sizeof(Ra::Color) + s * bounds.lx;
+        auto paint = Ra::Paint(buffer + offset, s * bounds.width(), s * bounds.height(), stride);
+        
+        FPDFBitmap_Destroy(bitmap);
+        FPDF_ClosePage(new_page);
+        FPDF_CloseDocument(doc);
+        return paint;
+    }
+    static Ra::Paint paintFromPage(FPDF_PAGE page) {
+        int width = FPDF_GetPageWidth(page);
+        int height = FPDF_GetPageHeight(page);
+        FPDF_BITMAP bitmap = FPDFBitmap_Create(width, height, 1);
+        FPDF_RenderPageBitmap(bitmap, page, 0, 0, width, height, 0, 0);
+        Ra::Paint paint = paintFromBitmap(bitmap);
+        FPDFBitmap_Destroy(bitmap);
+        return paint;
+    }
+   
+    static Ra::Paint paintFromBitmap(FPDF_BITMAP bitmap) {
+        int format = FPDFBitmap_GetFormat(bitmap);
+        if (format != 4)
+            return Ra::Paint();
+        auto buffer = (Ra::Color *)FPDFBitmap_GetBuffer(bitmap);
+        size_t width = FPDFBitmap_GetWidth(bitmap);
+        size_t height = FPDFBitmap_GetHeight(bitmap);
+        size_t stride = FPDFBitmap_GetStride(bitmap);
+        return Ra::Paint(buffer, width, height, stride);
+    }
+    
     static void writeCharMap(FPDF_TEXTPAGE text_page, CharMap& charMap) {
         int charCount = FPDFText_CountChars(text_page);
         for (int i = 0; i < charCount; i++) {
@@ -201,28 +265,7 @@ struct RasterizerPDF {
             }
         }
     }
-    
-    static Ra::Paint paintFromPage(FPDF_PAGE page) {
-        int width = FPDF_GetPageWidth(page);
-        int height = FPDF_GetPageHeight(page);
-        FPDF_BITMAP bitmap = FPDFBitmap_Create(width, height, 1);
-        FPDF_RenderPageBitmap(bitmap, page, 0, 0, width, height, 0, 0);
-        Ra::Paint paint = paintFromBitmap(bitmap);
-        FPDFBitmap_Destroy(bitmap);
-        return paint;
-    }
-    
-    static Ra::Paint paintFromBitmap(FPDF_BITMAP bitmap) {
-        int format = FPDFBitmap_GetFormat(bitmap);
-        if (format != 4)
-            return Ra::Paint();
-        auto buffer = (Ra::Color *)FPDFBitmap_GetBuffer(bitmap);
-        size_t width = FPDFBitmap_GetWidth(bitmap);
-        size_t height = FPDFBitmap_GetHeight(bitmap);
-        size_t stride = FPDFBitmap_GetStride(bitmap);
-        return Ra::Paint(buffer, width, height, stride);
-    }
-    
+     
     static void writeImageToScene(FPDF_DOCUMENT doc, FPDF_PAGE page, FPDF_PAGEOBJECT pageObject, Ra::Transform ctm, Ra::Bounds* clipBounds, std::vector<Ra::Path>& clipPaths, Ra::SceneRef& scene) {
         FPDF_BITMAP bitmap = FPDFImageObj_GetRenderedBitmap(doc, page, pageObject);
         auto image = paintFromBitmap(bitmap);
