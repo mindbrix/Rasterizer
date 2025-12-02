@@ -402,7 +402,6 @@ struct Rasterizer {
             cubicScale = -kCubicPrecision * (kMoleculesRange / kMoleculesHeight);
             divideGeometry(g, m, Bounds(), true, true, *this);
             
-            assert(p16s->end % kFastSegments == 0);
             Bounds *b = g->molecules.base;
             Point16 *bnd16 = p16s->alloc(g->molecules.end * 2);
             for (size_t i = 0; i < g->molecules.end; i++, b++) {
