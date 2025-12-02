@@ -1609,14 +1609,10 @@ struct Rasterizer {
                             size_t bnds = g->p16s.idx / 2;
                             uint8_t *p16cnt = g->p16cnts.base;
                             for (j = 0, size = g->p16s.idx / kFastSegments; j < size; j++, p16cnt++, molecule++) {
-                                if (hasMolecules && (*p16cnt & P16Writer::isMoveTo))
-                                    ux = ceilf(*molx * ctm.a + *moly * ctm.c + ctm.tx), molx += 4, moly += 4;
-                                molecule->ic = uint32_t(ic), molecule->i0 = *p16cnt & 0xF, molecule->ux = ux;
-//                                molecule->ux = bnds;
-                                bnds += (*p16cnt & P16Writer::isMoveTo) != 0;
+                                if (*p16cnt & P16Writer::isMoveTo)
+                                    bnds += j != 0;
+                                molecule->ic = uint32_t(ic), molecule->i0 = *p16cnt & 0xF, molecule->ux = bnds;
                             }
-                            if (hasMolecules)
-                                assert(bnds - g->p16s.idx / 2 == g->molecules.end);
                         } else {
                             Atom *atom = g->atoms.base;
                             for (j = 0, size = g->atoms.end; j < size; j++, atom++, molecule++) {

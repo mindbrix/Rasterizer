@@ -339,15 +339,10 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
         dst[0] = x0, dst[1] = y0;
     }
     
-    float ux = edge.ux;
-    
-//    float molx = m.a > 0.0 ? b.ux : b.lx;
-//    float moly = m.c > 0.0 ? b.uy : b.ly;
-//    float ux = ceil(molx * m.a + moly * m.c + m.tx);
-    
-//    float molx = molecule[m.a > 0.0 ? 1 : 0].x;
-//    float moly = molecule[m.c > 0.0 ? 1 : 0].y;
-//    float ux = ceil(molx * ma + moly * mc + tx);
+//    float ux = edge.ux;
+    float molx = molecule[m.a > 0.0 ? 1 : 0].x;
+    float moly = molecule[m.c > 0.0 ? 1 : 0].y;
+    float ux = ceil(molx * ma + moly * mc + tx);
     
     float dx = clamp(select(floor(slx), ux, vid & 1), float(cell.lx), float(cell.ux));
     float dy = clamp(select(floor(sly), ceil(suy), vid >> 1), float(cell.ly), float(cell.uy));
