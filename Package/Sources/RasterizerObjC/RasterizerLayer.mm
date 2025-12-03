@@ -33,27 +33,27 @@ struct TextureCache {
         time_t timestamp;
     };
     
-    id <MTLTexture> textureForImage(const Ra::Paint* image, id <MTLDevice> device) {
+    id <MTLTexture> textureForImage(const Ra::Paint& image, id <MTLDevice> device) {
         flush();
-        if (!image->isImage())
+        if (!image.isImage())
             return nil;
-        auto key = image->hash();
+        auto key = image.hash();
         auto it = map.find(key);
         if (it == map.end()) {
             MTLTextureDescriptor* desc = [MTLTextureDescriptor
                 texture2DDescriptorWithPixelFormat:MTLPixelFormatBGRA8Unorm
-                                             width:image->w
-                                            height:image->h
+                                             width:image.w
+                                            height:image.h
                                          mipmapped:NO];
             desc.storageMode = MTLStorageModeShared;
             desc.usage = MTLTextureUsageShaderRead;
-            Entry entry([device newTextureWithDescriptor:desc]);
-            [entry.texture replaceRegion:MTLRegionMake2D(0, 0, image->w, image->h)
+            auto texture = [device newTextureWithDescriptor:desc];
+            [texture replaceRegion:MTLRegionMake2D(0, 0, image.w, image.h)
                             mipmapLevel:0
-                              withBytes:& image->matched[0]
-                            bytesPerRow:image->w * sizeof(Ra::Color)];
-            map.emplace(key, entry);
-            return entry.texture;
+                              withBytes:& image.matched[0]
+                            bytesPerRow:image.w * sizeof(Ra::Color)];
+            map.emplace(key, Entry(texture));
+            return texture;
         } else {
             it->second.timestamp = time(NULL);
             return it->second.texture;
@@ -322,7 +322,7 @@ struct TextureCache {
                 useImage = false;
                 break;
             case Ra::Buffer::kNextImage: {
-                Ra::Paint *image = buffer->images[imgIndex];
+                const Ra::Paint& image = *buffer->images[imgIndex];
                 imageTexture = _textureCache.textureForImage(image, self.device);
                 imgIndex++;
                 useImage = true;
