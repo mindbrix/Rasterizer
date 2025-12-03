@@ -655,7 +655,7 @@ struct Rasterizer {
     struct Instance {
         enum Flags {
             kRoundJoin = 1 << 21,   kStencil = 1 << 21,
-            kIsRadial = 1 << 22,    kDisableImage = 1 << 22,
+            kIsRadial = 1 << 22,    kDisableImage = 1 << 22,    kNextScene = 1 << 22,
             kIsGradient = 1 << 23,  kNextImage = 1 << 23,
             kIsImage = 1 << 24,     kIsCurve = 1 << 24,
             kMolecule = 1 << 25,    kPCap = 1 << 25,
@@ -788,6 +788,8 @@ struct Rasterizer {
                 uz = lz + scn->count, clz = lz < slz ? slz : lz > suz ? suz : lz, cuz = uz < slz ? slz : uz > suz ? suz : uz;
                 Transform ctm = list.ctms[i].concat(view), clipquad, m, quad, invclip;
                 Bounds dev, clip, *bnds, clipBounds = device, sceneclip = list.clips[i], lastClip;
+                new (blends.alloc(1)) Blend(clz | Instance::kNextScene);
+                
                 for (is = clz - lz, iz = clz; iz < cuz; iz++, is++) {
                     if ((flags = scn->flags[is]) & Scene::Flags::kInvisible)
                         continue;
@@ -1610,11 +1612,13 @@ struct Rasterizer {
                     ic = dst - dst0, dst++;
                     bool fast = inst->iz & Instance::kFastEdges;
                     
-                    if ((inst->iz & Instance::kIsImage) && ((inst->iz & Instance::kNextImage) || (inst->iz & Instance::kDisableImage))) {
-                        dst--;
-                        batchBegins.add(begin + (dst - dst0) * sizeof(Instance));
-                        batchCommands.add(*inst);
-                    } else if (inst->iz & Instance::kStencil) {
+                    bool isImage = (inst->iz & Instance::kIsImage) && ((inst->iz & Instance::kNextImage) || (inst->iz & Instance::kDisableImage));
+                    bool isStencil = inst->iz & Instance::kStencil;
+                    bool isScene = (inst->iz & Instance::kIsImage) == 0 && (inst->iz & Instance::kIsGradient) == 0 && (inst->iz & Instance::kNextScene);
+                    if (isImage || isStencil || isScene) {
+                        assert((isImage && !isScene && !isStencil)
+                            || (!isImage && isScene && !isStencil)
+                            || (!isImage && !isScene && isStencil));
                         dst--;
                         batchBegins.add(begin + (dst - dst0) * sizeof(Instance));
                         batchCommands.add(*inst);

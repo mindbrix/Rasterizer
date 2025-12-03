@@ -70,7 +70,7 @@ struct Opaque {
 struct Instance {
     enum Flags {
         kRoundJoin = 1 << 21,   kStencil = 1 << 21,
-        kIsRadial = 1 << 22,    kDisableImage = 1 << 22,
+        kIsRadial = 1 << 22,    kDisableImage = 1 << 22,    kNextScene = 1 << 22,
         kIsGradient = 1 << 23,  kNextImage = 1 << 23,
         kIsImage = 1 << 24,     kIsCurve = 1 << 24,
         kMolecule = 1 << 25,    kPCap = 1 << 25,
