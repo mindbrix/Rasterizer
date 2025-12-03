@@ -446,6 +446,9 @@ struct Rasterizer {
         Transform m;
         Row<Point16> *p16s;   Row<uint8_t> *p16cnts;  Row<Atom> *atoms;
     };
+    
+    typedef uint8_t Component;
+    
     struct Color {
         Color() : b(0), g(0), r(0), a(255) {}
         Color(uint32_t rgba) : b((rgba >> 16) & 0xFF), g((rgba >> 8) & 0xFF), r(rgba & 0xFF), a(rgba >> 24) {};
@@ -454,28 +457,30 @@ struct Rasterizer {
             float s = 1.f - t;
             b = s * c0.b + t * c1.b, g = s * c0.g + t * c1.g, r = s * c0.r + t * c1.r, a = s * c0.a + t * c1.a;
         }
-        uint8_t b, g, r, a;
+        Component b, g, r, a;
     };
     
     struct Paint {
         enum Type { kColor = 0, kLinear, kRadial, kImage };
-        enum AlphaState { kNone = 0, kTransparent, kOpaque };
         
         Paint() {}
-        Paint(Color color) : color(color), opaque(color.a == 255) {}
+        Paint(Color color) : color(color), minAlpha(color.a), maxAlpha(color.a) {}
         Paint(Color *stops, float *locations, size_t count, Transform transform, bool isRadial) {
             if (stops == nullptr || locations == nullptr || count < 2)
+                return;
+            setMinMaxAlpha(stops, count, 1, 0);
+            if (maxAlpha == 0)
                 return;
             type = isRadial ? kRadial : kLinear;
             colors.add(stops, count);
             locs.add(locations, count);
             ctm = transform;
-            opaque = true;
-            for (size_t i = 0; i < count && opaque; i++)
-                opaque = opaque && colors[i].a == 255;
         }
         Paint(Color *buffer, size_t width, size_t height, size_t bpr) {
-            if (buffer == nullptr || width == 0 || height == 0 || bpr == 0 || alphaState(buffer, width, height, bpr) == kNone)
+            if (buffer == nullptr || width == 0 || height == 0 || bpr == 0)
+                return;
+            setMinMaxAlpha(buffer, width, height, bpr);
+            if (maxAlpha == 0)
                 return;
             assert(bpr / sizeof(Color) >= width);
             type = kImage, w = width, h = height;
@@ -486,10 +491,12 @@ struct Rasterizer {
                 for (size_t i = 0; i < height; i++)
                     colors.add(buffer + i * stride, width);
             }
-            opaque = false;
+        }
+        inline bool isValid() const {
+            return maxAlpha != 0;
         }
         inline bool isOpaque() const {
-            return opaque;
+            return minAlpha == 255;
         }
         inline bool isGradient() const {
             return type == kLinear || type == kRadial;
@@ -497,13 +504,13 @@ struct Rasterizer {
         inline bool isImage() const {
             return type == kImage;
         }
-        static inline AlphaState alphaState(Color *buffer, size_t width, size_t height, size_t bpr) {
+        inline void setMinMaxAlpha(Color *buffer, size_t width, size_t height, size_t bpr) {
             float alpha, min = 255, max = 0;
             size_t base = 0;
             for (size_t i = 0; i < height; i++, base += bpr / sizeof(*buffer))
                 for (size_t j = 0; j < width; j++)
                     alpha = buffer[base + j].a, min = fminf(min, alpha), max = fmaxf(max, alpha);
-            return max == 0 ? kNone : min != 255 ? kTransparent : kOpaque;
+            minAlpha = min, maxAlpha = max;
         }
         void writeGradientStrip(Color *dst, size_t size) const {
             size_t count = locs.end();
@@ -532,14 +539,14 @@ struct Rasterizer {
         Vector<Color> colors, matched = colors;
         Vector<float> locs;
         Transform ctm;
-        bool opaque = true;
+        Component minAlpha = 255, maxAlpha = 255;
     };
     
     struct Scene {
         enum Flags { kInvisible = 1 << 0, kFillEvenOdd = 1 << 1, kRoundCap = 1 << 2, kSquareCap = 1 << 3, kRoundJoin = 1 << 4 };
 
         void addPath(const Path& path, const Transform& ctm, const Paint& paint, float width, uint8_t flag, Bounds *clipBounds = nullptr, Path *clipPath = nullptr) {
-            if (path->isValid()) {
+            if (path->isValid() && paint.isValid()) {
                 Geometry *g = path.ptr;
                 count++, weight += g->types.end;
                 if (kMoleculesHeight && g->p16s.end == 0)
@@ -860,7 +867,7 @@ struct Rasterizer {
                             i1 = uint32_t(outlines.idx);
                             inst->data.idx = i0, inst->data.count = i1 - i0;
                         } else if (clipHeight <= kMoleculesHeight && clipWidth <= kMoleculesHeight
-                                   ) {//}  && clipWidth * clipHeight / g->types.end < kMoleculesPixelsPerEdge) {
+                                && clipWidth * clipHeight / g->types.end < kMoleculesPixelsPerEdge) {
                             bounds[iz] = *bnds;
                             bool fast = !buffer->params.useCurves || g->maxCurve * det < 16.f;
                             Blend *inst = new (blends.alloc(1)) Blend(iz | colorFlags | Instance::kMolecule | bool(flags & Scene::kFillEvenOdd) * Instance::kEvenOdd | fast * Instance::kFastEdges);
