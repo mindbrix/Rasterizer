@@ -491,6 +491,9 @@ struct Rasterizer {
                 for (size_t i = 0; i < height; i++)
                     colors.add(buffer + i * stride, width);
             }
+            xxhash = XXH64(& width, sizeof(width), 0);
+            xxhash = XXH64(& height, sizeof(height), xxhash);
+            xxhash = XXH64(& colors[0], width * height * sizeof(Color), xxhash);
         }
         inline bool isValid() const {
             return maxAlpha != 0;
@@ -534,7 +537,7 @@ struct Rasterizer {
             }
         }
         Type type = kColor;
-        size_t refCount, w = 0, h = 0;
+        size_t refCount, xxhash = 0, w = 0, h = 0;
         Color color;
         Vector<Color> colors, matched = colors;
         Vector<float> locs;
