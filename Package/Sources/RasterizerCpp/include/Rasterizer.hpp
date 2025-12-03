@@ -507,6 +507,9 @@ struct Rasterizer {
         inline bool isImage() const {
             return type == kImage;
         }
+        inline size_t hash() {
+            return xxhash;
+        }
         inline void setMinMaxAlpha(Color *buffer, size_t width, size_t height, size_t bpr) {
             float alpha, min = 255, max = 0;
             size_t base = 0;
