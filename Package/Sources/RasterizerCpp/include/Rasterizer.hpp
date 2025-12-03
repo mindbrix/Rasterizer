@@ -459,6 +459,7 @@ struct Rasterizer {
     
     struct Paint {
         enum Type { kColor = 0, kLinear, kRadial, kImage };
+        enum AlphaState { kNone = 0, kTransparent, kOpaque };
         
         Paint() {}
         Paint(Color color) : color(color), opaque(color.a == 255) {}
@@ -474,7 +475,7 @@ struct Rasterizer {
                 opaque = opaque && colors[i].a == 255;
         }
         Paint(Color *buffer, size_t width, size_t height, size_t bpr) {
-            if (buffer == nullptr || width == 0 || height == 0 || bpr == 0)
+            if (buffer == nullptr || width == 0 || height == 0 || bpr == 0 || alphaState(buffer, width, height, bpr) == kNone)
                 return;
             assert(bpr / sizeof(Color) >= width);
             type = kImage, w = width, h = height;
@@ -496,8 +497,16 @@ struct Rasterizer {
         inline bool isImage() const {
             return type == kImage;
         }
+        static inline AlphaState alphaState(Color *buffer, size_t width, size_t height, size_t bpr) {
+            float alpha, min = 255, max = 0;
+            size_t base = 0;
+            for (size_t i = 0; i < height; i++, base += bpr / sizeof(*buffer))
+                for (size_t j = 0; j < width; j++)
+                    alpha = buffer[base + j].a, min = fminf(min, alpha), max = fmaxf(max, alpha);
+            return max == 0 ? kNone : min != 255 ? kTransparent : kOpaque;
+        }
         void writeGradientStrip(Color *dst, size_t size) const {
-            size_t count = colors.end();
+            size_t count = locs.end();
             if (count == 0)
                 return;
             
