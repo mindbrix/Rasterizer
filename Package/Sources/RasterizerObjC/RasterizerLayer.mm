@@ -39,7 +39,7 @@ struct GeometryCache {
     
     id <MTLBuffer> bufferForScene(const Ra::Scene& scene, id <MTLDevice> device) {
         flush();
-        auto key = scene.p16Hash();
+        auto key = scene.hash();
         auto it = map.find(key);
         if (it == map.end()) {
             size_t length = scene.p16total * sizeof(Ra::Point16);
@@ -374,7 +374,8 @@ struct TextureCache {
                 useImage = true;
                 break;
             case Ra::Buffer::kNextScene:
-                p16buffer = _geometryCache.bufferForScene(*buffer->scenes[sceneIndex++], self.device);
+                if (sceneIndex < buffer->scenes.end())
+                    p16buffer = _geometryCache.bufferForScene(*buffer->scenes[sceneIndex++], self.device);
                 break;
             case Ra::Buffer::kStencils:
                 [commandEncoder endEncoding];
@@ -436,7 +437,8 @@ struct TextureCache {
                     [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->ctms atIndex:4];
                     [commandEncoder setVertexBuffer:mtlBuffer offset:instbase atIndex:5];
                     [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->bounds atIndex:7];
-                    [commandEncoder setVertexBuffer:mtlBuffer offset:ptsbase atIndex:8];
+                    [commandEncoder setVertexBuffer:p16buffer offset:0 atIndex:8];
+//                    [commandEncoder setVertexBuffer:mtlBuffer offset:ptsbase atIndex:8];
                     [commandEncoder setVertexBytes:& width length:sizeof(width) atIndex:10];
                     [commandEncoder setVertexBytes:& height length:sizeof(height) atIndex:11];
                     [commandEncoder setVertexBytes:& buffer->params length:sizeof(Ra::Params) atIndex:14];
