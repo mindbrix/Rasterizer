@@ -31,6 +31,50 @@
 struct RasterizerPDF {
     typedef std::map<void *, std::vector<int>> CharMap;
     
+    struct ClipState {
+        Ra::Bounds clipBounds, *clipPtr = nullptr;
+        std::vector<Ra::Path> clipPaths;
+        size_t lastHash = ~0;
+        
+        void update(FPDF_PAGEOBJECT page_object) {
+            FPDF_CLIPPATH clip_path = FPDFPageObj_GetClipPath(page_object);
+            size_t hash = clipHash(clip_path);
+            int clipCount = FPDFClipPath_CountPaths(clip_path);
+            
+            if (lastHash != hash) {
+                lastHash = hash, clipPtr = nullptr, clipBounds = Ra::Bounds::huge(), clipPaths.resize(0);
+                if (clipCount != -1) {
+                    for (int j = 0; j < clipCount; j++) {
+                        Ra::Path clip = PathWriter().createPathFromClipPath(clip_path, j);
+                        clipPaths.emplace_back(clip);
+                        if (clip->isValid())
+                            clipBounds = clipBounds.intersect(clip->bounds);
+                    }
+                    clipPtr = & clipBounds;
+                }
+            }
+        }
+        static size_t clipHash(FPDF_CLIPPATH clip_path) {
+            size_t hash = 0;
+            float x, y;
+            int clipCount = FPDFClipPath_CountPaths(clip_path);
+            if (clipCount != -1) {
+                hash = XXH64(& clipCount, sizeof(clipCount), hash);
+                for (int j = 0; j < clipCount; j++) {
+                    int segmentCount = FPDFClipPath_CountPathSegments(clip_path, j);
+                    assert(segmentCount);
+                    hash = XXH64(& segmentCount, sizeof(segmentCount), hash);
+                    for (int k = 0; k < 1; k++) {
+                        FPDF_PATHSEGMENT segment = FPDFClipPath_GetPathSegment(clip_path, j, k);
+                        FPDFPathSegment_GetPoint(segment, & x, & y);
+                        hash = XXH64(& x, sizeof(x), hash), hash = XXH64(& y, sizeof(y), hash);
+                    }
+                }
+            }
+            return hash;
+        }
+    };
+    
     static int getPageCount(const void *bytes, size_t size) {
         Ra::SceneList list;
         FPDF_LIBRARY_CONFIG config;
@@ -88,59 +132,31 @@ struct RasterizerPDF {
         CharMap charMap;
         writeCharMap(text_page, charMap);
 
-        Ra::Bounds clipBounds, *clipPtr = nullptr;
-        std::vector<Ra::Path> clipPaths;
-        size_t lastHash = ~0;
-        float x, y;
+        ClipState clipState;
+        
         FS_MATRIX m;
         Ra::Transform ctm;
         int objectCount = FPDFPage_CountObjects(page);
 
         for (int i = 0; i < objectCount; i++) {
-            FPDF_PAGEOBJECT pageObject = FPDFPage_GetObject(page, i);
-            FPDFPageObj_GetMatrix(pageObject, & m);
-            ctm = Ra::Transform(m.a, m.b, m.c, m.d, m.e, m.f);
+            FPDF_PAGEOBJECT page_object = FPDFPage_GetObject(page, i);
             
-            size_t hash = 0;
-            FPDF_CLIPPATH clipPath = FPDFPageObj_GetClipPath(pageObject);
-            int clipCount = FPDFClipPath_CountPaths(clipPath);
-            if (clipCount != -1) {
-                hash = XXH64(& clipCount, sizeof(clipCount), hash);
-                for (int j = 0; j < clipCount; j++) {
-                    int segmentCount = FPDFClipPath_CountPathSegments(clipPath, j);
-                    assert(segmentCount);
-                    hash = XXH64(& segmentCount, sizeof(segmentCount), hash);
-                    for (int k = 0; k < 1; k++) {
-                        FPDF_PATHSEGMENT segment = FPDFClipPath_GetPathSegment(clipPath, j, k);
-                        FPDFPathSegment_GetPoint(segment, & x, & y);
-                        hash = XXH64(& x, sizeof(x), hash), hash = XXH64(& y, sizeof(y), hash);
-                    }
-                }
-            }
-            if (lastHash != hash) {
-                lastHash = hash, clipPtr = nullptr, clipBounds = Ra::Bounds::huge(), clipPaths.resize(0);
-                if (clipCount != -1) {
-                    for (int j = 0; j < clipCount; j++) {
-                        Ra::Path clip = PathWriter().createPathFromClipPath(clipPath, j);
-                        clipPaths.emplace_back(clip);
-                        if (clip->isValid())
-                            clipBounds = clipBounds.intersect(clip->bounds);
-                    }
-                    clipPtr = & clipBounds;
-                }
-            }
-            switch (FPDFPageObj_GetType(pageObject)) {
+            FPDFPageObj_GetMatrix(page_object, & m);
+            ctm = Ra::Transform(m.a, m.b, m.c, m.d, m.e, m.f);
+            clipState.update(page_object);
+            
+            switch (FPDFPageObj_GetType(page_object)) {
                 case FPDF_PAGEOBJ_TEXT:
-                    writeTextToScene(pageObject, text_page, charMap, ctm, clipPtr, scene);
+                    writeTextToScene(page_object, text_page, charMap, ctm, clipState.clipPtr, scene);
                     break;
                 case FPDF_PAGEOBJ_PATH:
-                    writePathToScene(pageObject, ctm, clipPtr, clipPaths, scene);
+                    writePathToScene(page_object, ctm, clipState.clipPtr, clipState.clipPaths, scene);
                     break;
                 case FPDF_PAGEOBJ_IMAGE:
-                    writeImageToScene(doc, page, pageObject, ctm, clipPtr, clipPaths, scene);
+                    writeImageToScene(doc, page, page_object, ctm, clipState.clipPtr, clipState.clipPaths, scene);
                     break;
                 case FPDF_PAGEOBJ_SHADING:
-                    writeShadingToScene(page, pageObject, clipPtr, clipPaths, scene);
+                    writeShadingToScene(page, page_object, clipState.clipPtr, clipState.clipPaths, scene);
                     break;
                 default:
                     break;
@@ -149,16 +165,44 @@ struct RasterizerPDF {
         FPDFText_ClosePage(text_page);
     }
     
-    static void writeTextToScene(FPDF_PAGEOBJECT pageObject, FPDF_TEXTPAGE text_page, CharMap& charMap, Ra::Transform textCTM, Ra::Bounds *clipBounds, Ra::SceneRef& scene) {
-        auto it = charMap.find((void *)pageObject);
+    static void writeCharMap(FPDF_TEXTPAGE text_page, CharMap& charMap) {
+        int charCount = FPDFText_CountChars(text_page);
+        for (int i = 0; i < charCount; i++) {
+            FPDF_PAGEOBJECT textObject = FPDFText_GetTextObject(text_page, i);
+            unsigned int code = FPDFText_GetUnicode(text_page, i);
+            if (code > 32) {
+                void *key = (void *)textObject;
+                auto it = charMap.find(key);
+                if (it == charMap.end())
+                    charMap.emplace(key, std::vector<int>({ i }));
+                else
+                    it->second.emplace_back(i);
+            }
+        }
+    }
+    
+    static inline Ra::Transform transformForPage(FPDF_PAGE page) {
+        float left = 0.f, bottom = 0.f, right = 0.f, top = 0.f, tx = 0.f, ty = 0.f, sine, cosine;
+        FPDFPage_GetMediaBox(page, & left, & bottom, & right, & top);
+        int rot = FPDFPage_GetRotation(page);
+        __sincosf(-rot * 0.5f * M_PI, & sine, & cosine);
+        tx = rot == 2 ? right - left : rot == 3 ? top - bottom : tx;
+        ty = rot == 1 ? right - left : rot == 2 ? top - bottom : ty;
+        Ra::Transform originCTM(1.f, 0.f, 0.f, 1.f, -left, -bottom);
+        Ra::Transform pageCTM(cosine, sine, -sine, cosine, tx, ty);
+        return pageCTM.concat(originCTM);
+    }
+    
+    static void writeTextToScene(FPDF_PAGEOBJECT page_object, FPDF_TEXTPAGE text_page, CharMap& charMap, Ra::Transform textCTM, Ra::Bounds *clipBounds, Ra::SceneRef& scene) {
+        auto it = charMap.find((void *)page_object);
         if (it != charMap.end()) {
             double left = 0, bottom = 0, right = 0, top = 0;
             float hairline = -1.f;
             unsigned int R = 0, G = 0, B = 0, A = 255;
-            FPDFPageObj_GetFillColor(pageObject, & R, & G, & B, & A);
+            FPDFPageObj_GetFillColor(page_object, & R, & G, & B, & A);
             Ra::Color red(0, 0, 255, 255), textColor(B, G, R, A);
             Ra::Path rect;  rect->addBounds(Ra::Bounds(0, 0, 1, 1)), rect->close();
-            FPDF_FONT font = FPDFTextObj_GetFont(pageObject);
+            FPDF_FONT font = FPDFTextObj_GetFont(page_object);
             for(auto i : it->second) {
                 unsigned int code = FPDFText_GetUnicode(text_page, i);
                 FPDFText_GetCharBox(text_page, i, & left, & right, & bottom, & top);
@@ -290,34 +334,7 @@ struct RasterizerPDF {
         FPDF_CloseDocument(doc);
         return paint;
     }
-    static inline Ra::Transform transformForPage(FPDF_PAGE page) {
-        float left = 0.f, bottom = 0.f, right = 0.f, top = 0.f, tx = 0.f, ty = 0.f, sine, cosine;
-        FPDFPage_GetMediaBox(page, & left, & bottom, & right, & top);
-        int rot = FPDFPage_GetRotation(page);
-        __sincosf(-rot * 0.5f * M_PI, & sine, & cosine);
-        tx = rot == 2 ? right - left : rot == 3 ? top - bottom : tx;
-        ty = rot == 1 ? right - left : rot == 2 ? top - bottom : ty;
-        Ra::Transform originCTM(1.f, 0.f, 0.f, 1.f, -left, -bottom);
-        Ra::Transform pageCTM(cosine, sine, -sine, cosine, tx, ty);
-        return pageCTM.concat(originCTM);
-    }
 
-    static void writeCharMap(FPDF_TEXTPAGE text_page, CharMap& charMap) {
-        int charCount = FPDFText_CountChars(text_page);
-        for (int i = 0; i < charCount; i++) {
-            FPDF_PAGEOBJECT textObject = FPDFText_GetTextObject(text_page, i);
-            unsigned int code = FPDFText_GetUnicode(text_page, i);
-            if (code > 32) {
-                void *key = (void *)textObject;
-                auto it = charMap.find(key);
-                if (it == charMap.end())
-                    charMap.emplace(key, std::vector<int>({ i }));
-                else
-                    it->second.emplace_back(i);
-            }
-        }
-    }
-    
     struct PathWriter {
         float x, y;
         std::vector<float> bezier;
