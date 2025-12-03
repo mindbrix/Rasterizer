@@ -24,7 +24,7 @@
 #import <time.h>
 
 struct GeometryCache {
-    constexpr static double kExpiryAge = 0.1;
+    constexpr static double kExpiryAge = 10;
     
     static inline double getTime() {
         struct timeval tv;  gettimeofday(& tv, NULL);
@@ -51,8 +51,10 @@ struct GeometryCache {
             
             map.emplace(key, Entry(buffer));
             return buffer;
-        } else
+        } else {
+            it->second.timestamp = getTime();
             return it->second.buffer;
+        }
     }
     void flush() {
         double now = getTime();
@@ -263,8 +265,6 @@ struct TextureCache {
     if ([self.layerDelegate respondsToSelector:@selector(writeBuffer:forLayer:)])
         [self.layerDelegate writeBuffer:buffer forLayer:self];
     
-    id <MTLBuffer> p16buffer = _geometryCache.bufferForScene(*buffer->scenes[0], self.device);
-    
     id <MTLBuffer> mtlBuffer = buffer->size == 0 ? nil : [self.device newBufferWithBytesNoCopy:buffer->base
                                                length:buffer->size
                                               options:MTLResourceStorageModeShared
@@ -301,7 +301,6 @@ struct TextureCache {
                           withBytes:buffer->base + buffer->texStrips
                         bytesPerRow:w * sizeof(Ra::Color)];
     }
-    id <MTLTexture> imageTexture = nil;
     
     id <MTLCommandBuffer> commandBuffer = [self.commandQueue commandBuffer];
     
@@ -344,7 +343,10 @@ struct TextureCache {
     bool useClip = false, useImage = false;
     uint32_t reverse, pathsCount = uint32_t(buffer->pathsCount), texCount = uint32_t(th);
     float width = drawable.texture.width, height = drawable.texture.height;
-    NSUInteger imgIndex = 0;
+    
+    NSUInteger imgIndex = 0, sceneIndex = 0;
+    id <MTLTexture> imageTexture = nil;
+    id <MTLBuffer> p16buffer = nil;
     
     for (size_t segbase = 0, ptsbase = 0, instbase = 0, i = 0; i < buffer->entries.end; i++) {
         Ra::Buffer::Entry& entry = buffer->entries.base[i];
@@ -367,13 +369,13 @@ struct TextureCache {
             case Ra::Buffer::kDisableImage:
                 useImage = false;
                 break;
-            case Ra::Buffer::kNextImage: {
-                const Ra::Paint& image = *buffer->images[imgIndex];
-                imageTexture = _textureCache.textureForImage(image, self.device);
-                imgIndex++;
+            case Ra::Buffer::kNextImage:
+                imageTexture = _textureCache.textureForImage(*buffer->images[imgIndex++], self.device);
                 useImage = true;
                 break;
-            }
+            case Ra::Buffer::kNextScene:
+                p16buffer = _geometryCache.bufferForScene(*buffer->scenes[sceneIndex++], self.device);
+                break;
             case Ra::Buffer::kStencils:
                 [commandEncoder endEncoding];
                 commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:clipDescriptor];
@@ -428,6 +430,7 @@ struct TextureCache {
                 else
                     [commandEncoder setRenderPipelineState:_quadMoleculesPipelineState];
                 if (entry.end - entry.begin) {
+                    assert(p16buffer != nil);
                     [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
                     [commandEncoder setVertexBuffer:mtlBuffer offset:segbase atIndex:2];
                     [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->ctms atIndex:4];

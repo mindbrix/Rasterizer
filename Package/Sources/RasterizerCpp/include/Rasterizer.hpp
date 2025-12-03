@@ -553,9 +553,7 @@ struct Rasterizer {
         enum Flags { kInvisible = 1 << 0, kFillEvenOdd = 1 << 1, kRoundCap = 1 << 2, kSquareCap = 1 << 3, kRoundJoin = 1 << 4 };
         struct Entry {
             Entry(Geometry *g, size_t idx) : g(g), idx(idx) {}
-
-            Geometry *g;
-            size_t idx;
+            Geometry *g;  size_t idx;
         };
         
         void addPath(const Path& path, const Transform& ctm, const Paint& paint, float width, uint8_t flag, Bounds *clipBounds = nullptr, Path *clipPath = nullptr) {
@@ -681,7 +679,7 @@ struct Rasterizer {
     struct Instance {
         enum Flags {
             kRoundJoin = 1 << 21,   kStencil = 1 << 21,
-            kIsRadial = 1 << 22,    kDisableImage = 1 << 22,    kNextScene = 1 << 22,
+            kIsRadial = 1 << 22,    kDisableImage = 1 << 22,
             kIsGradient = 1 << 23,  kNextImage = 1 << 23,
             kIsImage = 1 << 24,     kIsCurve = 1 << 24,
             kMolecule = 1 << 25,    kPCap = 1 << 25,
@@ -706,7 +704,7 @@ struct Rasterizer {
         uint16_t i0, ux;
     };
     struct Buffer {
-        enum Type { kQuadEdges, kFastEdges, kFastMolecules, kQuadMolecules, kOpaques, kInstances, kSegmentsBase, kPointsBase, kInstancesBase, kStencils, kDisableClip, kEnableClip, kNextImage, kDisableImage };
+        enum Type { kQuadEdges, kFastEdges, kFastMolecules, kQuadMolecules, kOpaques, kInstances, kSegmentsBase, kPointsBase, kInstancesBase, kStencils, kDisableClip, kEnableClip, kNextImage, kDisableImage, kNextScene };
         struct Entry {
             Entry(Type type, size_t begin, size_t end) : type(type), begin(begin), end(end) {}
             Type type;  size_t begin, end;
@@ -750,15 +748,16 @@ struct Rasterizer {
     struct Allocator {
         enum CountType { kFastEdges, kQuadEdges, kFastMolecules, kQuadMolecules };
         struct Pass {
-            Pass(size_t idx) : idx(idx) {}
+            Pass(size_t idx, bool isScene) : idx(idx), isScene(isScene) {}
             size_t count() const { return counts[0] + counts[1] + counts[2] + counts[3]; }
             size_t idx, counts[4] = { 0, 0, 0, 0 };
+            bool isScene;
         };
         void empty(Bounds device) {
             full = device, sheet = Bounds(0.f, 0.f, 0.f, 0.f), bzero(strips, sizeof(strips)), passes.empty();
         }
-        void refill(size_t idx) {
-            sheet = full, bzero(strips, sizeof(strips)), new (passes.alloc(1)) Pass(idx);
+        void refill(size_t idx, bool isScene = false) {
+            sheet = full, bzero(strips, sizeof(strips)), new (passes.alloc(1)) Pass(idx, isScene);
         }
         inline void alloc(float lx, float ly, float ux, float uy, size_t idx, Cell *cell, int type, size_t count) {
             float w = ux - lx, h = uy - ly;
@@ -793,7 +792,7 @@ struct Rasterizer {
     
     struct Context {
         void drawList(const SceneList& list, Bounds device, Transform view, size_t slz, size_t suz, Buffer *buffer) {
-            empty(), allocator.empty(device), allocator.refill(0);
+            empty(), allocator.empty(device);
             size_t fatlines = 1.f + ceilf((device.uy - device.ly) * krfh);
             if (samples.end() != fatlines) {
                 samples.resize(0);
@@ -816,7 +815,9 @@ struct Rasterizer {
                 uz = lz + scn->count, clz = lz < slz ? slz : lz > suz ? suz : lz, cuz = uz < slz ? slz : uz > suz ? suz : uz;
                 Transform ctm = list.ctms[i].concat(view), clipquad, m, quad, invclip;
                 Bounds dev, clip, *bnds, clipBounds = device, sceneclip = list.clips[i], lastClip;
-                new (blends.alloc(1)) Blend(clz | Instance::kNextScene);
+                
+                if (clz - lz == 0)
+                    allocator.refill(blends.end, true);
                 
                 for (is = clz - lz, iz = clz; iz < cuz; iz++, is++) {
                     if ((flags = scn->flags[is]) & Scene::Flags::kInvisible)
@@ -1608,6 +1609,8 @@ struct Rasterizer {
         Edge *quadEdge = nullptr, *fastEdge = nullptr, *fastMolecule = nullptr, *fastMolecule0 = nullptr, *quadMolecule = nullptr, *quadMolecule0 = nullptr;
         for (count = ctx->allocator.passes.end, ip = 0; ip < count; ip++) {
             Allocator::Pass *pass = ctx->allocator.passes.base + ip;
+            if (pass->isScene)
+                ctx->entries.add(Buffer::Entry(Buffer::kNextScene, 0, 0));
             passsize = (ip + 1 < count ? (pass + 1)->idx : ctx->blends.end) - pass->idx;
             instbegin = begin + pass->count() * sizeof(Edge);
             if (pass->count()) {
@@ -1645,11 +1648,7 @@ struct Rasterizer {
                     
                     bool isImage = (inst->iz & Instance::kIsImage) && ((inst->iz & Instance::kNextImage) || (inst->iz & Instance::kDisableImage));
                     bool isStencil = inst->iz & Instance::kStencil;
-                    bool isScene = (inst->iz & Instance::kIsImage) == 0 && (inst->iz & Instance::kIsGradient) == 0 && (inst->iz & Instance::kNextScene);
-                    if (isImage || isStencil || isScene) {
-                        assert((isImage && !isScene && !isStencil)
-                            || (!isImage && isScene && !isStencil)
-                            || (!isImage && !isScene && isStencil));
+                    if (isImage || isStencil) {
                         dst--;
                         batchBegins.add(begin + (dst - dst0) * sizeof(Instance));
                         batchCommands.add(*inst);
@@ -1705,7 +1704,7 @@ struct Rasterizer {
                                 ctx->entries.add(Buffer::Entry(Buffer::kDisableClip, 0, 0));
                             else
                                 ctx->entries.add(Buffer::Entry(Buffer::kEnableClip, 0, 0));
-                        } if (cmd.iz & Instance::kIsImage) {
+                        } else if (cmd.iz & Instance::kIsImage) {
                             if (cmd.iz & Instance::kNextImage)
                                 ctx->entries.add(Buffer::Entry(Buffer::kNextImage, 0, 0));
                             else if (cmd.iz & Instance::kDisableImage)
