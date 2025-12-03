@@ -360,7 +360,7 @@ struct TextureCache {
                 [commandEncoder setVertexBytes:& pathsCount length:sizeof(pathsCount) atIndex:13];
                 [commandEncoder setVertexBytes:& texCount length:sizeof(texCount) atIndex:14];
                 [commandEncoder setVertexBytes:& buffer->params length:sizeof(Ra::Params) atIndex:15];
-                [commandEncoder setFragmentTexture:colorTexture atIndex:1];
+                [commandEncoder setFragmentTexture:useImage ? imageTexture : colorTexture atIndex:1];
                 [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip
                                    vertexStart:0
                                    vertexCount:4
