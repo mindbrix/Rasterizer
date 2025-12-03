@@ -20,6 +20,7 @@
 
 #import "Rasterizer.h"
 #import "xxhash.h"
+#import <map>
 #import <vector>
 #pragma clang diagnostic ignored "-Wcomma"
 
@@ -570,6 +571,16 @@ struct Rasterizer {
                 paths.add(path), bnds.add(g->bounds), ctms.add(ctm), colors.add(paint.color), widths.add(width), flags.add(flag);
                 clips.add(clipBounds ? *clipBounds : Bounds::huge());
                 
+                size_t key = g->hash();
+                auto it = p16map.find(key);
+                if (it == p16map.end()) {
+                    p16bases.add(p16total);
+                    p16map.emplace(key, p16total);
+                    p16total += g->p16s.end;
+                } else
+                    p16bases.add(it->second);
+                p16full += g->p16s.end;
+                
                 if (clipPath && (*clipPath)->isValid()) {
                     size_t idx = 0;
                     if (clipPaths.end() == 0)
@@ -597,8 +608,16 @@ struct Rasterizer {
                 }
             return b;
         }
-        size_t refCount, count = 0, weight = 0;
+        size_t p16Hash() const {
+            size_t hash = 0;
+            for (auto& entry: p16map)
+                hash = XXH64(& entry.first, sizeof(entry.first), hash);
+            return hash;
+        }
+        
+        size_t refCount, count = 0, weight = 0, p16total = 0, p16full = 0;
         RefVector<Path> paths;
+        Vector<size_t> p16bases;
         RefVector<Path> clipPaths;
         Vector<size_t> clipIndices;
         Vector<Bounds> bnds, clips;
@@ -608,6 +627,7 @@ struct Rasterizer {
         Vector<size_t> gradientIndices;
         Vector<Color> gradients, matchedGradients = gradients;
         Vector<float> widths;
+        std::map<size_t, size_t> p16map;
         Vector<uint8_t> flags;
     };
     typedef Ref<Scene> SceneRef;
