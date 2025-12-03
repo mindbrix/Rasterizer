@@ -23,6 +23,49 @@
 #import <map>
 #import <time.h>
 
+struct GeometryCache {
+    constexpr static double kExpiryAge = 0.1;
+    
+    static inline double getTime() {
+        struct timeval tv;  gettimeofday(& tv, NULL);
+        return tv.tv_sec + tv.tv_usec * 1e-6;
+    }
+    struct Entry {
+        Entry(id <MTLBuffer> buffer) : buffer(buffer), timestamp(getTime()) {}
+        
+        id <MTLBuffer> buffer;
+        double timestamp;
+    };
+    
+    id <MTLBuffer> bufferForScene(const Ra::Scene& scene, id <MTLDevice> device) {
+        flush();
+        auto key = scene.p16Hash();
+        auto it = map.find(key);
+        if (it == map.end()) {
+            size_t length = scene.p16total * sizeof(Ra::Point16);
+            id <MTLBuffer> buffer = [device newBufferWithLength:length
+                                                        options:MTLResourceStorageModeShared];
+            auto dst = (Ra::Point16 *)buffer.contents;
+            for (auto& entry: scene.p16map)
+                memcpy(dst + entry.second.idx, entry.second.g->p16s.base, entry.second.g->p16s.end * sizeof(*dst));
+            
+            map.emplace(key, Entry(buffer));
+            return buffer;
+        } else
+            return it->second.buffer;
+    }
+    void flush() {
+        double now = getTime();
+        std::vector<size_t> expired;
+        for (const auto& entry: map)
+            if (now - entry.second.timestamp > kExpiryAge)
+                expired.emplace_back(entry.first);
+        for (auto key: expired)
+            map.erase(key);
+    }
+    std::map<size_t, Entry> map;
+};
+
 struct TextureCache {
     constexpr static time_t kExpiryAge = 10;
     
@@ -75,6 +118,7 @@ struct TextureCache {
 @interface RasterizerLayer ()
 {
     Ra::Buffer _buffer0, _buffer1;
+    GeometryCache _geometryCache;
     TextureCache _textureCache;
 }
 
@@ -218,6 +262,8 @@ struct TextureCache {
     Ra::Buffer *buffer = odd ? & _buffer1 : & _buffer0;
     if ([self.layerDelegate respondsToSelector:@selector(writeBuffer:forLayer:)])
         [self.layerDelegate writeBuffer:buffer forLayer:self];
+    
+    id <MTLBuffer> p16buffer = _geometryCache.bufferForScene(*buffer->scenes[0], self.device);
     
     id <MTLBuffer> mtlBuffer = buffer->size == 0 ? nil : [self.device newBufferWithBytesNoCopy:buffer->base
                                                length:buffer->size

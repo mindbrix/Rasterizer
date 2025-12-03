@@ -551,7 +551,13 @@ struct Rasterizer {
     
     struct Scene {
         enum Flags { kInvisible = 1 << 0, kFillEvenOdd = 1 << 1, kRoundCap = 1 << 2, kSquareCap = 1 << 3, kRoundJoin = 1 << 4 };
+        struct Entry {
+            Entry(Geometry *g, size_t idx) : g(g), idx(idx) {}
 
+            Geometry *g;
+            size_t idx;
+        };
+        
         void addPath(const Path& path, const Transform& ctm, const Paint& paint, float width, uint8_t flag, Bounds *clipBounds = nullptr, Path *clipPath = nullptr) {
             if (path->isValid() && paint.isValid()) {
                 Geometry *g = path.ptr;
@@ -575,10 +581,10 @@ struct Rasterizer {
                 auto it = p16map.find(key);
                 if (it == p16map.end()) {
                     p16bases.add(p16total);
-                    p16map.emplace(key, p16total);
+                    p16map.emplace(key, Entry(g, p16total));
                     p16total += g->p16s.end;
                 } else
-                    p16bases.add(it->second);
+                    p16bases.add(it->second.idx);
                 p16full += g->p16s.end;
                 
                 if (clipPath && (*clipPath)->isValid()) {
@@ -627,7 +633,7 @@ struct Rasterizer {
         Vector<size_t> gradientIndices;
         Vector<Color> gradients, matchedGradients = gradients;
         Vector<float> widths;
-        std::map<size_t, size_t> p16map;
+        std::map<size_t, Entry> p16map;
         Vector<uint8_t> flags;
     };
     typedef Ref<Scene> SceneRef;
@@ -711,6 +717,7 @@ struct Rasterizer {
             pathsCount = list.pathsCount;
             texCount = 0;
             images.resize(0);
+            scenes.resize(0);
             size_t i, sizes[] = { sizeof(Color), sizeof(Transform), sizeof(Transform), sizeof(float), sizeof(Bounds), sizeof(Transform), sizeof(uint32_t) };
             size_t count = sizeof(sizes) / sizeof(*sizes), base = 0, bases[count];
             for (i = 0; i < count; i++)
@@ -735,6 +742,7 @@ struct Rasterizer {
         }
         uint8_t *base = nullptr;  Row<Entry> entries;
         Vector<Paint *> images;
+        Vector<Scene *> scenes;
         Params params;
         size_t colors, ctms, clips, widths, bounds, texCtms, texIdxs, texStrips;
         size_t idxs, pathsCount, texCount, headerSize, size = 0, allocation = 0;
@@ -1537,6 +1545,9 @@ struct Rasterizer {
         Row<Opaque> *stencils;
     };
     static size_t resizeBuffer(const SceneList& list, Context *contexts, size_t count, size_t *begins, Buffer& buffer) {
+        for (auto& scene : list.scenes)
+            buffer.scenes.add(scene.ptr);
+        
         size_t size = buffer.headerSize, begin = size, end = begin, sz, i, j, instances;
         for (i = 0; i < count; i++)
             size += contexts[i].opaques.end * sizeof(Opaque);
