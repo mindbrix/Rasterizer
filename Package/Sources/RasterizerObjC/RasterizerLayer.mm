@@ -20,11 +20,45 @@
 
 #import "RasterizerLayer.h"
 #import <Metal/Metal.h>
+#import <map>
 
+struct TextureCache {
+    struct Entry {
+        Entry(id <MTLTexture> texture) : texture(texture) {}
+        
+        id <MTLTexture> texture;
+    };
+    
+    id <MTLTexture> textureForImage(const Ra::Paint* image, id <MTLDevice> device) {
+        if (!image->isImage())
+            return nil;
+        auto key = image->hash();
+        auto it = map.find(key);
+        if (it == map.end()) {
+            MTLTextureDescriptor* desc = [MTLTextureDescriptor
+                texture2DDescriptorWithPixelFormat:MTLPixelFormatBGRA8Unorm
+                                             width:image->w
+                                            height:image->h
+                                         mipmapped:NO];
+            desc.storageMode = MTLStorageModeShared;
+            desc.usage = MTLTextureUsageShaderRead;
+            Entry entry([device newTextureWithDescriptor:desc]);
+            [entry.texture replaceRegion:MTLRegionMake2D(0, 0, image->w, image->h)
+                            mipmapLevel:0
+                              withBytes:& image->matched[0]
+                            bytesPerRow:image->w * sizeof(Ra::Color)];
+            map.emplace(key, entry);
+            return entry.texture;
+        } else
+            return it->second.texture;
+    }
+    std::map<size_t, Entry> map;
+};
 
 @interface RasterizerLayer ()
 {
     Ra::Buffer _buffer0, _buffer1;
+    TextureCache _textureCache;
 }
 
 @property (nonatomic) dispatch_semaphore_t inflight_semaphore;
@@ -272,18 +306,7 @@
                 break;
             case Ra::Buffer::kNextImage: {
                 Ra::Paint *image = buffer->images[imgIndex];
-                MTLTextureDescriptor* desc = [MTLTextureDescriptor
-                    texture2DDescriptorWithPixelFormat:MTLPixelFormatBGRA8Unorm
-                                                 width:image->w
-                                                height:image->h
-                                             mipmapped:NO];
-                desc.storageMode = MTLStorageModeShared;
-                desc.usage = MTLTextureUsageShaderRead;
-                imageTexture = [self.device newTextureWithDescriptor:desc];
-                [imageTexture replaceRegion:MTLRegionMake2D(0, 0, image->w, image->h)
-                                mipmapLevel:0
-                                  withBytes:& image->matched[0]
-                                bytesPerRow:image->w * sizeof(Ra::Color)];
+                imageTexture = _textureCache.textureForImage(image, self.device);
                 imgIndex++;
                 useImage = true;
                 break;

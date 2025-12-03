@@ -499,7 +499,7 @@ struct Rasterizer {
             return maxAlpha != 0;
         }
         inline bool isOpaque() const {
-            return minAlpha == 255;
+            return !isImage() && minAlpha == 255;
         }
         inline bool isGradient() const {
             return type == kLinear || type == kRadial;
@@ -507,7 +507,7 @@ struct Rasterizer {
         inline bool isImage() const {
             return type == kImage;
         }
-        inline size_t hash() {
+        inline size_t hash() const {
             return xxhash;
         }
         inline void setMinMaxAlpha(Color *buffer, size_t width, size_t height, size_t bpr) {

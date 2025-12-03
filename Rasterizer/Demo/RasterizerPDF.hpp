@@ -213,6 +213,18 @@ struct RasterizerPDF {
         return Ra::Paint(buffer, width, height, stride);
     }
     
+    static inline Ra::Transform transformForPage(FPDF_PAGE page) {
+        float left = 0.f, bottom = 0.f, right = 0.f, top = 0.f, tx = 0.f, ty = 0.f, sine, cosine;
+        FPDFPage_GetMediaBox(page, & left, & bottom, & right, & top);
+        int rot = FPDFPage_GetRotation(page);
+        __sincosf(-rot * 0.5f * M_PI, & sine, & cosine);
+        tx = rot == 2 ? right - left : rot == 3 ? top - bottom : tx;
+        ty = rot == 1 ? right - left : rot == 2 ? top - bottom : ty;
+        Ra::Transform originCTM(1.f, 0.f, 0.f, 1.f, -left, -bottom);
+        Ra::Transform pageCTM(cosine, sine, -sine, cosine, tx, ty);
+        return pageCTM.concat(originCTM);
+    }
+
     static void writeCharMap(FPDF_TEXTPAGE text_page, CharMap& charMap) {
         int charCount = FPDFText_CountChars(text_page);
         for (int i = 0; i < charCount; i++) {
@@ -229,18 +241,6 @@ struct RasterizerPDF {
         }
     }
     
-    static inline Ra::Transform transformForPage(FPDF_PAGE page) {
-        float left = 0.f, bottom = 0.f, right = 0.f, top = 0.f, tx = 0.f, ty = 0.f, sine, cosine;
-        FPDFPage_GetMediaBox(page, & left, & bottom, & right, & top);
-        int rot = FPDFPage_GetRotation(page);
-        __sincosf(-rot * 0.5f * M_PI, & sine, & cosine);
-        tx = rot == 2 ? right - left : rot == 3 ? top - bottom : tx;
-        ty = rot == 1 ? right - left : rot == 2 ? top - bottom : ty;
-        Ra::Transform originCTM(1.f, 0.f, 0.f, 1.f, -left, -bottom);
-        Ra::Transform pageCTM(cosine, sine, -sine, cosine, tx, ty);
-        return pageCTM.concat(originCTM);
-    }
-
     static void writeTextToScene(FPDF_PAGEOBJECT pageObject, FPDF_TEXTPAGE text_page, CharMap& charMap, Ra::Transform textCTM, Ra::Bounds *clipBounds, Ra::SceneRef& scene) {
         auto it = charMap.find((void *)pageObject);
         if (it != charMap.end()) {
