@@ -21,15 +21,20 @@
 #import "RasterizerLayer.h"
 #import <Metal/Metal.h>
 #import <map>
+#import <time.h>
 
 struct TextureCache {
+    constexpr static time_t kExpiryAge = 10;
+    
     struct Entry {
-        Entry(id <MTLTexture> texture) : texture(texture) {}
+        Entry(id <MTLTexture> texture) : texture(texture), timestamp(time(NULL)) {}
         
         id <MTLTexture> texture;
+        time_t timestamp;
     };
     
     id <MTLTexture> textureForImage(const Ra::Paint* image, id <MTLDevice> device) {
+        flush();
         if (!image->isImage())
             return nil;
         auto key = image->hash();
@@ -49,8 +54,20 @@ struct TextureCache {
                             bytesPerRow:image->w * sizeof(Ra::Color)];
             map.emplace(key, entry);
             return entry.texture;
-        } else
+        } else {
+            it->second.timestamp = time(NULL);
             return it->second.texture;
+        }
+    }
+    
+    void flush() {
+        time_t now = time(NULL);
+        std::vector<size_t> expired;
+        for (const auto& entry: map)
+            if (now - entry.second.timestamp > kExpiryAge)
+                expired.emplace_back(entry.first);
+        for (auto key: expired)
+            map.erase(key);
     }
     std::map<size_t, Entry> map;
 };
