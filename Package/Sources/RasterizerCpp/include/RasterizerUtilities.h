@@ -5,6 +5,7 @@
 //  Created by Nigel Barber on 27/09/2025.
 //  Copyright © 2025 @mindbrix. All rights reserved.
 //
+#import <CoreText/CoreText.h>
 #import "RasterizerCG.hpp"
 
 

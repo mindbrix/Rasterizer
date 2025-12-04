@@ -20,11 +20,92 @@
 
 #import "RasterizerLayer.h"
 #import <Metal/Metal.h>
+#import <map>
+#import <time.h>
+
+template<typename T, typename S, int kExpiryAge = 10>
+struct Cache {
+    struct Entry {
+        Entry(T payload) : payload(payload), timestamp(getTime()) {}
+        
+        T payload;
+        double timestamp;
+    };
+    
+    virtual T createPayload(S src, id <MTLDevice> device) = 0;
+    
+    T entryFor(S src, id <MTLDevice> device) {
+        flush();
+        auto key = src.hash();
+        auto it = map.find(key);
+        if (it == map.end()) {
+            T payload = createPayload(src, device);
+            map.emplace(key, Entry(payload));
+            return payload;
+        } else {
+            it->second.timestamp = getTime();
+            return it->second.payload;
+        }
+    }
+    
+    void flush() {
+        double now = getTime();
+        std::vector<size_t> expired;
+        for (const auto& entry: map)
+            if (now - entry.second.timestamp > kExpiryAge)
+                expired.emplace_back(entry.first);
+        for (auto key: expired)
+            map.erase(key);
+    }
+    
+    static inline double getTime() {
+        struct timeval tv;  gettimeofday(& tv, NULL);
+        return tv.tv_sec + tv.tv_usec * 1e-6;
+    }
+    
+    std::map<size_t, Entry> map;
+};
+
+template<typename T, typename S>
+struct GeometryCache : Cache<T, S> {
+    
+    T createPayload(S scene, id <MTLDevice> device) override {
+        size_t length = scene.p16total * sizeof(Ra::Point16);
+        T buffer = [device newBufferWithLength:length
+                                       options:MTLResourceStorageModeShared];
+        auto dst = (Ra::Point16 *)buffer.contents;
+        for (auto& entry: scene.p16map)
+            memcpy(dst + entry.second.idx, entry.second.g->p16s.base, entry.second.g->p16s.end * sizeof(*dst));
+        return buffer;
+    }
+};
+
+template<typename T, typename S>
+struct TextureCache : Cache<T, S> {
+    T createPayload(S image, id <MTLDevice> device) override {
+        MTLTextureDescriptor* desc = [MTLTextureDescriptor
+            texture2DDescriptorWithPixelFormat:MTLPixelFormatBGRA8Unorm
+                                         width:image.w
+                                        height:image.h
+                                     mipmapped:NO];
+        desc.storageMode = MTLStorageModeShared;
+        desc.usage = MTLTextureUsageShaderRead;
+        
+        auto texture = [device newTextureWithDescriptor:desc];
+        [texture replaceRegion:MTLRegionMake2D(0, 0, image.w, image.h)
+                        mipmapLevel:0
+                          withBytes:& image.matched[0]
+                        bytesPerRow:image.w * sizeof(Ra::Color)];
+        return texture;
+    }
+};
 
 
 @interface RasterizerLayer ()
 {
     Ra::Buffer _buffer0, _buffer1;
+    TextureCache<id <MTLTexture>, const Ra::Paint &> _textureCache;
+    GeometryCache<id <MTLBuffer>, const Ra::Scene &> _geometryCache;
 }
 
 @property (nonatomic) dispatch_semaphore_t inflight_semaphore;
@@ -204,7 +285,6 @@
                           withBytes:buffer->base + buffer->texStrips
                         bytesPerRow:w * sizeof(Ra::Color)];
     }
-    id <MTLTexture> imageTexture = nil;
     
     id <MTLCommandBuffer> commandBuffer = [self.commandQueue commandBuffer];
     
@@ -247,16 +327,16 @@
     bool useClip = false, useImage = false;
     uint32_t reverse, pathsCount = uint32_t(buffer->pathsCount), texCount = uint32_t(th);
     float width = drawable.texture.width, height = drawable.texture.height;
-    NSUInteger imgIndex = 0;
     
-    for (size_t segbase = 0, ptsbase = 0, instbase = 0, i = 0; i < buffer->entries.end; i++) {
+    NSUInteger imgIndex = 0, sceneIndex = 0;
+    id <MTLTexture> imageTexture = nil;
+    id <MTLBuffer> p16buffer = nil;
+    
+    for (size_t segbase = 0, instbase = 0, i = 0; i < buffer->entries.end; i++) {
         Ra::Buffer::Entry& entry = buffer->entries.base[i];
         switch (entry.type) {
             case Ra::Buffer::kSegmentsBase:
                 segbase = entry.begin;
-                break;
-            case Ra::Buffer::kPointsBase:
-                ptsbase = entry.begin;
                 break;
             case Ra::Buffer::kInstancesBase:
                 instbase = entry.begin;
@@ -270,24 +350,14 @@
             case Ra::Buffer::kDisableImage:
                 useImage = false;
                 break;
-            case Ra::Buffer::kNextImage: {
-                Ra::Paint *image = buffer->images[imgIndex];
-                MTLTextureDescriptor* desc = [MTLTextureDescriptor
-                    texture2DDescriptorWithPixelFormat:MTLPixelFormatBGRA8Unorm
-                                                 width:image->w
-                                                height:image->h
-                                             mipmapped:NO];
-                desc.storageMode = MTLStorageModeShared;
-                desc.usage = MTLTextureUsageShaderRead;
-                imageTexture = [self.device newTextureWithDescriptor:desc];
-                [imageTexture replaceRegion:MTLRegionMake2D(0, 0, image->w, image->h)
-                                mipmapLevel:0
-                                  withBytes:& image->matched[0]
-                                bytesPerRow:image->w * sizeof(Ra::Color)];
-                imgIndex++;
+            case Ra::Buffer::kNextImage:
+                imageTexture = _textureCache.entryFor(*buffer->images[imgIndex++], self.device);
                 useImage = true;
                 break;
-            }
+            case Ra::Buffer::kNextScene:
+                if (sceneIndex < buffer->scenes.end())
+                    p16buffer = _geometryCache.entryFor(*buffer->scenes[sceneIndex++], self.device);
+                break;
             case Ra::Buffer::kStencils:
                 [commandEncoder endEncoding];
                 commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:clipDescriptor];
@@ -320,7 +390,7 @@
                 [commandEncoder setVertexBytes:& pathsCount length:sizeof(pathsCount) atIndex:13];
                 [commandEncoder setVertexBytes:& texCount length:sizeof(texCount) atIndex:14];
                 [commandEncoder setVertexBytes:& buffer->params length:sizeof(Ra::Params) atIndex:15];
-                [commandEncoder setFragmentTexture:colorTexture atIndex:1];
+                [commandEncoder setFragmentTexture:useImage ? imageTexture : colorTexture atIndex:1];
                 [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip
                                    vertexStart:0
                                    vertexCount:4
@@ -342,12 +412,13 @@
                 else
                     [commandEncoder setRenderPipelineState:_quadMoleculesPipelineState];
                 if (entry.end - entry.begin) {
+                    assert(p16buffer != nil);
                     [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
                     [commandEncoder setVertexBuffer:mtlBuffer offset:segbase atIndex:2];
                     [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->ctms atIndex:4];
                     [commandEncoder setVertexBuffer:mtlBuffer offset:instbase atIndex:5];
                     [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->bounds atIndex:7];
-                    [commandEncoder setVertexBuffer:mtlBuffer offset:ptsbase atIndex:8];
+                    [commandEncoder setVertexBuffer:p16buffer offset:0 atIndex:8];
                     [commandEncoder setVertexBytes:& width length:sizeof(width) atIndex:10];
                     [commandEncoder setVertexBytes:& height length:sizeof(height) atIndex:11];
                     [commandEncoder setVertexBytes:& buffer->params length:sizeof(Ra::Params) atIndex:14];

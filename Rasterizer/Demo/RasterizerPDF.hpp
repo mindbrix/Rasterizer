@@ -31,6 +31,50 @@
 struct RasterizerPDF {
     typedef std::map<void *, std::vector<int>> CharMap;
     
+    struct ClipState {
+        Ra::Bounds clipBounds, *clipPtr = nullptr;
+        std::vector<Ra::Path> clipPaths;
+        size_t lastHash = ~0;
+        
+        void update(FPDF_PAGEOBJECT page_object) {
+            FPDF_CLIPPATH clip_path = FPDFPageObj_GetClipPath(page_object);
+            size_t hash = clipHash(clip_path);
+            int clipCount = FPDFClipPath_CountPaths(clip_path);
+            
+            if (lastHash != hash) {
+                lastHash = hash, clipPtr = nullptr, clipBounds = Ra::Bounds::huge(), clipPaths.resize(0);
+                if (clipCount != -1) {
+                    for (int j = 0; j < clipCount; j++) {
+                        Ra::Path clip = PathWriter().createPathFromClipPath(clip_path, j);
+                        clipPaths.emplace_back(clip);
+                        if (clip->isValid())
+                            clipBounds = clipBounds.intersect(clip->bounds);
+                    }
+                    clipPtr = & clipBounds;
+                }
+            }
+        }
+        static size_t clipHash(FPDF_CLIPPATH clip_path) {
+            size_t hash = 0;
+            float x, y;
+            int clipCount = FPDFClipPath_CountPaths(clip_path);
+            if (clipCount != -1) {
+                hash = XXH64(& clipCount, sizeof(clipCount), hash);
+                for (int j = 0; j < clipCount; j++) {
+                    int segmentCount = FPDFClipPath_CountPathSegments(clip_path, j);
+                    assert(segmentCount);
+                    hash = XXH64(& segmentCount, sizeof(segmentCount), hash);
+                    for (int k = 0; k < 1; k++) {
+                        FPDF_PATHSEGMENT segment = FPDFClipPath_GetPathSegment(clip_path, j, k);
+                        FPDFPathSegment_GetPoint(segment, & x, & y);
+                        hash = XXH64(& x, sizeof(x), hash), hash = XXH64(& y, sizeof(y), hash);
+                    }
+                }
+            }
+            return hash;
+        }
+    };
+    
     static int getPageCount(const void *bytes, size_t size) {
         Ra::SceneList list;
         FPDF_LIBRARY_CONFIG config;
@@ -65,88 +109,76 @@ struct RasterizerPDF {
             if (count > 0) {
                 pageIndex = pageIndex > count - 1 ? count - 1 : pageIndex;
                 FPDF_PAGE page = FPDF_LoadPage(doc, int(pageIndex));
-                ctm = transformForPage(page);
                 
-                FPDF_TEXTPAGE text_page = FPDFText_LoadPage(page);
-                int charCount = FPDFText_CountChars(text_page);
-                CharMap charMap;
-                for (int i = 0; i < charCount; i++) {
-                    FPDF_PAGEOBJECT textObject = FPDFText_GetTextObject(text_page, i);
-                    unsigned int code = FPDFText_GetUnicode(text_page, i);
-                    if (code > 32) {
-                        void *key = (void *)textObject;
-                        auto it = charMap.find(key);
-                        if (it == charMap.end())
-                            charMap.emplace(key, std::vector<int>({ i }));
-                        else
-                            it->second.emplace_back(i);
-                    }
-                }
-               
-                Ra::Bounds clipBounds, *clipPtr = nullptr;
-                std::vector<Ra::Path> clipPaths;
-                size_t lastHash = ~0;
-                float x, y;
-                FS_MATRIX m;
-                int objectCount = FPDFPage_CountObjects(page);
-
-                for (int i = 0; i < objectCount; i++) {
-                    FPDF_PAGEOBJECT pageObject = FPDFPage_GetObject(page, i);
-                    FPDFPageObj_GetMatrix(pageObject, & m);
-                        
-                    size_t hash = 0;
-                    FPDF_CLIPPATH clipPath = FPDFPageObj_GetClipPath(pageObject);
-                    int clipCount = FPDFClipPath_CountPaths(clipPath);
-                    if (clipCount != -1) {
-                        hash = XXH64(& clipCount, sizeof(clipCount), hash);
-                        for (int j = 0; j < clipCount; j++) {
-                            int segmentCount = FPDFClipPath_CountPathSegments(clipPath, j);
-                            assert(segmentCount);
-                            hash = XXH64(& segmentCount, sizeof(segmentCount), hash);
-                            for (int k = 0; k < 1; k++) {
-                                FPDF_PATHSEGMENT segment = FPDFClipPath_GetPathSegment(clipPath, j, k);
-                                FPDFPathSegment_GetPoint(segment, & x, & y);
-                                hash = XXH64(& x, sizeof(x), hash), hash = XXH64(& y, sizeof(y), hash);
-                            }
-                        }
-                    }
-                    if (lastHash != hash) {
-                        lastHash = hash, clipPtr = nullptr, clipBounds = Ra::Bounds::huge(), clipPaths.resize(0);
-                        if (clipCount != -1) {
-                            for (int j = 0; j < clipCount; j++) {
-                                Ra::Path clip = PathWriter().createPathFromClipPath(clipPath, j);
-                                clipPaths.emplace_back(clip);
-                                if (clip->isValid())
-                                    clipBounds = clipBounds.intersect(clip->bounds);
-                            }
-                            clipPtr = & clipBounds;
-                        }
-                    }
-                    switch (FPDFPageObj_GetType(pageObject)) {
-                        case FPDF_PAGEOBJ_TEXT:
-                            writeTextToScene(pageObject, text_page, charMap, m, clipPtr, scene);
-                            break;
-                        case FPDF_PAGEOBJ_PATH:
-                            writePathToScene(pageObject, m, clipPtr, clipPaths, scene);
-                            break;
-                        case FPDF_PAGEOBJ_IMAGE:
-                            writeImageToScene(doc, page, pageObject, m, clipPtr, clipPaths, scene);
-                            break;
-                        case FPDF_PAGEOBJ_SHADING:
-                            if (clipPaths.size())
-                                scene->addPath(clipPaths[0], Ra::Transform(), Ra::Color(0, 0, 255, 64), 0, 0, clipPtr);
-                            break;
-                        default:
-                            break;
-                    }
-                }
-                FPDFText_ClosePage(text_page);
+                ctm = transformForPage(page);
+                if (0) {
+                    Ra::Paint paint = paintFromPage(page);
+                    Ra::Bounds bounds(0, 0, paint.w, paint.h);
+                    Ra::Path path;  path->addBounds(bounds);
+                    scene->addPath(path, Ra::Transform(), paint, 0, 0);
+                } else
+                    writePageToScene(doc, page, scene);
+                
                 FPDF_ClosePage(page);
             }
             FPDF_CloseDocument(doc);
         }
         FPDF_DestroyLibrary();
         return ctm;
+    }
+    
+    static void writePageToScene(FPDF_DOCUMENT doc, FPDF_PAGE page, Ra::SceneRef& scene) {
+        FPDF_TEXTPAGE text_page = FPDFText_LoadPage(page);
+        CharMap charMap;
+        writeCharMap(text_page, charMap);
+
+        ClipState clipState;
+        
+        FS_MATRIX m;
+        Ra::Transform ctm;
+        int objectCount = FPDFPage_CountObjects(page);
+
+        for (int i = 0; i < objectCount; i++) {
+            FPDF_PAGEOBJECT page_object = FPDFPage_GetObject(page, i);
+            
+            FPDFPageObj_GetMatrix(page_object, & m);
+            ctm = Ra::Transform(m.a, m.b, m.c, m.d, m.e, m.f);
+            clipState.update(page_object);
+            
+            switch (FPDFPageObj_GetType(page_object)) {
+                case FPDF_PAGEOBJ_TEXT:
+                    writeTextToScene(page_object, text_page, charMap, ctm, clipState.clipPtr, scene);
+                    break;
+                case FPDF_PAGEOBJ_PATH:
+                    writePathToScene(page_object, ctm, clipState.clipPtr, clipState.clipPaths, scene);
+                    break;
+                case FPDF_PAGEOBJ_IMAGE:
+                    writeImageToScene(doc, page, page_object, ctm, clipState.clipPtr, clipState.clipPaths, scene);
+                    break;
+                case FPDF_PAGEOBJ_SHADING:
+                    writeShadingToScene(page, page_object, clipState.clipPtr, clipState.clipPaths, scene);
+                    break;
+                default:
+                    break;
+            }
+        }
+        FPDFText_ClosePage(text_page);
+    }
+    
+    static void writeCharMap(FPDF_TEXTPAGE text_page, CharMap& charMap) {
+        int charCount = FPDFText_CountChars(text_page);
+        for (int i = 0; i < charCount; i++) {
+            FPDF_PAGEOBJECT textObject = FPDFText_GetTextObject(text_page, i);
+            unsigned int code = FPDFText_GetUnicode(text_page, i);
+            if (code > 32) {
+                void *key = (void *)textObject;
+                auto it = charMap.find(key);
+                if (it == charMap.end())
+                    charMap.emplace(key, std::vector<int>({ i }));
+                else
+                    it->second.emplace_back(i);
+            }
+        }
     }
     
     static inline Ra::Transform transformForPage(FPDF_PAGE page) {
@@ -160,18 +192,17 @@ struct RasterizerPDF {
         Ra::Transform pageCTM(cosine, sine, -sine, cosine, tx, ty);
         return pageCTM.concat(originCTM);
     }
-
-    static void writeTextToScene(FPDF_PAGEOBJECT pageObject, FPDF_TEXTPAGE text_page, CharMap& charMap, FS_MATRIX m, Ra::Bounds *clipBounds, Ra::SceneRef& scene) {
-        auto it = charMap.find((void *)pageObject);
+    
+    static void writeTextToScene(FPDF_PAGEOBJECT page_object, FPDF_TEXTPAGE text_page, CharMap& charMap, Ra::Transform textCTM, Ra::Bounds *clipBounds, Ra::SceneRef& scene) {
+        auto it = charMap.find((void *)page_object);
         if (it != charMap.end()) {
             double left = 0, bottom = 0, right = 0, top = 0;
-            Ra::Transform textCTM(m.a, m.b, m.c, m.d, m.e, m.f);
             float hairline = -1.f;
             unsigned int R = 0, G = 0, B = 0, A = 255;
-            FPDFPageObj_GetFillColor(pageObject, & R, & G, & B, & A);
+            FPDFPageObj_GetFillColor(page_object, & R, & G, & B, & A);
             Ra::Color red(0, 0, 255, 255), textColor(B, G, R, A);
             Ra::Path rect;  rect->addBounds(Ra::Bounds(0, 0, 1, 1)), rect->close();
-            FPDF_FONT font = FPDFTextObj_GetFont(pageObject);
+            FPDF_FONT font = FPDFTextObj_GetFont(page_object);
             for(auto i : it->second) {
                 unsigned int code = FPDFText_GetUnicode(text_page, i);
                 FPDFText_GetCharBox(text_page, i, & left, & right, & bottom, & top);
@@ -186,38 +217,14 @@ struct RasterizerPDF {
             }
         }
     }
-    
-    static void writeImageToScene(FPDF_DOCUMENT doc, FPDF_PAGE page, FPDF_PAGEOBJECT pageObject, FS_MATRIX m, Ra::Bounds* clipBounds, std::vector<Ra::Path>& clipPaths, Ra::SceneRef& scene) {
-        FPDF_IMAGEOBJ_METADATA metadata;
-        FPDFImageObj_GetImageMetadata(pageObject, page, & metadata);
-        Ra::Transform ctm = Ra::Transform(m.a, m.b, m.c, m.d, m.e, m.f);
-        unsigned long size = FPDFImageObj_GetImageDataRaw(pageObject, NULL, INT_MAX);
-        if (size) {
-            FPDF_BITMAP bitmap = FPDFImageObj_GetRenderedBitmap(doc, page, pageObject);
-            int format = FPDFBitmap_GetFormat(bitmap);
-            if (format) {
-                auto buffer = (Ra::Color *)FPDFBitmap_GetBuffer(bitmap);
-                size_t width = FPDFBitmap_GetWidth(bitmap);
-                size_t height = FPDFBitmap_GetHeight(bitmap);
-                size_t stride = FPDFBitmap_GetStride(bitmap);
-                Ra::Paint image(buffer, width, height, stride);
-                
-                Ra::Bounds unitBounds(0, 0, 1, 1);
-                Ra::Path unitRectPath;  unitRectPath->addBounds(unitBounds);
-                scene->addPath(unitRectPath, ctm, image, 0, 0, clipBounds);
-            }
-            FPDFBitmap_Destroy(bitmap);
-        }
-    }
-    
-    static void writePathToScene(FPDF_PAGEOBJECT pageObject, FS_MATRIX m, Ra::Bounds* clipBounds, std::vector<Ra::Path>& clipPaths, Ra::SceneRef& scene) {
+     
+    static void writePathToScene(FPDF_PAGEOBJECT pageObject, Ra::Transform ctm, Ra::Bounds* clipBounds, std::vector<Ra::Path>& clipPaths, Ra::SceneRef& scene) {
         int fillmode;
         FPDF_BOOL stroke;
         Ra::Path *clipPath = clipPaths.size() == 0 || pathIsRect(clipPaths[0]) ? nullptr : & clipPaths[0];
         
         if (FPDFPath_GetDrawMode(pageObject, & fillmode, & stroke)) {
             Ra::Path path = PathWriter().createPathFromObject(pageObject);
-            Ra::Transform ctm = Ra::Transform(m.a, m.b, m.c, m.d, m.e, m.f);
             unsigned int R = 0, G = 0, B = 0, A = 255;
             float width = 0.f;
             uint8_t flags = 0;
@@ -250,6 +257,84 @@ struct RasterizerPDF {
         }
     }
     
+    static void writeImageToScene(FPDF_DOCUMENT doc, FPDF_PAGE page, FPDF_PAGEOBJECT page_object, Ra::Transform ctm, Ra::Bounds* clipBounds, std::vector<Ra::Path>& clipPaths, Ra::SceneRef& scene) {
+        FPDF_BITMAP bitmap = FPDFImageObj_GetRenderedBitmap(doc, page, page_object);
+        auto image = paintFromBitmap(bitmap);
+        FPDFBitmap_Destroy(bitmap);
+        if (!image.isImage())
+            return;
+        
+        Ra::Bounds unitBounds(0, 0, 1, 1);
+        Ra::Path unitRectPath;  unitRectPath->addBounds(unitBounds);
+        scene->addPath(unitRectPath, ctm, image, 0, 0, clipBounds);
+    }
+    
+    static Ra::Paint paintFromPage(FPDF_PAGE page) {
+        int width = FPDF_GetPageWidth(page);
+        int height = FPDF_GetPageHeight(page);
+        FPDF_BITMAP bitmap = FPDFBitmap_Create(width, height, 1);
+        FPDF_RenderPageBitmap(bitmap, page, 0, 0, width, height, 0, 0);
+        Ra::Paint paint = paintFromBitmap(bitmap);
+        FPDFBitmap_Destroy(bitmap);
+        return paint;
+    }
+   
+    static Ra::Paint paintFromBitmap(FPDF_BITMAP bitmap) {
+        int format = FPDFBitmap_GetFormat(bitmap);
+        if (format != 4)
+            return Ra::Paint();
+        auto buffer = (Ra::Color *)FPDFBitmap_GetBuffer(bitmap);
+        size_t width = FPDFBitmap_GetWidth(bitmap);
+        size_t height = FPDFBitmap_GetHeight(bitmap);
+        size_t stride = FPDFBitmap_GetStride(bitmap);
+        return Ra::Paint(buffer, width, height, stride);
+    }
+    
+    static void writeShadingToScene(FPDF_PAGE page, FPDF_PAGEOBJECT page_object, Ra::Bounds* clipBounds, std::vector<Ra::Path>& clipPaths, Ra::SceneRef& scene) {
+        if (clipPaths.size()) {
+            auto paint = paintFromPageObject(page, page_object);
+            scene->addPath(clipPaths[0], Ra::Transform(), paint, 0, 0, clipBounds);
+        }
+    }
+    
+    static Ra::Paint paintFromPageObject(FPDF_PAGE page, FPDF_PAGEOBJECT page_object) {
+        int width = FPDF_GetPageWidth(page);
+        int height = FPDF_GetPageHeight(page);
+
+        FPDFPage_RemoveObject(page, page_object);
+        
+        float left, bottom, right, top;
+        FPDFPageObj_GetBounds(page_object, & left, & bottom, & right, & top);
+        auto bounds = Ra::Bounds(left, bottom, right, top).integral();
+        
+        FPDF_DOCUMENT doc = FPDF_CreateNewDocument();
+        FPDF_PAGE new_page = FPDFPage_New(doc, 0, width, height);
+        FPDFPage_InsertObject(new_page, page_object);
+        
+        float s = 2;
+        Ra::Transform ctm(s, 0.f, 0.f, s, 0.f, 0.f);
+        width *= s, height *= s;
+        
+        FS_RECTF clip;  clip.left = 0.f, clip.bottom = 0.f, clip.right = width, clip.top = height;
+        FPDF_BITMAP bitmap = FPDFBitmap_Create(width, height, 1);
+    
+        FPDF_RenderPageBitmapWithMatrix(bitmap, new_page, (FS_MATRIX *)& ctm, & clip, 0);
+        
+        int format = FPDFBitmap_GetFormat(bitmap);
+        if (format != 4)
+            return Ra::Paint();
+        auto buffer = (Ra::Color *)FPDFBitmap_GetBuffer(bitmap);
+        
+        size_t stride = FPDFBitmap_GetStride(bitmap);
+        size_t offset = (height - s * bounds.uy) * stride / sizeof(Ra::Color) + s * bounds.lx;
+        auto paint = Ra::Paint(buffer + offset, s * bounds.width(), s * bounds.height(), stride);
+        
+        FPDFBitmap_Destroy(bitmap);
+        FPDF_ClosePage(new_page);
+        FPDF_CloseDocument(doc);
+        return paint;
+    }
+
     struct PathWriter {
         float x, y;
         std::vector<float> bezier;

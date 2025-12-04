@@ -19,7 +19,6 @@
 //
 
 #import "Rasterizer.hpp"
-#import <Accelerate/Accelerate.h>
 #import <CoreGraphics/CoreGraphics.h>
 
 
