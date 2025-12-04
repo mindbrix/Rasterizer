@@ -722,6 +722,7 @@ struct Rasterizer {
         ~Buffer() { if (base) free(base); }
         
         void prepare(const SceneList& list) {
+            params = list.params;
             pathsCount = list.pathsCount;
             texCount = 0;
             images.resize(0);
