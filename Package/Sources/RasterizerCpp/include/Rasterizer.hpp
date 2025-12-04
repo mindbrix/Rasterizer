@@ -726,6 +726,9 @@ struct Rasterizer {
             texCount = 0;
             images.resize(0);
             scenes.resize(0);
+            for (auto& scene : list.scenes)
+                scenes.add(scene);
+        
             size_t i, sizes[] = { sizeof(Color), sizeof(Transform), sizeof(Transform), sizeof(float), sizeof(Bounds), sizeof(Transform), sizeof(uint32_t) };
             size_t count = sizeof(sizes) / sizeof(*sizes), base = 0, bases[count];
             for (i = 0; i < count; i++)
@@ -750,7 +753,7 @@ struct Rasterizer {
         }
         uint8_t *base = nullptr;  Row<Entry> entries;
         Vector<Paint *> images;
-        Vector<Scene *> scenes;
+        RefVector<SceneRef> scenes;
         Params params;
         size_t colors, ctms, clips, widths, bounds, texCtms, texIdxs, texStrips;
         size_t idxs, pathsCount, texCount, headerSize, size = 0, allocation = 0;
@@ -826,7 +829,7 @@ struct Rasterizer {
                 Transform ctm = list.ctms[i].concat(view), clipquad, m, quad, invclip;
                 Bounds dev, clip, *bnds, clipBounds = device, sceneclip = list.clips[i], lastClip;
                 
-                if (clz - lz == 0) {
+                if (clz - lz == 0 && clz != cuz) {
                     allocator.refill(blends.end);
                     allocator.passes.back().isSceneStart = true;
                 }
@@ -1552,9 +1555,6 @@ struct Rasterizer {
         Row<Opaque> *stencils;
     };
     static size_t resizeBuffer(const SceneList& list, Context *contexts, size_t count, size_t *begins, Buffer& buffer) {
-        for (auto& scene : list.scenes)
-            buffer.scenes.add(scene.ptr);
-        
         size_t size = buffer.headerSize, begin = size, end = begin, sz, i, j, instances;
         for (i = 0; i < count; i++)
             size += contexts[i].opaques.end * sizeof(Opaque);

@@ -355,8 +355,8 @@ struct TextureCache : Cache<T, S> {
                 useImage = true;
                 break;
             case Ra::Buffer::kNextScene:
-                if (sceneIndex < buffer->scenes.end())
-                    p16buffer = _geometryCache.entryFor(*buffer->scenes[sceneIndex++], self.device);
+                assert(sceneIndex < buffer->scenes.end());
+                p16buffer = _geometryCache.entryFor(*buffer->scenes[sceneIndex++].ptr, self.device);
                 break;
             case Ra::Buffer::kStencils:
                 [commandEncoder endEncoding];
