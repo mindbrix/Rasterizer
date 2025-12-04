@@ -348,14 +348,11 @@ struct TextureCache {
     id <MTLTexture> imageTexture = nil;
     id <MTLBuffer> p16buffer = nil;
     
-    for (size_t segbase = 0, ptsbase = 0, instbase = 0, i = 0; i < buffer->entries.end; i++) {
+    for (size_t segbase = 0, instbase = 0, i = 0; i < buffer->entries.end; i++) {
         Ra::Buffer::Entry& entry = buffer->entries.base[i];
         switch (entry.type) {
             case Ra::Buffer::kSegmentsBase:
                 segbase = entry.begin;
-                break;
-            case Ra::Buffer::kPointsBase:
-                ptsbase = entry.begin;
                 break;
             case Ra::Buffer::kInstancesBase:
                 instbase = entry.begin;
@@ -438,7 +435,6 @@ struct TextureCache {
                     [commandEncoder setVertexBuffer:mtlBuffer offset:instbase atIndex:5];
                     [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->bounds atIndex:7];
                     [commandEncoder setVertexBuffer:p16buffer offset:0 atIndex:8];
-//                    [commandEncoder setVertexBuffer:mtlBuffer offset:ptsbase atIndex:8];
                     [commandEncoder setVertexBytes:& width length:sizeof(width) atIndex:10];
                     [commandEncoder setVertexBytes:& height length:sizeof(height) atIndex:11];
                     [commandEncoder setVertexBytes:& buffer->params length:sizeof(Ra::Params) atIndex:14];
