@@ -351,7 +351,7 @@ struct TextureCache : Cache<T, S> {
                 useImage = false;
                 break;
             case Ra::Buffer::kNextImage:
-                imageTexture = _textureCache.entryFor(*buffer->images[imgIndex++], self.device);
+                imageTexture = _textureCache.entryFor(buffer->images[imgIndex++], self.device);
                 useImage = true;
                 break;
             case Ra::Buffer::kNextScene:
