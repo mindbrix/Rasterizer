@@ -23,39 +23,32 @@
 #import <map>
 #import <time.h>
 
-struct GeometryCache {
-    constexpr static double kExpiryAge = 10;
-    
-    static inline double getTime() {
-        struct timeval tv;  gettimeofday(& tv, NULL);
-        return tv.tv_sec + tv.tv_usec * 1e-6;
-    }
+template<typename T, typename S, int kExpiryAge = 10>
+struct Cache {
     struct Entry {
-        Entry(id <MTLBuffer> buffer) : buffer(buffer), timestamp(getTime()) {}
+        Entry(T payload) : payload(payload), timestamp(getTime()) {}
         
-        id <MTLBuffer> buffer;
+        T payload;
         double timestamp;
     };
     
-    id <MTLBuffer> bufferForScene(const Ra::Scene& scene, id <MTLDevice> device) {
+    virtual T createPayload(S src, id <MTLDevice> device) = 0;
+    
+    T payloadFor(S src, id <MTLDevice> device) {
         flush();
-        auto key = scene.hash();
+        auto key = src.hash();
         auto it = map.find(key);
         if (it == map.end()) {
-            size_t length = scene.p16total * sizeof(Ra::Point16);
-            id <MTLBuffer> buffer = [device newBufferWithLength:length
-                                                        options:MTLResourceStorageModeShared];
-            auto dst = (Ra::Point16 *)buffer.contents;
-            for (auto& entry: scene.p16map)
-                memcpy(dst + entry.second.idx, entry.second.g->p16s.base, entry.second.g->p16s.end * sizeof(*dst));
-            
-            map.emplace(key, Entry(buffer));
-            return buffer;
+            T payload = createPayload(src, device);
+
+            map.emplace(key, Entry(payload));
+            return payload;
         } else {
             it->second.timestamp = getTime();
-            return it->second.buffer;
+            return it->second.payload;
         }
     }
+    
     void flush() {
         double now = getTime();
         std::vector<size_t> expired;
@@ -65,63 +58,55 @@ struct GeometryCache {
         for (auto key: expired)
             map.erase(key);
     }
+    
+    static inline double getTime() {
+        struct timeval tv;  gettimeofday(& tv, NULL);
+        return tv.tv_sec + tv.tv_usec * 1e-6;
+    }
+    
     std::map<size_t, Entry> map;
 };
 
-struct TextureCache {
-    constexpr static time_t kExpiryAge = 10;
+template<typename T, typename S>
+struct GeometryCache : Cache<T, S> {
     
-    struct Entry {
-        Entry(id <MTLTexture> texture) : texture(texture), timestamp(time(NULL)) {}
-        
-        id <MTLTexture> texture;
-        time_t timestamp;
-    };
-    
-    id <MTLTexture> textureForImage(const Ra::Paint& image, id <MTLDevice> device) {
-        flush();
-        if (!image.isImage())
-            return nil;
-        auto key = image.hash();
-        auto it = map.find(key);
-        if (it == map.end()) {
-            MTLTextureDescriptor* desc = [MTLTextureDescriptor
-                texture2DDescriptorWithPixelFormat:MTLPixelFormatBGRA8Unorm
-                                             width:image.w
-                                            height:image.h
-                                         mipmapped:NO];
-            desc.storageMode = MTLStorageModeShared;
-            desc.usage = MTLTextureUsageShaderRead;
-            auto texture = [device newTextureWithDescriptor:desc];
-            [texture replaceRegion:MTLRegionMake2D(0, 0, image.w, image.h)
-                            mipmapLevel:0
-                              withBytes:& image.matched[0]
-                            bytesPerRow:image.w * sizeof(Ra::Color)];
-            map.emplace(key, Entry(texture));
-            return texture;
-        } else {
-            it->second.timestamp = time(NULL);
-            return it->second.texture;
-        }
+    T createPayload(S scene, id <MTLDevice> device) {
+        size_t length = scene.p16total * sizeof(Ra::Point16);
+        T buffer = [device newBufferWithLength:length
+                                       options:MTLResourceStorageModeShared];
+        auto dst = (Ra::Point16 *)buffer.contents;
+        for (auto& entry: scene.p16map)
+            memcpy(dst + entry.second.idx, entry.second.g->p16s.base, entry.second.g->p16s.end * sizeof(*dst));
+        return buffer;
     }
-    
-    void flush() {
-        time_t now = time(NULL);
-        std::vector<size_t> expired;
-        for (const auto& entry: map)
-            if (now - entry.second.timestamp > kExpiryAge)
-                expired.emplace_back(entry.first);
-        for (auto key: expired)
-            map.erase(key);
-    }
-    std::map<size_t, Entry> map;
 };
+
+template<typename T, typename S>
+struct TextureCache : Cache<T, S> {
+    T createPayload(S image, id <MTLDevice> device) {
+        MTLTextureDescriptor* desc = [MTLTextureDescriptor
+            texture2DDescriptorWithPixelFormat:MTLPixelFormatBGRA8Unorm
+                                         width:image.w
+                                        height:image.h
+                                     mipmapped:NO];
+        desc.storageMode = MTLStorageModeShared;
+        desc.usage = MTLTextureUsageShaderRead;
+        
+        auto texture = [device newTextureWithDescriptor:desc];
+        [texture replaceRegion:MTLRegionMake2D(0, 0, image.w, image.h)
+                        mipmapLevel:0
+                          withBytes:& image.matched[0]
+                        bytesPerRow:image.w * sizeof(Ra::Color)];
+        return texture;
+    }
+};
+
 
 @interface RasterizerLayer ()
 {
     Ra::Buffer _buffer0, _buffer1;
-    GeometryCache _geometryCache;
-    TextureCache _textureCache;
+    TextureCache<id <MTLTexture>, const Ra::Paint &> _textureCache;
+    GeometryCache<id <MTLBuffer>, const Ra::Scene &> _geometryCache;
 }
 
 @property (nonatomic) dispatch_semaphore_t inflight_semaphore;
@@ -367,12 +352,12 @@ struct TextureCache {
                 useImage = false;
                 break;
             case Ra::Buffer::kNextImage:
-                imageTexture = _textureCache.textureForImage(*buffer->images[imgIndex++], self.device);
+                imageTexture = _textureCache.payloadFor(*buffer->images[imgIndex++], self.device);
                 useImage = true;
                 break;
             case Ra::Buffer::kNextScene:
                 if (sceneIndex < buffer->scenes.end())
-                    p16buffer = _geometryCache.bufferForScene(*buffer->scenes[sceneIndex++], self.device);
+                    p16buffer = _geometryCache.payloadFor(*buffer->scenes[sceneIndex++], self.device);
                 break;
             case Ra::Buffer::kStencils:
                 [commandEncoder endEncoding];
