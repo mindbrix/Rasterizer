@@ -270,6 +270,14 @@
 - (void)setCtm:(CGAffineTransform)ctm {
     _list.ctm = RaCG::transformFromCG(ctm);
 }
+- (nonnull RAPaint *)clearColor {
+    RAPaint *clear = [RAPaint new];
+    clear.paint = _list.params.clearColor;
+    return clear;
+}
+- (void)setClearColor:(RAPaint *)clearColor {
+    _list.params.clearColor = clearColor.paint.color;
+}
 - (BOOL)useClips {
     return _list.params.useClips;
 }
