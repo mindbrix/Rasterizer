@@ -122,10 +122,19 @@ struct Rasterizer {
     };
     template<typename T>
     struct Ref {
-        Ref(const T& src)                   { ptr = new T(), *ptr = src, ptr->refCount = 1; }
-        Ref()                               { ptr = new T(), ptr->refCount = 1; }
-        ~Ref()                              { if (--(ptr->refCount) == 0) delete ptr; }
-        Ref(const Ref& other)               { *this = other; }
+        Ref() {
+            ptr = new T(), ptr->refCount = 1;
+        }
+        ~Ref() {
+            if (--(ptr->refCount) == 0)
+                delete ptr;
+        }
+        Ref(const T& src) {
+            ptr = new T(), *ptr = src, ptr->refCount = 1;
+        }
+        Ref(const Ref& other) {
+            *this = other;
+        }
         Ref& operator= (const Ref& other)   {
             if (this != & other) {
                 if (ptr)
@@ -134,7 +143,9 @@ struct Rasterizer {
             }
             return *this;
         }
-        T* operator->() const { return ptr; }
+        inline T* operator->() const {
+            return ptr;
+        }
         T *ptr = nullptr;
     };
     template<typename T, bool isRef = false>
