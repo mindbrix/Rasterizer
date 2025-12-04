@@ -34,13 +34,12 @@ struct Cache {
     
     virtual T createPayload(S src, id <MTLDevice> device) = 0;
     
-    T payloadFor(S src, id <MTLDevice> device) {
+    T entryFor(S src, id <MTLDevice> device) {
         flush();
         auto key = src.hash();
         auto it = map.find(key);
         if (it == map.end()) {
             T payload = createPayload(src, device);
-
             map.emplace(key, Entry(payload));
             return payload;
         } else {
@@ -352,12 +351,12 @@ struct TextureCache : Cache<T, S> {
                 useImage = false;
                 break;
             case Ra::Buffer::kNextImage:
-                imageTexture = _textureCache.payloadFor(*buffer->images[imgIndex++], self.device);
+                imageTexture = _textureCache.entryFor(*buffer->images[imgIndex++], self.device);
                 useImage = true;
                 break;
             case Ra::Buffer::kNextScene:
                 if (sceneIndex < buffer->scenes.end())
-                    p16buffer = _geometryCache.payloadFor(*buffer->scenes[sceneIndex++], self.device);
+                    p16buffer = _geometryCache.entryFor(*buffer->scenes[sceneIndex++], self.device);
                 break;
             case Ra::Buffer::kStencils:
                 [commandEncoder endEncoding];
