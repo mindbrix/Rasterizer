@@ -70,7 +70,7 @@ struct Cache {
 template<typename T, typename S>
 struct GeometryCache : Cache<T, S> {
     
-    T createPayload(S scene, id <MTLDevice> device) {
+    T createPayload(S scene, id <MTLDevice> device) override {
         size_t length = scene.p16total * sizeof(Ra::Point16);
         T buffer = [device newBufferWithLength:length
                                        options:MTLResourceStorageModeShared];
@@ -83,7 +83,7 @@ struct GeometryCache : Cache<T, S> {
 
 template<typename T, typename S>
 struct TextureCache : Cache<T, S> {
-    T createPayload(S image, id <MTLDevice> device) {
+    T createPayload(S image, id <MTLDevice> device) override {
         MTLTextureDescriptor* desc = [MTLTextureDescriptor
             texture2DDescriptorWithPixelFormat:MTLPixelFormatBGRA8Unorm
                                          width:image.w
