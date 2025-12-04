@@ -750,7 +750,7 @@ struct Rasterizer {
             Pass(size_t idx) : idx(idx) {}
             size_t count() const { return counts[0] + counts[1] + counts[2] + counts[3]; }
             size_t idx, counts[4] = { 0, 0, 0, 0 };
-            bool isScene = false;
+            bool isSceneStart = false;
         };
         void empty(Bounds device) {
             full = device, sheet = Bounds(0.f, 0.f, 0.f, 0.f), bzero(strips, sizeof(strips)), passes.empty();
@@ -807,7 +807,7 @@ struct Rasterizer {
             bool clipActive = false;
             
             Color black(0, 0, 0, 255), red(0, 0, 255, 255);
-            size_t lz, uz, i, clz, cuz, iz, is, size, cnt, lastIdx = ~0, lastClipIdx = ~0;  uint8_t flags;
+            size_t lz, uz, i, clz, cuz, iz, is, cnt, lastIdx = ~0, lastClipIdx = ~0;  uint8_t flags;
             float det, width, uw, softclipMargin = 0.5f;
             for (lz = uz = i = 0; i < list.scenes.size(); i++, lz = uz) {
                 const Scene *scn = list.scenes[i].ptr;
@@ -817,7 +817,7 @@ struct Rasterizer {
                 
                 if (clz - lz == 0) {
                     allocator.refill(blends.end);
-                    allocator.passes.back().isScene = true;
+                    allocator.passes.back().isSceneStart = true;
                 }
                 
                 for (is = clz - lz, iz = clz; iz < cuz; iz++, is++) {
@@ -909,12 +909,8 @@ struct Rasterizer {
                             bounds[iz] = *bnds;
                             bool fast = !buffer->params.useCurves || g->maxCurve * det < 16.f;
                             Blend *inst = new (blends.alloc(1)) Blend(iz | colorFlags | Instance::kMolecule | bool(flags & Scene::kFillEvenOdd) * Instance::kEvenOdd | fast * Instance::kFastEdges);
-                            p16s.add(& g->p16s);
-                            inst->g = g, inst->quad.cover = 0;
-                            inst->quad.base = int(scn->p16bases[is]);
-//                            inst->quad.base = int(p16total);
-                            size = g->p16s.idx, p16total += g->p16s.end;
-                            cnt = fast ? size / kFastSegments : g->atoms.end;
+                            inst->g = g, inst->quad.cover = 0, inst->quad.base = int(scn->p16bases[is]);
+                            cnt = fast ? g->p16s.idx / kFastSegments : g->atoms.end;
                             int type = fast ? Allocator::kFastMolecules : Allocator::kQuadMolecules;
                             allocator.alloc(clip.lx, clip.ly, clip.ux, clip.uy, blends.end - 1, & inst->quad.cell, type, cnt);
                         } else {
@@ -938,20 +934,17 @@ struct Rasterizer {
             }
         }
         void empty() {
-            p16total = texTotal = 0, blends.empty(), opaques.empty(), stencils.empty(), outlines.empty(), segments.empty(), segmentsIndices.empty(), indices.empty();
-            p16s.resize(0), texs.resize(0), images.resize(0);
+            texTotal = 0, blends.empty(), opaques.empty(), stencils.empty(), outlines.empty(), segments.empty(), segmentsIndices.empty(), indices.empty(), texs.resize(0), images.resize(0);
             for (int i = 0; i < samples.end(); i++)
                 samples[i].empty();
             entries = Vector<Buffer::Entry>();
         }
-        void reset() { p16total = 0, blends.reset(), opaques.reset(), stencils.reset(), outlines.reset(), segments.reset(), segmentsIndices.reset(), indices.reset(), entries = Vector<Buffer::Entry>();
-            p16s.resize(0), texs.resize(0), images.resize(0);
+        void reset() { blends.reset(), opaques.reset(), stencils.reset(), outlines.reset(), segments.reset(), segmentsIndices.reset(), indices.reset(), entries = Vector<Buffer::Entry>(), texs.resize(0), images.resize(0);
             samples.resize(0);
         }
         
-        size_t p16total, texTotal;
+        size_t texTotal;
         Allocator allocator;  Vector<Buffer::Entry> entries;
-        Vector<Row<Point16>*> p16s;
         Vector<TexRef> texs;
         Vector<Paint *> images;
         Row<Opaque> opaques, stencils;  Row<Blend> blends;  Row<Instance> outlines;  Row<Segment> segments;
@@ -1566,7 +1559,7 @@ struct Rasterizer {
                 buffer.images.add(ctx->images[j]);
             for (instances = 0, pass = ctx->allocator.passes.base, j = 0; j < ctx->allocator.passes.end; j++, pass++)
                 instances += pass->count();
-            begins[i] = size, size += instances * sizeof(Edge) + (ctx->outlines.end + ctx->blends.end) * sizeof(Instance) + ctx->segments.end * sizeof(Segment) + 0 * ctx->p16total * sizeof(Point16) + ctx->stencils.end * sizeof(Opaque);
+            begins[i] = size, size += instances * sizeof(Edge) + (ctx->outlines.end + ctx->blends.end) * sizeof(Instance) + ctx->segments.end * sizeof(Segment) + ctx->stencils.end * sizeof(Opaque);
         }
         buffer.resize(size, buffer.headerSize);
         
@@ -1589,19 +1582,11 @@ struct Rasterizer {
     }
     static void writeContextToBuffer(const SceneList& list, Context *ctx, size_t begin, Buffer& buffer) {
         size_t i, j, count, size, ip, iz, ic, end, instbegin, passsize, stencilBegin = 0;
-        if (ctx->segments.end || ctx->p16total || ctx->stencils.end) {
+        if (ctx->segments.end || ctx->stencils.end) {
             size = ctx->segments.end * sizeof(Segment), end = begin + size;
             ctx->entries.add(Buffer::Entry(Buffer::kSegmentsBase, begin, end));
             memcpy(buffer.base + begin, ctx->segments.base, size), begin = end;
-            
-//            auto& p16s = ctx->p16s;
-//            for (i = 0; i < p16s.end(); i++) {
-//                size = p16s[i]->end * sizeof(Point16);
-//                memcpy(buffer.base + end, p16s[i]->base, size);
-//                end += size;
-//            }
-            ctx->entries.add(Buffer::Entry(Buffer::kPointsBase, begin, end)), begin = end;
-            
+                        
             stencilBegin = begin;
             end = begin + ctx->stencils.end * sizeof(Opaque);
             memcpy(buffer.base + stencilBegin, ctx->stencils.base, end - begin);
@@ -1611,7 +1596,7 @@ struct Rasterizer {
         Edge *quadEdge = nullptr, *fastEdge = nullptr, *fastMolecule = nullptr, *fastMolecule0 = nullptr, *quadMolecule = nullptr, *quadMolecule0 = nullptr;
         for (count = ctx->allocator.passes.end, ip = 0; ip < count; ip++) {
             Allocator::Pass *pass = ctx->allocator.passes.base + ip;
-            if (pass->isScene)
+            if (pass->isSceneStart)
                 ctx->entries.add(Buffer::Entry(Buffer::kNextScene, 0, 0));
             passsize = (ip + 1 < count ? (pass + 1)->idx : ctx->blends.end) - pass->idx;
             instbegin = begin + pass->count() * sizeof(Edge);
