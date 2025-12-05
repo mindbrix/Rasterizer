@@ -396,12 +396,6 @@ struct Rasterizer {
     };
     typedef Ref<Geometry> Path;
     
-    struct Segment {
-        inline Segment() {}
-        inline Segment(float x0, float y0, float x1, float y1, bool curve) : ix0((*((uint32_t *)& x0) & ~1) | curve), y0(y0), x1(x1), y1(y1) {}
-        union { float x0; uint32_t ix0; };  float y0, x1, y1;
-    };
-    
     struct P16Writer: GeometryWriter {
         static const uint8_t isMoveTo = 0x80;
         
@@ -676,6 +670,10 @@ struct Rasterizer {
         }
         Transform ctm;  Params params;
         size_t pathsCount = 0;  std::vector<SceneRef> scenes;  std::vector<Transform> ctms;  std::vector<Bounds> clips;
+    };
+    struct Segment {
+        inline Segment(float x0, float y0, float x1, float y1, bool curve) : ix0((*((uint32_t *)& x0) & ~1) | curve), y0(y0), x1(x1), y1(y1) {}
+        union { float x0; uint32_t ix0; };  float y0, x1, y1;
     };
     struct Cell {
         uint16_t lx, ly, ux, uy, ox, oy;
