@@ -557,8 +557,8 @@ struct Rasterizer {
     struct Scene {
         enum Flags { kInvisible = 1 << 0, kFillEvenOdd = 1 << 1, kRoundCap = 1 << 2, kSquareCap = 1 << 3, kRoundJoin = 1 << 4 };
         struct Entry {
-            Entry(const Path& path, size_t idx) : path(path), idx(idx) {}
-            Path path;  size_t idx;
+            Entry(const Path& path, size_t idx) : path(path), idx(uint32_t(idx)) {}
+            Path path;  uint32_t idx;
         };
         
         void addPath(const Path& path, const Transform& ctm, const Paint& paint, float width, uint8_t flag, Bounds *clipBounds = nullptr, Path *clipPath = nullptr) {
@@ -570,7 +570,7 @@ struct Rasterizer {
                 auto it = p16map.find(key);
                 if (it == p16map.end()) {
                     paths.add(path);
-                    p16bases.add(p16total);
+                    p16bases.add(uint32_t(p16total));
                     p16map.emplace(key, Entry(path, p16total));
                     
                     if (kMoleculesHeight && g->p16s.end == 0)
@@ -630,9 +630,9 @@ struct Rasterizer {
             return xxhash;
         }
         
-        size_t refCount, count = 0, weight = 0, xxhash = 0, p16total = 0, p16full = 0;
+        size_t refCount, count = 0, weight = 0, xxhash = 0;
         RefVector<Path> paths;
-        Vector<size_t> p16bases;
+        Vector<uint32_t> p16bases;  uint32_t p16total = 0, p16full = 0;
         RefVector<Path> clipPaths;
         Vector<size_t> clipIndices;
         Vector<Bounds> bnds, clips;
