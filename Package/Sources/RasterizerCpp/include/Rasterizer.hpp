@@ -587,7 +587,7 @@ struct Rasterizer {
                 }
                 
                 if (paint.isGradient()) {
-                    gradientIndices.add(gradients.end());
+                    gradientIndices.add(uint32_t(gradients.end()));
                     Color strip[kColorTextureWidth];
                     paint.writeGradientStrip(strip, kColorTextureWidth);
                     gradients.add(strip, kColorTextureWidth);
@@ -639,7 +639,7 @@ struct Rasterizer {
         Vector<Transform> ctms;
         RefVector<Paint> paints;
         Vector<Color> colors, matchedColors = colors;
-        Vector<size_t> gradientIndices;
+        Vector<uint32_t> gradientIndices;
         Vector<Color> gradients, matchedGradients = gradients;
         Vector<float> widths;
         std::map<size_t, Entry> p16map;
