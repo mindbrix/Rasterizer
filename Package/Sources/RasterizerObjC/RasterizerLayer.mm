@@ -24,7 +24,7 @@
 #import <time.h>
 
 template<typename T, typename S, int kExpiryAge = 10>
-struct Cache {
+struct MetalCache {
     struct Entry {
         Entry(T payload) : payload(payload), timestamp(getTime()) {}
         
@@ -67,7 +67,7 @@ struct Cache {
 };
 
 template<typename T, typename S>
-struct GeometryCache : Cache<T, S> {
+struct GeometryCache : MetalCache<T, S> {
     
     T createPayload(S scene, id <MTLDevice> device) override {
         size_t length = scene.p16total * sizeof(Ra::Point16);
@@ -81,7 +81,7 @@ struct GeometryCache : Cache<T, S> {
 };
 
 template<typename T, typename S>
-struct TextureCache : Cache<T, S> {
+struct TextureCache : MetalCache<T, S> {
     T createPayload(S image, id <MTLDevice> device) override {
         MTLTextureDescriptor* desc = [MTLTextureDescriptor
             texture2DDescriptorWithPixelFormat:MTLPixelFormatBGRA8Unorm
