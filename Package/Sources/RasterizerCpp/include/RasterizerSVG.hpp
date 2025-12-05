@@ -112,3 +112,5 @@ struct RasterizerSVG {
         }
     }
 };
+
+typedef RasterizerSVG RaSVG;

@@ -93,7 +93,7 @@ struct RasterizerPDF {
         return count;
     }
     
-    static Ra::Transform addPdfToScene(const void *bytes, size_t size, size_t pageIndex, Ra::SceneRef& scene) {
+    static Ra::Transform addPdfDataToScene(const void *bytes, size_t size, size_t pageIndex, Ra::SceneRef& scene) {
         Ra::Transform ctm;
         FPDF_LIBRARY_CONFIG config;
             config.version = 3;
@@ -403,3 +403,5 @@ struct RasterizerPDF {
         return fabsf(t0) < 1e-3f && fabsf(t1) < 1e-3f;
     }
 };
+
+typedef RasterizerPDF RaPDF;

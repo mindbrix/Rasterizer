@@ -251,7 +251,7 @@
     return RaCT::addTextToSceneInRect((__bridge CFAttributedStringRef)string, rect, ctm, clip, _scene);
 }
 - (CGAffineTransform)addSvgFromData:(NSData *)data {
-    return RaCG::CGFromTransform(RasterizerSVG::addSvgDataToScene(data.bytes, data.length, _scene));
+    return RaCG::CGFromTransform(RaSVG::addSvgDataToScene(data.bytes, data.length, _scene));
 }
 
 @end

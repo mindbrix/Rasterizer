@@ -85,9 +85,9 @@ struct RasterizerDemo {
         else if (keyCode == KeyCode::kO)
             params.showOutlines = !params.showOutlines, keyUsed = true, clearHUD();
         else if (keyCode == KeyCode::kP)
-            mouseMove = !mouseMove, indices = mouseMove ? indices : Rw::IndexPair(), keyUsed = true, clearHUD();
+            mouseMove = !mouseMove, indices = mouseMove ? indices : RaWnd::IndexPair(), keyUsed = true, clearHUD();
         else if (keyCode == KeyCode::kL)
-            locked = locked.i0 != INT_MAX ? Rw::IndexPair() : indices, keyUsed = true;
+            locked = locked.i0 != INT_MAX ? RaWnd::IndexPair() : indices, keyUsed = true;
         else if (keyCode == KeyCode::kS)
             list.ctm = ctm, RaCG::screenGrabToPDF(list, bounds), keyUsed = true;
         else if (keyCode == KeyCode::kT) {
@@ -221,7 +221,7 @@ struct RasterizerDemo {
         } else if (svgData.size) {
             if (document.pathsCount == 0) {
                 Ra::SceneRef scene;
-                Ra::Transform m = RasterizerSVG::addSvgDataToScene(svgData.addr, svgData.size, scene);
+                Ra::Transform m = RaSVG::addSvgDataToScene(svgData.addr, svgData.size, scene);
                 document.addScene(scene, m);
                 fit = true;
             }
@@ -229,7 +229,7 @@ struct RasterizerDemo {
         } else if (pdfData.size) {
             if (document.pathsCount == 0) {
                 Ra::SceneRef scene;
-                Ra::Transform m = RasterizerPDF::addPdfToScene(pdfData.addr, pdfData.size, pageIndex, scene);
+                Ra::Transform m = RaPDF::addPdfDataToScene(pdfData.addr, pdfData.size, pageIndex, scene);
                 document.addScene(scene, m);
                 fit = true;
             }
@@ -288,7 +288,7 @@ struct RasterizerDemo {
     void setPdfData(const void *data, size_t size) {
         if (data) {
             memcpy(pdfData.resize(size), data, size);
-            pageCount = RasterizerPDF::getPageCount(data, size);
+            pageCount = RaPDF::getPageCount(data, size);
             pageIndex = 0;
         }
         redraw = true;
@@ -320,6 +320,6 @@ struct RasterizerDemo {
     bool gpu = true, redraw = false, fit = false, mouseDown = false, mouseMove = false;
     double clock = 0.0, timeScale = 0.333;
     float mx, my;
-    Rw::IndexPair indices = Rw::IndexPair(), locked = Rw::IndexPair();
+    RaWnd::IndexPair indices = RaWnd::IndexPair(), locked = RaWnd::IndexPair();
     size_t flags = 0;
 };

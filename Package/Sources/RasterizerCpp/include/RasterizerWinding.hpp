@@ -114,4 +114,4 @@ struct RasterizerWinding {
     };
 };
 
-typedef RasterizerWinding Rw;
+typedef RasterizerWinding RaWnd;
