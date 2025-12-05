@@ -79,6 +79,3 @@ struct RasterizerRenderer {
     static const int kContextCount = 8;
     Ra::Context contexts[kContextCount];
  };
-
-
- typedef RasterizerRenderer RaR;
