@@ -608,7 +608,7 @@ struct Rasterizer {
                             clipPaths.add(*clipPath);
                         idx = clipPaths.end() - 1;
                     }
-                    clipIndices.add(idx);
+                    clipIndices.add(uint32_t(idx));
                 } else
                     clipIndices.add(~0);
             }
@@ -634,7 +634,7 @@ struct Rasterizer {
         RefVector<Path> paths;
         Vector<uint32_t> p16bases;  uint32_t p16total = 0, p16full = 0;
         RefVector<Path> clipPaths;
-        Vector<size_t> clipIndices;
+        Vector<uint32_t> clipIndices;
         Vector<Bounds> bnds, clips;
         Vector<Transform> ctms;
         RefVector<Paint> paints;
@@ -852,7 +852,7 @@ struct Rasterizer {
                             invclip = clipquad.invert();
                             clipBounds = Bounds(clipquad).integral().intersect(device);
                         }
-                        size_t idx = scn->clipIndices[is];
+                        uint32_t idx = scn->clipIndices[is];
                         if (idx != lastIdx) {
                             lastIdx = idx;
                             Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kStencil);
