@@ -122,7 +122,7 @@ struct Concentrichron {
                     strcpy(str.alloc(strlen(strbuf) + 1), strbuf);
                 }
                 Ra::SceneRef glyphs;
-                Ra::Bounds gb = RasterizerCoreText::addCStringToSceneInRect(str.base, fontName, inset * 0.666f, black, b, Ra::Transform(), Ra::Bounds(), glyphs);
+                Ra::Bounds gb = RaCT::addCStringToSceneInRect(str.base, fontName, inset * 0.666f, black, b, Ra::Transform(), Ra::Bounds(), glyphs);
                 da = (gb.ux - gb.lx) / r, a0 = theta0 + j * -step - 0.5f * (step - da);
                 
                 layoutGlyphsOnArc(glyphs, cx, cy, r, a0, ring);

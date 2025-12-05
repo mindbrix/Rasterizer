@@ -245,10 +245,10 @@
 }
 
 - (CGRect)addTextLine:(NSAttributedString *)string ctm:(CGAffineTransform)ctm clip:(CGRect)clip {
-    return RasterizerCoreText::addTextLineToScene((__bridge CFAttributedStringRef)string, ctm, clip, _scene);
+    return RaCT::addTextLineToScene((__bridge CFAttributedStringRef)string, ctm, clip, _scene);
 }
 - (CGRect)addText:(NSAttributedString *)string inRect:(CGRect)rect ctm:(CGAffineTransform)ctm clip:(CGRect)clip {
-    return RasterizerCoreText::addTextToSceneInRect((__bridge CFAttributedStringRef)string, rect, ctm, clip, _scene);
+    return RaCT::addTextToSceneInRect((__bridge CFAttributedStringRef)string, rect, ctm, clip, _scene);
 }
 - (CGAffineTransform)addSvgFromData:(NSData *)data {
     return RaCG::CGFromTransform(RasterizerSVG::addSvgDataToScene(data.bytes, data.length, _scene));

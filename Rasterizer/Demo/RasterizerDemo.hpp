@@ -170,7 +170,7 @@ struct RasterizerDemo {
         hud->addPath(bgPath, Ra::Transform(), bgColor, 0, 0);
         
         float lineHeight = text.height() / kHudItemCount, uy;
-        float fontSize = RasterizerCoreText::fontSizeForLineHeight(fontName.addr, lineHeight);
+        float fontSize = RaCT::fontSizeForLineHeight(fontName.addr, lineHeight);
         
         for (size_t i = 0; i < kHudItemCount; i++) {
             HudItem& item = hudItems[i];
@@ -185,11 +185,11 @@ struct RasterizerDemo {
                 || (*item.key == 'T' && showTime)
                 || (*item.key == 'C' && params.useCurves))
                 color = activeColor;
-            RasterizerCoreText::addCStringToSceneInRect(item.key, fontName.addr, fontSize, textColor, Ra::Bounds(text.lx, hudBounds.ly, text.ux, uy), Ra::Transform(), Ra::Bounds(), hud);
+            RaCT::addCStringToSceneInRect(item.key, fontName.addr, fontSize, textColor, Ra::Bounds(text.lx, hudBounds.ly, text.ux, uy), Ra::Transform(), Ra::Bounds(), hud);
             char const *label = item.text;
             if (*item.key == '0' && !gpu)
                 label = item.alt;
-            RasterizerCoreText::addCStringToSceneInRect(label, fontName.addr, fontSize, color, Ra::Bounds(text.lx + 2 * fontSize, hudBounds.ly, text.ux, uy), Ra::Transform(), Ra::Bounds(), hud);
+            RaCT::addCStringToSceneInRect(label, fontName.addr, fontSize, color, Ra::Bounds(text.lx + 2 * fontSize, hudBounds.ly, text.ux, uy), Ra::Transform(), Ra::Bounds(), hud);
         }
         hud->addPath(bgPath, Ra::Transform(), textColor, kHudBorder, 0);
         return hud;
@@ -207,13 +207,13 @@ struct RasterizerDemo {
         if (pastedString.size) {
             if (pasted.pathsCount == 0) {
                 Ra::SceneRef glyphs;
-                RasterizerCoreText::addCStringToSceneInRect(pastedString.addr, fontName.addr, fontSize, textColor, bounds, Ra::Transform(), Ra::Bounds(), glyphs);
+                RaCT::addCStringToSceneInRect(pastedString.addr, fontName.addr, fontSize, textColor, bounds, Ra::Transform(), Ra::Bounds(), glyphs);
                 pasted.addScene(glyphs);
             }
             list.addList(pasted);
         } else if (showGlyphGrid) {
             if (text.pathsCount == 0) {
-                text.addScene(RasterizerCoreText::writeGlyphGrid(fontName.addr, fontSize, textColor));
+                text.addScene(RaCT::writeGlyphGrid(fontName.addr, fontSize, textColor));
             }
             list.addList(text);
         } else if (showTime) {
