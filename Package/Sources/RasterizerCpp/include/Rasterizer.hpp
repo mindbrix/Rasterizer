@@ -578,7 +578,7 @@ struct Rasterizer {
                     
                     p16total += g->p16s.end;
                     size_t pathHash = g->hash();
-                    p16Hash = XXH64(& pathHash, sizeof(pathHash), p16Hash);
+                    xxhash = XXH64(& pathHash, sizeof(pathHash), xxhash);
                     p16full += path->p16s.end;
                 } else {
                     paths.add(it->second.path);
@@ -627,10 +627,10 @@ struct Rasterizer {
             return b;
         }
         inline size_t hash() const {
-            return p16Hash;
+            return xxhash;
         }
         
-        size_t refCount, count = 0, weight = 0, p16total = 0, p16full = 0, p16Hash = 0;
+        size_t refCount, count = 0, weight = 0, xxhash = 0, p16total = 0, p16full = 0;
         RefVector<Path> paths;
         Vector<size_t> p16bases;
         RefVector<Path> clipPaths;
