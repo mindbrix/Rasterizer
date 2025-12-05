@@ -75,7 +75,7 @@ struct GeometryCache : Cache<T, S> {
                                        options:MTLResourceStorageModeShared];
         auto dst = (Ra::Point16 *)buffer.contents;
         for (auto& entry: scene.p16map)
-            memcpy(dst + entry.second.idx, entry.second.g->p16s.base, entry.second.g->p16s.end * sizeof(*dst));
+            memcpy(dst + entry.second.idx, entry.second.path->p16s.base, entry.second.path->p16s.end * sizeof(*dst));
         return buffer;
     }
 };
