@@ -269,6 +269,13 @@ struct RasterizerPDF {
         scene->addPath(unitRectPath, ctm, image, 0, 0, clipBounds);
     }
     
+    static void writeShadingToScene(FPDF_PAGE page, FPDF_PAGEOBJECT page_object, Ra::Bounds* clipBounds, std::vector<Ra::Path>& clipPaths, Ra::SceneRef& scene) {
+        if (clipPaths.size()) {
+            auto paint = paintFromPageObject(page, page_object);
+            scene->addPath(clipPaths[0], Ra::Transform(), paint, 0, 0, clipBounds);
+        }
+    }
+    
     static Ra::Paint paintFromPage(FPDF_PAGE page) {
         int width = FPDF_GetPageWidth(page);
         int height = FPDF_GetPageHeight(page);
@@ -288,13 +295,6 @@ struct RasterizerPDF {
         size_t height = FPDFBitmap_GetHeight(bitmap);
         size_t stride = FPDFBitmap_GetStride(bitmap);
         return Ra::Paint(buffer, width, height, stride);
-    }
-    
-    static void writeShadingToScene(FPDF_PAGE page, FPDF_PAGEOBJECT page_object, Ra::Bounds* clipBounds, std::vector<Ra::Path>& clipPaths, Ra::SceneRef& scene) {
-        if (clipPaths.size()) {
-            auto paint = paintFromPageObject(page, page_object);
-            scene->addPath(clipPaths[0], Ra::Transform(), paint, 0, 0, clipBounds);
-        }
     }
     
     static Ra::Paint paintFromPageObject(FPDF_PAGE page, FPDF_PAGEOBJECT page_object) {
