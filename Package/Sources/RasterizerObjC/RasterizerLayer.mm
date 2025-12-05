@@ -66,13 +66,12 @@ struct MetalCache {
     std::map<size_t, Entry> map;
 };
 
-template<typename T, typename S>
-struct GeometryCache : MetalCache<T, S> {
-    
-    T createPayload(S scene, id <MTLDevice> device) override {
+#pragma clang diagnostic ignored "-Wextra"
+struct GeometryCache : MetalCache<id <MTLBuffer>, const Ra::Scene &> {
+    __strong id <MTLBuffer> createPayload(const Ra::Scene & scene, id <MTLDevice> device) override {
         size_t length = scene.p16total * sizeof(Ra::Point16);
-        T buffer = [device newBufferWithLength:length
-                                       options:MTLResourceStorageModeShared];
+        id <MTLBuffer> buffer = [device newBufferWithLength:length
+                                                    options:MTLResourceStorageModeShared];
         auto dst = (Ra::Point16 *)buffer.contents;
         for (auto& entry: scene.p16map)
             memcpy(dst + entry.second.idx, entry.second.path->p16s.base, entry.second.path->p16s.end * sizeof(*dst));
@@ -80,9 +79,8 @@ struct GeometryCache : MetalCache<T, S> {
     }
 };
 
-template<typename T, typename S>
-struct TextureCache : MetalCache<T, S> {
-    T createPayload(S image, id <MTLDevice> device) override {
+struct TextureCache : MetalCache<id <MTLTexture>, const Ra::Paint &> {
+    __strong id <MTLTexture> createPayload(const Ra::Paint & image, id <MTLDevice> device) override {
         MTLTextureDescriptor* desc = [MTLTextureDescriptor
             texture2DDescriptorWithPixelFormat:MTLPixelFormatBGRA8Unorm
                                          width:image.w
@@ -104,8 +102,8 @@ struct TextureCache : MetalCache<T, S> {
 @interface RasterizerLayer ()
 {
     Ra::Buffer _buffer0, _buffer1;
-    TextureCache<id <MTLTexture>, const Ra::Paint &> _textureCache;
-    GeometryCache<id <MTLBuffer>, const Ra::Scene &> _geometryCache;
+    TextureCache _textureCache;
+    GeometryCache _geometryCache;
 }
 
 @property (nonatomic) dispatch_semaphore_t inflight_semaphore;
