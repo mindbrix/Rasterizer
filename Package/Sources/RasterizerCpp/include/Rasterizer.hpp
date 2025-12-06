@@ -948,8 +948,7 @@ struct Rasterizer {
                             divideGeometry(g, m, outlineClip, unclipped, false, outliner);
                             i1 = uint32_t(outlines.idx);
                             inst->data.idx = i0, inst->data.count = i1 - i0;
-                        } else if (clipHeight <= kMoleculesHeight && clipWidth <= kMoleculesHeight
-                                && clipWidth * clipHeight / g->types.end < kMoleculesPixelsPerEdge) {
+                        } else if (clipWidth * clipHeight / g->types.end < kMoleculesPixelsPerEdge) {
                             bounds[iz] = *bnds;
                             bool fast = !buffer->params.useCurves || g->maxCurve * det < 16.f;
                             Blend *inst = new (blends.alloc(1)) Blend(iz | colorFlags | Instance::kMolecule | bool(flags & Scene::kFillEvenOdd) * Instance::kEvenOdd | fast * Instance::kFastEdges);

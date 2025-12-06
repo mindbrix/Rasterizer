@@ -27,7 +27,7 @@
 #define kfh 16.f
 #define krfh 0.0625f
 #define kStripHeight 8.f
-#define kStripCount 8
+#define kStripCount 12
 #define kMoleculesHeight 256
 #define kMoleculesRange 32767.f
 #define kMoleculesPixelsPerEdge 256
