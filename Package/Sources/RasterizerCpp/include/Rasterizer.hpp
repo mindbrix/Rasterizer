@@ -683,7 +683,7 @@ struct Rasterizer {
         uint16_t lx, ly, ux, uy, ox, oy;
     };
     struct Quad {
-        Cell cell;  short cover;  int base, biid;
+        Cell cell;  short cover;  int base, biid, molsbase;
     };
     struct Quadratic {
         float x0, y0, x1, y1, x2, y2;
@@ -934,6 +934,7 @@ struct Rasterizer {
                             bool fast = !buffer->params.useCurves || g->maxCurve * det < 16.f;
                             Blend *inst = new (blends.alloc(1)) Blend(iz | colorFlags | Instance::kMolecule | bool(flags & Scene::kFillEvenOdd) * Instance::kEvenOdd | fast * Instance::kFastEdges);
                             inst->g = g, inst->quad.cover = 0, inst->quad.base = int(scn->p16bases[is]);
+                            inst->quad.molsbase = int(g->p16s.idx / 2);
                             cnt = fast ? g->p16s.idx / kFastSegments : g->atoms.end;
                             int type = fast ? Allocator::kFastMolecules : Allocator::kQuadMolecules;
                             allocator.alloc(clip.lx, clip.ly, clip.ux, clip.uy, blends.end - 1, & inst->quad.cell, type, cnt);
@@ -1664,18 +1665,18 @@ struct Rasterizer {
                         Edge *molecule = fast ? fastMolecule : quadMolecule;
                         Instance *prev = dst - 1;
                         prev->quad.biid = int(molecule - (fast ? fastMolecule0 : quadMolecule0));
-                        size_t bnds = g->p16s.idx / 2;
+                        size_t molidx = 0;
                         if (fast) {
                             uint8_t *p16cnt = g->p16cnts.base;
                             for (j = 0, size = g->p16s.idx / kFastSegments; j < size; j++, p16cnt++, molecule++) {
-                                bnds += (*p16cnt & P16Writer::isMoveTo) && j != 0;
-                                molecule->ic = uint32_t(ic), molecule->i0 = *p16cnt & 0xF, molecule->ux = bnds;
+                                molidx += (*p16cnt & P16Writer::isMoveTo) && j != 0;
+                                molecule->ic = uint32_t(ic), molecule->i0 = *p16cnt & 0xF, molecule->ux = molidx;
                             }
                         } else {
                             Atom *atom = g->atoms.base;
                             for (j = 0, size = g->atoms.end; j < size; j++, atom++, molecule++) {
-                                bnds += (atom->i & Atom::isMoveTo) && j != 0;
-                                molecule->ic = uint32_t(ic) | ((atom->i & 0xF0000) << 12), molecule->i0 = atom->i & 0xFFFF, molecule->ux = bnds;
+                                molidx += (atom->i & Atom::isMoveTo) && j != 0;
+                                molecule->ic = uint32_t(ic) | ((atom->i & 0xF0000) << 12), molecule->i0 = atom->i & 0xFFFF, molecule->ux = molidx;
                             }
                         }
                         *(fast ? & fastMolecule : & quadMolecule) = molecule;
