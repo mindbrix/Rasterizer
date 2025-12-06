@@ -24,15 +24,12 @@
 struct RasterizerRenderer {
     
     void renderList(const Ra::SceneList& list, float scale, float w, float h, Ra::Buffer *buffer, CGColorSpaceRef destSpace) {
+        buffer->prepare(list);
         colorMatcher.matchColors(list, destSpace);
         
         Ra::Bounds device(0.f, 0.f, ceilf(scale * w), ceilf(scale * h));
-        Ra::Transform retina = Ra::Transform(scale, 0.f, 0.f, scale, 0.f, 0.f);
-        Ra::Transform view = list.ctm.concat(retina);
+        Ra::Transform view = list.ctm.concat(Ra::Transform(scale, 0.f, 0.f, scale, 0.f, 0.f));
         
-        buffer->params = list.params;
-        buffer->prepare(list);
-         
         size_t divisions[kContextCount + 1], *pdivs = divisions;
         writeBalancedWeightDivisions(list, pdivs);
         dispatch_apply(kContextCount, DISPATCH_APPLY_AUTO, ^(size_t i) {
@@ -82,6 +79,3 @@ struct RasterizerRenderer {
     static const int kContextCount = 8;
     Ra::Context contexts[kContextCount];
  };
-
-
- typedef RasterizerRenderer RaR;

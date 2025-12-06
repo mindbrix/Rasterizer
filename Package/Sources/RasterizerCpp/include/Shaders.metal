@@ -51,7 +51,7 @@ struct Cell {
 };
 
 struct Quad {
-    Cell cell;  short cover;  int base, biid;
+    Cell cell;  short cover;  int base, biid, molsbase;
 };
 
 struct Quadratic {
@@ -317,7 +317,7 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
     const device Bounds& b = bounds[inst.iz & kPathIndexMask];
     const device Cell& cell = inst.quad.cell;
     const device Point16 *pts = & points[inst.quad.base + (iid - inst.quad.biid) * kFastSegments];
-    const device Point16 *molecule = & points[inst.quad.base + edge.ux * 2];
+    const device Point16 *molecule = & points[inst.quad.base + (inst.quad.molsbase + edge.ux) * 2];
     thread float *dst = & vert.x0;
     float tx, ty, scale, ma, mb, mc, md, x16, y16, slx, sux, sly, suy, x0, y0;
     bool skip = false;
@@ -387,7 +387,7 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
     const device Bounds& b = bounds[inst.iz & kPathIndexMask];
     const device Cell& cell = inst.quad.cell;
     const device Point16 *p = & points[inst.quad.base + ((edge.ic & Edge::ue0) >> 12) + edge.i0];
-    const device Point16 *molecule = & points[inst.quad.base + edge.ux * 2];
+    const device Point16 *molecule = & points[inst.quad.base + (inst.quad.molsbase + edge.ux) * 2];
     const bool isCurve = p->x & Point16::isCurve;
     const float ix0 = p->x & Point16::kMask, iy0 = p->y & Point16::kMask;
     const float ix1 = (p + 1)->x & Point16::kMask, iy1 = (p + 1)->y & Point16::kMask;

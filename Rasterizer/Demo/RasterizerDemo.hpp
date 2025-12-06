@@ -85,11 +85,11 @@ struct RasterizerDemo {
         else if (keyCode == KeyCode::kO)
             params.showOutlines = !params.showOutlines, keyUsed = true, clearHUD();
         else if (keyCode == KeyCode::kP)
-            mouseMove = !mouseMove, indices = mouseMove ? indices : Rw::IndexPair(), keyUsed = true, clearHUD();
+            mouseMove = !mouseMove, indices = mouseMove ? indices : RaWnd::IndexPair(), keyUsed = true, clearHUD();
         else if (keyCode == KeyCode::kL)
-            locked = locked.i0 != INT_MAX ? Rw::IndexPair() : indices, keyUsed = true;
+            locked = locked.i0 != INT_MAX ? RaWnd::IndexPair() : indices, keyUsed = true;
         else if (keyCode == KeyCode::kS)
-            list.ctm = ctm, RaUtils::screenGrabToPDF(list, bounds), keyUsed = true;
+            list.ctm = ctm, RaCG::screenGrabToPDF(list, bounds), keyUsed = true;
         else if (keyCode == KeyCode::kT) {
             showGlyphGrid = false;
             showTime = !showTime;
@@ -170,7 +170,7 @@ struct RasterizerDemo {
         hud->addPath(bgPath, Ra::Transform(), bgColor, 0, 0);
         
         float lineHeight = text.height() / kHudItemCount, uy;
-        float fontSize = RasterizerCoreText::fontSizeForLineHeight(fontName.addr, lineHeight);
+        float fontSize = RaCT::fontSizeForLineHeight(fontName.addr, lineHeight);
         
         for (size_t i = 0; i < kHudItemCount; i++) {
             HudItem& item = hudItems[i];
@@ -185,11 +185,11 @@ struct RasterizerDemo {
                 || (*item.key == 'T' && showTime)
                 || (*item.key == 'C' && params.useCurves))
                 color = activeColor;
-            RasterizerCoreText::addCStringToSceneInRect(item.key, fontName.addr, fontSize, textColor, Ra::Bounds(text.lx, hudBounds.ly, text.ux, uy), Ra::Transform(), Ra::Bounds(), hud);
+            RaCT::addCStringToSceneInRect(item.key, fontName.addr, fontSize, textColor, Ra::Bounds(text.lx, hudBounds.ly, text.ux, uy), Ra::Transform(), Ra::Bounds(), hud);
             char const *label = item.text;
             if (*item.key == '0' && !gpu)
                 label = item.alt;
-            RasterizerCoreText::addCStringToSceneInRect(label, fontName.addr, fontSize, color, Ra::Bounds(text.lx + 2 * fontSize, hudBounds.ly, text.ux, uy), Ra::Transform(), Ra::Bounds(), hud);
+            RaCT::addCStringToSceneInRect(label, fontName.addr, fontSize, color, Ra::Bounds(text.lx + 2 * fontSize, hudBounds.ly, text.ux, uy), Ra::Transform(), Ra::Bounds(), hud);
         }
         hud->addPath(bgPath, Ra::Transform(), textColor, kHudBorder, 0);
         return hud;
@@ -207,13 +207,13 @@ struct RasterizerDemo {
         if (pastedString.size) {
             if (pasted.pathsCount == 0) {
                 Ra::SceneRef glyphs;
-                RasterizerCoreText::addCStringToSceneInRect(pastedString.addr, fontName.addr, fontSize, textColor, bounds, Ra::Transform(), Ra::Bounds(), glyphs);
+                RaCT::addCStringToSceneInRect(pastedString.addr, fontName.addr, fontSize, textColor, bounds, Ra::Transform(), Ra::Bounds(), glyphs);
                 pasted.addScene(glyphs);
             }
             list.addList(pasted);
         } else if (showGlyphGrid) {
             if (text.pathsCount == 0) {
-                text.addScene(RasterizerCoreText::writeGlyphGrid(fontName.addr, fontSize, textColor));
+                text.addScene(RaCT::writeGlyphGrid(fontName.addr, fontSize, textColor));
             }
             list.addList(text);
         } else if (showTime) {
@@ -221,7 +221,7 @@ struct RasterizerDemo {
         } else if (svgData.size) {
             if (document.pathsCount == 0) {
                 Ra::SceneRef scene;
-                Ra::Transform m = RasterizerSVG::addSvgDataToScene(svgData.addr, svgData.size, scene);
+                Ra::Transform m = RaSVG::addSvgDataToScene(svgData.addr, svgData.size, scene);
                 document.addScene(scene, m);
                 fit = true;
             }
@@ -229,7 +229,7 @@ struct RasterizerDemo {
         } else if (pdfData.size) {
             if (document.pathsCount == 0) {
                 Ra::SceneRef scene;
-                Ra::Transform m = RasterizerPDF::addPdfToScene(pdfData.addr, pdfData.size, pageIndex, scene);
+                Ra::Transform m = RaPDF::addPdfDataToScene(pdfData.addr, pdfData.size, pageIndex, scene);
                 document.addScene(scene, m);
                 fit = true;
             }
@@ -288,7 +288,7 @@ struct RasterizerDemo {
     void setPdfData(const void *data, size_t size) {
         if (data) {
             memcpy(pdfData.resize(size), data, size);
-            pageCount = RasterizerPDF::getPageCount(data, size);
+            pageCount = RaPDF::getPageCount(data, size);
             pageIndex = 0;
         }
         redraw = true;
@@ -320,6 +320,6 @@ struct RasterizerDemo {
     bool gpu = true, redraw = false, fit = false, mouseDown = false, mouseMove = false;
     double clock = 0.0, timeScale = 0.333;
     float mx, my;
-    Rw::IndexPair indices = Rw::IndexPair(), locked = Rw::IndexPair();
+    RaWnd::IndexPair indices = RaWnd::IndexPair(), locked = RaWnd::IndexPair();
     size_t flags = 0;
 };

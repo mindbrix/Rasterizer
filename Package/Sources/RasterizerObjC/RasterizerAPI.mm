@@ -245,13 +245,13 @@
 }
 
 - (CGRect)addTextLine:(NSAttributedString *)string ctm:(CGAffineTransform)ctm clip:(CGRect)clip {
-    return RasterizerCoreText::addTextLineToScene((__bridge CFAttributedStringRef)string, ctm, clip, _scene);
+    return RaCT::addTextLineToScene((__bridge CFAttributedStringRef)string, ctm, clip, _scene);
 }
 - (CGRect)addText:(NSAttributedString *)string inRect:(CGRect)rect ctm:(CGAffineTransform)ctm clip:(CGRect)clip {
-    return RasterizerCoreText::addTextToSceneInRect((__bridge CFAttributedStringRef)string, rect, ctm, clip, _scene);
+    return RaCT::addTextToSceneInRect((__bridge CFAttributedStringRef)string, rect, ctm, clip, _scene);
 }
 - (CGAffineTransform)addSvgFromData:(NSData *)data {
-    return RaCG::CGFromTransform(RasterizerSVG::addSvgDataToScene(data.bytes, data.length, _scene));
+    return RaCG::CGFromTransform(RaSVG::addSvgDataToScene(data.bytes, data.length, _scene));
 }
 
 @end
@@ -269,6 +269,14 @@
 }
 - (void)setCtm:(CGAffineTransform)ctm {
     _list.ctm = RaCG::transformFromCG(ctm);
+}
+- (nonnull RAPaint *)clearColor {
+    RAPaint *clear = [RAPaint new];
+    clear.paint = _list.params.clearColor;
+    return clear;
+}
+- (void)setClearColor:(RAPaint *)clearColor {
+    _list.params.clearColor = clearColor.paint.color;
 }
 - (BOOL)useClips {
     return _list.params.useClips;

@@ -122,10 +122,19 @@ struct Rasterizer {
     };
     template<typename T>
     struct Ref {
-        Ref(const T& src)                   { ptr = new T(), *ptr = src, ptr->refCount = 1; }
-        Ref()                               { ptr = new T(), ptr->refCount = 1; }
-        ~Ref()                              { if (--(ptr->refCount) == 0) delete ptr; }
-        Ref(const Ref& other)               { *this = other; }
+        Ref() {
+            ptr = new T(), ptr->refCount = 1;
+        }
+        ~Ref() {
+            if (--(ptr->refCount) == 0)
+                delete ptr;
+        }
+        Ref(const T& src) {
+            ptr = new T(), *ptr = src, ptr->refCount = 1;
+        }
+        Ref(const Ref& other) {
+            *this = other;
+        }
         Ref& operator= (const Ref& other)   {
             if (this != & other) {
                 if (ptr)
@@ -134,7 +143,9 @@ struct Rasterizer {
             }
             return *this;
         }
-        T* operator->() const { return ptr; }
+        inline T* operator->() const {
+            return ptr;
+        }
         T *ptr = nullptr;
     };
     template<typename T, bool isRef = false>
@@ -385,12 +396,6 @@ struct Rasterizer {
     };
     typedef Ref<Geometry> Path;
     
-    struct Segment {
-        inline Segment() {}
-        inline Segment(float x0, float y0, float x1, float y1, bool curve) : ix0((*((uint32_t *)& x0) & ~1) | curve), y0(y0), x1(x1), y1(y1) {}
-        union { float x0; uint32_t ix0; };  float y0, x1, y1;
-    };
-    
     struct P16Writer: GeometryWriter {
         static const uint8_t isMoveTo = 0x80;
         
@@ -552,40 +557,51 @@ struct Rasterizer {
     struct Scene {
         enum Flags { kInvisible = 1 << 0, kFillEvenOdd = 1 << 1, kRoundCap = 1 << 2, kSquareCap = 1 << 3, kRoundJoin = 1 << 4 };
         struct Entry {
-            Entry(Geometry *g, size_t idx) : g(g), idx(idx) {}
-            Geometry *g;  size_t idx;
+            Entry(const Path& path, size_t idx) : path(path), idx(uint32_t(idx)) {}
+            Path path;  uint32_t idx;
         };
         
         void addPath(const Path& path, const Transform& ctm, const Paint& paint, float width, uint8_t flag, Bounds *clipBounds = nullptr, Path *clipPath = nullptr) {
             if (path->isValid() && paint.isValid()) {
                 Geometry *g = path.ptr;
                 count++, weight += g->types.end;
-                if (kMoleculesHeight && g->p16s.end == 0)
-                    P16Writer().writeGeometry(g);
-                
+            
+                if (width != 0) {
+                    paths.add(path);
+                    p16bases.add(0);
+                } else {
+                    size_t key = g->hash();
+                    auto it = p16map.find(key);
+                    if (it == p16map.end()) {
+                        paths.add(path);
+                        p16bases.add(uint32_t(p16total));
+                        p16map.emplace(key, Entry(path, p16total));
+                        
+                        if (kMoleculesHeight && g->p16s.end == 0)
+                            P16Writer().writeGeometry(g);
+                        
+                        p16total += g->p16s.end;
+                        size_t pathHash = g->hash();
+                        xxhash = XXH64(& pathHash, sizeof(pathHash), xxhash);
+                        p16full += path->p16s.end;
+                    } else {
+                        paths.add(it->second.path);
+                        p16bases.add(it->second.idx);
+                        p16full += it->second.path->p16s.end;
+                    }
+                }
                 if (paint.isGradient()) {
-                    gradientIndices.add(gradients.end());
+                    gradientIndices.add(uint32_t(gradients.end()));
                     Color strip[kColorTextureWidth];
                     paint.writeGradientStrip(strip, kColorTextureWidth);
                     gradients.add(strip, kColorTextureWidth);
                 } else {
                     gradientIndices.add(~0);
                 }
-                paints.add(paint);
-                paths.add(path), bnds.add(g->bounds), ctms.add(ctm), colors.add(paint.color), widths.add(width), flags.add(flag);
-                clips.add(clipBounds ? *clipBounds : Bounds::huge());
+                paints.add(paint), colors.add(paint.color);
                 
-                size_t key = g->hash();
-                auto it = p16map.find(key);
-                if (it == p16map.end()) {
-                    p16bases.add(p16total);
-                    p16map.emplace(key, Entry(g, p16total));
-                    p16total += g->p16s.end;
-                    size_t pathHash = g->hash();
-                    p16Hash = XXH64(& pathHash, sizeof(pathHash), p16Hash);
-                } else
-                    p16bases.add(it->second.idx);
-                p16full += g->p16s.end;
+                bnds.add(g->bounds), ctms.add(ctm), widths.add(width), flags.add(flag);
+                clips.add(clipBounds ? *clipBounds : Bounds::huge());
                 
                 if (clipPath && (*clipPath)->isValid()) {
                     size_t idx = 0;
@@ -596,7 +612,7 @@ struct Rasterizer {
                             clipPaths.add(*clipPath);
                         idx = clipPaths.end() - 1;
                     }
-                    clipIndices.add(idx);
+                    clipIndices.add(uint32_t(idx));
                 } else
                     clipIndices.add(~0);
             }
@@ -615,19 +631,19 @@ struct Rasterizer {
             return b;
         }
         inline size_t hash() const {
-            return p16Hash;
+            return xxhash;
         }
         
-        size_t refCount, count = 0, weight = 0, p16total = 0, p16full = 0, p16Hash = 0;
+        size_t refCount, count = 0, weight = 0, xxhash = 0;
         RefVector<Path> paths;
-        Vector<size_t> p16bases;
+        Vector<uint32_t> p16bases;  uint32_t p16total = 0, p16full = 0;
         RefVector<Path> clipPaths;
-        Vector<size_t> clipIndices;
+        Vector<uint32_t> clipIndices;
         Vector<Bounds> bnds, clips;
         Vector<Transform> ctms;
         RefVector<Paint> paints;
         Vector<Color> colors, matchedColors = colors;
-        Vector<size_t> gradientIndices;
+        Vector<uint32_t> gradientIndices;
         Vector<Color> gradients, matchedGradients = gradients;
         Vector<float> widths;
         std::map<size_t, Entry> p16map;
@@ -659,11 +675,15 @@ struct Rasterizer {
         Transform ctm;  Params params;
         size_t pathsCount = 0;  std::vector<SceneRef> scenes;  std::vector<Transform> ctms;  std::vector<Bounds> clips;
     };
+    struct Segment {
+        inline Segment(float x0, float y0, float x1, float y1, bool curve) : ix0((*((uint32_t *)& x0) & ~1) | curve), y0(y0), x1(x1), y1(y1) {}
+        union { float x0; uint32_t ix0; };  float y0, x1, y1;
+    };
     struct Cell {
         uint16_t lx, ly, ux, uy, ox, oy;
     };
     struct Quad {
-        Cell cell;  short cover;  int base, biid;
+        Cell cell;  short cover;  int base, biid, molsbase;
     };
     struct Quadratic {
         float x0, y0, x1, y1, x2, y2;
@@ -711,10 +731,14 @@ struct Rasterizer {
         ~Buffer() { if (base) free(base); }
         
         void prepare(const SceneList& list) {
+            params = list.params;
             pathsCount = list.pathsCount;
             texCount = 0;
             images.resize(0);
             scenes.resize(0);
+            for (auto& scene : list.scenes)
+                scenes.add(scene);
+        
             size_t i, sizes[] = { sizeof(Color), sizeof(Transform), sizeof(Transform), sizeof(float), sizeof(Bounds), sizeof(Transform), sizeof(uint32_t) };
             size_t count = sizeof(sizes) / sizeof(*sizes), base = 0, bases[count];
             for (i = 0; i < count; i++)
@@ -738,8 +762,8 @@ struct Rasterizer {
             }
         }
         uint8_t *base = nullptr;  Row<Entry> entries;
-        Vector<Paint *> images;
-        Vector<Scene *> scenes;
+        RefVector<Paint> images;
+        RefVector<SceneRef> scenes;
         Params params;
         size_t colors, ctms, clips, widths, bounds, texCtms, texIdxs, texStrips;
         size_t idxs, pathsCount, texCount, headerSize, size = 0, allocation = 0;
@@ -815,7 +839,7 @@ struct Rasterizer {
                 Transform ctm = list.ctms[i].concat(view), clipquad, m, quad, invclip;
                 Bounds dev, clip, *bnds, clipBounds = device, sceneclip = list.clips[i], lastClip;
                 
-                if (clz - lz == 0) {
+                if (clz - lz == 0 && clz != cuz) {
                     allocator.refill(blends.end);
                     allocator.passes.back().isSceneStart = true;
                 }
@@ -832,7 +856,7 @@ struct Rasterizer {
                             invclip = clipquad.invert();
                             clipBounds = Bounds(clipquad).integral().intersect(device);
                         }
-                        size_t idx = scn->clipIndices[is];
+                        uint32_t idx = scn->clipIndices[is];
                         if (idx != lastIdx) {
                             lastIdx = idx;
                             Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kStencil);
@@ -910,6 +934,7 @@ struct Rasterizer {
                             bool fast = !buffer->params.useCurves || g->maxCurve * det < 16.f;
                             Blend *inst = new (blends.alloc(1)) Blend(iz | colorFlags | Instance::kMolecule | bool(flags & Scene::kFillEvenOdd) * Instance::kEvenOdd | fast * Instance::kFastEdges);
                             inst->g = g, inst->quad.cover = 0, inst->quad.base = int(scn->p16bases[is]);
+                            inst->quad.molsbase = int(g->p16s.idx / 2);
                             cnt = fast ? g->p16s.idx / kFastSegments : g->atoms.end;
                             int type = fast ? Allocator::kFastMolecules : Allocator::kQuadMolecules;
                             allocator.alloc(clip.lx, clip.ly, clip.ux, clip.uy, blends.end - 1, & inst->quad.cell, type, cnt);
@@ -1541,9 +1566,6 @@ struct Rasterizer {
         Row<Opaque> *stencils;
     };
     static size_t resizeBuffer(const SceneList& list, Context *contexts, size_t count, size_t *begins, Buffer& buffer) {
-        for (auto& scene : list.scenes)
-            buffer.scenes.add(scene.ptr);
-        
         size_t size = buffer.headerSize, begin = size, end = begin, sz, i, j, instances;
         for (i = 0; i < count; i++)
             size += contexts[i].opaques.end * sizeof(Opaque);
@@ -1556,7 +1578,7 @@ struct Rasterizer {
         Context *ctx = contexts;   Allocator::Pass *pass;
         for (ctx = contexts, i = 0; i < count; i++, ctx++) {
             for (j = 0; j < ctx->images.end(); j++)
-                buffer.images.add(ctx->images[j]);
+                buffer.images.add(*ctx->images[j]);
             for (instances = 0, pass = ctx->allocator.passes.base, j = 0; j < ctx->allocator.passes.end; j++, pass++)
                 instances += pass->count();
             begins[i] = size, size += instances * sizeof(Edge) + (ctx->outlines.end + ctx->blends.end) * sizeof(Instance) + ctx->segments.end * sizeof(Segment) + ctx->stencils.end * sizeof(Opaque);
@@ -1643,18 +1665,18 @@ struct Rasterizer {
                         Edge *molecule = fast ? fastMolecule : quadMolecule;
                         Instance *prev = dst - 1;
                         prev->quad.biid = int(molecule - (fast ? fastMolecule0 : quadMolecule0));
-                        size_t bnds = g->p16s.idx / 2;
+                        size_t molidx = 0;
                         if (fast) {
                             uint8_t *p16cnt = g->p16cnts.base;
                             for (j = 0, size = g->p16s.idx / kFastSegments; j < size; j++, p16cnt++, molecule++) {
-                                bnds += (*p16cnt & P16Writer::isMoveTo) && j != 0;
-                                molecule->ic = uint32_t(ic), molecule->i0 = *p16cnt & 0xF, molecule->ux = bnds;
+                                molidx += (*p16cnt & P16Writer::isMoveTo) && j != 0;
+                                molecule->ic = uint32_t(ic), molecule->i0 = *p16cnt & 0xF, molecule->ux = molidx;
                             }
                         } else {
                             Atom *atom = g->atoms.base;
                             for (j = 0, size = g->atoms.end; j < size; j++, atom++, molecule++) {
-                                bnds += (atom->i & Atom::isMoveTo) && j != 0;
-                                molecule->ic = uint32_t(ic) | ((atom->i & 0xF0000) << 12), molecule->i0 = atom->i & 0xFFFF, molecule->ux = bnds;
+                                molidx += (atom->i & Atom::isMoveTo) && j != 0;
+                                molecule->ic = uint32_t(ic) | ((atom->i & 0xF0000) << 12), molecule->i0 = atom->i & 0xFFFF, molecule->ux = molidx;
                             }
                         }
                         *(fast ? & fastMolecule : & quadMolecule) = molecule;

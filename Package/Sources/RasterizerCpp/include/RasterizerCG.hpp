@@ -293,6 +293,18 @@ struct RasterizerCG {
             }
         }
     }
+    
+    static void screenGrabToPDF(Ra::SceneList& list, Ra::Bounds bounds) {
+        NSArray *downloads = [NSFileManager.defaultManager URLsForDirectory: NSDownloadsDirectory inDomains:NSUserDomainMask];
+        NSURL *fileURL = [downloads.firstObject URLByAppendingPathComponent:@"screenGrab.pdf"];
+        CGRect mediaBox = CGRectFromBounds(bounds);
+        CGContextRef ctx = CGPDFContextCreateWithURL((__bridge CFURLRef)fileURL, & mediaBox, NULL);
+        CGPDFContextBeginPage(ctx, NULL);
+        renderList(list, bounds, ctx);
+        CGPDFContextEndPage(ctx);
+        CGPDFContextClose(ctx);
+        CGContextRelease(ctx);
+    }
 };
 
 typedef RasterizerCG RaCG;

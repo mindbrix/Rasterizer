@@ -24,7 +24,7 @@
 #import <time.h>
 
 template<typename T, typename S, int kExpiryAge = 10>
-struct Cache {
+struct MetalCache {
     struct Entry {
         Entry(T payload) : payload(payload), timestamp(getTime()) {}
         
@@ -66,23 +66,21 @@ struct Cache {
     std::map<size_t, Entry> map;
 };
 
-template<typename T, typename S>
-struct GeometryCache : Cache<T, S> {
-    
-    T createPayload(S scene, id <MTLDevice> device) override {
+#pragma clang diagnostic ignored "-Wextra"
+struct GeometryCache : MetalCache<id <MTLBuffer>, const Ra::Scene &> {
+    __strong id <MTLBuffer> createPayload(const Ra::Scene & scene, id <MTLDevice> device) override {
         size_t length = scene.p16total * sizeof(Ra::Point16);
-        T buffer = [device newBufferWithLength:length
-                                       options:MTLResourceStorageModeShared];
+        id <MTLBuffer> buffer = [device newBufferWithLength:length
+                                                    options:MTLResourceStorageModeShared];
         auto dst = (Ra::Point16 *)buffer.contents;
         for (auto& entry: scene.p16map)
-            memcpy(dst + entry.second.idx, entry.second.g->p16s.base, entry.second.g->p16s.end * sizeof(*dst));
+            memcpy(dst + entry.second.idx, entry.second.path->p16s.base, entry.second.path->p16s.end * sizeof(*dst));
         return buffer;
     }
 };
 
-template<typename T, typename S>
-struct TextureCache : Cache<T, S> {
-    T createPayload(S image, id <MTLDevice> device) override {
+struct TextureCache : MetalCache<id <MTLTexture>, const Ra::Paint &> {
+    __strong id <MTLTexture> createPayload(const Ra::Paint & image, id <MTLDevice> device) override {
         MTLTextureDescriptor* desc = [MTLTextureDescriptor
             texture2DDescriptorWithPixelFormat:MTLPixelFormatBGRA8Unorm
                                          width:image.w
@@ -104,8 +102,8 @@ struct TextureCache : Cache<T, S> {
 @interface RasterizerLayer ()
 {
     Ra::Buffer _buffer0, _buffer1;
-    TextureCache<id <MTLTexture>, const Ra::Paint &> _textureCache;
-    GeometryCache<id <MTLBuffer>, const Ra::Scene &> _geometryCache;
+    TextureCache _textureCache;
+    GeometryCache _geometryCache;
 }
 
 @property (nonatomic) dispatch_semaphore_t inflight_semaphore;
@@ -351,12 +349,12 @@ struct TextureCache : Cache<T, S> {
                 useImage = false;
                 break;
             case Ra::Buffer::kNextImage:
-                imageTexture = _textureCache.entryFor(*buffer->images[imgIndex++], self.device);
+                imageTexture = _textureCache.entryFor(buffer->images[imgIndex++], self.device);
                 useImage = true;
                 break;
             case Ra::Buffer::kNextScene:
-                if (sceneIndex < buffer->scenes.end())
-                    p16buffer = _geometryCache.entryFor(*buffer->scenes[sceneIndex++], self.device);
+                assert(sceneIndex < buffer->scenes.end());
+                p16buffer = _geometryCache.entryFor(*buffer->scenes[sceneIndex++].ptr, self.device);
                 break;
             case Ra::Buffer::kStencils:
                 [commandEncoder endEncoding];

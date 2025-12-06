@@ -104,6 +104,7 @@ typedef NS_ENUM(NSUInteger, RAJoinStyle) {
 @interface RASceneList: NSObject
 @property(nonatomic, readonly) CGRect bounds;
 @property(nonatomic) CGAffineTransform ctm;
+@property(nonnull, nonatomic) RAPaint *clearColor;
 @property(nonatomic) BOOL useClips;
 @property(nonatomic) BOOL useCurves;
 @property(nonatomic) BOOL showOpaques;
