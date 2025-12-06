@@ -251,6 +251,11 @@ struct Rasterizer {
                   y(fmaxf(0.f, fminf(kMoleculesRange, y0))) {}
         uint16_t x, y;
     };
+    struct Vector16 {
+        constexpr static float kMin = -32768, kMax = 32767;
+        inline Vector16(float x0, float y0) : x(fmaxf(kMin, fminf(kMax, x0))), y(fmaxf(kMin, fminf(kMax, y0))) {}
+        int16_t x, y;
+    };
     
     struct Geometry {
         enum Type { kMove, kLine, kQuadratic, kCubic, kClose, kCountSize };
@@ -581,7 +586,8 @@ struct Rasterizer {
                     paths.add(path);
                     p16bases.add(0);
                     
-                    Row<Point16> points, miters;
+                    Row<Point16> points;
+                    Row<Vector16> miters;
                     Row<P16Outline> outlines;
                     P16Outliner out;
                     out.p16s = & points, out.outlines = & outlines, out.miters = & miters;
@@ -1579,25 +1585,19 @@ struct Rasterizer {
             prevx = prevy = FLT_MAX;
         }
         void miter(float px, float py, float x, float y, float nx, float ny) {
-            float ax, bx, ay, by, ra, rb, tx, ty, rt, s, cx, cy, mx, my;
-            ax = x - px, bx = nx - x;
-            ay = y - py, by = ny - y;
-            ra = 1.f / sqrtf(ax * ax + ay * ay + FLT_EPSILON);
-            rb = 1.f / sqrtf(bx * bx + by * by + FLT_EPSILON);
-            tx = ax * ra + bx * rb;
-            ty = ay * ra + by * rb;
-            rt = 1.f / sqrtf(tx * tx + ty * ty + FLT_EPSILON);
+            float ax, ay, bx, by, ra, rb, tx, ty, rt, len, cx, cy, mx, my;
+            ax = x - px, ay = y - py, ra = 1.f / sqrtf(ax * ax + ay * ay + FLT_EPSILON), ax *= ra, ay *= ra;
+            bx = nx - x, by = ny - y, rb = 1.f / sqrtf(bx * bx + by * by + FLT_EPSILON), bx *= rb, by *= rb;
+            tx = ax + bx, ty = ay + by, rt = 1.f / sqrtf(tx * tx + ty * ty + FLT_EPSILON), tx *= rt, ty *= rt;
             bool aValid = ax != 0.f || ay != 0.f;
-            cx = aValid ? ax * ra : bx * rb;
-            cy = aValid ? ay * ra : by * rb;
-            s = fminf(4.f, 1.f / (fabsf(cx * tx + cy * ty) * rt));
-            mx = -s * ty * rt;
-            my = s * tx * rt;
-            new (miters->alloc(1)) Point16(0, 0);
+            cx = aValid ? ax : bx, cy = aValid ? ay : by;
+            len = kMoleculesRange / kMiterLimit * fminf(kMiterLimit, 1.f / fabsf(cx * tx + cy * ty));
+            mx = -len * ty, my = len * tx;
+            new (miters->alloc(1)) Vector16(mx, my);
         }
     
         float prevx = FLT_MAX, prevy = FLT_MAX, firstx, firsty;
-        Row<Point16> *p16s, *miters;  Row<P16Outline> *outlines;
+        Row<Point16> *p16s;  Row<Vector16> *miters;  Row<P16Outline> *outlines;
     };
     
     struct Stenciler: GeometryWriter {
