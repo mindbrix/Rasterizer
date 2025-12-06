@@ -566,26 +566,30 @@ struct Rasterizer {
                 Geometry *g = path.ptr;
                 count++, weight += g->types.end;
             
-                size_t key = g->hash();
-                auto it = p16map.find(key);
-                if (it == p16map.end()) {
+                if (width != 0) {
                     paths.add(path);
-                    p16bases.add(uint32_t(p16total));
-                    p16map.emplace(key, Entry(path, p16total));
-                    
-                    if (width == 0 && kMoleculesHeight && g->p16s.end == 0)
-                        P16Writer().writeGeometry(g);
-                    
-                    p16total += g->p16s.end;
-                    size_t pathHash = g->hash();
-                    xxhash = XXH64(& pathHash, sizeof(pathHash), xxhash);
-                    p16full += path->p16s.end;
+                    p16bases.add(0);
                 } else {
-                    paths.add(it->second.path);
-                    p16bases.add(it->second.idx);
-                    p16full += it->second.path->p16s.end;
+                    size_t key = g->hash();
+                    auto it = p16map.find(key);
+                    if (it == p16map.end()) {
+                        paths.add(path);
+                        p16bases.add(uint32_t(p16total));
+                        p16map.emplace(key, Entry(path, p16total));
+                        
+                        if (kMoleculesHeight && g->p16s.end == 0)
+                            P16Writer().writeGeometry(g);
+                        
+                        p16total += g->p16s.end;
+                        size_t pathHash = g->hash();
+                        xxhash = XXH64(& pathHash, sizeof(pathHash), xxhash);
+                        p16full += path->p16s.end;
+                    } else {
+                        paths.add(it->second.path);
+                        p16bases.add(it->second.idx);
+                        p16full += it->second.path->p16s.end;
+                    }
                 }
-                
                 if (paint.isGradient()) {
                     gradientIndices.add(uint32_t(gradients.end()));
                     Color strip[kColorTextureWidth];
