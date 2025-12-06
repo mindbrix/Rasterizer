@@ -64,7 +64,7 @@ struct Outline {
 };
 
 struct P16Outline {
-    int idx;
+    uint32_t idx;
 };
 
 struct Instance {

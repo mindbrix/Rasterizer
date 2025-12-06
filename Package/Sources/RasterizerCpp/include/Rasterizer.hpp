@@ -280,7 +280,9 @@ struct Rasterizer {
     
     struct Point16 {
         enum Flags { isCurve = 1 << 15, kMask = ~isCurve };
-        inline Point16(float x0, float y0) : x(fmaxf(0.f, fminf(kMoleculesRange, x0))), y(fmaxf(0.f, fminf(kMoleculesRange, y0))) {}
+        inline Point16(float x0, float y0, bool isCurve0 = false)
+                : x(uint16_t(fmaxf(0.f, fminf(kMoleculesRange, x0))) | (isCurve0 ? isCurve : 0)),
+                  y(fmaxf(0.f, fminf(kMoleculesRange, y0))) {}
         uint16_t x, y;
     };
     
@@ -427,9 +429,8 @@ struct Rasterizer {
             (atoms->alloc(1))->i = uint32_t(p16s->end);
             
             Point16 *p = p16s->alloc(2);
-            new (p + 0) Point16(x0, y0);
-            p->x |= Point16::isCurve;
-            new (p + 1) Point16(0.5f * x1 + 0.25f * (x0 + x2), 0.5f * y1 + 0.25f * (y0 + y2));
+            new (p++) Point16(x0, y0, true);
+            new (p++) Point16(0.5f * x1 + 0.25f * (x0 + x2), 0.5f * y1 + 0.25f * (y0 + y2));
         }
         void EndSubpath(float x0, float y0, float x1, float y1, bool closed) {
             Point16 *p = p16s->alloc(1);
@@ -693,7 +694,8 @@ struct Rasterizer {
         short prev, next;
     };
     struct P16Outline {
-        int idx;
+        inline P16Outline(size_t idx) : idx(uint32_t(idx)) {}
+        uint32_t idx;
     };
     struct Instance {
         enum Flags {
@@ -1520,6 +1522,22 @@ struct Rasterizer {
             dst->outline.prev = -1, dst->outline.next = 1;
         }
         uint32_t iz;  Row<Instance> *outlines = nullptr;  Row<Opaque> *opaques = nullptr;
+    };
+    
+    struct P16Outliner: Outliner {
+        void writeInstance(float x0, float y0, float x1, float y1, float x2, float y2) {
+            *(idxs->alloc(1)) = uint32_t(p16s->end);
+            if (x1 == FLT_MAX)
+                new (p16s->alloc(1)) Point16(x0, y0);
+            else {
+                Point16 *p = p16s->alloc(2);
+                new (p + 0) Point16(x0, y0, true), new (p + 1) Point16(x1, y1);
+            }
+        }
+        void EndSubpath(float x0, float y0, float x1, float y1, bool closed) {
+            new (p16s->alloc(1)) Point16(x1, y1);
+        }
+        Row<Point16> *p16s = nullptr;  Row<uint32_t> *idxs;
     };
     
     struct Stenciler: GeometryWriter {
