@@ -1527,36 +1527,56 @@ struct Rasterizer {
     struct P16Outliner: Outliner {
         void writeInstance(float x0, float y0, float x1, float y1, float x2, float y2) {
             new (outlines->alloc(1)) P16Outline(p16s->end);
-            if (x1 == FLT_MAX)
+            
+            if (x1 == FLT_MAX) {
                 new (p16s->alloc(1)) Point16(x0, y0);
-            else {
+                
+                if (prevx == FLT_MAX) {
+                    miter(x0, y0, x0, y0, x2, y2);
+                    firstx = x2, firsty = y2;
+                } else
+                    miter(prevx, prevy, x0, y0, x2, y2);
+                prevx = x0, prevy = y0;
+            } else {
                 Point16 *p = p16s->alloc(2);
                 new (p + 0) Point16(x0, y0, true), new (p + 1) Point16(x1, y1);
+                
+                if (prevx == FLT_MAX) {
+                    miter(x0, y0, x0, y0, x1, y1);
+                    firstx = x1, firsty = y1;
+                } else
+                    miter(prevx, prevy, x0, y0, x1, y1);
+                miter(x0, y0, x1, y1, x2, y2);
+                prevx = x1, prevy = y1;
             }
         }
         void EndSubpath(float x0, float y0, float x1, float y1, bool closed) {
-            new (p16s->alloc(1)) Point16(x1, y1);
-            
-            if (outlines->idx != outlines->end) {
-                P16Outline *dst = outlines->base + outlines->end;
-                P16Outline *dst0 = outlines->base + outlines->idx;
-                P16Outline *first = dst0, *last = dst - 1;
-                P16Outline *out, *prev, *next;
+            if (miters->idx != miters->end) {
+                new (p16s->alloc(1)) Point16(x1, y1);
                 
-                for (out = dst0; out < dst; out++) {
-                    prev = out > dst0 ? out - 1 : closed ? last : out;
-                    miter(p16s->base + prev->idx, p16s->base + out->idx);
-                }
-                next = out < dst - 1 ? out + 1 : closed ? first : out;
-                miter(p16s->base + out->idx, p16s->base + next->idx);
-                
-                outlines->idx = outlines->end;
+                miter(prevx, prevy, x1, y1, closed ? firstx : x1, closed ? firsty : y1);
+                if (closed)
+                    miters->base[miters->idx] = miters->back();
+                miters->idx = miters->end;
             }
+            prevx = prevy = FLT_MAX;
         }
-        void miter(Point16 *p0, Point16 *p1) {
+        void miter(float px, float py, float x, float y, float nx, float ny) {
+            float ax, bx, ay, by, ra, rb, tx, ty, rt, s, mx, my;
+            ax = x - px, bx = nx - x;
+            ay = y - py, by = ny - y;
+            ra = 1.f / sqrtf(ax * ax + ay * ay + FLT_EPSILON);
+            rb = 1.f / sqrtf(bx * bx + by * by + FLT_EPSILON);
+            tx = ax * ra + bx * rb;
+            ty = ay * ra + by * rb;
+            rt = 1.f / sqrtf(tx * tx + ty * ty + FLT_EPSILON);
+            s = fminf(4.f, 1.f / (fabsf(ax * tx + ay * ty) * ra * rt));
+            mx = s * ty * rt;
+            my = -s * tx * rt;
             new (miters->alloc(1)) Point16(0, 0);
         }
-        
+    
+        float prevx = FLT_MAX, prevy = FLT_MAX, firstx, firsty;
         Row<Point16> *p16s, *miters;  Row<P16Outline> *outlines;
     };
     
