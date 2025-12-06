@@ -573,7 +573,7 @@ struct Rasterizer {
                     p16bases.add(uint32_t(p16total));
                     p16map.emplace(key, Entry(path, p16total));
                     
-                    if (kMoleculesHeight && g->p16s.end == 0)
+                    if (width == 0 && kMoleculesHeight && g->p16s.end == 0)
                         P16Writer().writeGeometry(g);
                     
                     p16total += g->p16s.end;
