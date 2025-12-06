@@ -1526,7 +1526,7 @@ struct Rasterizer {
     
     struct P16Outliner: Outliner {
         void writeInstance(float x0, float y0, float x1, float y1, float x2, float y2) {
-            *(idxs->alloc(1)) = uint32_t(p16s->end);
+            new (outlines->alloc(1)) P16Outline(p16s->end);
             if (x1 == FLT_MAX)
                 new (p16s->alloc(1)) Point16(x0, y0);
             else {
@@ -1536,8 +1536,28 @@ struct Rasterizer {
         }
         void EndSubpath(float x0, float y0, float x1, float y1, bool closed) {
             new (p16s->alloc(1)) Point16(x1, y1);
+            
+            if (outlines->idx != outlines->end) {
+                P16Outline *dst = outlines->base + outlines->end;
+                P16Outline *dst0 = outlines->base + outlines->idx;
+                P16Outline *first = dst0, *last = dst - 1;
+                P16Outline *out, *prev, *next;
+                
+                for (out = dst0; out < dst; out++) {
+                    prev = out > dst0 ? out - 1 : closed ? last : out;
+                    miter(p16s->base + prev->idx, p16s->base + out->idx);
+                }
+                next = out < dst - 1 ? out + 1 : closed ? first : out;
+                miter(p16s->base + out->idx, p16s->base + next->idx);
+                
+                outlines->idx = outlines->end;
+            }
         }
-        Row<Point16> *p16s = nullptr;  Row<uint32_t> *idxs;
+        void miter(Point16 *p0, Point16 *p1) {
+            new (miters->alloc(1)) Point16(0, 0);
+        }
+        
+        Row<Point16> *p16s, *miters;  Row<P16Outline> *outlines;
     };
     
     struct Stenciler: GeometryWriter {
