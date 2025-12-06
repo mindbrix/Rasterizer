@@ -75,6 +75,29 @@ protocol RADrawable {
     func getSceneAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RAScene
 }
 
+class TestP16Outliner: RADrawable {
+    func getSceneAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RAScene {
+        let width = 10.0
+        let b = bounds.insetBy(dx: 0.5 * width, dy: 0.5 * width)
+        if b.width == 0 || b.height == 0 {
+            return RAScene()
+        }
+        let path = state.useRect ? RAPath(rect: b) : RAPath(ellipse: b)
+        if (state.flag) {
+            path.close()
+        }
+        
+        let scene = RAScene()
+        scene.addStroke(path,
+                        ctm: .identity,
+                        color: RAPaint(),
+                        width: width,
+                        capStyle: .capButt,
+                        joinStyle: .joinMiter)
+        return scene
+    }
+}
+
 class TestImage: RADrawable {
     func getSceneAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RAScene {
         let scene = RAScene()
@@ -121,9 +144,7 @@ class TestDasher: RADrawable {
                         color: RAPaint(),
                         width: width,
                         capStyle: capStyle,
-                        joinStyle: .joinRound,
-                        clip: .zero,
-                        clipPath: nil)
+                        joinStyle: .joinRound)
         return scene
     }
 }
@@ -273,7 +294,8 @@ class SwiftDemo: NSObject, RASceneListDelegate {
         TestCubics(),
         TestGradients(),
         TestDasher(),
-        TestImage()
+        TestImage(),
+        TestP16Outliner()
     ]
     
     var useClips = true

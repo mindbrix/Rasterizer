@@ -1579,7 +1579,7 @@ struct Rasterizer {
             prevx = prevy = FLT_MAX;
         }
         void miter(float px, float py, float x, float y, float nx, float ny) {
-            float ax, bx, ay, by, ra, rb, tx, ty, rt, s, mx, my;
+            float ax, bx, ay, by, ra, rb, tx, ty, rt, s, cx, cy, mx, my;
             ax = x - px, bx = nx - x;
             ay = y - py, by = ny - y;
             ra = 1.f / sqrtf(ax * ax + ay * ay + FLT_EPSILON);
@@ -1587,9 +1587,12 @@ struct Rasterizer {
             tx = ax * ra + bx * rb;
             ty = ay * ra + by * rb;
             rt = 1.f / sqrtf(tx * tx + ty * ty + FLT_EPSILON);
-            s = fminf(4.f, 1.f / (fabsf(ax * tx + ay * ty) * ra * rt));
-            mx = s * ty * rt;
-            my = -s * tx * rt;
+            bool aValid = ax != 0.f || ay != 0.f;
+            cx = aValid ? ax * ra : bx * rb;
+            cy = aValid ? ay * ra : by * rb;
+            s = fminf(4.f, 1.f / (fabsf(cx * tx + cy * ty) * rt));
+            mx = -s * ty * rt;
+            my = s * tx * rt;
             new (miters->alloc(1)) Point16(0, 0);
         }
     
