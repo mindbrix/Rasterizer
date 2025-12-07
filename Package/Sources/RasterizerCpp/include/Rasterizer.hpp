@@ -939,7 +939,7 @@ struct Rasterizer {
                         ctms[iz] = m, widths[iz] = width, clips[iz] = invclip;
                         Geometry *g = scn->paths[is].ptr;
                         if (width) {
-                            bool usep16s = true;
+                            bool usep16s = !list.params.showOutlines;
                             Blend *inst = new (blends.alloc(1)) Blend(iz | colorFlags | Instance::kOutlines | bool(flags & Scene::kRoundCap) * Instance::kRoundCap | bool(flags & Scene::kSquareCap) * Instance::kSquareCap | bool(flags & Scene::kRoundJoin) * Instance::kRoundJoin | usep16s * Instance::kP16Strokes);
                             
                             if (usep16s) {
