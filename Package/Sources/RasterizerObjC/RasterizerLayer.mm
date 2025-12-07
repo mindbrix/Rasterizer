@@ -69,9 +69,7 @@ struct MetalCache {
 #pragma clang diagnostic ignored "-Wextra"
 struct GeometryCache : MetalCache<id <MTLBuffer>, const Ra::Scene &> {
     __strong id <MTLBuffer> createPayload(const Ra::Scene & scene, id <MTLDevice> device) override {
-        if (scene.p16total == 0)
-            return nil;
-        size_t length = scene.p16total * sizeof(Ra::Point16);
+        size_t length = (1 + scene.p16total) * sizeof(Ra::Point16);
         id <MTLBuffer> buffer = [device newBufferWithLength:length
                                                     options:MTLResourceStorageModeShared];
         auto dst = (Ra::Point16 *)buffer.contents;
@@ -83,9 +81,7 @@ struct GeometryCache : MetalCache<id <MTLBuffer>, const Ra::Scene &> {
 
 struct StrokeCache : MetalCache<id <MTLBuffer>, const Ra::Scene &> {
     __strong id <MTLBuffer> createPayload(const Ra::Scene & scene, id <MTLDevice> device) override {
-        if (scene.stroketotal == 0)
-            return nil;
-        size_t length = scene.stroketotal * sizeof(Ra::Point16);
+        size_t length = (1 + scene.stroketotal) * sizeof(Ra::Point16);
         id <MTLBuffer> buffer = [device newBufferWithLength:length
                                                     options:MTLResourceStorageModeShared];
         auto dst = (Ra::Point16 *)buffer.contents;
@@ -97,9 +93,7 @@ struct StrokeCache : MetalCache<id <MTLBuffer>, const Ra::Scene &> {
 
 struct MiterCache : MetalCache<id <MTLBuffer>, const Ra::Scene &> {
     __strong id <MTLBuffer> createPayload(const Ra::Scene & scene, id <MTLDevice> device) override {
-        if (scene.stroketotal == 0)
-            return nil;
-        size_t length = scene.stroketotal * sizeof(Ra::Vector16);
+        size_t length = (1 + scene.stroketotal) * sizeof(Ra::Vector16);
         id <MTLBuffer> buffer = [device newBufferWithLength:length
                                                     options:MTLResourceStorageModeShared];
         auto dst = (Ra::Vector16 *)buffer.contents;

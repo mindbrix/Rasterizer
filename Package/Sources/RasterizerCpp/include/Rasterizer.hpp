@@ -944,8 +944,9 @@ struct Rasterizer {
                             Blend *inst = new (blends.alloc(1)) Blend(iz | colorFlags | Instance::kOutlines | bool(flags & Scene::kRoundCap) * Instance::kRoundCap | bool(flags & Scene::kSquareCap) * Instance::kSquareCap | bool(flags & Scene::kRoundJoin) * Instance::kRoundJoin | usep16s * Instance::kP16Strokes);
                             
                             if (usep16s) {
+                                bounds[iz] = *bnds;
                                 p16StrokeTotal += g->idxs.end;
-                                inst->data.idx = int(scn->p16bases[is]);
+                                inst->g = g, inst->data.idx = int(scn->p16bases[is]);
                             } else {
                                 Bounds outlineClip = unclipped ? Bounds::huge() : clip.inset(-width, -width);
                                 uint32_t i0 = uint32_t(outlines.idx), i1;
@@ -1742,11 +1743,9 @@ struct Rasterizer {
                 
                 if (inst->iz & Instance::kOutlines) {
                     if (inst->iz & Instance::kP16Strokes) {
-                        count = g->idxs.end;
                         uint32_t base = inst->data.idx;
-                        for (i = 0; i < count; i++, dst++)
+                        for (i = 0; i < g->idxs.end; i++, dst++)
                             dst->iz = inst->iz, dst->p16outline.idx = base + g->idxs.base[i];
-                        
                     } else {
                         memcpy(dst, ctx->outlines.base + inst->data.idx, inst->data.count * sizeof(Instance));
                         dst += inst->data.count;
