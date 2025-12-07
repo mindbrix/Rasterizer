@@ -1592,9 +1592,11 @@ struct Rasterizer {
                 if (closed) {
                     miter(prevx, prevy, x1, y1, firstx, firsty);
                     miters->base[miters->idx] = miters->back();
-                } else
+                } else {
                     miter(prevx, prevy, x0, y0, x0, y0);
-                
+                    miters->base[miters->idx].x |= Vector16::kIsCap;
+                    miters->back().x |= Vector16::kIsCap;
+                }
                 miters->idx = miters->end;
             }
             prevx = prevy = FLT_MAX;
