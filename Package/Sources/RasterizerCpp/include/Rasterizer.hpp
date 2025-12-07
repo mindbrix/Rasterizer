@@ -859,7 +859,8 @@ struct Rasterizer {
             bool clipActive = false;
             
             Color black(0, 0, 0, 255), red(0, 0, 255, 255);
-            size_t lz, uz, i, clz, cuz, iz, is, cnt, lastIdx = ~0, lastClipIdx = ~0;  uint8_t flags;
+            size_t lz, uz, i, clz, cuz, iz, is, cnt; uint32_t lastIdx = ~0, lastClipIdx = ~0;
+            uint8_t flags;
             float det, width, uw, softclipMargin = 0.5f;
             for (lz = uz = i = 0; i < list.scenes.size(); i++, lz = uz) {
                 const Scene *scn = list.scenes[i].ptr;
