@@ -939,7 +939,7 @@ struct Rasterizer {
                         ctms[iz] = m, widths[iz] = width, clips[iz] = invclip;
                         Geometry *g = scn->paths[is].ptr;
                         if (width) {
-                            bool usep16s = false;
+                            bool usep16s = true;
                             Blend *inst = new (blends.alloc(1)) Blend(iz | colorFlags | Instance::kOutlines | bool(flags & Scene::kRoundCap) * Instance::kRoundCap | bool(flags & Scene::kSquareCap) * Instance::kSquareCap | bool(flags & Scene::kRoundJoin) * Instance::kRoundJoin | usep16s * Instance::kP16Strokes);
                             
                             if (usep16s) {
@@ -1587,11 +1587,14 @@ struct Rasterizer {
         }
         void EndSubpath(float x0, float y0, float x1, float y1, bool closed) {
             if (miters->idx != miters->end) {
-                new (outlines->alloc(1)) Point16(x1, y1);
+                new (outlines->alloc(1)) Point16(closed ? x1 : x0, closed ? y1 : y0);
                 
-                miter(prevx, prevy, x1, y1, closed ? firstx : x1, closed ? firsty : y1);
-                if (closed)
+                if (closed) {
+                    miter(prevx, prevy, x1, y1, firstx, firsty);
                     miters->base[miters->idx] = miters->back();
+                } else
+                    miter(prevx, prevy, x0, y0, x0, y0);
+                
                 miters->idx = miters->end;
             }
             prevx = prevy = FLT_MAX;
