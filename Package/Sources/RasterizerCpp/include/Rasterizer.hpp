@@ -571,7 +571,7 @@ struct Rasterizer {
     };
     
     struct Scene {
-        enum Flags { kInvisible = 1 << 0, kFillEvenOdd = 1 << 1, kRoundCap = 1 << 2, kSquareCap = 1 << 3, kRoundJoin = 1 << 4 };
+        enum Flags { kFillEvenOdd = 1 << 1, kRoundCap = 1 << 2, kSquareCap = 1 << 3, kRoundJoin = 1 << 4 };
         struct Entry {
             Entry(const Path& path, size_t idx) : path(path), idx(uint32_t(idx)) {}
             Path path;  uint32_t idx;
@@ -648,11 +648,10 @@ struct Rasterizer {
         }
         Bounds bounds() const {
             Bounds b;
-            for (int i = 0; i < count; i++)
-                if ((flags[i] & kInvisible) == 0) {
-                    float inset = -0.5f * widths[i];
-                    b.extend(Bounds(bnds[i].inset(inset, inset).quad(ctms[i])).intersect(clips[i]));
-                }
+            for (int i = 0; i < count; i++) {
+                float inset = -0.5f * widths[i];
+                b.extend(Bounds(bnds[i].inset(inset, inset).quad(ctms[i])).intersect(clips[i]));
+            }
             return b;
         }
         inline size_t hash() const {
@@ -874,8 +873,7 @@ struct Rasterizer {
                 }
                 
                 for (is = clz - lz, iz = clz; iz < cuz; iz++, is++) {
-                    if ((flags = scn->flags[is]) & Scene::Flags::kInvisible)
-                        continue;
+                    flags = scn->flags[is];
                     if (list.params.useClips) {
                         if (memcmp(& scn->clips[is], & lastClip, sizeof(Bounds)) != 0) {
                             lastClip = scn->clips[is];

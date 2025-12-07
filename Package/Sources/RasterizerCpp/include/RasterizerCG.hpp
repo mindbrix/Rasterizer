@@ -45,9 +45,6 @@ struct RasterizerCG {
             
             const Ra::Scene& scn = * list.scenes[j].ptr;
             for (size_t i = 0; i < scn.count; i++) {
-                if (scn.flags[i] & Ra::Scene::Flags::kInvisible)
-                    continue;
-                
                 bool newClip = memcmp(& scn.clips[i], & lastClip, sizeof(Ra::Bounds)) != 0;
                 if (newClip) {
                     lastClip = scn.clips[i];
