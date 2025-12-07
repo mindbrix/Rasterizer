@@ -733,7 +733,7 @@ struct Rasterizer {
             kRoundCap = 1 << 28,    kF1 = 1 << 28,
             kOutlines = 1 << 29,
             kSquareCap = 1 << 30,
-            kEvenOdd = 1 << 31,
+            kEvenOdd = 1 << 31,     kP16Strokes = 1 << 31,
             kFragmentMask = (kOutlines | kSquareCap | kEvenOdd)
         };
         Instance(size_t iz) : iz(uint32_t(iz)) {}
@@ -940,23 +940,29 @@ struct Rasterizer {
                         ctms[iz] = m, widths[iz] = width, clips[iz] = invclip;
                         Geometry *g = scn->paths[is].ptr;
                         if (width) {
-                            Blend *inst = new (blends.alloc(1)) Blend(iz | colorFlags | Instance::kOutlines | bool(flags & Scene::kRoundCap) * Instance::kRoundCap | bool(flags & Scene::kSquareCap) * Instance::kSquareCap | bool(flags & Scene::kRoundJoin) * Instance::kRoundJoin
-                            );
-                            Bounds outlineClip = unclipped ? Bounds::huge() : clip.inset(-width, -width);
-                            uint32_t i0 = uint32_t(outlines.idx), i1;
-                            Outliner outliner;
-                            outliner.iz = inst->iz, outliner.outlines = & outlines;
-                            if (width > 4.f && isOpaque && ~lastIdx == 0) {
-                                bool softunclipped = true;
-                                if (clipActive) {
-                                    Bounds soft = Bounds(quad.concat(invclip));
-                                    softunclipped = fmaxf(fmaxf(fabsf(soft.lx - 0.5f), fabsf(soft.ux - 0.5f)), fmaxf(fabsf(soft.ly - 0.5f), fabsf(soft.uy - 0.5f))) < softclipMargin;
+                            bool usep16s = false;
+                            Blend *inst = new (blends.alloc(1)) Blend(iz | colorFlags | Instance::kOutlines | bool(flags & Scene::kRoundCap) * Instance::kRoundCap | bool(flags & Scene::kSquareCap) * Instance::kSquareCap | bool(flags & Scene::kRoundJoin) * Instance::kRoundJoin | usep16s * Instance::kP16Strokes);
+                            
+                            if (usep16s) {
+                                p16StrokeTotal += g->idxs.end;
+                                inst->data.idx = int(scn->p16bases[is]);
+                            } else {
+                                Bounds outlineClip = unclipped ? Bounds::huge() : clip.inset(-width, -width);
+                                uint32_t i0 = uint32_t(outlines.idx), i1;
+                                Outliner outliner;
+                                outliner.iz = inst->iz, outliner.outlines = & outlines;
+                                if (width > 4.f && isOpaque && ~lastIdx == 0) {
+                                    bool softunclipped = true;
+                                    if (clipActive) {
+                                        Bounds soft = Bounds(quad.concat(invclip));
+                                        softunclipped = fmaxf(fmaxf(fabsf(soft.lx - 0.5f), fabsf(soft.ux - 0.5f)), fmaxf(fabsf(soft.ly - 0.5f), fabsf(soft.uy - 0.5f))) < softclipMargin;
+                                    }
+                                    outliner.opaques = softunclipped ? & opaques : nullptr;
                                 }
-                                outliner.opaques = softunclipped ? & opaques : nullptr;
+                                divideGeometry(g, m, outlineClip, unclipped, false, outliner);
+                                i1 = uint32_t(outlines.idx);
+                                inst->data.idx = i0, inst->data.count = i1 - i0;
                             }
-                            divideGeometry(g, m, outlineClip, unclipped, false, outliner);
-                            i1 = uint32_t(outlines.idx);
-                            inst->data.idx = i0, inst->data.count = i1 - i0;
                         } else if (clipWidth * clipHeight / g->types.end < kMoleculesPixelsPerEdge) {
                             bounds[iz] = *bnds;
                             bool fast = !buffer->params.useCurves || g->maxCurve * det < 16.f;
@@ -987,7 +993,7 @@ struct Rasterizer {
             }
         }
         void empty() {
-            texTotal = 0, blends.empty(), opaques.empty(), stencils.empty(), outlines.empty(), segments.empty(), segmentsIndices.empty(), indices.empty(), texs.resize(0), images.resize(0);
+            texTotal = p16StrokeTotal = 0, blends.empty(), opaques.empty(), stencils.empty(), outlines.empty(), segments.empty(), segmentsIndices.empty(), indices.empty(), texs.resize(0), images.resize(0);
             for (int i = 0; i < samples.end(); i++)
                 samples[i].empty();
             entries = Vector<Buffer::Entry>();
@@ -996,7 +1002,7 @@ struct Rasterizer {
             samples.resize(0);
         }
         
-        size_t texTotal;
+        size_t texTotal, p16StrokeTotal;
         Allocator allocator;  Vector<Buffer::Entry> entries;
         Vector<TexRef> texs;
         Vector<Paint *> images;
@@ -1668,7 +1674,7 @@ struct Rasterizer {
                 buffer.images.add(*ctx->images[j]);
             for (instances = 0, pass = ctx->allocator.passes.base, j = 0; j < ctx->allocator.passes.end; j++, pass++)
                 instances += pass->count();
-            begins[i] = size, size += instances * sizeof(Edge) + (ctx->outlines.end + ctx->blends.end) * sizeof(Instance) + ctx->segments.end * sizeof(Segment) + ctx->stencils.end * sizeof(Opaque);
+            begins[i] = size, size += instances * sizeof(Edge) + (ctx->outlines.end + ctx->blends.end + ctx->p16StrokeTotal) * sizeof(Instance) + ctx->segments.end * sizeof(Segment) + ctx->stencils.end * sizeof(Opaque);
         }
         buffer.resize(size, buffer.headerSize);
         
@@ -1735,8 +1741,16 @@ struct Rasterizer {
                 Geometry *g = inst->g;
                 
                 if (inst->iz & Instance::kOutlines) {
-                    memcpy(dst, ctx->outlines.base + inst->data.idx, inst->data.count * sizeof(Instance));
-                    dst += inst->data.count;
+                    if (inst->iz & Instance::kP16Strokes) {
+                        count = g->idxs.end;
+                        uint32_t base = inst->data.idx;
+                        for (i = 0; i < count; i++, dst++)
+                            dst->iz = inst->iz, dst->p16outline.idx = base + g->idxs.base[i];
+                        
+                    } else {
+                        memcpy(dst, ctx->outlines.base + inst->data.idx, inst->data.count * sizeof(Instance));
+                        dst += inst->data.count;
+                    }
                 } else {
                     dst->iz = inst->iz, dst->quad = inst->quad;
                     ic = dst - dst0, dst++;
