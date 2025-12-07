@@ -1563,6 +1563,10 @@ struct Rasterizer {
         void writeInstance(float x0, float y0, float x1, float y1, float x2, float y2) {
             *idxs->alloc(1) = uint32_t(outlines->end);
             
+            dx = x2 - x0, dy = y2 - y0;
+            float rd = 1.f / sqrtf(dx * dx + dy * dy + FLT_EPSILON);
+            dx *= rd, dy *= rd;
+            
             if (x1 == FLT_MAX) {
                 new (outlines->alloc(1)) Point16(x0, y0);
                 
@@ -1584,10 +1588,16 @@ struct Rasterizer {
                 miter(x0, y0, x1, y1, x2, y2);
                 prevx = x1, prevy = y1;
             }
+            px = x0, py = y0;
         }
         void EndSubpath(float x0, float y0, float x1, float y1, bool closed) {
             if (miters->idx != miters->end) {
-                new (outlines->alloc(1)) Point16(closed ? x1 : x0, closed ? y1 : y0);
+                float ex = closed ? x1 : x0, ey = closed ? y1 : y0;
+                new (outlines->alloc(1)) Point16(ex, ey);
+                
+                dx = ex - px, dy = ey - py;
+                float rd = 1.f / sqrtf(dx * dx + dy * dy + FLT_EPSILON);
+                dx *= rd, dy *= rd;
                 
                 if (closed) {
                     miter(prevx, prevy, x1, y1, firstx, firsty);
@@ -1602,18 +1612,16 @@ struct Rasterizer {
             prevx = prevy = FLT_MAX;
         }
         void miter(float px, float py, float x, float y, float nx, float ny) {
-            float ax, ay, bx, by, ra, rb, tx, ty, rt, len, cx, cy, mx, my;
+            float ax, ay, bx, by, ra, rb, tx, ty, rt, len, mx, my;
             ax = x - px, ay = y - py, ra = 1.f / sqrtf(ax * ax + ay * ay + FLT_EPSILON), ax *= ra, ay *= ra;
             bx = nx - x, by = ny - y, rb = 1.f / sqrtf(bx * bx + by * by + FLT_EPSILON), bx *= rb, by *= rb;
             tx = ax + bx, ty = ay + by, rt = 1.f / sqrtf(tx * tx + ty * ty + FLT_EPSILON), tx *= rt, ty *= rt;
-            bool aValid = ax != 0.f || ay != 0.f;
-            cx = aValid ? ax : bx, cy = aValid ? ay : by;
-            len = kMoleculesRange / kMiterLimit * fminf(kMiterLimit, 1.f / fabsf(cx * tx + cy * ty));
+            len = kMoleculesRange / kMiterLimit * fminf(kMiterLimit, 1.f / fabsf(dx * tx + dy * ty));
             mx = -len * ty, my = len * tx;
             new (miters->alloc(1)) Vector16(mx, my);
         }
     
-        float prevx = FLT_MAX, prevy = FLT_MAX, firstx, firsty;
+        float prevx = FLT_MAX, prevy = FLT_MAX, firstx, firsty, px, py, dx, dy;
         Row<Point16> *outlines;  Row<Vector16> *miters;  Row<uint32_t> *idxs;
     };
     

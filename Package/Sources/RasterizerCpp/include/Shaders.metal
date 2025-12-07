@@ -619,7 +619,7 @@ vertex InstancesVertex instances_vertex_main(
                 
                 float bx = x1 - x0, cx = x2 - x0;
                 float by = y1 - y0, cy = y2 - y0;
-                ow = params->useCurves ? 0.5 * abs(cx * by - cy * bx) * rsqrt(cx * cx + cy * cy) : 0;
+                ow = params->useCurves ? 0.5 + 0.5 * abs(cx * by - cy * bx) * rsqrt(cx * cx + cy * cy) : 0;
                 isCurve = params->useCurves && isCurve;
             } else {
                 ix = elem[0].x & Point16::kMask, iy = elem[0].y & Point16::kMask;
