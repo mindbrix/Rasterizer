@@ -579,14 +579,23 @@ struct Rasterizer {
                 Geometry *g = path.ptr;
                 count++, weight += g->types.end;
             
+                size_t key = g->hash();
                 if (width != 0) {
-                    paths.add(path);
-                    p16bases.add(0);
-                    
-                    if (g->outlines.end == 0)
-                        P16Outliner().writeGeometry(g);
+                    auto it = strokemap.find(key);
+                    if (it == strokemap.end()) {
+                        paths.add(path);
+                        p16bases.add(uint32_t(stroketotal));
+                        strokemap.emplace(key, Entry(path, stroketotal));
+                        
+                        if (g->outlines.end == 0)
+                            P16Outliner().writeGeometry(g);
+                        stroketotal += g->outlines.end;
+                        xxhash = XXH64(& key, sizeof(key), xxhash);
+                    } else {
+                        paths.add(it->second.path);
+                        p16bases.add(it->second.idx);
+                    }
                 } else {
-                    size_t key = g->hash();
                     auto it = p16map.find(key);
                     if (it == p16map.end()) {
                         paths.add(path);
@@ -595,17 +604,14 @@ struct Rasterizer {
                         
                         if (kMoleculesHeight && g->p16s.end == 0)
                             P16Writer().writeGeometry(g);
-                        
                         p16total += g->p16s.end;
-                        size_t pathHash = g->hash();
-                        xxhash = XXH64(& pathHash, sizeof(pathHash), xxhash);
-                        p16full += path->p16s.end;
+                        xxhash = XXH64(& key, sizeof(key), xxhash);
                     } else {
                         paths.add(it->second.path);
                         p16bases.add(it->second.idx);
-                        p16full += it->second.path->p16s.end;
                     }
                 }
+                
                 if (paint.isGradient()) {
                     gradientIndices.add(uint32_t(gradients.end()));
                     Color strip[kColorTextureWidth];
@@ -652,7 +658,7 @@ struct Rasterizer {
         
         size_t refCount, count = 0, weight = 0, xxhash = 0;
         RefVector<Path> paths;
-        Vector<uint32_t> p16bases;  uint32_t p16total = 0, p16full = 0;
+        Vector<uint32_t> p16bases;  uint32_t p16total = 0, stroketotal = 0;
         RefVector<Path> clipPaths;
         Vector<uint32_t> clipIndices;
         Vector<Bounds> bnds, clips;
@@ -662,7 +668,7 @@ struct Rasterizer {
         Vector<uint32_t> gradientIndices;
         Vector<Color> gradients, matchedGradients = gradients;
         Vector<float> widths;
-        std::map<size_t, Entry> p16map;
+        std::map<size_t, Entry> p16map, strokemap;
         Vector<uint8_t> flags;
     };
     typedef Ref<Scene> SceneRef;
@@ -1543,6 +1549,7 @@ struct Rasterizer {
             p16init(g);
             outlines = & g->outlines, idxs = & g->idxs, miters = & g->miters;
             divideGeometry(g, m, Bounds(), true, false, *this);
+            assert(outlines->end == miters->end);
         }
         void writeInstance(float x0, float y0, float x1, float y1, float x2, float y2) {
             *idxs->alloc(1) = uint32_t(outlines->end);
