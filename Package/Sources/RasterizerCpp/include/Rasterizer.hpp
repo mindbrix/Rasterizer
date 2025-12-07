@@ -245,15 +245,18 @@ struct Rasterizer {
     };
     
     struct Point16 {
-        enum Flags { isCurve = 1 << 15, kMask = ~isCurve };
-        inline Point16(float x0, float y0, bool isCurve0 = false)
-                : x(uint16_t(fmaxf(0.f, fminf(kMoleculesRange, x0))) | (isCurve0 ? isCurve : 0)),
+        enum Flags { kIsCurve = 1 << 15, kMask = ~kIsCurve };
+        inline Point16(float x0, float y0, bool isCurve = false)
+                : x(uint16_t(fmaxf(0.f, fminf(kMoleculesRange, x0))) | (isCurve ? kIsCurve : 0)),
                   y(fmaxf(0.f, fminf(kMoleculesRange, y0))) {}
         uint16_t x, y;
     };
     struct Vector16 {
+        enum Flags { kIsCap = 1, kMask = ~kIsCap };
         constexpr static float kMin = -32768, kMax = 32767;
-        inline Vector16(float x0, float y0) : x(fmaxf(kMin, fminf(kMax, x0))), y(fmaxf(kMin, fminf(kMax, y0))) {}
+        inline Vector16(float x0, float y0, bool cap = false) : x(fmaxf(kMin, fminf(kMax, x0))), y(fmaxf(kMin, fminf(kMax, y0))) {
+            x = (x & kMask) | (cap ? kIsCap : 0);
+        }
         int16_t x, y;
     };
     

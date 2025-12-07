@@ -42,6 +42,11 @@ struct Point16 {
     uint16_t x, y;
 };
 
+struct Vector16 {
+    enum Flags { kIsCap = 1, kMask = ~kIsCap };
+    int16_t x, y;
+};
+
 struct Segment {
     union { float x0; uint32_t ix0; };  float y0, x1, y1;
 };
@@ -552,6 +557,8 @@ vertex InstancesVertex instances_vertex_main(
             constant uint *pathCount [[buffer(13)]],
             constant uint *texCount [[buffer(14)]],
             constant Params *params [[buffer(15)]],
+            const device Point16 *strokes [[buffer(20)]],
+            const device Vector16 *miters [[buffer(21)]],
             uint vid [[vertex_id]], uint iid [[instance_id]])
 {
     InstancesVertex vert;
@@ -570,56 +577,108 @@ vertex InstancesVertex instances_vertex_main(
     float w = widths[iz], cw = max(1.0, w), dw = 0.5 * (1.0 + cw);
     float alpha = select(1.0, w / cw, w != 0), dx, dy;
     if (inst.iz & Instance::kOutlines) {
+
+        
+        float x0, y0, x1, y1, x2, y2;
+        bool pcap, ncap;
         const bool roundCap = w > 1.0 && inst.iz & Instance::kRoundCap;
         const bool squareCap = inst.iz & Instance::kSquareCap;
         const bool roundJoin = inst.iz & Instance::kRoundJoin;
-        const short prevIndex = inst.outline.prev, nextIndex = inst.outline.next;
-        const device Instance & pinst = instances[iid + prevIndex], & ninst = instances[iid + nextIndex];
-        const device Quadratic& p = pinst.outline.quad, & o = inst.outline.quad, & n = ninst.outline.quad;
-        const bool pcurve = params->useCurves && p.x1 != FLT_MAX;
-        const bool ncurve = params->useCurves && n.x1 != FLT_MAX;
+        const bool p16strokes = inst.iz & Instance::kEvenOdd;
         
-        float x0, y0, x1, y1, x2, y2;
-        float ax, bx, cx, ay, by, cy, ow, lcap;
-        bool pcap = prevIndex == 0 || p.x2 != o.x0 || p.y2 != o.y0;
-        bool ncap = nextIndex == 0 || n.x0 != o.x2 || n.y0 != o.y2;
-        x0 = o.x0, y0 = o.y0, x1 = o.x1, y1 = o.y1, x2 = o.x2, y2 = o.y2;
-        
-        float px0, py0, pdot, nx1, ny1, ndot;
-        px0 = x0 - (pcurve ? p.x1 : p.x0);
-        py0 = y0 - (pcurve ? p.y1 : p.y0);
-        nx1 = (ncurve ? n.x1 : n.x2) - x2;
-        ny1 = (ncurve ? n.y1 : n.y2) - y2;
-        
-        ax = x1 - x2, bx = x1 - x0, cx = x2 - x0;
-        ay = y1 - y2, by = y1 - y0, cy = y2 - y0;
-        float cdot = cx * cx + cy * cy, rc = rsqrt(cdot);
-        float area = cx * by - cy * bx;
-        float tc = abs(area / cdot);
-        
-        const bool isCurve = params->useCurves && x1 != FLT_MAX && tc > 1e-3;
-        ow = isCurve ? 0.5 * tc / rc : 0.0;
-        
-        lcap = (isCurve ? 0.41 * dw : 0.0) + (squareCap || roundCap ? dw : 0.5);
-        float caplimit = dw == 1.0 ? 0.0 : -0.866025403784439;
-    
-        pdot = px0 * px0 + py0 * py0;
-        ndot = nx1 * nx1 + ny1 * ny1;
-        
-        float2 no = float2(cx, cy) * rc, prev, next, tangent, miter0, miter1;
-        
-        next = normalize({ (isCurve ? x1 : x2) - x0, (isCurve ? y1 : y2) - y0 });
-        prev = rsqrt(pdot) * float2(px0, py0);
-        pcap = pcap || pdot < 1e-6 || dot(prev, next) < caplimit;
-        tangent = pcap ? no : normalize(prev + next);
-        miter0 = (dw + ow) / abs(dot(no, tangent)) * float2(-tangent.y, tangent.x);
-        
-        prev = normalize({ x2 - (isCurve ? x1 : x0), y2 - (isCurve ? y1 : y0) });
-        next = rsqrt(ndot) * float2(nx1, ny1);
-        ncap = ncap || ndot < 1e-6 || dot(prev, next) < caplimit;
-        tangent = ncap ? no : normalize(prev + next);
-        miter1 = (dw + ow) / abs(dot(no, tangent)) * float2(-tangent.y, tangent.x);
+        bool isCurve;
+        float2 no, m0, m1;
+        float ow = 0;
+        if (0 && p16strokes) {
+            const device Bounds& b = bounds[inst.iz & kPathIndexMask];
+            const device Transform& m = ctms[inst.iz & kPathIndexMask];
+            float tx, ty, scale, ma, mb, mc, md, ix, iy, s = kMiterLimit / kMoleculesRange;
+            tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
+            scale = max(b.ux - b.lx, b.uy - b.ly) / kMoleculesRange;
+            ma = m.a * scale, mb = m.b * scale, mc = m.c * scale, md = m.d * scale;
+            
+            uint32_t idx = inst.p16outline.idx;
+            const device Point16 *elem = strokes + idx;
+            const device Vector16 *miters = miters + idx;
+            isCurve = elem->x & Point16::isCurve;
+            
+            pcap = miters[0].x & Vector16::kIsCap;
+            ix = miters[0].x & Vector16::kMask, iy = miters[0].y;
+            m0 = { s * (ix * m.a + iy * m.c), s * (ix * m.b + iy * m.d) };
+            if (isCurve) {
+                ix = elem[0].x & Point16::kMask, iy = elem[0].y & Point16::kMask;
+                x0 = ix * ma + iy * mc + tx, y0 = ix * mb + iy * md + ty;
+                ix = elem[1].x & Point16::kMask, iy = elem[1].y & Point16::kMask;
+                x1 = ix * ma + iy * mc + tx, y1 = ix * mb + iy * md + ty;
+                ix = elem[2].x & Point16::kMask, iy = elem[2].y & Point16::kMask;
+                x2 = ix * ma + iy * mc + tx, y2 = ix * mb + iy * md + ty;
                 
+                ncap = miters[2].x & Vector16::kIsCap;
+                ix = miters[2].x & Vector16::kMask, iy = miters[2].y;
+                m1 = { s * (ix * m.a + iy * m.c), s * (ix * m.b + iy * m.d) };
+            } else {
+                ix = elem[0].x & Point16::kMask, iy = elem[0].y & Point16::kMask;
+                x0 = ix * ma + iy * mc + tx, y0 = ix * mb + iy * md + ty;
+                x1 = FLT_MAX, y1 = FLT_MAX;
+                ix = elem[1].x & Point16::kMask, iy = elem[1].y & Point16::kMask;
+                x2 = ix * ma + iy * mc + tx, y2 = ix * mb + iy * md + ty;
+                
+                ncap = miters[1].x & Vector16::kIsCap;
+                ix = miters[1].x & Vector16::kMask, iy = miters[1].y;
+                m1 = { s * (ix * m.a + iy * m.c), s * (ix * m.b + iy * m.d) };
+            }
+        } else {
+            const short prevIndex = inst.outline.prev, nextIndex = inst.outline.next;
+            const device Instance & pinst = instances[iid + prevIndex], & ninst = instances[iid + nextIndex];
+            const device Quadratic& p = pinst.outline.quad, & o = inst.outline.quad, & n = ninst.outline.quad;
+            const bool pcurve = params->useCurves && p.x1 != FLT_MAX;
+            const bool ncurve = params->useCurves && n.x1 != FLT_MAX;
+            
+            pcap = prevIndex == 0 || p.x2 != o.x0 || p.y2 != o.y0;
+            ncap = nextIndex == 0 || n.x0 != o.x2 || n.y0 != o.y2;
+            x0 = o.x0, y0 = o.y0, x1 = o.x1, y1 = o.y1, x2 = o.x2, y2 = o.y2;
+            
+            float ax, bx, cx, ay, by, cy;
+            ax = x1 - x2, bx = x1 - x0, cx = x2 - x0;
+            ay = y1 - y2, by = y1 - y0, cy = y2 - y0;
+            float cdot = cx * cx + cy * cy, rc = rsqrt(cdot);
+            float area = cx * by - cy * bx;
+            float tc = abs(area / cdot);
+            
+            isCurve = params->useCurves && x1 != FLT_MAX && tc > 1e-3;
+            ow = isCurve ? 0.5 * tc / rc : 0.0;
+            
+            float caplimit = dw == 1.0 ? 0.0 : -0.866025403784439;
+            
+            float px0, py0, pdot, nx1, ny1, ndot;
+            px0 = x0 - (pcurve ? p.x1 : p.x0);
+            py0 = y0 - (pcurve ? p.y1 : p.y0);
+            nx1 = (ncurve ? n.x1 : n.x2) - x2;
+            ny1 = (ncurve ? n.y1 : n.y2) - y2;
+            pdot = px0 * px0 + py0 * py0;
+            ndot = nx1 * nx1 + ny1 * ny1;
+            
+            no = float2(cx, cy) * rc;
+            float2 prev, next, tangent;
+            
+            next = normalize({ (isCurve ? x1 : x2) - x0, (isCurve ? y1 : y2) - y0 });
+            prev = rsqrt(pdot) * float2(px0, py0);
+            pcap = pcap || pdot < 1e-6 || dot(prev, next) < caplimit;
+            tangent = pcap ? no : normalize(prev + next);
+            m0 = 1.0 / abs(dot(no, tangent)) * float2(-tangent.y, tangent.x);
+            
+            prev = normalize({ x2 - (isCurve ? x1 : x0), y2 - (isCurve ? y1 : y0) });
+            next = rsqrt(ndot) * float2(nx1, ny1);
+            ncap = ncap || ndot < 1e-6 || dot(prev, next) < caplimit;
+            tangent = ncap ? no : normalize(prev + next);
+            m1 = 1.0 / abs(dot(no, tangent)) * float2(-tangent.y, tangent.x);
+        }
+        
+        float lcap = (isCurve ? 0.41 * dw : 0.0) + (squareCap || roundCap ? dw : 0.5);
+        
+        float2 miter0 = (dw + ow) * m0;
+        float2 miter1 = (dw + ow) * m1;
+        
         float lp, cx0, cy0, ln, cx1, cy1, t, dt, rt;
         lp = select(0.0, lcap, pcap) + err, cx0 = x0 - no.x * lp, cy0 = y0 - no.y * lp;
         ln = select(0.0, lcap, ncap) + err, cx1 = x2 + no.x * ln, cy1 = y2 + no.y * ln;

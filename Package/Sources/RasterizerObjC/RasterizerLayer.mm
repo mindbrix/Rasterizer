@@ -481,6 +481,8 @@ struct TextureCache : MetalCache<id <MTLTexture>, const Ra::Paint &> {
                 [commandEncoder setVertexBytes:& pathsCount length:sizeof(pathsCount) atIndex:13];
                 [commandEncoder setVertexBytes:& texCount length:sizeof(texCount) atIndex:14];
                 [commandEncoder setVertexBytes:& buffer->params length:sizeof(Ra::Params) atIndex:15];
+                [commandEncoder setVertexBuffer:strokebuffer offset:0 atIndex:20];
+                [commandEncoder setVertexBuffer:miterbuffer offset:0 atIndex:21];
                 [commandEncoder setFragmentTexture:_accumulationTexture atIndex:0];
                 [commandEncoder setFragmentTexture:useImage ? imageTexture : colorTexture atIndex:1];
                 [commandEncoder setRenderPipelineState:_instancesPipelineState];
