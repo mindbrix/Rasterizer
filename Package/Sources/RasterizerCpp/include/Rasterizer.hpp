@@ -1613,7 +1613,7 @@ struct Rasterizer {
             dot = ax * bx + ay * by, invcos = 1.f / fabsf(dx * tx + dy * ty);
             len = kMoleculesRange / kMiterRange * fminf(kMiterRange, invcos);
             new (miters->alloc(1)) Vector16(-len * ty, len * tx);
-            if (dot < -0.866025403784439)
+            if (dot < kMiterLimit)
                 miters->back().x |= Vector16::kIsCap;
         }
     

@@ -652,7 +652,7 @@ vertex InstancesVertex instances_vertex_main(
             isCurve = params->useCurves && x1 != FLT_MAX && tc > 1e-3;
             ow = isCurve ? 0.5 * tc / rc : 0.0;
             
-            float caplimit = dw == 1.0 ? 0.0 : -0.866025403784439;
+            float caplimit = dw == 1.0 ? 0.0 : kMiterLimit;
             
             float px0, py0, pdot, nx1, ny1, ndot;
             px0 = x0 - (pcurve ? p.x1 : p.x0);
