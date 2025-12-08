@@ -577,8 +577,6 @@ vertex InstancesVertex instances_vertex_main(
     float w = widths[iz], cw = max(1.0, w), dw = 0.5 * (1.0 + cw);
     float alpha = select(1.0, w / cw, w != 0), dx, dy;
     if (inst.iz & Instance::kOutlines) {
-
-        
         float x0, y0, x1, y1, x2, y2;
         bool pcap, ncap;
         const bool roundCap = w > 1.0 && inst.iz & Instance::kRoundCap;
