@@ -1569,22 +1569,16 @@ struct Rasterizer {
             
             if (x1 == FLT_MAX) {
                 new (outlines->alloc(1)) Point16(x0, y0);
-                
-                if (prevx == FLT_MAX) {
-                    miter(x0, y0, x0, y0, x2, y2);
-                    firstx = x2, firsty = y2;
-                } else
-                    miter(prevx, prevy, x0, y0, x2, y2);
+                if (prevx == FLT_MAX)
+                    prevx = x0, prevy = y0, firstx = x2, firsty = y2;
+                miter(prevx, prevy, x0, y0, x2, y2);
                 prevx = x0, prevy = y0;
             } else {
                 Point16 *p = outlines->alloc(2);
                 new (p + 0) Point16(x0, y0, true), new (p + 1) Point16(x1, y1);
-                
-                if (prevx == FLT_MAX) {
-                    miter(x0, y0, x0, y0, x1, y1);
-                    firstx = x1, firsty = y1;
-                } else
-                    miter(prevx, prevy, x0, y0, x1, y1);
+                if (prevx == FLT_MAX)
+                    prevx = x0, prevy = y0, firstx = x1, firsty = y1;
+                miter(prevx, prevy, x0, y0, x1, y1);
                 miter(x0, y0, x1, y1, x2, y2);
                 prevx = x1, prevy = y1;
             }
