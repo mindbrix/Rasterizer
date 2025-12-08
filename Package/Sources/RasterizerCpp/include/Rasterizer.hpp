@@ -1603,7 +1603,7 @@ struct Rasterizer {
                 }
                 idxs->idx = idxs->end;
             }
-            prevx = prevy = FLT_MAX;
+            prevx = FLT_MAX;
         }
         void miter(float x0, float y0, float x1, float y1, float x2, float y2) {
             float ax, ay, bx, by, ra, rb, tx, ty, rt, invcos, len;
@@ -1616,7 +1616,7 @@ struct Rasterizer {
                 miters->back().x |= Vector16::kIsCap;
         }
     
-        float prevx = FLT_MAX, prevy = FLT_MAX, firstx, firsty, px, py, dx, dy;
+        float prevx = FLT_MAX, prevy, firstx, firsty, px, py, dx, dy;
         Row<Point16> *outlines;  Row<Vector16> *miters;  Row<uint32_t> *idxs;
     };
     
