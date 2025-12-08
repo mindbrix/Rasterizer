@@ -35,7 +35,8 @@
 #define kNullIndex 0xFFFF
 #define kPathIndexMask 0xFFFFF
 #define kPageSize 4096
-#define kMiterLimit 8.f
+#define kMiterRange 8.f
+#define kMiterLimit 4.f
 #define kCubicSolverLimit 5e-2f
 #define kDepthRange 0.1f
 #define kColorTextureWidth 64

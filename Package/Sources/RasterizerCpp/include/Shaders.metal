@@ -590,7 +590,7 @@ vertex InstancesVertex instances_vertex_main(
         if (p16strokes) {
             const device Bounds& b = bounds[inst.iz & kPathIndexMask];
             const device Transform& m = ctms[inst.iz & kPathIndexMask];
-            float tx, ty, scale, ma, mb, mc, md, ix, iy, s = kMiterLimit / kMoleculesRange * rsqrt(abs(m.a * m.d - m.b * m.c));
+            float tx, ty, scale, ma, mb, mc, md, ix, iy, s = kMiterRange / kMoleculesRange * rsqrt(abs(m.a * m.d - m.b * m.c));
             tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
             scale = max(b.ux - b.lx, b.uy - b.ly) / kMoleculesRange;
             ma = m.a * scale, mb = m.b * scale, mc = m.c * scale, md = m.d * scale;
