@@ -599,38 +599,30 @@ vertex InstancesVertex instances_vertex_main(
             const device Point16 *elem = strokes + idx;
             const device Vector16 *miter = miters + idx;
             isCurve = elem->x & Point16::isCurve;
+            int mi = isCurve ? 2 : 1;
+            ix = elem[0].x & Point16::kMask, iy = elem[0].y & Point16::kMask;
+            x0 = ix * ma + iy * mc + tx, y0 = ix * mb + iy * md + ty;
+            ix = elem[1].x & Point16::kMask, iy = elem[1].y & Point16::kMask;
+            x1 = ix * ma + iy * mc + tx, y1 = ix * mb + iy * md + ty;
+            ix = elem[mi].x & Point16::kMask, iy = elem[mi].y & Point16::kMask;
+            x2 = ix * ma + iy * mc + tx, y2 = ix * mb + iy * md + ty;
+            
+            no = normalize(float2(x2 - x0, y2 - y0));
             
             pcap = miter[0].x & Vector16::kIsCap;
             ix = miter[0].x & Vector16::kMask, iy = miter[0].y;
             m0 = { s * (ix * m.a + iy * m.c), s * (ix * m.b + iy * m.d) };
+            
+            ncap = miter[mi].x & Vector16::kIsCap;
+            ix = miter[mi].x & Vector16::kMask, iy = miter[mi].y;
+            m1 = { s * (ix * m.a + iy * m.c), s * (ix * m.b + iy * m.d) };
+            
             if (isCurve) {
-                ix = elem[0].x & Point16::kMask, iy = elem[0].y & Point16::kMask;
-                x0 = ix * ma + iy * mc + tx, y0 = ix * mb + iy * md + ty;
-                ix = elem[1].x & Point16::kMask, iy = elem[1].y & Point16::kMask;
-                x1 = ix * ma + iy * mc + tx, y1 = ix * mb + iy * md + ty;
-                ix = elem[2].x & Point16::kMask, iy = elem[2].y & Point16::kMask;
-                x2 = ix * ma + iy * mc + tx, y2 = ix * mb + iy * md + ty;
-                
-                ncap = miter[2].x & Vector16::kIsCap;
-                ix = miter[2].x & Vector16::kMask, iy = miter[2].y;
-                m1 = { s * (ix * m.a + iy * m.c), s * (ix * m.b + iy * m.d) };
-                
                 float bx = x1 - x0, cx = x2 - x0;
                 float by = y1 - y0, cy = y2 - y0;
                 ow = params->useCurves ? 0.5 + 0.5 * abs(cx * by - cy * bx) * rsqrt(cx * cx + cy * cy) : 0;
                 isCurve = params->useCurves && isCurve;
-            } else {
-                ix = elem[0].x & Point16::kMask, iy = elem[0].y & Point16::kMask;
-                x0 = ix * ma + iy * mc + tx, y0 = ix * mb + iy * md + ty;
-                x1 = FLT_MAX, y1 = FLT_MAX;
-                ix = elem[1].x & Point16::kMask, iy = elem[1].y & Point16::kMask;
-                x2 = ix * ma + iy * mc + tx, y2 = ix * mb + iy * md + ty;
-                
-                ncap = miter[1].x & Vector16::kIsCap;
-                ix = miter[1].x & Vector16::kMask, iy = miter[1].y;
-                m1 = { s * (ix * m.a + iy * m.c), s * (ix * m.b + iy * m.d) };
             }
-            no = normalize(float2(x2 - x0, y2 - y0));
         } else {
             const short prevIndex = inst.outline.prev, nextIndex = inst.outline.next;
             const device Instance & pinst = instances[iid + prevIndex], & ninst = instances[iid + nextIndex];
