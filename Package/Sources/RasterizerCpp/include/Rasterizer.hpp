@@ -1605,10 +1605,10 @@ struct Rasterizer {
             }
             prevx = prevy = FLT_MAX;
         }
-        void miter(float px, float py, float x, float y, float nx, float ny) {
+        void miter(float x0, float y0, float x1, float y1, float x2, float y2) {
             float ax, ay, bx, by, ra, rb, tx, ty, rt, invcos, len;
-            ax = x - px, ay = y - py, ra = 1.f / sqrtf(ax * ax + ay * ay + FLT_EPSILON), ax *= ra, ay *= ra;
-            bx = nx - x, by = ny - y, rb = 1.f / sqrtf(bx * bx + by * by + FLT_EPSILON), bx *= rb, by *= rb;
+            ax = x1 - x0, ay = y1 - y0, ra = 1.f / sqrtf(ax * ax + ay * ay + FLT_EPSILON), ax *= ra, ay *= ra;
+            bx = x2 - x1, by = y2 - y1, rb = 1.f / sqrtf(bx * bx + by * by + FLT_EPSILON), bx *= rb, by *= rb;
             tx = ax + bx, ty = ay + by, rt = 1.f / sqrtf(tx * tx + ty * ty + FLT_EPSILON), tx *= rt, ty *= rt;
             invcos = 1.f / fabsf(dx * tx + dy * ty), len = kMoleculesRange / kMiterRange * fminf(kMiterRange, invcos);
             new (miters->alloc(1)) Vector16(-len * ty, len * tx);
