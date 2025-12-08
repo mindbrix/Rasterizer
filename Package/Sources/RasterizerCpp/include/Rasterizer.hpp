@@ -939,7 +939,7 @@ struct Rasterizer {
                         ctms[iz] = m, widths[iz] = width, clips[iz] = invclip;
                         Geometry *g = scn->paths[is].ptr;
                         if (width) {
-                            bool usep16s = !list.params.showOutlines;
+                            bool usep16s = list.params.showOpaques;
                             Blend *inst = new (blends.alloc(1)) Blend(iz | colorFlags | Instance::kOutlines | bool(flags & Scene::kRoundCap) * Instance::kRoundCap | bool(flags & Scene::kSquareCap) * Instance::kSquareCap | bool(flags & Scene::kRoundJoin) * Instance::kRoundJoin | usep16s * Instance::kP16Strokes);
                             
                             if (usep16s) {
@@ -1606,13 +1606,14 @@ struct Rasterizer {
             prevx = FLT_MAX;
         }
         void miter(float x0, float y0, float x1, float y1, float x2, float y2) {
-            float ax, ay, bx, by, ra, rb, tx, ty, rt, invcos, len;
+            float ax, ay, bx, by, ra, rb, tx, ty, rt, dot, invcos, len;
             ax = x1 - x0, ay = y1 - y0, ra = 1.f / sqrtf(ax * ax + ay * ay + FLT_EPSILON), ax *= ra, ay *= ra;
             bx = x2 - x1, by = y2 - y1, rb = 1.f / sqrtf(bx * bx + by * by + FLT_EPSILON), bx *= rb, by *= rb;
             tx = ax + bx, ty = ay + by, rt = 1.f / sqrtf(tx * tx + ty * ty + FLT_EPSILON), tx *= rt, ty *= rt;
-            invcos = 1.f / fabsf(dx * tx + dy * ty), len = kMoleculesRange / kMiterRange * fminf(kMiterRange, invcos);
+            dot = ax * bx + ay * by, invcos = 1.f / fabsf(dx * tx + dy * ty);
+            len = kMoleculesRange / kMiterRange * fminf(kMiterRange, invcos);
             new (miters->alloc(1)) Vector16(-len * ty, len * tx);
-            if (invcos > kMiterLimit)
+            if (dot < -0.866025403784439)
                 miters->back().x |= Vector16::kIsCap;
         }
     
