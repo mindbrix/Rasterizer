@@ -590,7 +590,7 @@ vertex InstancesVertex instances_vertex_main(
         if (p16strokes) {
             const device Bounds& b = bounds[inst.iz & kPathIndexMask];
             const device Transform& m = ctms[inst.iz & kPathIndexMask];
-            float tx, ty, scale, ma, mb, mc, md, ix, iy, s = kMiterRange / kMoleculesRange * rsqrt(abs(m.a * m.d - m.b * m.c));
+            float cx, cy, rc, tx, ty, scale, ma, mb, mc, md, ix, iy, tanx, tany, invcos, s = kMiterRange / kMoleculesRange * rsqrt(abs(m.a * m.d - m.b * m.c));
             tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
             scale = max(b.ux - b.lx, b.uy - b.ly) / kMoleculesRange;
             ma = m.a * scale, mb = m.b * scale, mc = m.c * scale, md = m.d * scale;
@@ -607,20 +607,28 @@ vertex InstancesVertex instances_vertex_main(
             ix = elem[mi].x & Point16::kMask, iy = elem[mi].y & Point16::kMask;
             x2 = ix * ma + iy * mc + tx, y2 = ix * mb + iy * md + ty;
             
-            no = normalize(float2(x2 - x0, y2 - y0));
-            
+            cx = x2 - x0, cy = y2 - y0, rc = rsqrt(cx * cx + cy * cy);
+            no = { cx * rc, cy * rc };
+        
             pcap = miter[0].x & Vector16::kIsCap;
             ix = miter[0].x & Vector16::kMask, iy = miter[0].y;
-            m0 = { s * (ix * m.a + iy * m.c), s * (ix * m.b + iy * m.d) };
+            
+            tanx = s * (ix * m.a + iy * m.c);
+            tany = s * (ix * m.b + iy * m.d);
+            invcos = 1.0 / (no.x * tanx + no.y * tany);
+            m0 = { -tany * invcos, tanx * invcos };
             
             ncap = miter[mi].x & Vector16::kIsCap;
             ix = miter[mi].x & Vector16::kMask, iy = miter[mi].y;
-            m1 = { s * (ix * m.a + iy * m.c), s * (ix * m.b + iy * m.d) };
+            
+            tanx = s * (ix * m.a + iy * m.c);
+            tany = s * (ix * m.b + iy * m.d);
+            invcos = 1.0 / (no.x * tanx + no.y * tany);
+            m1 = { -tany * invcos, tanx * invcos };
             
             if (isCurve) {
-                float bx = x1 - x0, cx = x2 - x0;
-                float by = y1 - y0, cy = y2 - y0;
-                ow = params->useCurves ? 0.5 + 0.5 * abs(cx * by - cy * bx) * rsqrt(cx * cx + cy * cy) : 0;
+                float bx = x1 - x0, by = y1 - y0;
+                ow = params->useCurves ? 0.5 * abs(cx * by - cy * bx) * rc : 0;
                 isCurve = params->useCurves && isCurve;
             }
         } else {
