@@ -119,6 +119,7 @@ struct RasterizerPDF {
                 } else
                     writePageToScene(doc, page, scene);
                 
+                scene->index();
                 FPDF_ClosePage(page);
             }
             FPDF_CloseDocument(doc);

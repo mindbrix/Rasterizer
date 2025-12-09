@@ -582,6 +582,8 @@ struct Rasterizer {
                 Geometry *g = path.ptr;
                 count++, weight += g->types.end;
             
+                _paths.add(path);
+                
                 size_t key = g->hash();
                 if (width != 0) {
                     auto it = strokemap.find(key);
@@ -599,6 +601,7 @@ struct Rasterizer {
                         p16bases.add(it->second.idx);
                     }
                 } else {
+                    fillcount++;
                     auto it = p16map.find(key);
                     if (it == p16map.end()) {
                         paths.add(path);
@@ -658,8 +661,71 @@ struct Rasterizer {
             return xxhash;
         }
         
-        size_t refCount, count = 0, weight = 0, xxhash = 0;
-        RefVector<Path> paths;
+        struct PathIndex {
+            PathIndex(size_t hash, size_t si, bool isStroke) : hash(hash), si(uint32_t(si)), isStroke(isStroke) {}
+            inline bool operator< (const PathIndex& other) const {
+                return isStroke < other.isStroke || (isStroke == other.isStroke && hash < other.hash); }
+            size_t hash;
+            uint32_t si;
+            bool isStroke;
+        };
+        
+        void index() {
+            if (_xxhash != 0)
+                return;
+            
+            size_t lasthash = ~0;
+            uint32_t fillbase = 0, strokebase = 0;
+            Row<PathIndex> indices;
+            PathIndex *idx = indices.alloc(count), *idx0 = idx;
+            
+            for (size_t i = 0; i < count; i++, idx++)
+                new (idx) PathIndex(_paths[i]->hash(), i, widths[i] != 0.f);
+            std::sort(indices.base, indices.base + count);
+            
+            lasthash = ~0;
+            for (size_t i = 0; i < fillcount; i++) {
+                assert(!idx0[i].isStroke);
+                const size_t hash = idx0[i].hash;
+                const uint32_t si = idx0[i].si;
+//                p16bases[si] = fillbase;
+                
+                if (lasthash != hash) {
+                    lasthash = hash;
+                    
+                    _xxhash = XXH64(& hash, sizeof(hash), _xxhash);
+                    
+                    Geometry *g = _paths[si].ptr;
+                    if (g->p16s.end == 0)
+                        P16Writer().writeGeometry(g);
+                    fillbase += g->p16s.end;
+                }
+            }
+            lasthash = ~0;
+            for (size_t i = fillcount; i < count; i++) {
+                assert(idx0[i].isStroke);
+                const size_t hash = idx0[i].hash;
+                const uint32_t si = idx0[i].si;
+//                p16bases[si] = strokebase;
+                
+                if (lasthash != hash) {
+                    lasthash = hash;
+                    
+                    _xxhash = XXH64(& hash, sizeof(hash), _xxhash);
+                    
+                    Geometry *g = _paths[si].ptr;
+                    if (g->outlines.end == 0)
+                        P16Outliner().writeGeometry(g);
+                    strokebase += g->outlines.end;
+                }
+            }
+            
+            assert(fillbase == p16total);
+            assert(strokebase == stroketotal);
+        }
+        
+        size_t refCount, count = 0, weight = 0, xxhash = 0, _xxhash = 0, fillcount = 0;
+        RefVector<Path> paths, _paths;
         Vector<uint32_t> p16bases;  uint32_t p16total = 0, stroketotal = 0;
         RefVector<Path> clipPaths;
         Vector<uint32_t> clipIndices;
@@ -692,8 +758,10 @@ struct Rasterizer {
             return *this;
         }
         SceneList& addScene(SceneRef scene, Transform ctm = Transform(), Bounds clip = Bounds::huge()) {
-            if (scene->weight)
+            if (scene->weight) {
                 pathsCount += scene->count, scenes.emplace_back(scene), ctms.emplace_back(ctm), clips.emplace_back(clip);
+//                scene->index();
+            }
             return *this;
         }
         Transform ctm;  Params params;
@@ -1600,6 +1668,9 @@ struct Rasterizer {
             ax = x1 - x0, ay = y1 - y0, ra = 1.f / sqrtf(ax * ax + ay * ay + FLT_EPSILON), ax *= ra, ay *= ra;
             bx = x2 - x1, by = y2 - y1, rb = 1.f / sqrtf(bx * bx + by * by + FLT_EPSILON), bx *= rb, by *= rb;
             tx = ax + bx, ty = ay + by, rt = 1.f / sqrtf(tx * tx + ty * ty + FLT_EPSILON), tx *= rt, ty *= rt;
+            bool aValid = ax != 0.f || ay != 0.f;
+            bool bValid = bx != 0.f || by != 0.f;
+            assert(aValid || bValid);
             new (miters->alloc(1)) Vector16(tx * scale, ty * scale);
             miters->back().x |= (ax * bx + ay * by < kMiterLimit) * Vector16::kIsCap;
         }

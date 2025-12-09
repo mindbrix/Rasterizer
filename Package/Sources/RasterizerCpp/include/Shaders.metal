@@ -607,8 +607,7 @@ vertex InstancesVertex instances_vertex_main(
             ix = elem[mi].x & Point16::kMask, iy = elem[mi].y & Point16::kMask;
             x2 = ix * ma + iy * mc + tx, y2 = ix * mb + iy * md + ty;
             
-            cx = x2 - x0, cy = y2 - y0, rc = rsqrt(cx * cx + cy * cy);
-            no = { cx * rc, cy * rc };
+            cx = x2 - x0, cy = y2 - y0, rc = rsqrt(cx * cx + cy * cy), cx *= rc, cy *= rc;
         
             pcap = miter[0].x & Vector16::kIsCap;
             ix = miter[0].x & Vector16::kMask, iy = miter[0].y;
@@ -628,9 +627,10 @@ vertex InstancesVertex instances_vertex_main(
             
             if (isCurve) {
                 float bx = x1 - x0, by = y1 - y0;
-                ow = params->useCurves ? 0.5 * abs(cx * by - cy * bx) * rc : 0;
+                ow = params->useCurves ? 0.5 * abs(cx * by - cy * bx) : 0;
                 isCurve = params->useCurves && isCurve;
             }
+            no = { cx, cy };
         } else {
             const short prevIndex = inst.outline.prev, nextIndex = inst.outline.next;
             const device Instance & pinst = instances[iid + prevIndex], & ninst = instances[iid + nextIndex];
