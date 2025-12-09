@@ -614,7 +614,7 @@ vertex InstancesVertex instances_vertex_main(
             
             tanx = s * (ix * m.a + iy * m.c);
             tany = s * (ix * m.b + iy * m.d);
-            invcos = 1.0 / (no.x * tanx + no.y * tany);
+            invcos = 1.0 / (cx * tanx + cy * tany);
             m0 = { -tany * invcos, tanx * invcos };
             
             ncap = miter[mi].x & Vector16::kIsCap;
@@ -622,7 +622,7 @@ vertex InstancesVertex instances_vertex_main(
             
             tanx = s * (ix * m.a + iy * m.c);
             tany = s * (ix * m.b + iy * m.d);
-            invcos = 1.0 / (no.x * tanx + no.y * tany);
+            invcos = 1.0 / (cx * tanx + cy * tany);
             m1 = { -tany * invcos, tanx * invcos };
             
             if (isCurve) {
