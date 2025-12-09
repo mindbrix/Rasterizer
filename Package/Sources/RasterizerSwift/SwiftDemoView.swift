@@ -90,12 +90,7 @@ class TestP16Outliner: RADrawable {
             path.close()
         }
         state.useRect ? path.add(b1) : path.addEllipse(b1)
-        
-//        let dash = RAPath()
-//        dash.move(to: b0.minX, y: b0.minY)
-//        dash.line(to: b0.maxX, y: b0.minY)
-//        dash.line(to: b0.maxX, y: b0.maxY)
-        
+                
         let scene = RAScene()
         scene.addStroke(path,
                         ctm: .identity,
