@@ -79,17 +79,15 @@ class TestP16Outliner: RADrawable {
     func getSceneAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RAScene {
         let width = 10.0
         let inset = 0.5 * width
-        let b0 = bounds.insetBy(dx: inset, dy: inset)
-        let b1 = b0.insetBy(dx: inset, dy: inset)
+        let b = bounds.insetBy(dx: inset, dy: inset)
         
-        if b0.width == 0 || b0.height == 0 {
+        if b.width == 0 || b.height == 0 {
             return RAScene()
         }
-        let path = state.useRect ? RAPath(rect: b0) : RAPath(ellipse: b0)
+        let path = state.useRect ? RAPath(rect: b) : RAPath(ellipse: b)
         if (state.flag) {
             path.close()
         }
-        state.useRect ? path.add(b1) : path.addEllipse(b1)
                 
         let scene = RAScene()
         scene.addStroke(path,
