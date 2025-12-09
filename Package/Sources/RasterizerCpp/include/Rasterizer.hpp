@@ -1585,7 +1585,7 @@ struct Rasterizer {
             px = x0, py = y0;
         }
         void EndSubpath(float x0, float y0, float x1, float y1, bool closed) {
-            if (idxs->idx != idxs->end) {
+            if (miters->idx != miters->end) {
                 float ex = closed ? x1 : x0, ey = closed ? y1 : y0;
                 new (outlines->alloc(1)) Point16(ex, ey);
                 
@@ -1601,7 +1601,7 @@ struct Rasterizer {
                     miters->base[miters->idx].x |= Vector16::kIsCap;
                     miters->back().x |= Vector16::kIsCap;
                 }
-                idxs->idx = idxs->end;
+                miters->idx = miters->end;
             }
             prevx = FLT_MAX;
         }
