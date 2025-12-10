@@ -93,7 +93,7 @@ struct RasterizerPDF {
         return count;
     }
     
-    static Ra::Transform addPdfDataToScene(const void *bytes, size_t size, size_t pageIndex, Ra::SceneRef& scene) {
+    static Ra::Transform addPdfPageToScene(const char *filename, size_t pageIndex, Ra::SceneRef& scene) {
         Ra::Transform ctm;
         FPDF_LIBRARY_CONFIG config;
             config.version = 3;
@@ -103,7 +103,7 @@ struct RasterizerPDF {
             config.m_pPlatform = nullptr;
         FPDF_InitLibraryWithConfig(&config);
         
-        FPDF_DOCUMENT doc = FPDF_LoadMemDocument(bytes, int(size), NULL);
+        FPDF_DOCUMENT doc = FPDF_LoadDocument(filename, NULL);
         if (doc) {
             int count = FPDF_GetPageCount(doc);
             if (count > 0) {
