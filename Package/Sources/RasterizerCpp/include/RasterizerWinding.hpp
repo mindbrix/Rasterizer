@@ -61,7 +61,7 @@ struct RasterizerWinding {
         bool inBounds = fmaxf(fabsf(ux - 0.5f), fabsf(uy - 0.5f)) <= 0.5f;
         if (visible && inBounds) {
             bool polygon = w == 0.f;
-            Ra::divideGeometry(g, m, clip, false, polygon, cntr);
+            Ra::applyPath(g, m, clip, false, polygon, cntr);
         }
         return cntr.winding;
     }

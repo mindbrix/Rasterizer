@@ -424,7 +424,7 @@ struct Rasterizer {
             p16s = & g->p16s, p16cnts = & g->p16cnts, atoms = & g->atoms;
             size_t count = g->points.end / 2;
             p16s->prealloc(count), p16cnts->prealloc(count / kFastSegments), atoms->prealloc(count);
-            divideGeometry(g, m, Bounds(), true, true, *this);
+            applyPath(g, m, Bounds(), true, true, *this);
             
             Bounds *b = g->molecules.base;
             Point16 *bnd16 = p16s->alloc(g->molecules.end * 2);
@@ -964,7 +964,7 @@ struct Rasterizer {
                                     const Path& clip = scn->clipPaths[idx];
                                     i0 = stencils.end;
                                     Stenciler stenciler(clip, device, ctm, & stencils);
-                                    divideGeometry(clip.ptr, ctm, device, true, true, stenciler);
+                                    applyPath(clip.ptr, ctm, device, true, true, stenciler);
                                     i1 = stencils.end;
                                     inst->data.idx = int(i0), inst->data.count = int(i1 - i0);
                                 } else
@@ -1027,7 +1027,7 @@ struct Rasterizer {
                                     }
                                     outliner.opaques = softunclipped ? & opaques : nullptr;
                                 }
-                                divideGeometry(g, m, outlineClip, unclipped, false, outliner);
+                                applyPath(g, m, outlineClip, unclipped, false, outliner);
                                 i1 = uint32_t(outlines.idx);
                                 inst->data.idx = i0, inst->data.count = i1 - i0;
                             }
@@ -1045,7 +1045,7 @@ struct Rasterizer {
                             CurveIndexer idxr;
                             idxr.clip = clip, idxr.samples = & samples[0], idxr.fast = fast;
                             idxr.dst = idxr.dst0 = segments.alloc(2 * g->upperBound(det));
-                            divideGeometry(g, m, clip, unclipped, true, idxr);
+                            applyPath(g, m, clip, unclipped, true, idxr);
                             bool softunclipped = true;
                             if (clipActive) {
                                 Bounds soft = Bounds(quad.concat(invclip));
@@ -1077,7 +1077,7 @@ struct Rasterizer {
         Row<Opaque> opaques, stencils;  Row<Blend> blends;  Row<Instance> outlines;  Row<Segment> segments;
         Row<Sample::Index> indices;  RefVector<Row<Sample>> samples;  Row<uint32_t> segmentsIndices;
     };
-    static void divideGeometry(Geometry *g, Transform m, Bounds clip, bool unclipped, bool polygon, GeometryWriter& writer) {
+    static void applyPath(Geometry *g, Transform m, Bounds clip, bool unclipped, bool polygon, GeometryWriter& writer) {
         bool closed, closeSubpath = false;  float *p = g->points.base, sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3, ly, uy, lx, ux;
         for (uint8_t *type = g->types.base, *end = type + g->types.end; type < end; )
             switch (*type) {
@@ -1472,7 +1472,7 @@ struct Rasterizer {
             if (pattern == nullptr || count < 2 || count % 2 == 1)
                 return path;
             Dasher dasher(phase, pattern, count);
-            divideGeometry(path.ptr, Transform(), Bounds(), true, false, dasher);
+            applyPath(path.ptr, Transform(), Bounds(), true, false, dasher);
             return dasher.dashed;
         }
         
@@ -1625,7 +1625,7 @@ struct Rasterizer {
         void writeGeometry(Geometry *g) {
             p16init(g);
             outlines = & g->outlines, idxs = & g->idxs, miters = & g->miters;
-            divideGeometry(g, m, Bounds(), true, false, *this);
+            applyPath(g, m, Bounds(), true, false, *this);
             assert(outlines->end == miters->end);
         }
         void writeInstance(float x0, float y0, float x1, float y1, float x2, float y2) {
@@ -1682,7 +1682,7 @@ struct Rasterizer {
             if (!path->isValid())
                 return stencils;
             Stenciler stenciler(path, device, m, & stencils);
-            divideGeometry(path.ptr, m, device, true, true, stenciler);
+            applyPath(path.ptr, m, device, true, true, stenciler);
             return stencils;
         }
         
