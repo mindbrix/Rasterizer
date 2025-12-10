@@ -168,6 +168,16 @@ float lineWinding(float x0, float y0, float x1, float y1) {
 
 // Winding for a quadratic curve start(x0, y0), control(x1, y1), end(x2, y2)
 //
+float monotoneQuadraticWinding(float x0, float y0, float x1, float y1, float x2, float y2) {
+    float w0 = saturate(y0), w1 = saturate(y2), w = w1 - w0, ay, by, cy, t, s;
+    if (max(x0, x2) <= 0.0 || w == 0.0)
+        return w;
+    ay = y2 - y1, by = y1 - y0, ay -= by, by *= 2.0, cy = y0 - 0.5 * (w0 + w1);
+    t = abs(ay) < kQuadraticFlatness ? -cy / by : (-by + sign(w) * sqrt(max(0.0, by * by - 4.0 * ay * cy))) / ay * 0.5;
+    s = 1.0 - t;
+    return awinding(s * x0 + t * x1, s * y0 + t * y1, s * x1 + t * x2, s * y1 + t * y2, w0, w1);
+}
+
 float quadraticWinding(float x0, float y0, float x1, float y1, float x2, float y2) {
     float w0 = saturate(y0), w2 = saturate(y2);
     if (max(x0, max(x1, x2)) <= 0.0)
@@ -532,8 +542,8 @@ fragment float4 fast_edges_fragment_main(EdgesVertex vert [[stage_in]]) {
 
 fragment float4 quad_edges_fragment_main(EdgesVertex vert [[stage_in]]) {
     float winding = 0;
-    winding += quadraticWinding(vert.x0, vert.y0, vert.x1, vert.y1, vert.x2, vert.y2);
-    winding += quadraticWinding(vert.x3, vert.y3, vert.x4, vert.y4, vert.x5, vert.y5);
+    winding += monotoneQuadraticWinding(vert.x0, vert.y0, vert.x1, vert.y1, vert.x2, vert.y2);
+    winding += monotoneQuadraticWinding(vert.x3, vert.y3, vert.x4, vert.y4, vert.x5, vert.y5);
     return winding;
 }
 
