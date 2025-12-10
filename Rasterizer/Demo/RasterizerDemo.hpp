@@ -290,6 +290,7 @@ struct RasterizerDemo {
             strcpy((char *)pdfUrl.resize(strlen(url) + 1), url);
         else
             pdfUrl = Ra::Memory<char>();
+        pageCount = url ? RaPDF::getPageCount(url) : 0;
         redraw = true;
     }
     void setSvgUrl(const char *url) {
