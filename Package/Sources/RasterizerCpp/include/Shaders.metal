@@ -305,7 +305,7 @@ fragment float4 opaques_fragment_main(OpaquesVertex vert [[stage_in]], texture2d
 struct FastMoleculesVertex
 {
     float4 position [[position]];
-    float x0, y0, x1, y1, x2, y2, x3, y3, x4, y4;
+    float x0, y0, x1, y1, x2, y2, x3, y3, x4, y4, xmax;
 };
 
 vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [[buffer(1)]],
@@ -359,11 +359,15 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
     vert.position = float4(x, y, 1.0, slx == sux && sly == suy ? 0.0 : 1.0);
     for (dst = & vert.x0, i = 0; i < kFastSegments + 1; i++, dst += 2)
         dst[0] += offx, dst[1] += offy;
+    vert.xmax = sux + offx;
     return vert;
 }
 
 fragment float4 fast_molecules_fragment_main(FastMoleculesVertex vert [[stage_in]])
 {
+    if (vert.xmax <= 0.0)
+        return saturate(vert.y4) - saturate(vert.y0);
+    
     return lineWinding(vert.x0, vert.y0, vert.x1, vert.y1)
         + lineWinding(vert.x1, vert.y1, vert.x2, vert.y2)
         + lineWinding(vert.x2, vert.y2, vert.x3, vert.y3)
