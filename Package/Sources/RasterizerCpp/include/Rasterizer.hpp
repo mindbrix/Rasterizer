@@ -1668,9 +1668,6 @@ struct Rasterizer {
             ax = x1 - x0, ay = y1 - y0, ra = 1.f / sqrtf(ax * ax + ay * ay + FLT_EPSILON), ax *= ra, ay *= ra;
             bx = x2 - x1, by = y2 - y1, rb = 1.f / sqrtf(bx * bx + by * by + FLT_EPSILON), bx *= rb, by *= rb;
             tx = ax + bx, ty = ay + by, rt = 1.f / sqrtf(tx * tx + ty * ty + FLT_EPSILON), tx *= rt, ty *= rt;
-            bool aValid = ax != 0.f || ay != 0.f;
-            bool bValid = bx != 0.f || by != 0.f;
-            assert(aValid || bValid);
             new (miters->alloc(1)) Vector16(tx * scale, ty * scale);
             miters->back().x |= (ax * bx + ay * by < kMiterLimit) * Vector16::kIsCap;
         }

@@ -41,7 +41,8 @@ public class SwiftDemoView: RasterizerView {
         true
     }
     override public func becomeFirstResponder() -> Bool {
-        true
+        self.window?.acceptsMouseMovedEvents = true
+        return true
     }
     override public func keyDown(with event: NSEvent) {
         guard let characters = event.characters?.first?.lowercased(), let character = characters.first else {
@@ -56,6 +57,12 @@ public class SwiftDemoView: RasterizerView {
             }
         }
     }
+    override public func mouseMoved(with event: NSEvent) {
+        guard let point = mousePoint(for: event) else {
+            return
+        }
+        _ = demo.handleEvent(.mouseMove(x: point.x, y: point.y, flags: event.modifierFlags))
+    }
     override public func magnify(with event: NSEvent) {
         _ = demo.handleEvent(.magnify(scale: 1.0 + event.magnification))
     }
@@ -68,6 +75,15 @@ public class SwiftDemoView: RasterizerView {
     override public func scrollWheel(with event: NSEvent) {
         let inversion = event.isDirectionInvertedFromDevice ? -1.0 : 1.0
         _ = demo.handleEvent(.translate(tx: event.deltaX, ty: inversion * event.deltaY))
+    }
+    
+    func mousePoint(for event: NSEvent) -> CGPoint? {
+        let point = CGPoint(x: event.locationInWindow.x, y: event.locationInWindow.y)
+        guard point.x >= 0 && point.x < bounds.size.width,
+              point.y >= 0 && point.y < bounds.size.height else {
+            return nil
+        }
+        return point
     }
 }
 
@@ -118,8 +134,7 @@ class TestDasher: RADrawable {
         .pi * (3 * (a + b) - sqrt((3 * a + b) * (a + 3 * b)))
     }
     func getSceneAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RAScene {
-        let ts = time
-        let tick = ts - floor(ts)
+        let tick = state.t
         let width = 10.0
         let b = bounds.insetBy(dx: 0.5 * width, dy: 0.5 * width)
         if b.width == 0 || b.height == 0 {
@@ -286,6 +301,7 @@ class SwiftDemo: NSObject, RASceneListDelegate {
     enum Event {
         case keyDown(character: Character, flags: NSEvent.ModifierFlags)
         case magnify(scale: Double)
+        case mouseMove(x: Double, y: Double, flags: NSEvent.ModifierFlags)
         case rotate(angle: Float)
         case translate(tx: Double, ty: Double)
     }
@@ -308,6 +324,7 @@ class SwiftDemo: NSObject, RASceneListDelegate {
     var showOpaques = true
     var showOutlines = false
     var useRect = false
+    var slider = 0.0
     var t = 0.0
     var ctm = CGAffineTransform.identity
     var bounds = CGRect.zero
@@ -354,6 +371,11 @@ class SwiftDemo: NSObject, RASceneListDelegate {
             break
         case .magnify(let scale):
             ctm = ctm.concatAroundCenter(t: CGAffineTransform(scaleX: scale, y: scale), cx: bounds.midX, cy: bounds.midY)
+        case .mouseMove(let x, let y, let flags):
+            if (flags.contains(.shift)) {
+                let inv = ctm.inverted()
+                slider = max(0.0, min(1.0, (x * inv.a + y * inv.c + inv.tx) / bounds.width))
+            }
         case .rotate(let angle):
             ctm = ctm.concatAroundCenter(t: CGAffineTransform(rotationAngle: CGFloat(angle)), cx: bounds.midX, cy: bounds.midY)
         case .translate(let tx, let ty):
@@ -368,7 +390,7 @@ class SwiftDemo: NSObject, RASceneListDelegate {
     }
     func getListAtTime(_ time: Double, width: Double, height: Double) -> RASceneList {
         bounds = CGRect(x: 0, y: 0, width: width, height: height)
-        t = paused ? t : time
+        t = paused ? slider : time - floor(time)
         let list = RASceneList()
         let scene = drawables[index].getSceneAtTime(t, bounds: bounds, state: self)
         list.add(scene, ctm: .identity, clip: .zero)
