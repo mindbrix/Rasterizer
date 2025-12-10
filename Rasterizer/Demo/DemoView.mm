@@ -146,8 +146,8 @@
         _demo.setPdfUrl(pdfUrl.path.UTF8String);
 }
 
-- (void)setSvgData:(NSData *)svgData {
-    if (svgData)
-        _demo.setSvgData(svgData.bytes, svgData.length);
+- (void)setSvgUrl:(NSURL *)svgUrl {
+    if (svgUrl && svgUrl.fileURL)
+        _demo.setSvgUrl(svgUrl.path.UTF8String);
 }
 @end

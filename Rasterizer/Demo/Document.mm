@@ -22,7 +22,7 @@
 
 @interface Document ()
 @property(nonatomic, strong) NSURL *pdfUrl;
-@property(nonatomic, strong) NSData *svgData;
+@property(nonatomic, strong) NSURL *svgUrl;
 @end
 
 @implementation Document
@@ -31,12 +31,12 @@
 - (void)windowControllerDidLoadNib:(NSWindowController *)aController {
     [super windowControllerDidLoadNib:aController];
     
-    if (self.svgData == nil && self.pdfUrl == nil) {
+    if (self.svgUrl == nil && self.pdfUrl == nil) {
         NSURL *url = [[NSBundle mainBundle] URLForResource:@"Rasterizer Default" withExtension:@"pdf"];
         self.view.pdfUrl = self.pdfUrl = url;
     } else {
         self.view.pdfUrl = self.pdfUrl;
-        self.view.svgData = self.svgData;
+        self.view.svgUrl = self.svgUrl;
     }
 }
 
@@ -53,7 +53,7 @@
     if ([typeName isEqualToString:@"PDF"])
         self.pdfUrl = url;
     else if ([typeName isEqualToString:@"SVG"])
-        self.svgData = [NSData dataWithContentsOfURL:url];
+        self.svgUrl = url;
     return YES;
 }
 

@@ -218,10 +218,10 @@ struct RasterizerDemo {
             list.addList(text);
         } else if (showTime) {
             list.addList(concentrichron.writeList(fontName.addr));
-        } else if (svgData.size) {
+        } else if (svgUrl.size) {
             if (document.pathsCount == 0) {
                 Ra::SceneRef scene;
-                Ra::Transform m = RaSVG::addSvgDataToScene(svgData.addr, svgData.size, scene);
+                Ra::Transform m = RaSVG::addSvgToScene(svgUrl.addr, scene);
                 document.addScene(scene, m);
                 fit = true;
             }
@@ -292,9 +292,11 @@ struct RasterizerDemo {
             pdfUrl = Ra::Memory<char>();
         redraw = true;
     }
-    void setSvgData(const void *data, size_t size) {
-        if (data)
-            memcpy(svgData.resize(size), data, size);
+    void setSvgUrl(const char *url) {
+        if (url)
+            strcpy((char *)svgUrl.resize(strlen(url) + 1), url);
+        else
+            svgUrl = Ra::Memory<char>();
         redraw = true;
     }
     void setUseGPU(bool useGPU) {
@@ -307,10 +309,9 @@ struct RasterizerDemo {
     Concentrichron concentrichron;
     Ra::SceneList list, document, pasted, text;
     Ra::SceneRef hud;
-    Ra::Memory<char> pastedString, fontName, pdfUrl;
+    Ra::Memory<char> pastedString, fontName, pdfUrl, svgUrl;
     bool showGlyphGrid = false, showTime = false, showHud = true;
     size_t pageCount, pageIndex;
-    Ra::Memory<uint8_t> pdfData, svgData;
     
     Ra::Transform ctm;
     Ra::Bounds bounds;
