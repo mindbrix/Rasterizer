@@ -24,8 +24,8 @@
 struct RasterizerSVG {
     static const bool kWriteOneBigPath = false;
     
-    static Ra::Transform addSvgToScene(const void *data, Ra::SceneRef& scene) {
-        struct NSVGimage *image = nsvgParseFromFile((const char *)data, nullptr, 0);
+    static Ra::Transform addSvgToScene(const char *filename, Ra::SceneRef& scene) {
+        struct NSVGimage *image = nsvgParseFromFile(filename, nullptr, 0);
         addSvgImageToScene(image, scene);
         Ra::Transform ctm = Ra::Transform(1, 0, 0, -1, 0, image->height);
         nsvgDelete(image);

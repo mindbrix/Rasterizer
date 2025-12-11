@@ -107,7 +107,8 @@ struct Rasterizer {
             return {
                 t.a * w, t.b * w,
                 t.c * h, t.d * h,
-                lx * t.a + ly * t.c + t.tx, lx * t.b + ly * t.d + t.ty
+                lx * t.a + ly * t.c + t.tx,
+                lx * t.b + ly * t.d + t.ty
             };
         }
         inline Transform fitTransform(const Bounds b) const {
@@ -115,7 +116,8 @@ struct Rasterizer {
             return {
                 s, 0.f,
                 0.f, s,
-                lx + 0.5f * (w - s * bw) - s * b.lx, ly + 0.5f * (h - s * bh) - s * b.ly
+                lx + 0.5f * (w - s * bw) - s * b.lx,
+                ly + 0.5f * (h - s * bh) - s * b.ly
             };
         }
         float lx, ly, ux, uy;
@@ -582,8 +584,6 @@ struct Rasterizer {
                 Geometry *g = path.ptr;
                 count++, weight += g->types.end;
             
-                _paths.add(path);
-                
                 size_t key = g->hash();
                 if (width != 0) {
                     auto it = strokemap.find(key);
@@ -670,62 +670,8 @@ struct Rasterizer {
             bool isStroke;
         };
         
-        void index() {
-            if (_xxhash != 0)
-                return;
-            
-            size_t lasthash = ~0;
-            uint32_t fillbase = 0, strokebase = 0;
-            Row<PathIndex> indices;
-            PathIndex *idx = indices.alloc(count), *idx0 = idx;
-            
-            for (size_t i = 0; i < count; i++, idx++)
-                new (idx) PathIndex(_paths[i]->hash(), i, widths[i] != 0.f);
-            std::sort(indices.base, indices.base + count);
-            
-            lasthash = ~0;
-            for (size_t i = 0; i < fillcount; i++) {
-                assert(!idx0[i].isStroke);
-                const size_t hash = idx0[i].hash;
-                const uint32_t si = idx0[i].si;
-//                p16bases[si] = fillbase;
-                
-                if (lasthash != hash) {
-                    lasthash = hash;
-                    
-                    _xxhash = XXH64(& hash, sizeof(hash), _xxhash);
-                    
-                    Geometry *g = _paths[si].ptr;
-                    if (g->p16s.end == 0)
-                        P16Writer().writeGeometry(g);
-                    fillbase += g->p16s.end;
-                }
-            }
-            lasthash = ~0;
-            for (size_t i = fillcount; i < count; i++) {
-                assert(idx0[i].isStroke);
-                const size_t hash = idx0[i].hash;
-                const uint32_t si = idx0[i].si;
-//                p16bases[si] = strokebase;
-                
-                if (lasthash != hash) {
-                    lasthash = hash;
-                    
-                    _xxhash = XXH64(& hash, sizeof(hash), _xxhash);
-                    
-                    Geometry *g = _paths[si].ptr;
-                    if (g->outlines.end == 0)
-                        P16Outliner().writeGeometry(g);
-                    strokebase += g->outlines.end;
-                }
-            }
-            
-            assert(fillbase == p16total);
-            assert(strokebase == stroketotal);
-        }
-        
         size_t refCount, count = 0, weight = 0, xxhash = 0, _xxhash = 0, fillcount = 0;
-        RefVector<Path> paths, _paths;
+        RefVector<Path> paths;
         Vector<uint32_t> p16bases;  uint32_t p16total = 0, stroketotal = 0;
         RefVector<Path> clipPaths;
         Vector<uint32_t> clipIndices;
@@ -758,10 +704,8 @@ struct Rasterizer {
             return *this;
         }
         SceneList& addScene(SceneRef scene, Transform ctm = Transform(), Bounds clip = Bounds::huge()) {
-            if (scene->weight) {
+            if (scene->weight)
                 pathsCount += scene->count, scenes.emplace_back(scene), ctms.emplace_back(ctm), clips.emplace_back(clip);
-//                scene->index();
-            }
             return *this;
         }
         Transform ctm;  Params params;
@@ -1022,7 +966,7 @@ struct Rasterizer {
                                 if (width > 4.f && isOpaque && ~lastIdx == 0) {
                                     bool softunclipped = true;
                                     if (clipActive) {
-                                        Bounds soft = Bounds(quad.concat(invclip));
+                                        Bounds soft = quad.concat(invclip);
                                         softunclipped = fmaxf(fmaxf(fabsf(soft.lx - 0.5f), fabsf(soft.ux - 0.5f)), fmaxf(fabsf(soft.ly - 0.5f), fabsf(soft.uy - 0.5f))) < softclipMargin;
                                     }
                                     outliner.opaques = softunclipped ? & opaques : nullptr;
@@ -1048,7 +992,7 @@ struct Rasterizer {
                             applyPath(g, m, clip, unclipped, true, idxr);
                             bool softunclipped = true;
                             if (clipActive) {
-                                Bounds soft = Bounds(quad.concat(invclip));
+                                Bounds soft = quad.concat(invclip);
                                 softunclipped = fmaxf(fmaxf(fabsf(soft.lx - 0.5f), fabsf(soft.ux - 0.5f)), fmaxf(fabsf(soft.ly - 0.5f), fabsf(soft.uy - 0.5f))) < softclipMargin;
                             }
                             writeSegmentInstances(clip, flags & Scene::kFillEvenOdd, iz, isOpaque && softunclipped && ~lastIdx == 0, fast, colorFlags, *this);
