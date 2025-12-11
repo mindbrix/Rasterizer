@@ -375,102 +375,6 @@ struct Rasterizer {
     };
     typedef Ref<Geometry> Path;
     
-    struct GeometryWriter {
-        virtual void writeSegment(float x0, float y0, float x1, float y1) = 0;
-        virtual void Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) = 0;
-        virtual void Cubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3) {
-            float cx, bx, ax, cy, by, ay, adot, bdot, count, dt, dt2, f3x, f2x, f1x, f3y, f2y, f1y, x, y;
-            cx = 3.f * (x1 - x0), bx = 3.f * (x2 - x1), ax = x3 - x0 - bx, bx -= cx;
-            cy = 3.f * (y1 - y0), by = 3.f * (y2 - y1), ay = y3 - y0 - by, by -= cy;
-            adot = ax * ax + ay * ay, bdot = bx * bx + by * by;
-            if (cubicScale > 0.f && adot + bdot < 1.f)
-                writeSegment(x0, y0, x3, y3);
-            else {
-                float N = sqrtf(adot) / (fabsf(cubicScale) * kCubicMultiplier);
-                count = N <= 1.f ? 1.f : ceilf(cbrtf(N));
-                dt = 0.5f / count, dt2 = dt * dt;
-                x = x0, bx *= dt2, ax *= dt2 * dt, f3x = 6.f * ax, f2x = f3x + 2.f * bx, f1x = ax + bx + cx * dt;
-                y = y0, by *= dt2, ay *= dt2 * dt, f3y = 6.f * ay, f2y = f3y + 2.f * by, f1y = ay + by + cy * dt;
-                while (--count) {
-                    x += f1x, f1x += f2x, f2x += f3x, x1 = x,
-                    x += f1x, f1x += f2x, f2x += f3x, x2 = x;
-                    x1 = 2.f * x1 - 0.5f * (x0 + x2);
-                    y += f1y, f1y += f2y, f2y += f3y, y1 = y;
-                    y += f1y, f1y += f2y, f2y += f3y, y2 = y;
-                    y1 = 2.f * y1 - 0.5f * (y0 + y2);
-                    Quadratic(x0, y0, x1, y1, x2, y2);
-                    x0 = x2, y0 = y2;
-                }
-                x += f1x, x1 = x, x1 = 2.f * x1 - 0.5f * (x0 + x3);
-                y += f1y, y1 = y, y1 = 2.f * y1 - 0.5f * (y0 + y3);
-                Quadratic(x0, y0, x1, y1, x3, y3);
-            }
-        }
-        virtual void EndSubpath(float x0, float y0, float x1, float y1, bool closed) {}
-        
-        void p16init(Geometry *g) {
-            float s = kMoleculesRange / fmaxf(g->bounds.ux - g->bounds.lx, g->bounds.uy - g->bounds.ly);
-            m = Transform(s, 0.f, 0.f, s, s * -g->bounds.lx, s * -g->bounds.ly);
-            cubicScale = -kCubicPrecision * (kMoleculesRange / kMoleculesHeight);
-        }
-        Transform m;
-        float quadraticScale = 1.f, cubicScale = kCubicPrecision;
-    };
-    
-    struct P16Writer: GeometryWriter {
-        static const uint8_t isMoveTo = 0x80;
-        
-        void writeGeometry(Geometry *g) {
-            p16init(g);
-            
-            p16s = & g->p16s, p16cnts = & g->p16cnts, atoms = & g->atoms;
-            size_t count = g->points.end / 2;
-            p16s->prealloc(count), p16cnts->prealloc(count / kFastSegments), atoms->prealloc(count);
-            applyPath(g, m, Bounds(), true, true, *this);
-            
-            Bounds *b = g->molecules.base;
-            Point16 *bnd16 = p16s->alloc(g->molecules.end * 2);
-            for (size_t i = 0; i < g->molecules.end; i++, b++) {
-                *bnd16++ = Point16(
-                   b->lx * m.a + b->ly * m.c + m.tx,
-                   b->lx * m.b + b->ly * m.d + m.ty);
-                *bnd16++ = Point16(
-                   b->ux * m.a + b->uy * m.c + m.tx,
-                   b->ux * m.b + b->uy * m.d + m.ty);
-            }
-        }
-        void writeSegment(float x0, float y0, float x1, float y1) {
-            (atoms->alloc(1))->i = uint32_t(p16s->end);
-            new (p16s->alloc(1)) Point16(x0, y0);
-        }
-        void Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
-            (atoms->alloc(1))->i = uint32_t(p16s->end);
-            
-            Point16 *p = p16s->alloc(2);
-            new (p++) Point16(x0, y0, true);
-            new (p++) Point16(0.5f * x1 + 0.25f * (x0 + x2), 0.5f * y1 + 0.25f * (y0 + y2));
-        }
-        void EndSubpath(float x0, float y0, float x1, float y1, bool closed) {
-            Point16 *p = p16s->alloc(1);
-            new (p) Point16(x1, y1);
-            
-            if (atoms->idx < atoms->end)
-                atoms->base[atoms->idx].i |= Atom::isMoveTo;
-            atoms->idx = atoms->end;
-            
-            size_t segcnt, icount, last, rem;
-            segcnt = p16s->end - p16s->idx - 1, icount = (segcnt + kFastSegments) / kFastSegments;
-            last = icount - 1, rem = segcnt - last * kFastSegments;
-            uint8_t *counts = p16cnts->alloc(icount);
-            memset(counts, kFastSegments, last);
-            counts[last] = rem, counts[0] |= isMoveTo;
-            rem = p16cnts->end * kFastSegments - p16s->end;
-            bzero(p16s->alloc(rem), rem * sizeof(*p));
-            p16s->idx = p16s->end;
-        }
-        Row<Point16> *p16s;   Row<uint8_t> *p16cnts;  Row<Atom> *atoms;
-    };
-    
     typedef uint8_t Component;
     
     struct Color {
@@ -660,15 +564,6 @@ struct Rasterizer {
         inline size_t hash() const {
             return xxhash;
         }
-        
-        struct PathIndex {
-            PathIndex(size_t hash, size_t si, bool isStroke) : hash(hash), si(uint32_t(si)), isStroke(isStroke) {}
-            inline bool operator< (const PathIndex& other) const {
-                return isStroke < other.isStroke || (isStroke == other.isStroke && hash < other.hash); }
-            size_t hash;
-            uint32_t si;
-            bool isStroke;
-        };
         
         size_t refCount, count = 0, weight = 0, xxhash = 0, _xxhash = 0, fillcount = 0;
         RefVector<Path> paths;
@@ -1021,6 +916,49 @@ struct Rasterizer {
         Row<Opaque> opaques, stencils;  Row<Blend> blends;  Row<Instance> outlines;  Row<Segment> segments;
         Row<Sample::Index> indices;  RefVector<Row<Sample>> samples;  Row<uint32_t> segmentsIndices;
     };
+    
+    struct GeometryWriter {
+        virtual void writeSegment(float x0, float y0, float x1, float y1) = 0;
+        virtual void Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) = 0;
+        virtual void Cubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3) {
+            float cx, bx, ax, cy, by, ay, adot, bdot, count, dt, dt2, f3x, f2x, f1x, f3y, f2y, f1y, x, y;
+            cx = 3.f * (x1 - x0), bx = 3.f * (x2 - x1), ax = x3 - x0 - bx, bx -= cx;
+            cy = 3.f * (y1 - y0), by = 3.f * (y2 - y1), ay = y3 - y0 - by, by -= cy;
+            adot = ax * ax + ay * ay, bdot = bx * bx + by * by;
+            if (cubicScale > 0.f && adot + bdot < 1.f)
+                writeSegment(x0, y0, x3, y3);
+            else {
+                float N = sqrtf(adot) / (fabsf(cubicScale) * kCubicMultiplier);
+                count = N <= 1.f ? 1.f : ceilf(cbrtf(N));
+                dt = 0.5f / count, dt2 = dt * dt;
+                x = x0, bx *= dt2, ax *= dt2 * dt, f3x = 6.f * ax, f2x = f3x + 2.f * bx, f1x = ax + bx + cx * dt;
+                y = y0, by *= dt2, ay *= dt2 * dt, f3y = 6.f * ay, f2y = f3y + 2.f * by, f1y = ay + by + cy * dt;
+                while (--count) {
+                    x += f1x, f1x += f2x, f2x += f3x, x1 = x,
+                    x += f1x, f1x += f2x, f2x += f3x, x2 = x;
+                    x1 = 2.f * x1 - 0.5f * (x0 + x2);
+                    y += f1y, f1y += f2y, f2y += f3y, y1 = y;
+                    y += f1y, f1y += f2y, f2y += f3y, y2 = y;
+                    y1 = 2.f * y1 - 0.5f * (y0 + y2);
+                    Quadratic(x0, y0, x1, y1, x2, y2);
+                    x0 = x2, y0 = y2;
+                }
+                x += f1x, x1 = x, x1 = 2.f * x1 - 0.5f * (x0 + x3);
+                y += f1y, y1 = y, y1 = 2.f * y1 - 0.5f * (y0 + y3);
+                Quadratic(x0, y0, x1, y1, x3, y3);
+            }
+        }
+        virtual void EndSubpath(float x0, float y0, float x1, float y1, bool closed) {}
+        
+        void p16init(Geometry *g) {
+            float s = kMoleculesRange / fmaxf(g->bounds.ux - g->bounds.lx, g->bounds.uy - g->bounds.ly);
+            m = Transform(s, 0.f, 0.f, s, s * -g->bounds.lx, s * -g->bounds.ly);
+            cubicScale = -kCubicPrecision * (kMoleculesRange / kMoleculesHeight);
+        }
+        Transform m;
+        float quadraticScale = 1.f, cubicScale = kCubicPrecision;
+    };
+    
     static void applyPath(Geometry *g, Transform m, Bounds clip, bool unclipped, bool polygon, GeometryWriter& writer) {
         bool closed, closeSubpath = false;  float *p = g->points.base, sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3, ly, uy, lx, ux;
         for (uint8_t *type = g->types.base, *end = type + g->types.end; type < end; )
@@ -1243,6 +1181,7 @@ struct Rasterizer {
             }
         }
     }
+    
     struct CurveIndexer: GeometryWriter {
         Segment *dst, *dst0;  bool fast;  Bounds clip;  Row<Sample> *samples;
         
@@ -1511,6 +1450,60 @@ struct Rasterizer {
         }
     };
     
+    struct P16Writer: GeometryWriter {
+        static const uint8_t isMoveTo = 0x80;
+        
+        void writeGeometry(Geometry *g) {
+            p16init(g);
+            
+            p16s = & g->p16s, p16cnts = & g->p16cnts, atoms = & g->atoms;
+            size_t count = g->points.end / 2;
+            p16s->prealloc(count), p16cnts->prealloc(count / kFastSegments), atoms->prealloc(count);
+            applyPath(g, m, Bounds(), true, true, *this);
+            
+            Bounds *b = g->molecules.base;
+            Point16 *bnd16 = p16s->alloc(g->molecules.end * 2);
+            for (size_t i = 0; i < g->molecules.end; i++, b++) {
+                *bnd16++ = Point16(
+                   b->lx * m.a + b->ly * m.c + m.tx,
+                   b->lx * m.b + b->ly * m.d + m.ty);
+                *bnd16++ = Point16(
+                   b->ux * m.a + b->uy * m.c + m.tx,
+                   b->ux * m.b + b->uy * m.d + m.ty);
+            }
+        }
+        void writeSegment(float x0, float y0, float x1, float y1) {
+            (atoms->alloc(1))->i = uint32_t(p16s->end);
+            new (p16s->alloc(1)) Point16(x0, y0);
+        }
+        void Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
+            (atoms->alloc(1))->i = uint32_t(p16s->end);
+            
+            Point16 *p = p16s->alloc(2);
+            new (p++) Point16(x0, y0, true);
+            new (p++) Point16(0.5f * x1 + 0.25f * (x0 + x2), 0.5f * y1 + 0.25f * (y0 + y2));
+        }
+        void EndSubpath(float x0, float y0, float x1, float y1, bool closed) {
+            Point16 *p = p16s->alloc(1);
+            new (p) Point16(x1, y1);
+            
+            if (atoms->idx < atoms->end)
+                atoms->base[atoms->idx].i |= Atom::isMoveTo;
+            atoms->idx = atoms->end;
+            
+            size_t segcnt, icount, last, rem;
+            segcnt = p16s->end - p16s->idx - 1, icount = (segcnt + kFastSegments) / kFastSegments;
+            last = icount - 1, rem = segcnt - last * kFastSegments;
+            uint8_t *counts = p16cnts->alloc(icount);
+            memset(counts, kFastSegments, last);
+            counts[last] = rem, counts[0] |= isMoveTo;
+            rem = p16cnts->end * kFastSegments - p16s->end;
+            bzero(p16s->alloc(rem), rem * sizeof(*p));
+            p16s->idx = p16s->end;
+        }
+        Row<Point16> *p16s;   Row<uint8_t> *p16cnts;  Row<Atom> *atoms;
+    };
+    
     struct Outliner: GeometryWriter {
         void writeSegment(float x0, float y0, float x1, float y1) {
             writeInstance(x0, y0, FLT_MAX, 0.f, x1, y1);
@@ -1666,6 +1659,7 @@ struct Rasterizer {
         Bounds device, *molecule;
         Row<Opaque> *stencils;
     };
+    
     static size_t resizeBuffer(const SceneList& list, Context *contexts, size_t count, size_t *begins, Buffer& buffer) {
         size_t size = buffer.headerSize, begin = size, end = begin, sz, i, j, instances;
         for (i = 0; i < count; i++)
