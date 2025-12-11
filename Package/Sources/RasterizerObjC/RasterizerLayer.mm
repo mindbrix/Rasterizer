@@ -91,14 +91,14 @@ struct StrokeCache : MetalCache<id <MTLBuffer>, const Ra::Scene &> {
     }
 };
 
-struct MiterCache : MetalCache<id <MTLBuffer>, const Ra::Scene &> {
+struct TangentCache : MetalCache<id <MTLBuffer>, const Ra::Scene &> {
     __strong id <MTLBuffer> createPayload(const Ra::Scene & scene, id <MTLDevice> device) override {
         size_t length = (1 + scene.stroketotal) * sizeof(Ra::Vector16);
         id <MTLBuffer> buffer = [device newBufferWithLength:length
                                                     options:MTLResourceStorageModeShared];
         auto dst = (Ra::Vector16 *)buffer.contents;
         for (auto& entry: scene.strokemap)
-            memcpy(dst + entry.second.idx, entry.second.path->miters.base, entry.second.path->miters.end * sizeof(*dst));
+            memcpy(dst + entry.second.idx, entry.second.path->tangents.base, entry.second.path->tangents.end * sizeof(*dst));
         return buffer;
     }
 };
@@ -129,7 +129,7 @@ struct TextureCache : MetalCache<id <MTLTexture>, const Ra::Paint &> {
     TextureCache _textureCache;
     GeometryCache _geometryCache;
     StrokeCache _strokeCache;
-    MiterCache _miterCache;
+    TangentCache _tangentCache;
 }
 
 @property (nonatomic) dispatch_semaphore_t inflight_semaphore;
@@ -354,7 +354,7 @@ struct TextureCache : MetalCache<id <MTLTexture>, const Ra::Paint &> {
     
     NSUInteger imgIndex = 0, sceneIndex = 0;
     id <MTLTexture> imageTexture = nil;
-    id <MTLBuffer> p16buffer = nil, strokebuffer = nil, miterbuffer = nil;
+    id <MTLBuffer> p16buffer = nil, strokebuffer = nil, tangentbuffer = nil;
     
     for (size_t segbase = 0, instbase = 0, i = 0; i < buffer->entries.end; i++) {
         Ra::Buffer::Entry& entry = buffer->entries.base[i];
@@ -382,7 +382,7 @@ struct TextureCache : MetalCache<id <MTLTexture>, const Ra::Paint &> {
                 assert(sceneIndex < buffer->scenes.end());
                 p16buffer = _geometryCache.entryFor(*buffer->scenes[sceneIndex].ptr, self.device);
                 strokebuffer = _strokeCache.entryFor(*buffer->scenes[sceneIndex].ptr, self.device);
-                miterbuffer = _miterCache.entryFor(*buffer->scenes[sceneIndex].ptr, self.device);
+                tangentbuffer = _tangentCache.entryFor(*buffer->scenes[sceneIndex].ptr, self.device);
                 sceneIndex++;
                 break;
             case Ra::Buffer::kStencils:
@@ -476,7 +476,7 @@ struct TextureCache : MetalCache<id <MTLTexture>, const Ra::Paint &> {
                 [commandEncoder setVertexBytes:& texCount length:sizeof(texCount) atIndex:14];
                 [commandEncoder setVertexBytes:& buffer->params length:sizeof(Ra::Params) atIndex:15];
                 [commandEncoder setVertexBuffer:strokebuffer offset:0 atIndex:20];
-                [commandEncoder setVertexBuffer:miterbuffer offset:0 atIndex:21];
+                [commandEncoder setVertexBuffer:tangentbuffer offset:0 atIndex:21];
                 [commandEncoder setFragmentTexture:_accumulationTexture atIndex:0];
                 [commandEncoder setFragmentTexture:useImage ? imageTexture : colorTexture atIndex:1];
                 [commandEncoder setRenderPipelineState:_instancesPipelineState];

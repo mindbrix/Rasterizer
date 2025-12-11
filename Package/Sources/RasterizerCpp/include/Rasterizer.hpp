@@ -369,7 +369,7 @@ struct Rasterizer {
         float x0 = 0.f, y0 = 0.f, maxCurve = 0.f;  Row<uint8_t> types;  Row<float> points;
         Bounds bounds;  Row<Bounds> molecules;
         Row<Point16> p16s;  Row<uint8_t> p16cnts;  Row<Atom> atoms;
-        Row<uint32_t> idxs;  Row<Point16> outlines;  Row<Vector16> miters;
+        Row<uint32_t> idxs;  Row<Point16> outlines;  Row<Vector16> tangents;
     };
     typedef Ref<Geometry> Path;
     
@@ -1624,9 +1624,9 @@ struct Rasterizer {
     struct P16Outliner: Outliner {
         void writeGeometry(Geometry *g) {
             p16init(g);
-            outlines = & g->outlines, idxs = & g->idxs, miters = & g->miters;
+            outlines = & g->outlines, idxs = & g->idxs, tangents = & g->tangents;
             applyPath(g, m, Bounds(), true, false, *this);
-            assert(outlines->end == miters->end);
+            assert(outlines->end == tangents->end);
         }
         void writeInstance(float x0, float y0, float x1, float y1, float x2, float y2) {
             *idxs->alloc(1) = uint32_t(outlines->end);
@@ -1635,45 +1635,45 @@ struct Rasterizer {
                 new (outlines->alloc(1)) Point16(x0, y0);
                 if (prevx == FLT_MAX)
                     prevx = x0, prevy = y0, firstx = x2, firsty = y2;
-                miter(prevx, prevy, x0, y0, x2, y2);
+                writeTangent(prevx, prevy, x0, y0, x2, y2);
                 prevx = x0, prevy = y0;
             } else {
                 Point16 *p = outlines->alloc(2);
                 new (p + 0) Point16(x0, y0, true), new (p + 1) Point16(x1, y1);
                 if (prevx == FLT_MAX)
                     prevx = x0, prevy = y0, firstx = x1, firsty = y1;
-                miter(prevx, prevy, x0, y0, x1, y1);
-                miter(x0, y0, x1, y1, x2, y2);
+                writeTangent(prevx, prevy, x0, y0, x1, y1);
+                writeTangent(x0, y0, x1, y1, x2, y2);
                 prevx = x1, prevy = y1;
             }
         }
         void EndSubpath(float x0, float y0, float x1, float y1, bool closed) {
-            if (miters->idx != miters->end) {
+            if (tangents->idx != tangents->end) {
                 new (outlines->alloc(1)) Point16(closed ? x1 : x0, closed ? y1 : y0);
                 
                 if (closed) {
-                    miter(prevx, prevy, x1, y1, firstx, firsty);
-                    miters->base[miters->idx] = miters->back();
+                    writeTangent(prevx, prevy, x1, y1, firstx, firsty);
+                    tangents->base[tangents->idx] = tangents->back();
                 } else {
-                    miter(prevx, prevy, x0, y0, x0, y0);
-                    miters->base[miters->idx].x |= Vector16::kIsCap;
-                    miters->back().x |= Vector16::kIsCap;
+                    writeTangent(prevx, prevy, x0, y0, x0, y0);
+                    tangents->base[tangents->idx].x |= Vector16::kIsCap;
+                    tangents->back().x |= Vector16::kIsCap;
                 }
-                miters->idx = miters->end;
+                tangents->idx = tangents->end;
             }
             prevx = FLT_MAX;
         }
-        void miter(float x0, float y0, float x1, float y1, float x2, float y2) {
+        void writeTangent(float x0, float y0, float x1, float y1, float x2, float y2) {
             float ax, ay, bx, by, ra, rb, tx, ty, rt, scale = kMoleculesRange / kMiterRange;
             ax = x1 - x0, ay = y1 - y0, ra = 1.f / sqrtf(ax * ax + ay * ay + FLT_EPSILON), ax *= ra, ay *= ra;
             bx = x2 - x1, by = y2 - y1, rb = 1.f / sqrtf(bx * bx + by * by + FLT_EPSILON), bx *= rb, by *= rb;
             tx = ax + bx, ty = ay + by, rt = 1.f / sqrtf(tx * tx + ty * ty + FLT_EPSILON), tx *= rt, ty *= rt;
-            new (miters->alloc(1)) Vector16(tx * scale, ty * scale);
-            miters->back().x |= (ax * bx + ay * by < kMiterLimit) * Vector16::kIsCap;
+            new (tangents->alloc(1)) Vector16(tx * scale, ty * scale);
+            tangents->back().x |= (ax * bx + ay * by < kMiterLimit) * Vector16::kIsCap;
         }
     
         float prevx = FLT_MAX, prevy, firstx, firsty;
-        Row<Point16> *outlines;  Row<Vector16> *miters;  Row<uint32_t> *idxs;
+        Row<Point16> *outlines;  Row<Vector16> *tangents;  Row<uint32_t> *idxs;
     };
     
     struct Stenciler: GeometryWriter {

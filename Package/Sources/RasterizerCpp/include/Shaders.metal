@@ -568,7 +568,7 @@ vertex InstancesVertex instances_vertex_main(
             constant uint *texCount [[buffer(14)]],
             constant Params *params [[buffer(15)]],
             const device Point16 *strokes [[buffer(20)]],
-            const device Vector16 *miters [[buffer(21)]],
+            const device Vector16 *tangents [[buffer(21)]],
             uint vid [[vertex_id]], uint iid [[instance_id]])
 {
     InstancesVertex vert;
@@ -607,7 +607,7 @@ vertex InstancesVertex instances_vertex_main(
             
             uint32_t idx = inst.p16outline.idx;
             const device Point16 *elem = strokes + idx;
-            const device Vector16 *miter = miters + idx;
+            const device Vector16 *tangent = tangents + idx;
             isCurve = elem->x & Point16::isCurve;
             int mi = isCurve ? 2 : 1;
             ix = elem[0].x & Point16::kMask, iy = elem[0].y & Point16::kMask;
@@ -619,16 +619,16 @@ vertex InstancesVertex instances_vertex_main(
             
             cx = x2 - x0, cy = y2 - y0, rc = rsqrt(cx * cx + cy * cy), cx *= rc, cy *= rc;
         
-            pcap = miter[0].x & Vector16::kIsCap;
-            ix = miter[0].x & Vector16::kMask, iy = miter[0].y;
+            pcap = tangent[0].x & Vector16::kIsCap;
+            ix = tangent[0].x & Vector16::kMask, iy = tangent[0].y;
             
             tanx = s * (ix * m.a + iy * m.c);
             tany = s * (ix * m.b + iy * m.d);
             invcos = 1.0 / (cx * tanx + cy * tany);
             m0 = { -tany * invcos, tanx * invcos };
             
-            ncap = miter[mi].x & Vector16::kIsCap;
-            ix = miter[mi].x & Vector16::kMask, iy = miter[mi].y;
+            ncap = tangent[mi].x & Vector16::kIsCap;
+            ix = tangent[mi].x & Vector16::kMask, iy = tangent[mi].y;
             
             tanx = s * (ix * m.a + iy * m.c);
             tany = s * (ix * m.b + iy * m.d);
