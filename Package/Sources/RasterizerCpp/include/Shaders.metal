@@ -534,17 +534,13 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
 }
 
 fragment float4 fast_edges_fragment_main(EdgesVertex vert [[stage_in]]) {
-    float winding = 0;
-    winding += lineWinding(vert.x0, vert.y0, vert.x2, vert.y2);
-    winding += lineWinding(vert.x3, vert.y3, vert.x5, vert.y5);
-    return winding;
+    return lineWinding(vert.x0, vert.y0, vert.x2, vert.y2)
+         + lineWinding(vert.x3, vert.y3, vert.x5, vert.y5);
 }
 
 fragment float4 quad_edges_fragment_main(EdgesVertex vert [[stage_in]]) {
-    float winding = 0;
-    winding += monotoneQuadraticWinding(vert.x0, vert.y0, vert.x1, vert.y1, vert.x2, vert.y2);
-    winding += monotoneQuadraticWinding(vert.x3, vert.y3, vert.x4, vert.y4, vert.x5, vert.y5);
-    return winding;
+    return monotoneQuadraticWinding(vert.x0, vert.y0, vert.x1, vert.y1, vert.x2, vert.y2)
+         + monotoneQuadraticWinding(vert.x3, vert.y3, vert.x4, vert.y4, vert.x5, vert.y5);
 }
 
 #pragma mark - Instances
