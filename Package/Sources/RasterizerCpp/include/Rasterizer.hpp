@@ -917,6 +917,95 @@ struct Rasterizer {
         Row<Sample::Index> indices;  RefVector<Row<Sample>> samples;  Row<uint32_t> segmentsIndices;
     };
     
+    static void radixSort(uint32_t *in, int n, uint32_t lower, uint32_t range, bool single, uint16_t *counts) {
+        range = range < 4 ? 4 : range;
+        uint32_t tmp[n], mask = range - 1;
+        memset(counts, 0, sizeof(uint16_t) * range);
+        for (int i = 0; i < n; i++)
+            counts[(in[i] - lower) & mask]++;
+        uint64_t *sums = (uint64_t *)counts, sum = 0, count;
+        for (int i = 0; i < range / 4; i++) {
+            count = sums[i], sum += count + (count << 16) + (count << 32) + (count << 48), sums[i] = sum;
+            sum = sum & 0xFFFF000000000000, sum = sum | (sum >> 16) | (sum >> 32) | (sum >> 48);
+        }
+        for (int i = n - 1; i >= 0; i--)
+            tmp[--counts[(in[i] - lower) & mask]] = in[i];
+        if (single)
+            memcpy(in, tmp, n * sizeof(uint32_t));
+        else {
+            memset(counts, 0, sizeof(uint16_t) * 64);
+            for (int i = 0; i < n; i++)
+                counts[(in[i] >> 8) & 0x3F]++;
+            for (uint16_t *src = counts, *dst = src + 1, i = 1; i < 64; i++)
+                *dst++ += *src++;
+            for (int i = n - 1; i >= 0; i--)
+                in[--counts[(tmp[i] >> 8) & 0x3F]] = tmp[i];
+        }
+    }
+    static void writeSegmentInstances(Bounds clip, bool even, size_t iz, bool opaque, bool fast, size_t colorFlags, Context& ctx) {
+        size_t ily = 0, iuy = ceilf(clip.height() * krfh), iy, i, begin, size;
+        size_t edgeIz = iz | colorFlags | Instance::kEdge | even * Instance::kEvenOdd | fast * Instance::kFastEdges;
+        uint32_t cellIz = uint32_t(iz | colorFlags);
+        uint16_t counts[256], ly, uy, lx, ux;
+        float h, cover, winding, wscale;
+        Allocator::CountType type = fast ? Allocator::kFastEdges : Allocator::kQuadEdges;
+        bool single = clip.ux - clip.lx < 256.f;
+        uint32_t range = single ? 1 << uint32_t(ceilf(log2f(clip.ux - clip.lx + 1.f))) : 256;
+        Row<Sample::Index> *indices = & ctx.indices;  Sample::Index *index, *idx;
+        Row<Sample> *samples = & ctx.samples[0];  Sample *sample;
+        
+        for (iy = ily; iy < iuy; iy++, samples->empty(), samples++, indices->empty()) {
+            if ((size = samples->end)) {
+                for (sample = samples->base, idx = indices->alloc(size), i = 0; i < size; i++, sample++) {
+                    if (sample->cover)
+                        idx->lx = sample->lx, idx->i = i, idx++;
+                }
+                size = idx - indices->base;
+                if (size > 32 && size < 65536)
+                    radixSort((uint32_t *)indices->base, int(size), single ? clip.lx : 0, range, single, counts);
+                else
+                    std::sort(indices->base, indices->base + size);
+                
+                size_t siBase = ctx.segmentsIndices.end;
+                uint32_t *si = ctx.segmentsIndices.alloc(size);
+                
+                ly = iy * kfh + clip.ly, ly = ly < clip.ly ? clip.ly : ly > clip.uy ? clip.uy : ly;
+                uy = (iy + 1) * kfh + clip.ly, uy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
+                for (h = uy - ly, wscale = 0.00003051850948f * kfh / h, cover = winding = 0.f, index = indices->base, lx = ux = index->lx, i = begin = 0; i < size; i++, index++) {
+                    if (index->lx >= ux && fabsf((winding - floorf(winding)) - 0.5f) > 0.499f) {
+                        if (lx != ux) {
+                            Blend *inst = new (ctx.blends.alloc(1)) Blend(edgeIz);
+                            ctx.allocator.alloc(lx, ly, ux, uy, ctx.blends.end - 1, & inst->quad.cell, type, (i - begin + 1) / 2);
+                            inst->quad.cover = short(cover), inst->quad.base = int(ctx.segments.idx), inst->data.count = int(i - begin), inst->data.idx = int(siBase + begin);
+                        }
+                        winding = cover = truncf(winding + copysign(0.5f, winding));
+                        if ((even && (int(winding) & 1)) || (!even && winding)) {
+                            if (opaque) {
+                                Opaque *opaque = ctx.opaques.alloc(1);
+                                Cell *cell = & opaque->cell;
+                                opaque->iz = cellIz;
+                                cell->lx = ux, cell->ly = ly, cell->ux = index->lx, cell->uy = uy;
+                            } else {
+                                Cell *cell = & (new (ctx.blends.alloc(1)) Blend(cellIz))->quad.cell;
+                                cell->lx = ux, cell->ly = ly, cell->ux = index->lx, cell->uy = uy, cell->ox = kNullIndex;
+                            }
+                        }
+                        begin = i, lx = ux = index->lx;
+                    }
+                    sample = samples->base + index->i;
+                    ux = sample->ux > ux ? sample->ux : ux, winding += sample->cover * wscale;
+                    si[i] = sample->is;
+                }
+                if (lx != ux) {
+                    Blend *inst = new (ctx.blends.alloc(1)) Blend(edgeIz);
+                    ctx.allocator.alloc(lx, ly, ux, uy, ctx.blends.end - 1, & inst->quad.cell, type, (i - begin + 1) / 2);
+                    inst->quad.cover = short(cover), inst->quad.base = int(ctx.segments.idx), inst->data.count = int(i - begin),
+                    inst->data.idx = int(siBase + begin);
+                }
+            }
+        }
+    }
+    
     struct GeometryWriter {
         virtual void writeSegment(float x0, float y0, float x1, float y1) = 0;
         virtual void Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) = 0;
@@ -1261,94 +1350,6 @@ struct Rasterizer {
             }
         }
     };
-    static void radixSort(uint32_t *in, int n, uint32_t lower, uint32_t range, bool single, uint16_t *counts) {
-        range = range < 4 ? 4 : range;
-        uint32_t tmp[n], mask = range - 1;
-        memset(counts, 0, sizeof(uint16_t) * range);
-        for (int i = 0; i < n; i++)
-            counts[(in[i] - lower) & mask]++;
-        uint64_t *sums = (uint64_t *)counts, sum = 0, count;
-        for (int i = 0; i < range / 4; i++) {
-            count = sums[i], sum += count + (count << 16) + (count << 32) + (count << 48), sums[i] = sum;
-            sum = sum & 0xFFFF000000000000, sum = sum | (sum >> 16) | (sum >> 32) | (sum >> 48);
-        }
-        for (int i = n - 1; i >= 0; i--)
-            tmp[--counts[(in[i] - lower) & mask]] = in[i];
-        if (single)
-            memcpy(in, tmp, n * sizeof(uint32_t));
-        else {
-            memset(counts, 0, sizeof(uint16_t) * 64);
-            for (int i = 0; i < n; i++)
-                counts[(in[i] >> 8) & 0x3F]++;
-            for (uint16_t *src = counts, *dst = src + 1, i = 1; i < 64; i++)
-                *dst++ += *src++;
-            for (int i = n - 1; i >= 0; i--)
-                in[--counts[(tmp[i] >> 8) & 0x3F]] = tmp[i];
-        }
-    }
-    static void writeSegmentInstances(Bounds clip, bool even, size_t iz, bool opaque, bool fast, size_t colorFlags, Context& ctx) {
-        size_t ily = 0, iuy = ceilf(clip.height() * krfh), iy, i, begin, size;
-        size_t edgeIz = iz | colorFlags | Instance::kEdge | even * Instance::kEvenOdd | fast * Instance::kFastEdges;
-        uint32_t cellIz = uint32_t(iz | colorFlags);
-        uint16_t counts[256], ly, uy, lx, ux;
-        float h, cover, winding, wscale;
-        Allocator::CountType type = fast ? Allocator::kFastEdges : Allocator::kQuadEdges;
-        bool single = clip.ux - clip.lx < 256.f;
-        uint32_t range = single ? 1 << uint32_t(ceilf(log2f(clip.ux - clip.lx + 1.f))) : 256;
-        Row<Sample::Index> *indices = & ctx.indices;  Sample::Index *index, *idx;
-        Row<Sample> *samples = & ctx.samples[0];  Sample *sample;
-        
-        for (iy = ily; iy < iuy; iy++, samples->empty(), samples++, indices->empty()) {
-            if ((size = samples->end)) {
-                for (sample = samples->base, idx = indices->alloc(size), i = 0; i < size; i++, sample++) {
-                    if (sample->cover)
-                        idx->lx = sample->lx, idx->i = i, idx++;
-                }
-                size = idx - indices->base;
-                if (size > 32 && size < 65536)
-                    radixSort((uint32_t *)indices->base, int(size), single ? clip.lx : 0, range, single, counts);
-                else
-                    std::sort(indices->base, indices->base + size);
-                
-                size_t siBase = ctx.segmentsIndices.end;
-                uint32_t *si = ctx.segmentsIndices.alloc(size);
-                
-                ly = iy * kfh + clip.ly, ly = ly < clip.ly ? clip.ly : ly > clip.uy ? clip.uy : ly;
-                uy = (iy + 1) * kfh + clip.ly, uy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
-                for (h = uy - ly, wscale = 0.00003051850948f * kfh / h, cover = winding = 0.f, index = indices->base, lx = ux = index->lx, i = begin = 0; i < size; i++, index++) {
-                    if (index->lx >= ux && fabsf((winding - floorf(winding)) - 0.5f) > 0.499f) {
-                        if (lx != ux) {
-                            Blend *inst = new (ctx.blends.alloc(1)) Blend(edgeIz);
-                            ctx.allocator.alloc(lx, ly, ux, uy, ctx.blends.end - 1, & inst->quad.cell, type, (i - begin + 1) / 2);
-                            inst->quad.cover = short(cover), inst->quad.base = int(ctx.segments.idx), inst->data.count = int(i - begin), inst->data.idx = int(siBase + begin);
-                        }
-                        winding = cover = truncf(winding + copysign(0.5f, winding));
-                        if ((even && (int(winding) & 1)) || (!even && winding)) {
-                            if (opaque) {
-                                Opaque *opaque = ctx.opaques.alloc(1);
-                                Cell *cell = & opaque->cell;
-                                opaque->iz = cellIz;
-                                cell->lx = ux, cell->ly = ly, cell->ux = index->lx, cell->uy = uy;
-                            } else {
-                                Cell *cell = & (new (ctx.blends.alloc(1)) Blend(cellIz))->quad.cell;
-                                cell->lx = ux, cell->ly = ly, cell->ux = index->lx, cell->uy = uy, cell->ox = kNullIndex;
-                            }
-                        }
-                        begin = i, lx = ux = index->lx;
-                    }
-                    sample = samples->base + index->i;
-                    ux = sample->ux > ux ? sample->ux : ux, winding += sample->cover * wscale;
-                    si[i] = sample->is;
-                }
-                if (lx != ux) {
-                    Blend *inst = new (ctx.blends.alloc(1)) Blend(edgeIz);
-                    ctx.allocator.alloc(lx, ly, ux, uy, ctx.blends.end - 1, & inst->quad.cell, type, (i - begin + 1) / 2);
-                    inst->quad.cover = short(cover), inst->quad.base = int(ctx.segments.idx), inst->data.count = int(i - begin),
-                    inst->data.idx = int(siBase + begin);
-                }
-            }
-        }
-    }
     
     struct Dasher: GeometryWriter {
         static Path CreateDashedPath(Path path, float phase, float *pattern, size_t count) {
