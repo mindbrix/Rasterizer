@@ -253,14 +253,6 @@ struct Rasterizer {
                   y(fmaxf(0.f, fminf(kMoleculesRange, y0))) {}
         uint16_t x, y;
     };
-    struct Vector16 {
-        enum Flags { kIsCap = 1, kMask = ~kIsCap };
-        constexpr static float kMin = -32768, kMax = 32767;
-        inline Vector16(float x0, float y0, bool cap = false) : x(fmaxf(kMin, fminf(kMax, x0))), y(fmaxf(kMin, fminf(kMax, y0))) {
-            x = (x & kMask) | (cap ? kIsCap : 0);
-        }
-        int16_t x, y;
-    };
     
     struct Geometry {
         enum Type { kMove, kLine, kQuadratic, kCubic, kClose, kCountSize };
