@@ -84,7 +84,7 @@ struct Instance {
         kRoundCap = 1 << 28,    kF1 = 1 << 28,
         kOutlines = 1 << 29,
         kSquareCap = 1 << 30,
-        kEvenOdd = 1 << 31,     kP16Strokes = 1 << 31,
+        kEvenOdd = 1 << 31,
         kFragmentMask = (kOutlines | kSquareCap | kEvenOdd)
     };
     uint32_t iz;  union { Quad quad;  Outline outline;  P16Outline p16outline; };
@@ -567,8 +567,6 @@ vertex InstancesVertex instances_vertex_main(
             constant uint *pathCount [[buffer(13)]],
             constant uint *texCount [[buffer(14)]],
             constant Params *params [[buffer(15)]],
-            const device Point16 *strokes [[buffer(20)]],
-            const device Vector16 *tangents [[buffer(21)]],
             uint vid [[vertex_id]], uint iid [[instance_id]])
 {
     InstancesVertex vert;
@@ -592,101 +590,56 @@ vertex InstancesVertex instances_vertex_main(
         const bool roundCap = w > 1.0 && inst.iz & Instance::kRoundCap;
         const bool squareCap = inst.iz & Instance::kSquareCap;
         const bool roundJoin = inst.iz & Instance::kRoundJoin;
-        const bool p16strokes = inst.iz & Instance::kEvenOdd;
         
         bool isCurve;
         float2 no, m0, m1;
         float ow = 0;
-        if (p16strokes) {
-            const device Bounds& b = bounds[inst.iz & kPathIndexMask];
-            const device Transform& m = ctms[inst.iz & kPathIndexMask];
-            float cx, cy, rc, tx, ty, scale, ma, mb, mc, md, ix, iy, tanx, tany, invcos, s = kMiterRange / kMoleculesRange * rsqrt(abs(m.a * m.d - m.b * m.c));
-            tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
-            scale = max(b.ux - b.lx, b.uy - b.ly) / kMoleculesRange;
-            ma = m.a * scale, mb = m.b * scale, mc = m.c * scale, md = m.d * scale;
-            
-            uint32_t idx = inst.p16outline.idx;
-            const device Point16 *elem = strokes + idx;
-            const device Vector16 *tangent = tangents + idx;
-            isCurve = elem->x & Point16::isCurve;
-            int mi = isCurve ? 2 : 1;
-            ix = elem[0].x & Point16::kMask, iy = elem[0].y & Point16::kMask;
-            x0 = ix * ma + iy * mc + tx, y0 = ix * mb + iy * md + ty;
-            ix = elem[1].x & Point16::kMask, iy = elem[1].y & Point16::kMask;
-            x1 = ix * ma + iy * mc + tx, y1 = ix * mb + iy * md + ty;
-            ix = elem[mi].x & Point16::kMask, iy = elem[mi].y & Point16::kMask;
-            x2 = ix * ma + iy * mc + tx, y2 = ix * mb + iy * md + ty;
-            
-            cx = x2 - x0, cy = y2 - y0, rc = rsqrt(cx * cx + cy * cy), cx *= rc, cy *= rc;
         
-            pcap = tangent[0].x & Vector16::kIsCap;
-            ix = tangent[0].x & Vector16::kMask, iy = tangent[0].y;
-            
-            tanx = s * (ix * m.a + iy * m.c);
-            tany = s * (ix * m.b + iy * m.d);
-            invcos = 1.0 / (cx * tanx + cy * tany);
-            m0 = { -tany * invcos, tanx * invcos };
-            
-            ncap = tangent[mi].x & Vector16::kIsCap;
-            ix = tangent[mi].x & Vector16::kMask, iy = tangent[mi].y;
-            
-            tanx = s * (ix * m.a + iy * m.c);
-            tany = s * (ix * m.b + iy * m.d);
-            invcos = 1.0 / (cx * tanx + cy * tany);
-            m1 = { -tany * invcos, tanx * invcos };
-            
-            if (isCurve) {
-                float bx = x1 - x0, by = y1 - y0;
-                ow = params->useCurves ? 0.5 * abs(cx * by - cy * bx) : 0;
-                isCurve = params->useCurves && isCurve;
-            }
-            no = { cx, cy };
-        } else {
-            const short prevIndex = inst.outline.prev, nextIndex = inst.outline.next;
-            const device Instance & pinst = instances[iid + prevIndex], & ninst = instances[iid + nextIndex];
-            const device Quadratic& p = pinst.outline.quad, & o = inst.outline.quad, & n = ninst.outline.quad;
-            const bool pcurve = params->useCurves && p.x1 != FLT_MAX;
-            const bool ncurve = params->useCurves && n.x1 != FLT_MAX;
-            
-            pcap = prevIndex == 0 || p.x2 != o.x0 || p.y2 != o.y0;
-            ncap = nextIndex == 0 || n.x0 != o.x2 || n.y0 != o.y2;
-            x0 = o.x0, y0 = o.y0, x1 = o.x1, y1 = o.y1, x2 = o.x2, y2 = o.y2;
-            
-            float ax, bx, cx, ay, by, cy;
-            ax = x1 - x2, bx = x1 - x0, cx = x2 - x0;
-            ay = y1 - y2, by = y1 - y0, cy = y2 - y0;
-            float cdot = cx * cx + cy * cy, rc = rsqrt(cdot);
-            float area = cx * by - cy * bx;
-            float tc = abs(area / cdot);
-            
-            isCurve = params->useCurves && x1 != FLT_MAX && tc > 1e-3;
-            ow = isCurve ? 0.5 * tc / rc : 0.0;
-            
-            float caplimit = dw == 1.0 ? 0.0 : kMiterLimit;
-            
-            float px0, py0, pdot, nx1, ny1, ndot;
-            px0 = x0 - (pcurve ? p.x1 : p.x0);
-            py0 = y0 - (pcurve ? p.y1 : p.y0);
-            nx1 = (ncurve ? n.x1 : n.x2) - x2;
-            ny1 = (ncurve ? n.y1 : n.y2) - y2;
-            pdot = px0 * px0 + py0 * py0;
-            ndot = nx1 * nx1 + ny1 * ny1;
-            
-            no = float2(cx, cy) * rc;
-            float2 prev, next, tangent;
-            
-            next = normalize({ (isCurve ? x1 : x2) - x0, (isCurve ? y1 : y2) - y0 });
-            prev = rsqrt(pdot) * float2(px0, py0);
-            pcap = pcap || pdot < 1e-6 || dot(prev, next) < caplimit;
-            tangent = pcap ? no : normalize(prev + next);
-            m0 = 1.0 / abs(dot(no, tangent)) * float2(-tangent.y, tangent.x);
-            
-            prev = normalize({ x2 - (isCurve ? x1 : x0), y2 - (isCurve ? y1 : y0) });
-            next = rsqrt(ndot) * float2(nx1, ny1);
-            ncap = ncap || ndot < 1e-6 || dot(prev, next) < caplimit;
-            tangent = ncap ? no : normalize(prev + next);
-            m1 = 1.0 / abs(dot(no, tangent)) * float2(-tangent.y, tangent.x);
-        }
+        
+        const short prevIndex = inst.outline.prev, nextIndex = inst.outline.next;
+        const device Instance & pinst = instances[iid + prevIndex], & ninst = instances[iid + nextIndex];
+        const device Quadratic& p = pinst.outline.quad, & o = inst.outline.quad, & n = ninst.outline.quad;
+        const bool pcurve = params->useCurves && p.x1 != FLT_MAX;
+        const bool ncurve = params->useCurves && n.x1 != FLT_MAX;
+        
+        pcap = prevIndex == 0 || p.x2 != o.x0 || p.y2 != o.y0;
+        ncap = nextIndex == 0 || n.x0 != o.x2 || n.y0 != o.y2;
+        x0 = o.x0, y0 = o.y0, x1 = o.x1, y1 = o.y1, x2 = o.x2, y2 = o.y2;
+        
+        float ax, bx, cx, ay, by, cy;
+        ax = x1 - x2, bx = x1 - x0, cx = x2 - x0;
+        ay = y1 - y2, by = y1 - y0, cy = y2 - y0;
+        float cdot = cx * cx + cy * cy, rc = rsqrt(cdot);
+        float area = cx * by - cy * bx;
+        float tc = abs(area / cdot);
+        
+        isCurve = params->useCurves && x1 != FLT_MAX && tc > 1e-3;
+        ow = isCurve ? 0.5 * tc / rc : 0.0;
+        
+        float caplimit = dw == 1.0 ? 0.0 : kMiterLimit;
+        
+        float px0, py0, pdot, nx1, ny1, ndot;
+        px0 = x0 - (pcurve ? p.x1 : p.x0);
+        py0 = y0 - (pcurve ? p.y1 : p.y0);
+        nx1 = (ncurve ? n.x1 : n.x2) - x2;
+        ny1 = (ncurve ? n.y1 : n.y2) - y2;
+        pdot = px0 * px0 + py0 * py0;
+        ndot = nx1 * nx1 + ny1 * ny1;
+        
+        no = float2(cx, cy) * rc;
+        float2 prev, next, tangent;
+        
+        next = normalize({ (isCurve ? x1 : x2) - x0, (isCurve ? y1 : y2) - y0 });
+        prev = rsqrt(pdot) * float2(px0, py0);
+        pcap = pcap || pdot < 1e-6 || dot(prev, next) < caplimit;
+        tangent = pcap ? no : normalize(prev + next);
+        m0 = 1.0 / abs(dot(no, tangent)) * float2(-tangent.y, tangent.x);
+        
+        prev = normalize({ x2 - (isCurve ? x1 : x0), y2 - (isCurve ? y1 : y0) });
+        next = rsqrt(ndot) * float2(nx1, ny1);
+        ncap = ncap || ndot < 1e-6 || dot(prev, next) < caplimit;
+        tangent = ncap ? no : normalize(prev + next);
+        m1 = 1.0 / abs(dot(no, tangent)) * float2(-tangent.y, tangent.x);
         
         float lcap = (isCurve ? 0.41 * dw : 0.0) + (squareCap || roundCap ? dw : 0.5);
         

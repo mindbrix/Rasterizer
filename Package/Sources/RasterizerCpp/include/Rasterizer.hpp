@@ -371,7 +371,6 @@ struct Rasterizer {
         float x0 = 0.f, y0 = 0.f, maxCurve = 0.f;  Row<uint8_t> types;  Row<float> points;
         Bounds bounds;  Row<Bounds> molecules;
         Row<Point16> p16s;  Row<uint8_t> p16cnts;  Row<Atom> atoms;
-        Row<uint32_t> idxs;  Row<Point16> outlines;  Row<Vector16> tangents;
     };
     typedef Ref<Geometry> Path;
     
@@ -490,20 +489,8 @@ struct Rasterizer {
             
                 size_t key = g->hash();
                 if (width != 0) {
-                    auto it = strokemap.find(key);
-                    if (it == strokemap.end()) {
-                        paths.add(path);
-                        p16bases.add(uint32_t(stroketotal));
-                        strokemap.emplace(key, Entry(path, stroketotal));
-                        
-                        if (g->outlines.end == 0)
-                            P16Outliner().writeGeometry(g);
-                        stroketotal += g->outlines.end;
-                        xxhash = XXH64(& key, sizeof(key), xxhash);
-                    } else {
-                        paths.add(it->second.path);
-                        p16bases.add(it->second.idx);
-                    }
+                    paths.add(path);
+                    p16bases.add(0);
                 } else {
                     fillcount++;
                     auto it = p16map.find(key);
@@ -639,7 +626,7 @@ struct Rasterizer {
             kRoundCap = 1 << 28,    kF1 = 1 << 28,
             kOutlines = 1 << 29,
             kSquareCap = 1 << 30,
-            kEvenOdd = 1 << 31,     kP16Strokes = 1 << 31,
+            kEvenOdd = 1 << 31,
             kFragmentMask = (kOutlines | kSquareCap | kEvenOdd)
         };
         Instance(size_t iz) : iz(uint32_t(iz)) {}
@@ -846,30 +833,23 @@ struct Rasterizer {
                         ctms[iz] = m, widths[iz] = width, clips[iz] = invclip;
                         Geometry *g = scn->paths[is].ptr;
                         if (width) {
-                            bool usep16s = list.params.showOpaques;
-                            Blend *inst = new (blends.alloc(1)) Blend(iz | colorFlags | Instance::kOutlines | bool(flags & Scene::kRoundCap) * Instance::kRoundCap | bool(flags & Scene::kSquareCap) * Instance::kSquareCap | bool(flags & Scene::kRoundJoin) * Instance::kRoundJoin | usep16s * Instance::kP16Strokes);
+                            Blend *inst = new (blends.alloc(1)) Blend(iz | colorFlags | Instance::kOutlines | bool(flags & Scene::kRoundCap) * Instance::kRoundCap | bool(flags & Scene::kSquareCap) * Instance::kSquareCap | bool(flags & Scene::kRoundJoin) * Instance::kRoundJoin);
                             
-                            if (usep16s) {
-                                bounds[iz] = *bnds;
-                                p16StrokeTotal += g->idxs.end;
-                                inst->g = g, inst->data.idx = int(scn->p16bases[is]);
-                            } else {
-                                Bounds outlineClip = unclipped ? Bounds::huge() : clip.inset(-width, -width);
-                                uint32_t i0 = uint32_t(outlines.idx), i1;
-                                Outliner outliner;
-                                outliner.iz = inst->iz, outliner.outlines = & outlines;
-                                if (width > 4.f && isOpaque && ~lastIdx == 0) {
-                                    bool softunclipped = true;
-                                    if (clipActive) {
-                                        Bounds soft = quad.concat(invclip);
-                                        softunclipped = fmaxf(fmaxf(fabsf(soft.lx - 0.5f), fabsf(soft.ux - 0.5f)), fmaxf(fabsf(soft.ly - 0.5f), fabsf(soft.uy - 0.5f))) < softclipMargin;
-                                    }
-                                    outliner.opaques = softunclipped ? & opaques : nullptr;
+                            Bounds outlineClip = unclipped ? Bounds::huge() : clip.inset(-width, -width);
+                            uint32_t i0 = uint32_t(outlines.idx), i1;
+                            Outliner outliner;
+                            outliner.iz = inst->iz, outliner.outlines = & outlines;
+                            if (width > 4.f && isOpaque && ~lastIdx == 0) {
+                                bool softunclipped = true;
+                                if (clipActive) {
+                                    Bounds soft = quad.concat(invclip);
+                                    softunclipped = fmaxf(fmaxf(fabsf(soft.lx - 0.5f), fabsf(soft.ux - 0.5f)), fmaxf(fabsf(soft.ly - 0.5f), fabsf(soft.uy - 0.5f))) < softclipMargin;
                                 }
-                                applyPath(g, m, outlineClip, unclipped, false, outliner);
-                                i1 = uint32_t(outlines.idx);
-                                inst->data.idx = i0, inst->data.count = i1 - i0;
+                                outliner.opaques = softunclipped ? & opaques : nullptr;
                             }
+                            applyPath(g, m, outlineClip, unclipped, false, outliner);
+                            i1 = uint32_t(outlines.idx);
+                            inst->data.idx = i0, inst->data.count = i1 - i0;
                         } else if (clipWidth * clipHeight / g->types.end < kMoleculesPixelsPerEdge) {
                             bounds[iz] = *bnds;
                             bool fast = !buffer->params.useCurves || g->maxCurve * det < 16.f;
@@ -900,7 +880,7 @@ struct Rasterizer {
             }
         }
         void empty() {
-            texTotal = p16StrokeTotal = 0, blends.empty(), opaques.empty(), stencils.empty(), outlines.empty(), segments.empty(), segmentsIndices.empty(), indices.empty(), texs.resize(0), images.resize(0);
+            texTotal = 0, blends.empty(), opaques.empty(), stencils.empty(), outlines.empty(), segments.empty(), segmentsIndices.empty(), indices.empty(), texs.resize(0), images.resize(0);
             for (int i = 0; i < samples.end(); i++)
                 samples[i].empty();
             entries = Vector<Buffer::Entry>();
@@ -909,7 +889,7 @@ struct Rasterizer {
             samples.resize(0);
         }
         
-        size_t texTotal, p16StrokeTotal;
+        size_t texTotal;
         Allocator allocator;  Vector<Buffer::Entry> entries;
         Vector<TexRef> texs;
         Vector<Paint *> images;
@@ -1559,79 +1539,6 @@ struct Rasterizer {
         uint32_t iz;  Row<Instance> *outlines = nullptr;  Row<Opaque> *opaques = nullptr;
     };
     
-    struct P16Outliner: Outliner {
-        void writeGeometry(Geometry *g) {
-            p16init(g);
-            outlines = & g->outlines, idxs = & g->idxs, tangents = & g->tangents;
-            applyPath(g, m, Bounds(), true, false, *this);
-            assert(outlines->end == tangents->end);
-        }
-        void writeInstance(float x0, float y0, float x1, float y1, float x2, float y2) {
-            *idxs->alloc(1) = uint32_t(outlines->end);
-            
-            if (x1 == FLT_MAX) {
-                if (prevx == FLT_MAX)
-                    prevx = x0, prevy = y0, firstx = x2, firsty = y2;
-                if (isTangentValid(prevx, prevy, x0, y0, x2, y2)) {
-                    new (outlines->alloc(1)) Point16(x0, y0);
-                    writeTangent(prevx, prevy, x0, y0, x2, y2);
-                    prevx = x0, prevy = y0;
-                } else {
-                    EndSubpath(x0, y0, x0, y0, false);
-                    writeInstance(x0, y0, x1, y1, x2, y2);
-                }
-            } else {
-                if (prevx == FLT_MAX)
-                    prevx = x0, prevy = y0, firstx = x1, firsty = y1;
-                if (isTangentValid(prevx, prevy, x0, y0, x1, y1)) {
-                    Point16 *p = outlines->alloc(2);
-                    new (p + 0) Point16(x0, y0, true), new (p + 1) Point16(x1, y1);
-                    
-                    writeTangent(prevx, prevy, x0, y0, x1, y1);
-                    writeTangent(x0, y0, x1, y1, x2, y2);
-                    prevx = x1, prevy = y1;
-                } else {
-                    EndSubpath(x0, y0, x0, y0, false);
-                    writeInstance(x0, y0, x1, y1, x2, y2);
-                }
-            }
-        }
-        void EndSubpath(float x0, float y0, float x1, float y1, bool closed) {
-            if (tangents->idx != tangents->end) {
-                new (outlines->alloc(1)) Point16(closed ? x1 : x0, closed ? y1 : y0);
-                
-                if (closed) {
-                    writeTangent(prevx, prevy, x1, y1, firstx, firsty);
-                    tangents->base[tangents->idx] = tangents->back();
-                } else {
-                    writeTangent(prevx, prevy, x0, y0, x0, y0);
-                    tangents->base[tangents->idx].x |= Vector16::kIsCap;
-                    tangents->back().x |= Vector16::kIsCap;
-                }
-                tangents->idx = tangents->end;
-            }
-            prevx = FLT_MAX;
-        }
-        bool isTangentValid(float x0, float y0, float x1, float y1, float x2, float y2) {
-            float ax, ay, bx, by, ra, rb;
-            ax = x1 - x0, ay = y1 - y0, ra = 1.f / sqrtf(ax * ax + ay * ay + FLT_EPSILON), ax *= ra, ay *= ra;
-            bx = x2 - x1, by = y2 - y1, rb = 1.f / sqrtf(bx * bx + by * by + FLT_EPSILON), bx *= rb, by *= rb;
-            return ax * bx + ay * by > kMiterLimit;
-        }
-        
-        void writeTangent(float x0, float y0, float x1, float y1, float x2, float y2) {
-            float ax, ay, bx, by, ra, rb, tx, ty, rt, scale = kMoleculesRange / kMiterRange;
-            ax = x1 - x0, ay = y1 - y0, ra = 1.f / sqrtf(ax * ax + ay * ay + FLT_EPSILON), ax *= ra, ay *= ra;
-            bx = x2 - x1, by = y2 - y1, rb = 1.f / sqrtf(bx * bx + by * by + FLT_EPSILON), bx *= rb, by *= rb;
-            tx = ax + bx, ty = ay + by, rt = 1.f / sqrtf(tx * tx + ty * ty + FLT_EPSILON), tx *= rt, ty *= rt;
-            new (tangents->alloc(1)) Vector16(tx * scale, ty * scale);
-            tangents->back().x |= (ax * bx + ay * by < kMiterLimit) * Vector16::kIsCap;
-        }
-    
-        float prevx = FLT_MAX, prevy, firstx, firsty;
-        Row<Point16> *outlines;  Row<Vector16> *tangents;  Row<uint32_t> *idxs;
-    };
-    
     struct Stenciler: GeometryWriter {
         static Row<Opaque> CreateStencils(const Path& path, Bounds device, Transform m = Transform()) {
             Row<Opaque> stencils;
@@ -1695,7 +1602,7 @@ struct Rasterizer {
                 buffer.images.add(*ctx->images[j]);
             for (instances = 0, pass = ctx->allocator.passes.base, j = 0; j < ctx->allocator.passes.end; j++, pass++)
                 instances += pass->count();
-            begins[i] = size, size += instances * sizeof(Edge) + (ctx->outlines.end + ctx->blends.end + ctx->p16StrokeTotal) * sizeof(Instance) + ctx->segments.end * sizeof(Segment) + ctx->stencils.end * sizeof(Opaque);
+            begins[i] = size, size += instances * sizeof(Edge) + (ctx->outlines.end + ctx->blends.end) * sizeof(Instance) + ctx->segments.end * sizeof(Segment) + ctx->stencils.end * sizeof(Opaque);
         }
         buffer.resize(size, buffer.headerSize);
         
@@ -1762,14 +1669,8 @@ struct Rasterizer {
                 Geometry *g = inst->g;
                 
                 if (inst->iz & Instance::kOutlines) {
-                    if (inst->iz & Instance::kP16Strokes) {
-                        uint32_t base = inst->data.idx;
-                        for (i = 0; i < g->idxs.end; i++, dst++)
-                            dst->iz = inst->iz, dst->p16outline.idx = base + g->idxs.base[i];
-                    } else {
-                        memcpy(dst, ctx->outlines.base + inst->data.idx, inst->data.count * sizeof(Instance));
-                        dst += inst->data.count;
-                    }
+                    memcpy(dst, ctx->outlines.base + inst->data.idx, inst->data.count * sizeof(Instance));
+                    dst += inst->data.count;
                 } else {
                     dst->iz = inst->iz, dst->quad = inst->quad;
                     ic = dst - dst0, dst++;
