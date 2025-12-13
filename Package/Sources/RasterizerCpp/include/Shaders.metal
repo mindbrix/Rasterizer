@@ -42,11 +42,6 @@ struct Point16 {
     uint16_t x, y;
 };
 
-struct Vector16 {
-    enum Flags { kIsCap = 1, kMask = ~kIsCap };
-    int16_t x, y;
-};
-
 struct Segment {
     union { float x0; uint32_t ix0; };  float y0, x1, y1;
 };
@@ -68,10 +63,6 @@ struct Outline {
     short prev, next;
 };
 
-struct P16Outline {
-    uint32_t idx;
-};
-
 struct Instance {
     enum Flags {
         kRoundJoin = 1 << 21,   kStencil = 1 << 21,
@@ -87,7 +78,7 @@ struct Instance {
         kEvenOdd = 1 << 31,
         kFragmentMask = (kOutlines | kSquareCap | kEvenOdd)
     };
-    uint32_t iz;  union { Quad quad;  Outline outline;  P16Outline p16outline; };
+    uint32_t iz;  union { Quad quad;  Outline outline; };
 };
 
 struct Opaque {

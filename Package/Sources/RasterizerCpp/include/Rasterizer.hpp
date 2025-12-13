@@ -604,10 +604,6 @@ struct Rasterizer {
         Quadratic quad;
         short prev, next;
     };
-    struct P16Outline {
-        inline P16Outline(size_t idx) : idx(uint32_t(idx)) {}
-        uint32_t idx;
-    };
     struct Instance {
         enum Flags {
             kRoundJoin = 1 << 21,   kStencil = 1 << 21,
@@ -624,7 +620,7 @@ struct Rasterizer {
             kFragmentMask = (kOutlines | kSquareCap | kEvenOdd)
         };
         Instance(size_t iz) : iz(uint32_t(iz)) {}
-        uint32_t iz;  union { Quad quad;  Outline outline;  P16Outline p16outline; };
+        uint32_t iz;  union { Quad quad;  Outline outline; };
     };
     struct Opaque {
         uint32_t iz;  union { Cell cell;  Quadratic quad; };
