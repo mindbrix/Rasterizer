@@ -250,8 +250,8 @@
 - (CGRect)addText:(NSAttributedString *)string inRect:(CGRect)rect ctm:(CGAffineTransform)ctm clip:(CGRect)clip {
     return RaCT::addTextToSceneInRect((__bridge CFAttributedStringRef)string, rect, ctm, clip, _scene);
 }
-- (CGAffineTransform)addSvgFromData:(NSData *)data {
-    return RaCG::CGFromTransform(RaSVG::addSvgDataToScene(data.bytes, data.length, _scene));
+- (CGAffineTransform)addSvgFromUrl:(NSURL *)url {
+    return RaCG::CGFromTransform(RaSVG::addSvgToScene(url.path.UTF8String, _scene));
 }
 
 @end

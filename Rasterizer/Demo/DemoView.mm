@@ -141,13 +141,13 @@
     _demo.setFont(url.path.UTF8String, _font.fontName.UTF8String, _font.pointSize);
 }
 
-- (void)setPdfData:(NSData *)pdfData {
-    if (pdfData)
-        _demo.setPdfData(pdfData.bytes, pdfData.length);
+- (void)setPdfUrl:(NSURL *)pdfUrl {
+    if (pdfUrl && pdfUrl.fileURL)
+        _demo.setPdfUrl(pdfUrl.path.UTF8String);
 }
 
-- (void)setSvgData:(NSData *)svgData {
-    if (svgData)
-        _demo.setSvgData(svgData.bytes, svgData.length);
+- (void)setSvgUrl:(NSURL *)svgUrl {
+    if (svgUrl && svgUrl.fileURL)
+        _demo.setSvgUrl(svgUrl.path.UTF8String);
 }
 @end

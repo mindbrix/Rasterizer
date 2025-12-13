@@ -27,7 +27,7 @@
 #define kfh 16.f
 #define krfh 0.0625f
 #define kStripHeight 8.f
-#define kStripCount 8
+#define kStripCount 12
 #define kMoleculesHeight 256
 #define kMoleculesRange 32767.f
 #define kMoleculesPixelsPerEdge 256
@@ -35,7 +35,7 @@
 #define kNullIndex 0xFFFF
 #define kPathIndexMask 0xFFFFF
 #define kPageSize 4096
-#define kMiterLimit 1.5
+#define kMiterLimit -0.866025403784439
 #define kCubicSolverLimit 5e-2f
 #define kDepthRange 0.1f
 #define kColorTextureWidth 64

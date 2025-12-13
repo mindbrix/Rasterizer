@@ -23,7 +23,7 @@
 
 @interface DemoView : RasterizerView
 
-@property(nonatomic, strong) NSData *pdfData;
-@property(nonatomic, strong) NSData *svgData;
+@property(nonatomic, strong) NSURL *pdfUrl;
+@property(nonatomic, strong) NSURL *svgUrl;
 
 @end

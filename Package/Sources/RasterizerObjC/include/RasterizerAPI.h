@@ -97,7 +97,7 @@ typedef NS_ENUM(NSUInteger, RAJoinStyle) {
               ctm:(CGAffineTransform)ctm
              clip:(CGRect)clip;
 
-- (CGAffineTransform)addSvgFromData:(nonnull NSData *)data;
+- (CGAffineTransform)addSvgFromUrl:(nonnull NSURL *)url;
 @end
 
 

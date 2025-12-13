@@ -69,7 +69,7 @@ struct MetalCache {
 #pragma clang diagnostic ignored "-Wextra"
 struct GeometryCache : MetalCache<id <MTLBuffer>, const Ra::Scene &> {
     __strong id <MTLBuffer> createPayload(const Ra::Scene & scene, id <MTLDevice> device) override {
-        size_t length = scene.p16total * sizeof(Ra::Point16);
+        size_t length = (1 + scene.p16total) * sizeof(Ra::Point16);
         id <MTLBuffer> buffer = [device newBufferWithLength:length
                                                     options:MTLResourceStorageModeShared];
         auto dst = (Ra::Point16 *)buffer.contents;

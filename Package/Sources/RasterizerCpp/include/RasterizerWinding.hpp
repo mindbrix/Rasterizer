@@ -34,9 +34,6 @@ struct RasterizerWinding {
                 Ra::Transform ctm = list.ctms[li].concat(list.ctm);
                 Ra::Bounds sceneclip = list.clips[li];
                 for (int si = int(scene.count) - 1; si >= 0; si--) {
-                    if (scene.flags[si] & Ra::Scene::kInvisible)
-                        continue;
-                    
                     Ra::Transform inv = sceneclip.intersect(scene.clips[si]).quad(ctm).invert();
                     float ux = inv.a * px + inv.c * py + inv.tx, uy = inv.b * px + inv.d * py + inv.ty;
                     bool inBounds = fmaxf(fabsf(ux - 0.5f), fabsf(uy - 0.5f)) <= 0.5f;
@@ -63,8 +60,8 @@ struct RasterizerWinding {
         float ux = inv.a * px + inv.c * py + inv.tx, uy = inv.b * px + inv.d * py + inv.ty;
         bool inBounds = fmaxf(fabsf(ux - 0.5f), fabsf(uy - 0.5f)) <= 0.5f;
         if (visible && inBounds) {
-            bool polygon = w != 0.f;
-            Ra::divideGeometry(g, m, clip, false, polygon, cntr);
+            bool polygon = w == 0.f;
+            Ra::applyPath(g, m, clip, false, polygon, cntr);
         }
         return cntr.winding;
     }

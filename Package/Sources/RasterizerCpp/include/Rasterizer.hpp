@@ -25,101 +25,6 @@
 #pragma clang diagnostic ignored "-Wcomma"
 
 struct Rasterizer {
-    struct Transform {
-        Transform() : a(1.f), b(0.f), c(0.f), d(1.f), tx(0.f), ty(0.f) {}
-        Transform(float a, float b, float c, float d, float tx, float ty) : a(a), b(b), c(c), d(d), tx(tx), ty(ty) {}
-        inline Transform concat(const Transform t) const {
-            return {
-                a * t.a + b * t.c, a * t.b + b * t.d,
-                c * t.a + d * t.c, c * t.b + d * t.d,
-                tx * t.a + ty * t.c + t.tx, tx * t.b + ty * t.d + t.ty
-            };
-        }
-        inline Transform concatAroundCenter(const Transform t, float cx, float cy) const {
-            return Transform(a, b, c, d, tx - cx, ty - cy).concat(Transform(t.a, t.b, t.c, t.d, t.tx + cx, t.ty + cy));
-        }
-        inline Transform invert() const {
-            float det = a * d - b * c, recip = 1.f / det;
-            return det == 0.f ? *this : Transform(
-                d * recip,                      -b * recip,
-                -c * recip,                     a * recip,
-                (c * ty - d * tx) * recip,      -(a * ty - b * tx) * recip
-            );
-        }
-        inline float scale() const { return sqrtf(fabsf(a * d - b * c)); }
-        float a, b, c, d, tx, ty;
-    };
-    struct Bounds {
-        static inline Bounds huge() { return Bounds(-5e11f, -5e11f, 5e11f, 5e11f); }
-        Bounds() : lx(FLT_MAX), ly(FLT_MAX), ux(-FLT_MAX), uy(-FLT_MAX) {}
-        Bounds(float lx, float ly, float ux, float uy) : lx(lx), ly(ly), ux(ux), uy(uy) {}
-        inline float width() const {
-            return ux - lx;
-        }
-        inline float height() const {
-            return uy - ly;
-        }
-        inline float cx() const {
-            return 0.5f * (lx + ux);
-        }
-        inline float cy() const {
-            return 0.5f * (ly + uy);
-        }
-        inline bool contains(const Bounds b) const {
-            return lx <= b.lx && ux >= b.ux && ly <= b.ly && uy >= b.uy;
-        }
-        inline void extend(float x, float y) {
-            lx = fminf(lx, x), ly = fminf(ly, y), ux = fmaxf(ux, x), uy = fmaxf(uy, y);
-        }
-        inline void extend(const Bounds b) {
-            lx = fminf(lx, b.lx), ly = fminf(ly, b.ly), ux = fmaxf(ux, b.ux), uy = fmaxf(uy, b.uy);
-        }
-        inline Bounds inset(float dx, float dy) const {
-            bool valid = dx * 2.f < ux - lx && dy * 2.f < uy - ly;
-            return valid ? Bounds(lx + dx, ly + dy, ux - dx, uy - dy) : *this;
-        }
-        inline Bounds integral() const {
-            return { floorf(lx), floorf(ly), ceilf(ux), ceilf(uy) };
-        }
-        inline Bounds intersect(const Bounds b) const {
-            return {
-                fmaxf(b.lx, fminf(b.ux, lx)), fmaxf(b.ly, fminf(b.uy, ly)),
-                fmaxf(b.lx, fminf(b.ux, ux)), fmaxf(b.ly, fminf(b.uy, uy))
-            };
-        }
-        inline bool isHuge() const {
-            return lx == -5e11f;
-        }
-        inline bool isNull() const {
-            return lx == FLT_MAX && ly == FLT_MAX;
-        }
-        inline bool isZero() const {
-            return lx == ux && ly == uy;
-        }
-        inline Bounds(const Transform quad) :
-            lx(quad.tx + fminf(0.f, quad.a) + fminf(0.f, quad.c)),
-            ly(quad.ty + fminf(0.f, quad.b) + fminf(0.f, quad.d)),
-            ux(quad.tx + fmaxf(0.f, quad.a) + fmaxf(0.f, quad.c)),
-            uy(quad.ty + fmaxf(0.f, quad.b) + fmaxf(0.f, quad.d)) {
-        }
-        inline Transform quad(const Transform t) const {
-            float w = width(), h = height();
-            return {
-                t.a * w, t.b * w,
-                t.c * h, t.d * h,
-                lx * t.a + ly * t.c + t.tx, lx * t.b + ly * t.d + t.ty
-            };
-        }
-        inline Transform fitTransform(const Bounds b) const {
-            float w = width(), h = height(), bw = b.width(), bh = b.height(), s = fminf(w / bw, h / bh);
-            return {
-                s, 0.f,
-                0.f, s,
-                lx + 0.5f * (w - s * bw) - s * b.lx, ly + 0.5f * (h - s * bh) - s * b.ly
-            };
-        }
-        float lx, ly, ux, uy;
-    };
     template<typename T>
     struct Ref {
         Ref() {
@@ -238,49 +143,116 @@ struct Rasterizer {
         
         T *base = nullptr;  Ref<Memory<T>> memory;  size_t end = 0, idx = 0;
     };
-    struct GeometryWriter {
-        virtual void writeSegment(float x0, float y0, float x1, float y1) = 0;
-        virtual void Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) = 0;
-        virtual void Cubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3) {
-            float cx, bx, ax, cy, by, ay, adot, bdot, count, dt, dt2, f3x, f2x, f1x, f3y, f2y, f1y, x, y;
-            cx = 3.f * (x1 - x0), bx = 3.f * (x2 - x1), ax = x3 - x0 - bx, bx -= cx;
-            cy = 3.f * (y1 - y0), by = 3.f * (y2 - y1), ay = y3 - y0 - by, by -= cy;
-            adot = ax * ax + ay * ay, bdot = bx * bx + by * by;
-            if (cubicScale > 0.f && adot + bdot < 1.f)
-                writeSegment(x0, y0, x3, y3);
-            else {
-                float N = sqrtf(adot) / (fabsf(cubicScale) * kCubicMultiplier);
-                count = N <= 1.f ? 1.f : ceilf(cbrtf(N));
-                dt = 0.5f / count, dt2 = dt * dt;
-                x = x0, bx *= dt2, ax *= dt2 * dt, f3x = 6.f * ax, f2x = f3x + 2.f * bx, f1x = ax + bx + cx * dt;
-                y = y0, by *= dt2, ay *= dt2 * dt, f3y = 6.f * ay, f2y = f3y + 2.f * by, f1y = ay + by + cy * dt;
-                while (--count) {
-                    x += f1x, f1x += f2x, f2x += f3x, x1 = x,
-                    x += f1x, f1x += f2x, f2x += f3x, x2 = x;
-                    x1 = 2.f * x1 - 0.5f * (x0 + x2);
-                    y += f1y, f1y += f2y, f2y += f3y, y1 = y;
-                    y += f1y, f1y += f2y, f2y += f3y, y2 = y;
-                    y1 = 2.f * y1 - 0.5f * (y0 + y2);
-                    Quadratic(x0, y0, x1, y1, x2, y2);
-                    x0 = x2, y0 = y2;
-                }
-                x += f1x, x1 = x, x1 = 2.f * x1 - 0.5f * (x0 + x3);
-                y += f1y, y1 = y, y1 = 2.f * y1 - 0.5f * (y0 + y3);
-                Quadratic(x0, y0, x1, y1, x3, y3);
-            }
+    
+    struct Transform {
+        Transform() : a(1.f), b(0.f), c(0.f), d(1.f), tx(0.f), ty(0.f) {}
+        Transform(float a, float b, float c, float d, float tx, float ty) : a(a), b(b), c(c), d(d), tx(tx), ty(ty) {}
+        inline Transform concat(const Transform t) const {
+            return {
+                a * t.a + b * t.c, a * t.b + b * t.d,
+                c * t.a + d * t.c, c * t.b + d * t.d,
+                tx * t.a + ty * t.c + t.tx, tx * t.b + ty * t.d + t.ty
+            };
         }
-        virtual void EndSubpath(float x0, float y0, float x1, float y1, bool closed) {}
-        
-        float quadraticScale = 1.f, cubicScale = kCubicPrecision;
+        inline Transform concatAroundCenter(const Transform t, float cx, float cy) const {
+            return Transform(a, b, c, d, tx - cx, ty - cy).concat(Transform(t.a, t.b, t.c, t.d, t.tx + cx, t.ty + cy));
+        }
+        inline Transform invert() const {
+            float det = a * d - b * c, recip = 1.f / det;
+            return det == 0.f ? *this : Transform(
+                d * recip,                      -b * recip,
+                -c * recip,                     a * recip,
+                (c * ty - d * tx) * recip,      -(a * ty - b * tx) * recip
+            );
+        }
+        inline float scale() const { return sqrtf(fabsf(a * d - b * c)); }
+        float a, b, c, d, tx, ty;
     };
+    struct Bounds {
+        static inline Bounds huge() { return Bounds(-5e11f, -5e11f, 5e11f, 5e11f); }
+        Bounds() : lx(FLT_MAX), ly(FLT_MAX), ux(-FLT_MAX), uy(-FLT_MAX) {}
+        Bounds(float lx, float ly, float ux, float uy) : lx(lx), ly(ly), ux(ux), uy(uy) {}
+        inline float width() const {
+            return ux - lx;
+        }
+        inline float height() const {
+            return uy - ly;
+        }
+        inline float cx() const {
+            return 0.5f * (lx + ux);
+        }
+        inline float cy() const {
+            return 0.5f * (ly + uy);
+        }
+        inline bool contains(const Bounds b) const {
+            return lx <= b.lx && ux >= b.ux && ly <= b.ly && uy >= b.uy;
+        }
+        inline void extend(float x, float y) {
+            lx = fminf(lx, x), ly = fminf(ly, y), ux = fmaxf(ux, x), uy = fmaxf(uy, y);
+        }
+        inline void extend(const Bounds b) {
+            lx = fminf(lx, b.lx), ly = fminf(ly, b.ly), ux = fmaxf(ux, b.ux), uy = fmaxf(uy, b.uy);
+        }
+        inline Bounds inset(float dx, float dy) const {
+            bool valid = dx * 2.f < ux - lx && dy * 2.f < uy - ly;
+            return valid ? Bounds(lx + dx, ly + dy, ux - dx, uy - dy) : *this;
+        }
+        inline Bounds integral() const {
+            return { floorf(lx), floorf(ly), ceilf(ux), ceilf(uy) };
+        }
+        inline Bounds intersect(const Bounds b) const {
+            return {
+                fmaxf(b.lx, fminf(b.ux, lx)), fmaxf(b.ly, fminf(b.uy, ly)),
+                fmaxf(b.lx, fminf(b.ux, ux)), fmaxf(b.ly, fminf(b.uy, uy))
+            };
+        }
+        inline bool isHuge() const {
+            return lx == -5e11f;
+        }
+        inline bool isNull() const {
+            return lx == FLT_MAX && ly == FLT_MAX;
+        }
+        inline bool isZero() const {
+            return lx == ux && ly == uy;
+        }
+        inline Bounds(const Transform quad) :
+            lx(quad.tx + fminf(0.f, quad.a) + fminf(0.f, quad.c)),
+            ly(quad.ty + fminf(0.f, quad.b) + fminf(0.f, quad.d)),
+            ux(quad.tx + fmaxf(0.f, quad.a) + fmaxf(0.f, quad.c)),
+            uy(quad.ty + fmaxf(0.f, quad.b) + fmaxf(0.f, quad.d)) {
+        }
+        inline Transform quad(const Transform t) const {
+            float w = width(), h = height();
+            return {
+                t.a * w, t.b * w,
+                t.c * h, t.d * h,
+                lx * t.a + ly * t.c + t.tx,
+                lx * t.b + ly * t.d + t.ty
+            };
+        }
+        inline Transform fitTransform(const Bounds b) const {
+            float w = width(), h = height(), bw = b.width(), bh = b.height(), s = fminf(w / bw, h / bh);
+            return {
+                s, 0.f,
+                0.f, s,
+                lx + 0.5f * (w - s * bw) - s * b.lx,
+                ly + 0.5f * (h - s * bh) - s * b.ly
+            };
+        }
+        float lx, ly, ux, uy;
+    };
+    
+    
     struct Atom {
         enum Flags { isMoveTo = 1 << 31, kMask = ~isMoveTo };
         uint32_t i;
     };
     
     struct Point16 {
-        enum Flags { isCurve = 1 << 15, kMask = ~isCurve };
-        inline Point16(float x0, float y0) : x(fmaxf(0.f, fminf(kMoleculesRange, x0))), y(fmaxf(0.f, fminf(kMoleculesRange, y0))) {}
+        enum Flags { kIsCurve = 1 << 15, kMask = ~kIsCurve };
+        inline Point16(float x0, float y0, bool isCurve = false)
+                : x(uint16_t(fmaxf(0.f, fminf(kMoleculesRange, x0))) | (isCurve ? kIsCurve : 0)),
+                  y(fmaxf(0.f, fminf(kMoleculesRange, y0))) {}
         uint16_t x, y;
     };
     
@@ -396,63 +368,6 @@ struct Rasterizer {
     };
     typedef Ref<Geometry> Path;
     
-    struct P16Writer: GeometryWriter {
-        static const uint8_t isMoveTo = 0x80;
-        
-        void writeGeometry(Geometry *g) {
-            float s = kMoleculesRange / fmaxf(g->bounds.ux - g->bounds.lx, g->bounds.uy - g->bounds.ly);
-            size_t count = g->points.end / 2;
-            m = Transform(s, 0.f, 0.f, s, s * -g->bounds.lx, s * -g->bounds.ly);
-            p16s = & g->p16s, p16cnts = & g->p16cnts, atoms = & g->atoms;
-            p16s->prealloc(count), p16cnts->prealloc(count / kFastSegments), atoms->prealloc(count);
-            cubicScale = -kCubicPrecision * (kMoleculesRange / kMoleculesHeight);
-            divideGeometry(g, m, Bounds(), true, true, *this);
-            
-            Bounds *b = g->molecules.base;
-            Point16 *bnd16 = p16s->alloc(g->molecules.end * 2);
-            for (size_t i = 0; i < g->molecules.end; i++, b++) {
-                *bnd16++ = Point16(
-                   b->lx * m.a + b->ly * m.c + m.tx,
-                   b->lx * m.b + b->ly * m.d + m.ty);
-                *bnd16++ = Point16(
-                   b->ux * m.a + b->uy * m.c + m.tx,
-                   b->ux * m.b + b->uy * m.d + m.ty);
-            }
-        }
-        void writeSegment(float x0, float y0, float x1, float y1) {
-            (atoms->alloc(1))->i = uint32_t(p16s->end);
-            new (p16s->alloc(1)) Point16(x0, y0);
-        }
-        void Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
-            (atoms->alloc(1))->i = uint32_t(p16s->end);
-            
-            Point16 *p = p16s->alloc(2);
-            new (p + 0) Point16(x0, y0);
-            p->x |= Point16::isCurve;
-            new (p + 1) Point16(0.5f * x1 + 0.25f * (x0 + x2), 0.5f * y1 + 0.25f * (y0 + y2));
-        }
-        void EndSubpath(float x0, float y0, float x1, float y1, bool closed) {
-            Point16 *p = p16s->alloc(1);
-            new (p) Point16(x1, y1);
-            
-            if (atoms->idx < atoms->end)
-                atoms->base[atoms->idx].i |= Atom::isMoveTo;
-            atoms->idx = atoms->end;
-            
-            size_t segcnt, icount, last, rem;
-            segcnt = p16s->end - p16s->idx - 1, icount = (segcnt + kFastSegments) / kFastSegments;
-            last = icount - 1, rem = segcnt - last * kFastSegments;
-            uint8_t *counts = p16cnts->alloc(icount);
-            memset(counts, kFastSegments, last);
-            counts[last] = rem, counts[0] |= isMoveTo;
-            rem = p16cnts->end * kFastSegments - p16s->end;
-            bzero(p16s->alloc(rem), rem * sizeof(*p));
-            p16s->idx = p16s->end;
-        }
-        Transform m;
-        Row<Point16> *p16s;   Row<uint8_t> *p16cnts;  Row<Atom> *atoms;
-    };
-    
     typedef uint8_t Component;
     
     struct Color {
@@ -555,7 +470,7 @@ struct Rasterizer {
     };
     
     struct Scene {
-        enum Flags { kInvisible = 1 << 0, kFillEvenOdd = 1 << 1, kRoundCap = 1 << 2, kSquareCap = 1 << 3, kRoundJoin = 1 << 4 };
+        enum Flags { kFillEvenOdd = 1 << 1, kRoundCap = 1 << 2, kSquareCap = 1 << 3, kRoundJoin = 1 << 4 };
         struct Entry {
             Entry(const Path& path, size_t idx) : path(path), idx(uint32_t(idx)) {}
             Path path;  uint32_t idx;
@@ -566,11 +481,12 @@ struct Rasterizer {
                 Geometry *g = path.ptr;
                 count++, weight += g->types.end;
             
+                size_t key = g->hash();
                 if (width != 0) {
                     paths.add(path);
                     p16bases.add(0);
                 } else {
-                    size_t key = g->hash();
+                    fillcount++;
                     auto it = p16map.find(key);
                     if (it == p16map.end()) {
                         paths.add(path);
@@ -579,17 +495,14 @@ struct Rasterizer {
                         
                         if (kMoleculesHeight && g->p16s.end == 0)
                             P16Writer().writeGeometry(g);
-                        
                         p16total += g->p16s.end;
-                        size_t pathHash = g->hash();
-                        xxhash = XXH64(& pathHash, sizeof(pathHash), xxhash);
-                        p16full += path->p16s.end;
+                        xxhash = XXH64(& key, sizeof(key), xxhash);
                     } else {
                         paths.add(it->second.path);
                         p16bases.add(it->second.idx);
-                        p16full += it->second.path->p16s.end;
                     }
                 }
+                
                 if (paint.isGradient()) {
                     gradientIndices.add(uint32_t(gradients.end()));
                     Color strip[kColorTextureWidth];
@@ -623,20 +536,19 @@ struct Rasterizer {
         }
         Bounds bounds() const {
             Bounds b;
-            for (int i = 0; i < count; i++)
-                if ((flags[i] & kInvisible) == 0) {
-                    float inset = -0.5f * widths[i];
-                    b.extend(Bounds(bnds[i].inset(inset, inset).quad(ctms[i])).intersect(clips[i]));
-                }
+            for (int i = 0; i < count; i++) {
+                float inset = -0.5f * widths[i];
+                b.extend(Bounds(bnds[i].inset(inset, inset).quad(ctms[i])).intersect(clips[i]));
+            }
             return b;
         }
         inline size_t hash() const {
             return xxhash;
         }
         
-        size_t refCount, count = 0, weight = 0, xxhash = 0;
+        size_t refCount, count = 0, weight = 0, xxhash = 0, _xxhash = 0, fillcount = 0;
         RefVector<Path> paths;
-        Vector<uint32_t> p16bases;  uint32_t p16total = 0, p16full = 0;
+        Vector<uint32_t> p16bases;  uint32_t p16total = 0, stroketotal = 0;
         RefVector<Path> clipPaths;
         Vector<uint32_t> clipIndices;
         Vector<Bounds> bnds, clips;
@@ -646,7 +558,7 @@ struct Rasterizer {
         Vector<uint32_t> gradientIndices;
         Vector<Color> gradients, matchedGradients = gradients;
         Vector<float> widths;
-        std::map<size_t, Entry> p16map;
+        std::map<size_t, Entry> p16map, strokemap;
         Vector<uint8_t> flags;
     };
     typedef Ref<Scene> SceneRef;
@@ -692,9 +604,6 @@ struct Rasterizer {
         Quadratic quad;
         short prev, next;
     };
-    struct Opaque {
-        uint32_t iz;  union { Cell cell;  Quadratic quad; };
-    };
     struct Instance {
         enum Flags {
             kRoundJoin = 1 << 21,   kStencil = 1 << 21,
@@ -712,6 +621,9 @@ struct Rasterizer {
         };
         Instance(size_t iz) : iz(uint32_t(iz)) {}
         uint32_t iz;  union { Quad quad;  Outline outline; };
+    };
+    struct Opaque {
+        uint32_t iz;  union { Cell cell;  Quadratic quad; };
     };
     struct Blend : Instance {
         Blend(size_t iz) : Instance(iz) {}
@@ -831,7 +743,8 @@ struct Rasterizer {
             bool clipActive = false;
             
             Color black(0, 0, 0, 255), red(0, 0, 255, 255);
-            size_t lz, uz, i, clz, cuz, iz, is, cnt, lastIdx = ~0, lastClipIdx = ~0;  uint8_t flags;
+            size_t lz, uz, i, clz, cuz, iz, is, cnt; uint32_t lastIdx = ~0, lastClipIdx = ~0;
+            uint8_t flags;
             float det, width, uw, softclipMargin = 0.5f;
             for (lz = uz = i = 0; i < list.scenes.size(); i++, lz = uz) {
                 const Scene *scn = list.scenes[i].ptr;
@@ -845,8 +758,7 @@ struct Rasterizer {
                 }
                 
                 for (is = clz - lz, iz = clz; iz < cuz; iz++, is++) {
-                    if ((flags = scn->flags[is]) & Scene::Flags::kInvisible)
-                        continue;
+                    flags = scn->flags[is];
                     if (list.params.useClips) {
                         if (memcmp(& scn->clips[is], & lastClip, sizeof(Bounds)) != 0) {
                             lastClip = scn->clips[is];
@@ -868,7 +780,7 @@ struct Rasterizer {
                                     const Path& clip = scn->clipPaths[idx];
                                     i0 = stencils.end;
                                     Stenciler stenciler(clip, device, ctm, & stencils);
-                                    divideGeometry(clip.ptr, ctm, device, true, true, stenciler);
+                                    applyPath(clip.ptr, ctm, device, true, true, stenciler);
                                     i1 = stencils.end;
                                     inst->data.idx = int(i0), inst->data.count = int(i1 - i0);
                                 } else
@@ -911,8 +823,8 @@ struct Rasterizer {
                         ctms[iz] = m, widths[iz] = width, clips[iz] = invclip;
                         Geometry *g = scn->paths[is].ptr;
                         if (width) {
-                            Blend *inst = new (blends.alloc(1)) Blend(iz | colorFlags | Instance::kOutlines | bool(flags & Scene::kRoundCap) * Instance::kRoundCap | bool(flags & Scene::kSquareCap) * Instance::kSquareCap | bool(flags & Scene::kRoundJoin) * Instance::kRoundJoin
-                            );
+                            Blend *inst = new (blends.alloc(1)) Blend(iz | colorFlags | Instance::kOutlines | bool(flags & Scene::kRoundCap) * Instance::kRoundCap | bool(flags & Scene::kSquareCap) * Instance::kSquareCap | bool(flags & Scene::kRoundJoin) * Instance::kRoundJoin);
+                            
                             Bounds outlineClip = unclipped ? Bounds::huge() : clip.inset(-width, -width);
                             uint32_t i0 = uint32_t(outlines.idx), i1;
                             Outliner outliner;
@@ -920,16 +832,15 @@ struct Rasterizer {
                             if (width > 4.f && isOpaque && ~lastIdx == 0) {
                                 bool softunclipped = true;
                                 if (clipActive) {
-                                    Bounds soft = Bounds(quad.concat(invclip));
+                                    Bounds soft = quad.concat(invclip);
                                     softunclipped = fmaxf(fmaxf(fabsf(soft.lx - 0.5f), fabsf(soft.ux - 0.5f)), fmaxf(fabsf(soft.ly - 0.5f), fabsf(soft.uy - 0.5f))) < softclipMargin;
                                 }
                                 outliner.opaques = softunclipped ? & opaques : nullptr;
                             }
-                            divideGeometry(g, m, outlineClip, unclipped, false, outliner);
+                            applyPath(g, m, outlineClip, unclipped, false, outliner);
                             i1 = uint32_t(outlines.idx);
                             inst->data.idx = i0, inst->data.count = i1 - i0;
-                        } else if (clipHeight <= kMoleculesHeight && clipWidth <= kMoleculesHeight
-                                && clipWidth * clipHeight / g->types.end < kMoleculesPixelsPerEdge) {
+                        } else if (clipWidth * clipHeight / g->types.end < kMoleculesPixelsPerEdge) {
                             bounds[iz] = *bnds;
                             bool fast = !buffer->params.useCurves || g->maxCurve * det < 16.f;
                             Blend *inst = new (blends.alloc(1)) Blend(iz | colorFlags | Instance::kMolecule | bool(flags & Scene::kFillEvenOdd) * Instance::kEvenOdd | fast * Instance::kFastEdges);
@@ -943,10 +854,10 @@ struct Rasterizer {
                             CurveIndexer idxr;
                             idxr.clip = clip, idxr.samples = & samples[0], idxr.fast = fast;
                             idxr.dst = idxr.dst0 = segments.alloc(2 * g->upperBound(det));
-                            divideGeometry(g, m, clip, unclipped, true, idxr);
+                            applyPath(g, m, clip, unclipped, true, idxr);
                             bool softunclipped = true;
                             if (clipActive) {
-                                Bounds soft = Bounds(quad.concat(invclip));
+                                Bounds soft = quad.concat(invclip);
                                 softunclipped = fmaxf(fmaxf(fabsf(soft.lx - 0.5f), fabsf(soft.ux - 0.5f)), fmaxf(fabsf(soft.ly - 0.5f), fabsf(soft.uy - 0.5f))) < softclipMargin;
                             }
                             writeSegmentInstances(clip, flags & Scene::kFillEvenOdd, iz, isOpaque && softunclipped && ~lastIdx == 0, fast, colorFlags, *this);
@@ -975,7 +886,139 @@ struct Rasterizer {
         Row<Opaque> opaques, stencils;  Row<Blend> blends;  Row<Instance> outlines;  Row<Segment> segments;
         Row<Sample::Index> indices;  RefVector<Row<Sample>> samples;  Row<uint32_t> segmentsIndices;
     };
-    static void divideGeometry(Geometry *g, Transform m, Bounds clip, bool unclipped, bool polygon, GeometryWriter& writer) {
+    
+    static void radixSort(uint32_t *in, int n, uint32_t lower, uint32_t range, bool single, uint16_t *counts) {
+        range = range < 4 ? 4 : range;
+        uint32_t tmp[n], mask = range - 1;
+        memset(counts, 0, sizeof(uint16_t) * range);
+        for (int i = 0; i < n; i++)
+            counts[(in[i] - lower) & mask]++;
+        uint64_t *sums = (uint64_t *)counts, sum = 0, count;
+        for (int i = 0; i < range / 4; i++) {
+            count = sums[i], sum += count + (count << 16) + (count << 32) + (count << 48), sums[i] = sum;
+            sum = sum & 0xFFFF000000000000, sum = sum | (sum >> 16) | (sum >> 32) | (sum >> 48);
+        }
+        for (int i = n - 1; i >= 0; i--)
+            tmp[--counts[(in[i] - lower) & mask]] = in[i];
+        if (single)
+            memcpy(in, tmp, n * sizeof(uint32_t));
+        else {
+            memset(counts, 0, sizeof(uint16_t) * 64);
+            for (int i = 0; i < n; i++)
+                counts[(in[i] >> 8) & 0x3F]++;
+            for (uint16_t *src = counts, *dst = src + 1, i = 1; i < 64; i++)
+                *dst++ += *src++;
+            for (int i = n - 1; i >= 0; i--)
+                in[--counts[(tmp[i] >> 8) & 0x3F]] = tmp[i];
+        }
+    }
+    static void writeSegmentInstances(Bounds clip, bool even, size_t iz, bool opaque, bool fast, size_t colorFlags, Context& ctx) {
+        size_t ily = 0, iuy = ceilf(clip.height() * krfh), iy, i, begin, size;
+        size_t edgeIz = iz | colorFlags | Instance::kEdge | even * Instance::kEvenOdd | fast * Instance::kFastEdges;
+        uint32_t cellIz = uint32_t(iz | colorFlags);
+        uint16_t counts[256], ly, uy, lx, ux;
+        float h, cover, winding, wscale;
+        Allocator::CountType type = fast ? Allocator::kFastEdges : Allocator::kQuadEdges;
+        bool single = clip.ux - clip.lx < 256.f;
+        uint32_t range = single ? 1 << uint32_t(ceilf(log2f(clip.ux - clip.lx + 1.f))) : 256;
+        Row<Sample::Index> *indices = & ctx.indices;  Sample::Index *index, *idx;
+        Row<Sample> *samples = & ctx.samples[0];  Sample *sample;
+        
+        for (iy = ily; iy < iuy; iy++, samples->empty(), samples++, indices->empty()) {
+            if ((size = samples->end)) {
+                for (sample = samples->base, idx = indices->alloc(size), i = 0; i < size; i++, sample++) {
+                    if (sample->cover)
+                        idx->lx = sample->lx, idx->i = i, idx++;
+                }
+                size = idx - indices->base;
+                if (size > 32 && size < 65536)
+                    radixSort((uint32_t *)indices->base, int(size), single ? clip.lx : 0, range, single, counts);
+                else
+                    std::sort(indices->base, indices->base + size);
+                
+                size_t siBase = ctx.segmentsIndices.end;
+                uint32_t *si = ctx.segmentsIndices.alloc(size);
+                
+                ly = iy * kfh + clip.ly, ly = ly < clip.ly ? clip.ly : ly > clip.uy ? clip.uy : ly;
+                uy = (iy + 1) * kfh + clip.ly, uy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
+                for (h = uy - ly, wscale = 0.00003051850948f * kfh / h, cover = winding = 0.f, index = indices->base, lx = ux = index->lx, i = begin = 0; i < size; i++, index++) {
+                    if (index->lx >= ux && fabsf((winding - floorf(winding)) - 0.5f) > 0.499f) {
+                        if (lx != ux) {
+                            Blend *inst = new (ctx.blends.alloc(1)) Blend(edgeIz);
+                            ctx.allocator.alloc(lx, ly, ux, uy, ctx.blends.end - 1, & inst->quad.cell, type, (i - begin + 1) / 2);
+                            inst->quad.cover = short(cover), inst->quad.base = int(ctx.segments.idx), inst->data.count = int(i - begin), inst->data.idx = int(siBase + begin);
+                        }
+                        winding = cover = truncf(winding + copysign(0.5f, winding));
+                        if ((even && (int(winding) & 1)) || (!even && winding)) {
+                            if (opaque) {
+                                Opaque *opaque = ctx.opaques.alloc(1);
+                                Cell *cell = & opaque->cell;
+                                opaque->iz = cellIz;
+                                cell->lx = ux, cell->ly = ly, cell->ux = index->lx, cell->uy = uy;
+                            } else {
+                                Cell *cell = & (new (ctx.blends.alloc(1)) Blend(cellIz))->quad.cell;
+                                cell->lx = ux, cell->ly = ly, cell->ux = index->lx, cell->uy = uy, cell->ox = kNullIndex;
+                            }
+                        }
+                        begin = i, lx = ux = index->lx;
+                    }
+                    sample = samples->base + index->i;
+                    ux = sample->ux > ux ? sample->ux : ux, winding += sample->cover * wscale;
+                    si[i] = sample->is;
+                }
+                if (lx != ux) {
+                    Blend *inst = new (ctx.blends.alloc(1)) Blend(edgeIz);
+                    ctx.allocator.alloc(lx, ly, ux, uy, ctx.blends.end - 1, & inst->quad.cell, type, (i - begin + 1) / 2);
+                    inst->quad.cover = short(cover), inst->quad.base = int(ctx.segments.idx), inst->data.count = int(i - begin),
+                    inst->data.idx = int(siBase + begin);
+                }
+            }
+        }
+    }
+    
+    struct GeometryWriter {
+        virtual void writeSegment(float x0, float y0, float x1, float y1) = 0;
+        virtual void Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) = 0;
+        virtual void Cubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3) {
+            float cx, bx, ax, cy, by, ay, adot, bdot, count, dt, dt2, f3x, f2x, f1x, f3y, f2y, f1y, x, y;
+            cx = 3.f * (x1 - x0), bx = 3.f * (x2 - x1), ax = x3 - x0 - bx, bx -= cx;
+            cy = 3.f * (y1 - y0), by = 3.f * (y2 - y1), ay = y3 - y0 - by, by -= cy;
+            adot = ax * ax + ay * ay, bdot = bx * bx + by * by;
+            if (cubicScale > 0.f && adot + bdot < 1.f)
+                writeSegment(x0, y0, x3, y3);
+            else {
+                float N = sqrtf(adot) / (fabsf(cubicScale) * kCubicMultiplier);
+                count = N <= 1.f ? 1.f : ceilf(cbrtf(N));
+                dt = 0.5f / count, dt2 = dt * dt;
+                x = x0, bx *= dt2, ax *= dt2 * dt, f3x = 6.f * ax, f2x = f3x + 2.f * bx, f1x = ax + bx + cx * dt;
+                y = y0, by *= dt2, ay *= dt2 * dt, f3y = 6.f * ay, f2y = f3y + 2.f * by, f1y = ay + by + cy * dt;
+                while (--count) {
+                    x += f1x, f1x += f2x, f2x += f3x, x1 = x,
+                    x += f1x, f1x += f2x, f2x += f3x, x2 = x;
+                    x1 = 2.f * x1 - 0.5f * (x0 + x2);
+                    y += f1y, f1y += f2y, f2y += f3y, y1 = y;
+                    y += f1y, f1y += f2y, f2y += f3y, y2 = y;
+                    y1 = 2.f * y1 - 0.5f * (y0 + y2);
+                    Quadratic(x0, y0, x1, y1, x2, y2);
+                    x0 = x2, y0 = y2;
+                }
+                x += f1x, x1 = x, x1 = 2.f * x1 - 0.5f * (x0 + x3);
+                y += f1y, y1 = y, y1 = 2.f * y1 - 0.5f * (y0 + y3);
+                Quadratic(x0, y0, x1, y1, x3, y3);
+            }
+        }
+        virtual void EndSubpath(float x0, float y0, float x1, float y1, bool closed) {}
+        
+        void p16init(Geometry *g) {
+            float s = kMoleculesRange / fmaxf(g->bounds.ux - g->bounds.lx, g->bounds.uy - g->bounds.ly);
+            m = Transform(s, 0.f, 0.f, s, s * -g->bounds.lx, s * -g->bounds.ly);
+            cubicScale = -kCubicPrecision * (kMoleculesRange / kMoleculesHeight);
+        }
+        Transform m;
+        float quadraticScale = 1.f, cubicScale = kCubicPrecision;
+    };
+    
+    static void applyPath(Geometry *g, Transform m, Bounds clip, bool unclipped, bool polygon, GeometryWriter& writer) {
         bool closed, closeSubpath = false;  float *p = g->points.base, sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3, ly, uy, lx, ux;
         for (uint8_t *type = g->types.base, *end = type + g->types.end; type < end; )
             switch (*type) {
@@ -1197,6 +1240,7 @@ struct Rasterizer {
             }
         }
     }
+    
     struct CurveIndexer: GeometryWriter {
         Segment *dst, *dst0;  bool fast;  Bounds clip;  Row<Sample> *samples;
         
@@ -1276,101 +1320,13 @@ struct Rasterizer {
             }
         }
     };
-    static void radixSort(uint32_t *in, int n, uint32_t lower, uint32_t range, bool single, uint16_t *counts) {
-        range = range < 4 ? 4 : range;
-        uint32_t tmp[n], mask = range - 1;
-        memset(counts, 0, sizeof(uint16_t) * range);
-        for (int i = 0; i < n; i++)
-            counts[(in[i] - lower) & mask]++;
-        uint64_t *sums = (uint64_t *)counts, sum = 0, count;
-        for (int i = 0; i < range / 4; i++) {
-            count = sums[i], sum += count + (count << 16) + (count << 32) + (count << 48), sums[i] = sum;
-            sum = sum & 0xFFFF000000000000, sum = sum | (sum >> 16) | (sum >> 32) | (sum >> 48);
-        }
-        for (int i = n - 1; i >= 0; i--)
-            tmp[--counts[(in[i] - lower) & mask]] = in[i];
-        if (single)
-            memcpy(in, tmp, n * sizeof(uint32_t));
-        else {
-            memset(counts, 0, sizeof(uint16_t) * 64);
-            for (int i = 0; i < n; i++)
-                counts[(in[i] >> 8) & 0x3F]++;
-            for (uint16_t *src = counts, *dst = src + 1, i = 1; i < 64; i++)
-                *dst++ += *src++;
-            for (int i = n - 1; i >= 0; i--)
-                in[--counts[(tmp[i] >> 8) & 0x3F]] = tmp[i];
-        }
-    }
-    static void writeSegmentInstances(Bounds clip, bool even, size_t iz, bool opaque, bool fast, size_t colorFlags, Context& ctx) {
-        size_t ily = 0, iuy = ceilf(clip.height() * krfh), iy, i, begin, size;
-        size_t edgeIz = iz | colorFlags | Instance::kEdge | even * Instance::kEvenOdd | fast * Instance::kFastEdges;
-        uint32_t cellIz = uint32_t(iz | colorFlags);
-        uint16_t counts[256], ly, uy, lx, ux;
-        float h, cover, winding, wscale;
-        Allocator::CountType type = fast ? Allocator::kFastEdges : Allocator::kQuadEdges;
-        bool single = clip.ux - clip.lx < 256.f;
-        uint32_t range = single ? 1 << uint32_t(ceilf(log2f(clip.ux - clip.lx + 1.f))) : 256;
-        Row<Sample::Index> *indices = & ctx.indices;  Sample::Index *index, *idx;
-        Row<Sample> *samples = & ctx.samples[0];  Sample *sample;
-        
-        for (iy = ily; iy < iuy; iy++, samples->empty(), samples++, indices->empty()) {
-            if ((size = samples->end)) {
-                for (sample = samples->base, idx = indices->alloc(size), i = 0; i < size; i++, sample++) {
-                    if (sample->cover)
-                        idx->lx = sample->lx, idx->i = i, idx++;
-                }
-                size = idx - indices->base;
-                if (size > 32 && size < 65536)
-                    radixSort((uint32_t *)indices->base, int(size), single ? clip.lx : 0, range, single, counts);
-                else
-                    std::sort(indices->base, indices->base + size);
-                
-                size_t siBase = ctx.segmentsIndices.end;
-                uint32_t *si = ctx.segmentsIndices.alloc(size);
-                
-                ly = iy * kfh + clip.ly, ly = ly < clip.ly ? clip.ly : ly > clip.uy ? clip.uy : ly;
-                uy = (iy + 1) * kfh + clip.ly, uy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
-                for (h = uy - ly, wscale = 0.00003051850948f * kfh / h, cover = winding = 0.f, index = indices->base, lx = ux = index->lx, i = begin = 0; i < size; i++, index++) {
-                    if (index->lx >= ux && fabsf((winding - floorf(winding)) - 0.5f) > 0.499f) {
-                        if (lx != ux) {
-                            Blend *inst = new (ctx.blends.alloc(1)) Blend(edgeIz);
-                            ctx.allocator.alloc(lx, ly, ux, uy, ctx.blends.end - 1, & inst->quad.cell, type, (i - begin + 1) / 2);
-                            inst->quad.cover = short(cover), inst->quad.base = int(ctx.segments.idx), inst->data.count = int(i - begin), inst->data.idx = int(siBase + begin);
-                        }
-                        winding = cover = truncf(winding + copysign(0.5f, winding));
-                        if ((even && (int(winding) & 1)) || (!even && winding)) {
-                            if (opaque) {
-                                Opaque *opaque = ctx.opaques.alloc(1);
-                                Cell *cell = & opaque->cell;
-                                opaque->iz = cellIz;
-                                cell->lx = ux, cell->ly = ly, cell->ux = index->lx, cell->uy = uy;
-                            } else {
-                                Cell *cell = & (new (ctx.blends.alloc(1)) Blend(cellIz))->quad.cell;
-                                cell->lx = ux, cell->ly = ly, cell->ux = index->lx, cell->uy = uy, cell->ox = kNullIndex;
-                            }
-                        }
-                        begin = i, lx = ux = index->lx;
-                    }
-                    sample = samples->base + index->i;
-                    ux = sample->ux > ux ? sample->ux : ux, winding += sample->cover * wscale;
-                    si[i] = sample->is;
-                }
-                if (lx != ux) {
-                    Blend *inst = new (ctx.blends.alloc(1)) Blend(edgeIz);
-                    ctx.allocator.alloc(lx, ly, ux, uy, ctx.blends.end - 1, & inst->quad.cell, type, (i - begin + 1) / 2);
-                    inst->quad.cover = short(cover), inst->quad.base = int(ctx.segments.idx), inst->data.count = int(i - begin),
-                    inst->data.idx = int(siBase + begin);
-                }
-            }
-        }
-    }
     
     struct Dasher: GeometryWriter {
         static Path CreateDashedPath(Path path, float phase, float *pattern, size_t count) {
             if (pattern == nullptr || count < 2 || count % 2 == 1)
                 return path;
             Dasher dasher(phase, pattern, count);
-            divideGeometry(path.ptr, Transform(), Bounds(), true, false, dasher);
+            applyPath(path.ptr, Transform(), Bounds(), true, false, dasher);
             return dasher.dashed;
         }
         
@@ -1465,6 +1421,60 @@ struct Rasterizer {
         }
     };
     
+    struct P16Writer: GeometryWriter {
+        static const uint8_t isMoveTo = 0x80;
+        
+        void writeGeometry(Geometry *g) {
+            p16init(g);
+            
+            p16s = & g->p16s, p16cnts = & g->p16cnts, atoms = & g->atoms;
+            size_t count = g->points.end / 2;
+            p16s->prealloc(count), p16cnts->prealloc(count / kFastSegments), atoms->prealloc(count);
+            applyPath(g, m, Bounds(), true, true, *this);
+            
+            Bounds *b = g->molecules.base;
+            Point16 *bnd16 = p16s->alloc(g->molecules.end * 2);
+            for (size_t i = 0; i < g->molecules.end; i++, b++) {
+                *bnd16++ = Point16(
+                   b->lx * m.a + b->ly * m.c + m.tx,
+                   b->lx * m.b + b->ly * m.d + m.ty);
+                *bnd16++ = Point16(
+                   b->ux * m.a + b->uy * m.c + m.tx,
+                   b->ux * m.b + b->uy * m.d + m.ty);
+            }
+        }
+        void writeSegment(float x0, float y0, float x1, float y1) {
+            (atoms->alloc(1))->i = uint32_t(p16s->end);
+            new (p16s->alloc(1)) Point16(x0, y0);
+        }
+        void Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
+            (atoms->alloc(1))->i = uint32_t(p16s->end);
+            
+            Point16 *p = p16s->alloc(2);
+            new (p++) Point16(x0, y0, true);
+            new (p++) Point16(0.5f * x1 + 0.25f * (x0 + x2), 0.5f * y1 + 0.25f * (y0 + y2));
+        }
+        void EndSubpath(float x0, float y0, float x1, float y1, bool closed) {
+            Point16 *p = p16s->alloc(1);
+            new (p) Point16(x1, y1);
+            
+            if (atoms->idx < atoms->end)
+                atoms->base[atoms->idx].i |= Atom::isMoveTo;
+            atoms->idx = atoms->end;
+            
+            size_t segcnt, icount, last, rem;
+            segcnt = p16s->end - p16s->idx - 1, icount = (segcnt + kFastSegments) / kFastSegments;
+            last = icount - 1, rem = segcnt - last * kFastSegments;
+            uint8_t *counts = p16cnts->alloc(icount);
+            memset(counts, kFastSegments, last);
+            counts[last] = rem, counts[0] |= isMoveTo;
+            rem = p16cnts->end * kFastSegments - p16s->end;
+            bzero(p16s->alloc(rem), rem * sizeof(*p));
+            p16s->idx = p16s->end;
+        }
+        Row<Point16> *p16s;   Row<uint8_t> *p16cnts;  Row<Atom> *atoms;
+    };
+    
     struct Outliner: GeometryWriter {
         void writeSegment(float x0, float y0, float x1, float y1) {
             writeInstance(x0, y0, FLT_MAX, 0.f, x1, y1);
@@ -1510,7 +1520,7 @@ struct Rasterizer {
                 }
             }
         }
-        inline void writeInstance(float x0, float y0, float x1, float y1, float x2, float y2) {
+        void writeInstance(float x0, float y0, float x1, float y1, float x2, float y2) {
             Instance *dst = outlines->alloc(1);
             struct Quadratic& quad = dst->outline.quad;
             dst->iz = iz, quad.x0 = x0, quad.y0 = y0, quad.x1 = x1, quad.y1 = y1, quad.x2 = x2, quad.y2 = y2;
@@ -1525,7 +1535,7 @@ struct Rasterizer {
             if (!path->isValid())
                 return stencils;
             Stenciler stenciler(path, device, m, & stencils);
-            divideGeometry(path.ptr, m, device, true, true, stenciler);
+            applyPath(path.ptr, m, device, true, true, stenciler);
             return stencils;
         }
         
@@ -1565,6 +1575,7 @@ struct Rasterizer {
         Bounds device, *molecule;
         Row<Opaque> *stencils;
     };
+    
     static size_t resizeBuffer(const SceneList& list, Context *contexts, size_t count, size_t *begins, Buffer& buffer) {
         size_t size = buffer.headerSize, begin = size, end = begin, sz, i, j, instances;
         for (i = 0; i < count; i++)

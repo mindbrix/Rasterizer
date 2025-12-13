@@ -63,10 +63,6 @@ struct Outline {
     short prev, next;
 };
 
-struct Opaque {
-    uint32_t iz;  union { Cell cell;  Quadratic quad; };
-};
-
 struct Instance {
     enum Flags {
         kRoundJoin = 1 << 21,   kStencil = 1 << 21,
@@ -83,6 +79,10 @@ struct Instance {
         kFragmentMask = (kOutlines | kSquareCap | kEvenOdd)
     };
     uint32_t iz;  union { Quad quad;  Outline outline; };
+};
+
+struct Opaque {
+    uint32_t iz;  union { Cell cell;  Quadratic quad; };
 };
 
 struct Edge {
@@ -159,6 +159,16 @@ float lineWinding(float x0, float y0, float x1, float y1) {
 
 // Winding for a quadratic curve start(x0, y0), control(x1, y1), end(x2, y2)
 //
+float monotoneQuadraticWinding(float x0, float y0, float x1, float y1, float x2, float y2) {
+    float w0 = saturate(y0), w1 = saturate(y2), w = w1 - w0, ay, by, cy, t, s;
+    if (max(x0, x2) <= 0.0 || w == 0.0)
+        return w;
+    ay = y2 - y1, by = y1 - y0, ay -= by, by *= 2.0, cy = y0 - 0.5 * (w0 + w1);
+    t = abs(ay) < kQuadraticFlatness ? -cy / by : (-by + sign(w) * sqrt(max(0.0, by * by - 4.0 * ay * cy))) / ay * 0.5;
+    s = 1.0 - t;
+    return awinding(s * x0 + t * x1, s * y0 + t * y1, s * x1 + t * x2, s * y1 + t * y2, w0, w1);
+}
+
 float quadraticWinding(float x0, float y0, float x1, float y1, float x2, float y2) {
     float w0 = saturate(y0), w2 = saturate(y2);
     if (max(x0, max(x1, x2)) <= 0.0)
@@ -296,7 +306,7 @@ fragment float4 opaques_fragment_main(OpaquesVertex vert [[stage_in]], texture2d
 struct FastMoleculesVertex
 {
     float4 position [[position]];
-    float x0, y0, x1, y1, x2, y2, x3, y3, x4, y4;
+    float x0, y0, x1, y1, x2, y2, x3, y3, x4, y4, xmax;
 };
 
 vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [[buffer(1)]],
@@ -350,11 +360,15 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
     vert.position = float4(x, y, 1.0, slx == sux && sly == suy ? 0.0 : 1.0);
     for (dst = & vert.x0, i = 0; i < kFastSegments + 1; i++, dst += 2)
         dst[0] += offx, dst[1] += offy;
+    vert.xmax = sux + offx;
     return vert;
 }
 
 fragment float4 fast_molecules_fragment_main(FastMoleculesVertex vert [[stage_in]])
 {
+    if (vert.xmax <= 0.0)
+        return saturate(vert.y4) - saturate(vert.y0);
+    
     return lineWinding(vert.x0, vert.y0, vert.x1, vert.y1)
         + lineWinding(vert.x1, vert.y1, vert.x2, vert.y2)
         + lineWinding(vert.x2, vert.y2, vert.x3, vert.y3)
@@ -511,17 +525,13 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
 }
 
 fragment float4 fast_edges_fragment_main(EdgesVertex vert [[stage_in]]) {
-    float winding = 0;
-    winding += lineWinding(vert.x0, vert.y0, vert.x2, vert.y2);
-    winding += lineWinding(vert.x3, vert.y3, vert.x5, vert.y5);
-    return winding;
+    return lineWinding(vert.x0, vert.y0, vert.x2, vert.y2)
+         + lineWinding(vert.x3, vert.y3, vert.x5, vert.y5);
 }
 
 fragment float4 quad_edges_fragment_main(EdgesVertex vert [[stage_in]]) {
-    float winding = 0;
-    winding += quadraticWinding(vert.x0, vert.y0, vert.x1, vert.y1, vert.x2, vert.y2);
-    winding += quadraticWinding(vert.x3, vert.y3, vert.x4, vert.y4, vert.x5, vert.y5);
-    return winding;
+    return monotoneQuadraticWinding(vert.x0, vert.y0, vert.x1, vert.y1, vert.x2, vert.y2)
+         + monotoneQuadraticWinding(vert.x3, vert.y3, vert.x4, vert.y4, vert.x5, vert.y5);
 }
 
 #pragma mark - Instances
@@ -566,56 +576,67 @@ vertex InstancesVertex instances_vertex_main(
     float w = widths[iz], cw = max(1.0, w), dw = 0.5 * (1.0 + cw);
     float alpha = select(1.0, w / cw, w != 0), dx, dy;
     if (inst.iz & Instance::kOutlines) {
+        float x0, y0, x1, y1, x2, y2;
+        bool pcap, ncap;
         const bool roundCap = w > 1.0 && inst.iz & Instance::kRoundCap;
         const bool squareCap = inst.iz & Instance::kSquareCap;
         const bool roundJoin = inst.iz & Instance::kRoundJoin;
+        
+        bool isCurve;
+        float2 no, m0, m1;
+        float ow = 0;
+        
+        
         const short prevIndex = inst.outline.prev, nextIndex = inst.outline.next;
         const device Instance & pinst = instances[iid + prevIndex], & ninst = instances[iid + nextIndex];
         const device Quadratic& p = pinst.outline.quad, & o = inst.outline.quad, & n = ninst.outline.quad;
         const bool pcurve = params->useCurves && p.x1 != FLT_MAX;
         const bool ncurve = params->useCurves && n.x1 != FLT_MAX;
         
-        float x0, y0, x1, y1, x2, y2;
-        float ax, bx, cx, ay, by, cy, ow, lcap;
-        bool pcap = prevIndex == 0 || p.x2 != o.x0 || p.y2 != o.y0;
-        bool ncap = nextIndex == 0 || n.x0 != o.x2 || n.y0 != o.y2;
+        pcap = prevIndex == 0 || p.x2 != o.x0 || p.y2 != o.y0;
+        ncap = nextIndex == 0 || n.x0 != o.x2 || n.y0 != o.y2;
         x0 = o.x0, y0 = o.y0, x1 = o.x1, y1 = o.y1, x2 = o.x2, y2 = o.y2;
         
-        float px0, py0, pdot, nx1, ny1, ndot;
-        px0 = x0 - (pcurve ? p.x1 : p.x0);
-        py0 = y0 - (pcurve ? p.y1 : p.y0);
-        nx1 = (ncurve ? n.x1 : n.x2) - x2;
-        ny1 = (ncurve ? n.y1 : n.y2) - y2;
-        
+        float ax, bx, cx, ay, by, cy;
         ax = x1 - x2, bx = x1 - x0, cx = x2 - x0;
         ay = y1 - y2, by = y1 - y0, cy = y2 - y0;
         float cdot = cx * cx + cy * cy, rc = rsqrt(cdot);
         float area = cx * by - cy * bx;
         float tc = abs(area / cdot);
         
-        const bool isCurve = params->useCurves && x1 != FLT_MAX && tc > 1e-3;
+        isCurve = params->useCurves && x1 != FLT_MAX && tc > 1e-3;
         ow = isCurve ? 0.5 * tc / rc : 0.0;
         
-        lcap = (isCurve ? 0.41 * dw : 0.0) + (squareCap || roundCap ? dw : 0.5);
-        float caplimit = dw == 1.0 ? 0.0 : -0.866025403784439;
-    
+        float caplimit = dw == 1.0 ? 0.0 : kMiterLimit;
+        
+        float px0, py0, pdot, nx1, ny1, ndot;
+        px0 = x0 - (pcurve ? p.x1 : p.x0);
+        py0 = y0 - (pcurve ? p.y1 : p.y0);
+        nx1 = (ncurve ? n.x1 : n.x2) - x2;
+        ny1 = (ncurve ? n.y1 : n.y2) - y2;
         pdot = px0 * px0 + py0 * py0;
         ndot = nx1 * nx1 + ny1 * ny1;
         
-        float2 no = float2(cx, cy) * rc, prev, next, tangent, miter0, miter1;
+        no = float2(cx, cy) * rc;
+        float2 prev, next, tangent;
         
         next = normalize({ (isCurve ? x1 : x2) - x0, (isCurve ? y1 : y2) - y0 });
         prev = rsqrt(pdot) * float2(px0, py0);
         pcap = pcap || pdot < 1e-6 || dot(prev, next) < caplimit;
         tangent = pcap ? no : normalize(prev + next);
-        miter0 = (dw + ow) / abs(dot(no, tangent)) * float2(-tangent.y, tangent.x);
+        m0 = 1.0 / abs(dot(no, tangent)) * float2(-tangent.y, tangent.x);
         
         prev = normalize({ x2 - (isCurve ? x1 : x0), y2 - (isCurve ? y1 : y0) });
         next = rsqrt(ndot) * float2(nx1, ny1);
         ncap = ncap || ndot < 1e-6 || dot(prev, next) < caplimit;
         tangent = ncap ? no : normalize(prev + next);
-        miter1 = (dw + ow) / abs(dot(no, tangent)) * float2(-tangent.y, tangent.x);
-                
+        m1 = 1.0 / abs(dot(no, tangent)) * float2(-tangent.y, tangent.x);
+        
+        float lcap = (isCurve ? 0.41 * dw : 0.0) + (squareCap || roundCap ? dw : 0.5);
+        
+        float2 miter0 = (dw + ow) * m0;
+        float2 miter1 = (dw + ow) * m1;
+        
         float lp, cx0, cy0, ln, cx1, cy1, t, dt, rt;
         lp = select(0.0, lcap, pcap) + err, cx0 = x0 - no.x * lp, cy0 = y0 - no.y * lp;
         ln = select(0.0, lcap, ncap) + err, cx1 = x2 + no.x * ln, cy1 = y2 + no.y * ln;

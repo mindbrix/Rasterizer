@@ -21,8 +21,8 @@
 #import "Document.h"
 
 @interface Document ()
-@property(nonatomic, strong) NSData *pdfData;
-@property(nonatomic, strong) NSData *svgData;
+@property(nonatomic, strong) NSURL *pdfUrl;
+@property(nonatomic, strong) NSURL *svgUrl;
 @end
 
 @implementation Document
@@ -31,13 +31,12 @@
 - (void)windowControllerDidLoadNib:(NSWindowController *)aController {
     [super windowControllerDidLoadNib:aController];
     
-    if (self.pdfData == nil && self.svgData == nil) {
+    if (self.svgUrl == nil && self.pdfUrl == nil) {
         NSURL *url = [[NSBundle mainBundle] URLForResource:@"Rasterizer Default" withExtension:@"pdf"];
-        NSData *data = [NSData dataWithContentsOfURL:url];
-        self.view.pdfData = self.pdfData = data;
+        self.view.pdfUrl = self.pdfUrl = url;
     } else {
-        self.view.pdfData = self.pdfData;
-        self.view.svgData = self.svgData;
+        self.view.pdfUrl = self.pdfUrl;
+        self.view.svgUrl = self.svgUrl;
     }
 }
 
@@ -52,9 +51,9 @@
 
 - (BOOL)readFromURL:(NSURL *)url ofType:(NSString *)typeName error:(NSError **)outError {
     if ([typeName isEqualToString:@"PDF"])
-        self.pdfData = [NSData dataWithContentsOfURL:url];
+        self.pdfUrl = url;
     else if ([typeName isEqualToString:@"SVG"])
-        self.svgData = [NSData dataWithContentsOfURL:url];
+        self.svgUrl = url;
     return YES;
 }
 
