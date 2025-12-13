@@ -25,103 +25,6 @@
 #pragma clang diagnostic ignored "-Wcomma"
 
 struct Rasterizer {
-    struct Transform {
-        Transform() : a(1.f), b(0.f), c(0.f), d(1.f), tx(0.f), ty(0.f) {}
-        Transform(float a, float b, float c, float d, float tx, float ty) : a(a), b(b), c(c), d(d), tx(tx), ty(ty) {}
-        inline Transform concat(const Transform t) const {
-            return {
-                a * t.a + b * t.c, a * t.b + b * t.d,
-                c * t.a + d * t.c, c * t.b + d * t.d,
-                tx * t.a + ty * t.c + t.tx, tx * t.b + ty * t.d + t.ty
-            };
-        }
-        inline Transform concatAroundCenter(const Transform t, float cx, float cy) const {
-            return Transform(a, b, c, d, tx - cx, ty - cy).concat(Transform(t.a, t.b, t.c, t.d, t.tx + cx, t.ty + cy));
-        }
-        inline Transform invert() const {
-            float det = a * d - b * c, recip = 1.f / det;
-            return det == 0.f ? *this : Transform(
-                d * recip,                      -b * recip,
-                -c * recip,                     a * recip,
-                (c * ty - d * tx) * recip,      -(a * ty - b * tx) * recip
-            );
-        }
-        inline float scale() const { return sqrtf(fabsf(a * d - b * c)); }
-        float a, b, c, d, tx, ty;
-    };
-    struct Bounds {
-        static inline Bounds huge() { return Bounds(-5e11f, -5e11f, 5e11f, 5e11f); }
-        Bounds() : lx(FLT_MAX), ly(FLT_MAX), ux(-FLT_MAX), uy(-FLT_MAX) {}
-        Bounds(float lx, float ly, float ux, float uy) : lx(lx), ly(ly), ux(ux), uy(uy) {}
-        inline float width() const {
-            return ux - lx;
-        }
-        inline float height() const {
-            return uy - ly;
-        }
-        inline float cx() const {
-            return 0.5f * (lx + ux);
-        }
-        inline float cy() const {
-            return 0.5f * (ly + uy);
-        }
-        inline bool contains(const Bounds b) const {
-            return lx <= b.lx && ux >= b.ux && ly <= b.ly && uy >= b.uy;
-        }
-        inline void extend(float x, float y) {
-            lx = fminf(lx, x), ly = fminf(ly, y), ux = fmaxf(ux, x), uy = fmaxf(uy, y);
-        }
-        inline void extend(const Bounds b) {
-            lx = fminf(lx, b.lx), ly = fminf(ly, b.ly), ux = fmaxf(ux, b.ux), uy = fmaxf(uy, b.uy);
-        }
-        inline Bounds inset(float dx, float dy) const {
-            bool valid = dx * 2.f < ux - lx && dy * 2.f < uy - ly;
-            return valid ? Bounds(lx + dx, ly + dy, ux - dx, uy - dy) : *this;
-        }
-        inline Bounds integral() const {
-            return { floorf(lx), floorf(ly), ceilf(ux), ceilf(uy) };
-        }
-        inline Bounds intersect(const Bounds b) const {
-            return {
-                fmaxf(b.lx, fminf(b.ux, lx)), fmaxf(b.ly, fminf(b.uy, ly)),
-                fmaxf(b.lx, fminf(b.ux, ux)), fmaxf(b.ly, fminf(b.uy, uy))
-            };
-        }
-        inline bool isHuge() const {
-            return lx == -5e11f;
-        }
-        inline bool isNull() const {
-            return lx == FLT_MAX && ly == FLT_MAX;
-        }
-        inline bool isZero() const {
-            return lx == ux && ly == uy;
-        }
-        inline Bounds(const Transform quad) :
-            lx(quad.tx + fminf(0.f, quad.a) + fminf(0.f, quad.c)),
-            ly(quad.ty + fminf(0.f, quad.b) + fminf(0.f, quad.d)),
-            ux(quad.tx + fmaxf(0.f, quad.a) + fmaxf(0.f, quad.c)),
-            uy(quad.ty + fmaxf(0.f, quad.b) + fmaxf(0.f, quad.d)) {
-        }
-        inline Transform quad(const Transform t) const {
-            float w = width(), h = height();
-            return {
-                t.a * w, t.b * w,
-                t.c * h, t.d * h,
-                lx * t.a + ly * t.c + t.tx,
-                lx * t.b + ly * t.d + t.ty
-            };
-        }
-        inline Transform fitTransform(const Bounds b) const {
-            float w = width(), h = height(), bw = b.width(), bh = b.height(), s = fminf(w / bw, h / bh);
-            return {
-                s, 0.f,
-                0.f, s,
-                lx + 0.5f * (w - s * bw) - s * b.lx,
-                ly + 0.5f * (h - s * bh) - s * b.ly
-            };
-        }
-        float lx, ly, ux, uy;
-    };
     template<typename T>
     struct Ref {
         Ref() {
@@ -240,6 +143,105 @@ struct Rasterizer {
         
         T *base = nullptr;  Ref<Memory<T>> memory;  size_t end = 0, idx = 0;
     };
+    
+    struct Transform {
+        Transform() : a(1.f), b(0.f), c(0.f), d(1.f), tx(0.f), ty(0.f) {}
+        Transform(float a, float b, float c, float d, float tx, float ty) : a(a), b(b), c(c), d(d), tx(tx), ty(ty) {}
+        inline Transform concat(const Transform t) const {
+            return {
+                a * t.a + b * t.c, a * t.b + b * t.d,
+                c * t.a + d * t.c, c * t.b + d * t.d,
+                tx * t.a + ty * t.c + t.tx, tx * t.b + ty * t.d + t.ty
+            };
+        }
+        inline Transform concatAroundCenter(const Transform t, float cx, float cy) const {
+            return Transform(a, b, c, d, tx - cx, ty - cy).concat(Transform(t.a, t.b, t.c, t.d, t.tx + cx, t.ty + cy));
+        }
+        inline Transform invert() const {
+            float det = a * d - b * c, recip = 1.f / det;
+            return det == 0.f ? *this : Transform(
+                d * recip,                      -b * recip,
+                -c * recip,                     a * recip,
+                (c * ty - d * tx) * recip,      -(a * ty - b * tx) * recip
+            );
+        }
+        inline float scale() const { return sqrtf(fabsf(a * d - b * c)); }
+        float a, b, c, d, tx, ty;
+    };
+    struct Bounds {
+        static inline Bounds huge() { return Bounds(-5e11f, -5e11f, 5e11f, 5e11f); }
+        Bounds() : lx(FLT_MAX), ly(FLT_MAX), ux(-FLT_MAX), uy(-FLT_MAX) {}
+        Bounds(float lx, float ly, float ux, float uy) : lx(lx), ly(ly), ux(ux), uy(uy) {}
+        inline float width() const {
+            return ux - lx;
+        }
+        inline float height() const {
+            return uy - ly;
+        }
+        inline float cx() const {
+            return 0.5f * (lx + ux);
+        }
+        inline float cy() const {
+            return 0.5f * (ly + uy);
+        }
+        inline bool contains(const Bounds b) const {
+            return lx <= b.lx && ux >= b.ux && ly <= b.ly && uy >= b.uy;
+        }
+        inline void extend(float x, float y) {
+            lx = fminf(lx, x), ly = fminf(ly, y), ux = fmaxf(ux, x), uy = fmaxf(uy, y);
+        }
+        inline void extend(const Bounds b) {
+            lx = fminf(lx, b.lx), ly = fminf(ly, b.ly), ux = fmaxf(ux, b.ux), uy = fmaxf(uy, b.uy);
+        }
+        inline Bounds inset(float dx, float dy) const {
+            bool valid = dx * 2.f < ux - lx && dy * 2.f < uy - ly;
+            return valid ? Bounds(lx + dx, ly + dy, ux - dx, uy - dy) : *this;
+        }
+        inline Bounds integral() const {
+            return { floorf(lx), floorf(ly), ceilf(ux), ceilf(uy) };
+        }
+        inline Bounds intersect(const Bounds b) const {
+            return {
+                fmaxf(b.lx, fminf(b.ux, lx)), fmaxf(b.ly, fminf(b.uy, ly)),
+                fmaxf(b.lx, fminf(b.ux, ux)), fmaxf(b.ly, fminf(b.uy, uy))
+            };
+        }
+        inline bool isHuge() const {
+            return lx == -5e11f;
+        }
+        inline bool isNull() const {
+            return lx == FLT_MAX && ly == FLT_MAX;
+        }
+        inline bool isZero() const {
+            return lx == ux && ly == uy;
+        }
+        inline Bounds(const Transform quad) :
+            lx(quad.tx + fminf(0.f, quad.a) + fminf(0.f, quad.c)),
+            ly(quad.ty + fminf(0.f, quad.b) + fminf(0.f, quad.d)),
+            ux(quad.tx + fmaxf(0.f, quad.a) + fmaxf(0.f, quad.c)),
+            uy(quad.ty + fmaxf(0.f, quad.b) + fmaxf(0.f, quad.d)) {
+        }
+        inline Transform quad(const Transform t) const {
+            float w = width(), h = height();
+            return {
+                t.a * w, t.b * w,
+                t.c * h, t.d * h,
+                lx * t.a + ly * t.c + t.tx,
+                lx * t.b + ly * t.d + t.ty
+            };
+        }
+        inline Transform fitTransform(const Bounds b) const {
+            float w = width(), h = height(), bw = b.width(), bh = b.height(), s = fminf(w / bw, h / bh);
+            return {
+                s, 0.f,
+                0.f, s,
+                lx + 0.5f * (w - s * bw) - s * b.lx,
+                ly + 0.5f * (h - s * bh) - s * b.ly
+            };
+        }
+        float lx, ly, ux, uy;
+    };
+    
     
     struct Atom {
         enum Flags { isMoveTo = 1 << 31, kMask = ~isMoveTo };
@@ -1522,7 +1524,7 @@ struct Rasterizer {
                 }
             }
         }
-        virtual void writeInstance(float x0, float y0, float x1, float y1, float x2, float y2) {
+        void writeInstance(float x0, float y0, float x1, float y1, float x2, float y2) {
             Instance *dst = outlines->alloc(1);
             struct Quadratic& quad = dst->outline.quad;
             dst->iz = iz, quad.x0 = x0, quad.y0 = y0, quad.x1 = x1, quad.y1 = y1, quad.x2 = x2, quad.y2 = y2;
