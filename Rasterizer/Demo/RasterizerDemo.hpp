@@ -249,7 +249,7 @@ struct RasterizerDemo {
                 const Ra::Transform& ctm = scene->ctms[i1];
                 const float width = scene->widths[i1];
                 auto flags = scene->flags[i1];
-                Ra::Color red(0, 0, 255, 255);
+                Ra::Color red(0, 0, 255, 64);
                 Ra::SceneRef mouseScene;
                 mouseScene->addPath(path, ctm, red, width, flags);
                 draw.addScene(mouseScene, list.ctms[i0], list.clips[i0]);

@@ -1570,19 +1570,30 @@ struct Rasterizer {
             *idxs->alloc(1) = uint32_t(outlines->end);
             
             if (x1 == FLT_MAX) {
-                new (outlines->alloc(1)) Point16(x0, y0);
                 if (prevx == FLT_MAX)
                     prevx = x0, prevy = y0, firstx = x2, firsty = y2;
-                writeTangent(prevx, prevy, x0, y0, x2, y2);
-                prevx = x0, prevy = y0;
+                if (isTangentValid(prevx, prevy, x0, y0, x2, y2)) {
+                    new (outlines->alloc(1)) Point16(x0, y0);
+                    writeTangent(prevx, prevy, x0, y0, x2, y2);
+                    prevx = x0, prevy = y0;
+                } else {
+                    EndSubpath(x0, y0, x0, y0, false);
+                    writeInstance(x0, y0, x1, y1, x2, y2);
+                }
             } else {
-                Point16 *p = outlines->alloc(2);
-                new (p + 0) Point16(x0, y0, true), new (p + 1) Point16(x1, y1);
                 if (prevx == FLT_MAX)
                     prevx = x0, prevy = y0, firstx = x1, firsty = y1;
-                writeTangent(prevx, prevy, x0, y0, x1, y1);
-                writeTangent(x0, y0, x1, y1, x2, y2);
-                prevx = x1, prevy = y1;
+                if (isTangentValid(prevx, prevy, x0, y0, x1, y1)) {
+                    Point16 *p = outlines->alloc(2);
+                    new (p + 0) Point16(x0, y0, true), new (p + 1) Point16(x1, y1);
+                    
+                    writeTangent(prevx, prevy, x0, y0, x1, y1);
+                    writeTangent(x0, y0, x1, y1, x2, y2);
+                    prevx = x1, prevy = y1;
+                } else {
+                    EndSubpath(x0, y0, x0, y0, false);
+                    writeInstance(x0, y0, x1, y1, x2, y2);
+                }
             }
         }
         void EndSubpath(float x0, float y0, float x1, float y1, bool closed) {
@@ -1601,6 +1612,13 @@ struct Rasterizer {
             }
             prevx = FLT_MAX;
         }
+        bool isTangentValid(float x0, float y0, float x1, float y1, float x2, float y2) {
+            float ax, ay, bx, by, ra, rb;
+            ax = x1 - x0, ay = y1 - y0, ra = 1.f / sqrtf(ax * ax + ay * ay + FLT_EPSILON), ax *= ra, ay *= ra;
+            bx = x2 - x1, by = y2 - y1, rb = 1.f / sqrtf(bx * bx + by * by + FLT_EPSILON), bx *= rb, by *= rb;
+            return ax * bx + ay * by > kMiterLimit;
+        }
+        
         void writeTangent(float x0, float y0, float x1, float y1, float x2, float y2) {
             float ax, ay, bx, by, ra, rb, tx, ty, rt, scale = kMoleculesRange / kMiterRange;
             ax = x1 - x0, ay = y1 - y0, ra = 1.f / sqrtf(ax * ax + ay * ay + FLT_EPSILON), ax *= ra, ay *= ra;
