@@ -10,7 +10,7 @@ import Foundation
 import RasterizerObjC
 
 
-public class SwiftDemoView: RasterizerView {
+public class SwiftDemoView: RasterizerView, NSFontChanging {
     let demo = SwiftDemo()
     
     required init?(coder: NSCoder) {
@@ -24,6 +24,9 @@ public class SwiftDemoView: RasterizerView {
     override public func becomeFirstResponder() -> Bool {
         self.window?.acceptsMouseMovedEvents = true
         return true
+    }
+    public func changeFont(_ sender: NSFontManager?) {
+        demo.selectedFont = NSFontManager.shared.convert(NSFont(name: "HelveticaNeue-Medium", size: 14)!)
     }
     override public func keyDown(with event: NSEvent) {
         guard let characters = event.characters?.first?.lowercased(), let character = characters.first else {

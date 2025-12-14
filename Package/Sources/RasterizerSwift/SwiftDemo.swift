@@ -44,8 +44,9 @@ class SwiftDemo: NSObject, RASceneListDelegate {
     var bounds = CGRect.zero
     var pastedScene: RAScene?
     
+    var selectedFont: NSFont?
     var font: NSFont {
-        NSFontManager.shared.selectedFont ?? NSFont(name: "HelveticaNeue-Medium", size: 24)!
+        selectedFont ?? NSFont(name: "HelveticaNeue-Medium", size: 14)!
     }
     let store = Store()
     var loginPage: Page {

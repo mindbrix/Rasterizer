@@ -47,17 +47,18 @@ struct Font {
 }
 
 extension Control {
-    func drawIn(_ bounds: CGRect, font: Font, scene: RAScene, store: Store) {
+    func drawAt(_ origin: CGPoint, font: Font, scene: RAScene, store: Store, clip: CGRect) {
+        let ctm = CGAffineTransform(translationX: origin.x, y: origin.y)
         switch self {
         case .button(let label, _):
             let string = label.rawValue
-            scene.addText(string, fontName: font.name, fontSize: font.size, ctm: .identity, color: RAPaint(), clip: .zero)
+            scene.addText(string, fontName: font.name, fontSize: font.size, ctm: ctm, color: RAPaint(), clip: clip)
         case .label(let label):
             let string = label.rawValue
-            scene.addText(string, fontName: font.name, fontSize: font.size, ctm: .identity, color: RAPaint(), clip: .zero)
+            scene.addText(string, fontName: font.name, fontSize: font.size, ctm: ctm, color: RAPaint(), clip: clip)
         case .text(let key):
             let string = store.getValue(key: key) as? String ?? ""
-            scene.addText(string, fontName: font.name, fontSize: font.size, ctm: .identity, color: RAPaint(), clip: .zero)
+            scene.addText(string, fontName: font.name, fontSize: font.size, ctm: ctm, color: RAPaint(), clip: clip)
         }
     }
 }
@@ -68,8 +69,11 @@ struct Page {
 
 extension Page {
     func drawIn(_ bounds: CGRect, font: Font, scene: RAScene, store: Store) {
-        for control in controls {
-            control.drawIn(bounds, font: font, scene: scene, store: store)
+        let count = Double(controls.count)
+        let dy = bounds.height / count
+        for (i, control) in controls.enumerated() {
+            let origin = CGPoint(x: bounds.origin.x, y: bounds.origin.y + (count - 1 - Double(i)) * dy)
+            control.drawAt(origin, font: font, scene: scene, store: store, clip: .zero)
         }
     }
 }
