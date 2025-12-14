@@ -14,7 +14,9 @@ class SwiftDemo: NSObject, RASceneListDelegate {
     enum Event {
         case keyDown(character: Character, flags: NSEvent.ModifierFlags)
         case magnify(scale: Double)
+        case mouseDown(x: Double, y: Double, flags: NSEvent.ModifierFlags)
         case mouseMove(x: Double, y: Double, flags: NSEvent.ModifierFlags)
+        case mouseUp(x: Double, y: Double, flags: NSEvent.ModifierFlags)
         case rotate(angle: Float)
         case translate(tx: Double, ty: Double)
     }
@@ -83,11 +85,15 @@ class SwiftDemo: NSObject, RASceneListDelegate {
             break
         case .magnify(let scale):
             ctm = ctm.concatAroundCenter(t: CGAffineTransform(scaleX: scale, y: scale), cx: bounds.midX, cy: bounds.midY)
+        case .mouseDown(let x, let y, let flags):
+            break
         case .mouseMove(let x, let y, let flags):
             if (flags.contains(.shift)) {
                 let inv = ctm.inverted()
                 slider = max(0.0, min(1.0, (x * inv.a + y * inv.c + inv.tx) / bounds.width))
             }
+        case .mouseUp(let x, let y, let flags):
+            break
         case .rotate(let angle):
             ctm = ctm.concatAroundCenter(t: CGAffineTransform(rotationAngle: CGFloat(angle)), cx: bounds.midX, cy: bounds.midY)
         case .translate(let tx, let ty):
