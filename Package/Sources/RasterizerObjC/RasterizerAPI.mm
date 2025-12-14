@@ -244,6 +244,12 @@
     _scene->addPath(p, m, color.paint, width, capFlags | joinFlags, & clipBounds);
 }
 
+- (void)addText:(nonnull NSString *)string
+            ctm:(CGAffineTransform)ctm
+          color:(nonnull RAPaint *)color {
+    
+}
+
 - (CGRect)addTextLine:(NSAttributedString *)string ctm:(CGAffineTransform)ctm clip:(CGRect)clip {
     return RaCT::addTextLineToScene((__bridge CFAttributedStringRef)string, ctm, clip, _scene);
 }

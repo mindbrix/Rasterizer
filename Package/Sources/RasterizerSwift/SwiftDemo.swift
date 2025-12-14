@@ -44,6 +44,22 @@ class SwiftDemo: NSObject, RASceneListDelegate {
     var bounds = CGRect.zero
     var pastedScene: RAScene?
     
+    let store = Store()
+    var page: Page {
+        Page(controls: [
+                .label(label: .LogIn),
+                .label(label: .UserName),
+                .text(key: .username),
+                .label(label: .Password),
+                .text(key: .password),
+                .button(label: .LogIn, closure: { [weak store] in
+                    guard let store else {  return  }
+                    let tapcount = store.intValue(key: .tapcount)
+                    print("\(tapcount)")
+                    store.setValue(value: tapcount + 1, key: .tapcount)
+                })
+            ])
+    }
     func handleEvent(_ event: Event) -> Bool {
         switch event {
         case .keyDown(let character, let flags):
