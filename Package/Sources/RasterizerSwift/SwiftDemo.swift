@@ -45,9 +45,11 @@ class SwiftDemo: NSObject, RASceneListDelegate {
     var pastedScene: RAScene?
     
     var selectedFont: NSFont?
-    var font: NSFont {
-        selectedFont ?? NSFont(name: "HelveticaNeue-Medium", size: 14)!
+    var font: Font {
+        let f = selectedFont ?? NSFont(name: "HelveticaNeue-Medium", size: 14)!
+        return Font(name: f.fontName, size: f.pointSize)
     }
+    
     let store = Store()
     var loginPage: Page {
         Page(controls: [
@@ -105,14 +107,17 @@ class SwiftDemo: NSObject, RASceneListDelegate {
             break
         case .magnify(let scale):
             ctm = ctm.concatAroundCenter(t: CGAffineTransform(scaleX: scale, y: scale), cx: bounds.midX, cy: bounds.midY)
-        case .mouseDown(let x, let y, let flags):
-            break
+        case .mouseDown(let x, let y, _):
+            let inv = ctm.inverted()
+            let ux = x * inv.a + y * inv.c + inv.tx
+            let uy = x * inv.b + y * inv.d + inv.ty
+            loginPage.mouseDownIn(bounds, font: font, mx: ux, my: uy, store: store)
         case .mouseMove(let x, let y, let flags):
             if (flags.contains(.shift)) {
                 let inv = ctm.inverted()
                 slider = max(0.0, min(1.0, (x * inv.a + y * inv.c + inv.tx) / bounds.width))
             }
-        case .mouseUp(let x, let y, let flags):
+        case .mouseUp(_, _, _):
             break
         case .rotate(let angle):
             ctm = ctm.concatAroundCenter(t: CGAffineTransform(rotationAngle: CGFloat(angle)), cx: bounds.midX, cy: bounds.midY)
@@ -139,7 +144,6 @@ class SwiftDemo: NSObject, RASceneListDelegate {
             )
         }
         let pg = RAScene()
-        let font = Font(name: self.font.fontName, size: self.font.pointSize)
         loginPage.drawIn(bounds, font: font, scene: pg, store: store)
         list.add(pg, ctm: .identity, clip: .zero)
         

@@ -52,7 +52,7 @@ extension Control {
         switch self {
         case .button(let label, _):
             let string = label.rawValue
-            scene.addText(string, fontName: font.name, fontSize: font.size, ctm: ctm, color: RAPaint(), clip: clip)
+            scene.addText(string, fontName: font.name, fontSize: font.size, ctm: ctm, color: RAPaint(red: 1, green: 0, blue: 0, alpha: 1), clip: clip)
         case .label(let label):
             let string = label.rawValue
             scene.addText(string, fontName: font.name, fontSize: font.size, ctm: ctm, color: RAPaint(), clip: clip)
@@ -68,12 +68,31 @@ struct Page {
 }
 
 extension Page {
-    func drawIn(_ bounds: CGRect, font: Font, scene: RAScene, store: Store) {
+    func boundsForIndex(_ bounds: CGRect, index: Int) -> CGRect {
         let count = Double(controls.count)
-        let dy = bounds.height / count
+        let dy = bounds.height / Double(controls.count)
+        return CGRect(x: bounds.origin.x,
+                      y: bounds.origin.y + (count - 1 - Double(index)) * dy,
+                      width: bounds.width,
+                      height: dy)
+    }
+    func drawIn(_ bounds: CGRect, font: Font, scene: RAScene, store: Store) {
         for (i, control) in controls.enumerated() {
-            let origin = CGPoint(x: bounds.origin.x, y: bounds.origin.y + (count - 1 - Double(i)) * dy)
-            control.drawAt(origin, font: font, scene: scene, store: store, clip: .zero)
+            let b = boundsForIndex(bounds, index: i)
+            control.drawAt(b.origin, font: font, scene: scene, store: store, clip: .zero)
+        }
+    }
+    func mouseDownIn(_ bounds: CGRect, font: Font, mx: Double, my: Double, store: Store) {
+        for (i, control) in controls.enumerated() {
+            let b = boundsForIndex(bounds, index: i)
+            if b.contains(CGPoint(x: mx, y: my)) {
+                switch control {
+                case .button(_, let closure):
+                    closure()
+                default:
+                    break
+                }
+            }
         }
     }
 }
