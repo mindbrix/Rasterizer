@@ -44,8 +44,11 @@ class SwiftDemo: NSObject, RASceneListDelegate {
     var bounds = CGRect.zero
     var pastedScene: RAScene?
     
+    var font: NSFont {
+        NSFontManager.shared.selectedFont ?? NSFont(name: "HelveticaNeue-Medium", size: 24)!
+    }
     let store = Store()
-    var page: Page {
+    var loginPage: Page {
         Page(controls: [
                 .label(label: .LogIn),
                 .label(label: .UserName),
@@ -134,6 +137,11 @@ class SwiftDemo: NSObject, RASceneListDelegate {
                 clip: .zero
             )
         }
+        let pg = RAScene()
+        let font = Font(name: self.font.fontName, size: self.font.pointSize)
+        loginPage.drawIn(bounds, font: font, scene: pg, store: store)
+        list.add(pg, ctm: .identity, clip: .zero)
+        
         list.ctm = ctm
         list.useClips = useClips;
         list.useCurves = useCurves

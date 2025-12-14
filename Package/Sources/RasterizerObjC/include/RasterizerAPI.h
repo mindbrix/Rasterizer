@@ -72,10 +72,6 @@ typedef NS_ENUM(NSUInteger, RAJoinStyle) {
          capStyle:(RACapStyle)capStyle
         joinStyle:(RAJoinStyle)joinStyle;
 
-- (void)addText:(nonnull NSString *)string
-            ctm:(CGAffineTransform)ctm
-          color:(nonnull RAPaint *)color;
-
 - (void)addFill:(nonnull RAPath *)path
             ctm:(CGAffineTransform)ctm
            color:(nonnull RAPaint *)color
@@ -91,6 +87,13 @@ typedef NS_ENUM(NSUInteger, RAJoinStyle) {
         joinStyle:(RAJoinStyle)joinStyle
              clip:(CGRect)clip
          clipPath:(nullable RAPath *)clipPath;
+
+- (CGRect)addText:(nonnull NSString *)string
+       fontName:(nonnull NSString *)fontName
+       fontSize:(double)fontSize
+            ctm:(CGAffineTransform)ctm
+          color:(nonnull RAPaint *)color
+           clip:(CGRect)clip;
 
 - (CGRect)addTextLine:(nonnull NSAttributedString *)string
                   ctm:(CGAffineTransform)ctm

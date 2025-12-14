@@ -41,19 +41,23 @@ enum Control {
     case text(key: Store.Key)
 }
 
+struct Font {
+    let name: String
+    let size: Double
+}
 
 extension Control {
-    func drawIn(_ bounds: CGRect, scene: RAScene, store: Store) {
+    func drawIn(_ bounds: CGRect, font: Font, scene: RAScene, store: Store) {
         switch self {
         case .button(let label, _):
             let string = label.rawValue
-            print(string)
+            scene.addText(string, fontName: font.name, fontSize: font.size, ctm: .identity, color: RAPaint(), clip: .zero)
         case .label(let label):
             let string = label.rawValue
-            print(string)
+            scene.addText(string, fontName: font.name, fontSize: font.size, ctm: .identity, color: RAPaint(), clip: .zero)
         case .text(let key):
             let string = store.getValue(key: key) as? String ?? ""
-            print(string)
+            scene.addText(string, fontName: font.name, fontSize: font.size, ctm: .identity, color: RAPaint(), clip: .zero)
         }
     }
 }
@@ -63,9 +67,9 @@ struct Page {
 }
 
 extension Page {
-    func drawIn(_ bounds: CGRect, scene: RAScene, store: Store) {
+    func drawIn(_ bounds: CGRect, font: Font, scene: RAScene, store: Store) {
         for control in controls {
-            control.drawIn(bounds, scene: scene, store: store)
+            control.drawIn(bounds, font: font, scene: scene, store: store)
         }
     }
 }
