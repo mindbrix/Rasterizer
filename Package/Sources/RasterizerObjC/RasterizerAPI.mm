@@ -190,6 +190,32 @@
 
 @end
 
+#pragma mark - RAText
+
+@implementation RAText: NSObject
++ (CGRect)boundsFor:(nonnull NSString *)string
+       fontName:(nonnull NSString *)fontName
+           fontSize:(double)fontSize {
+    CGColorRef color = CGColorCreateGenericGray(0, 1);
+    CFAttributedStringRef attr = RaCT::createAttributedString(string.UTF8String, fontName.UTF8String, fontSize, color);
+    CGColorRelease(color);
+    CGRect bounds = RaCT::boundsForString(attr);
+    CFRelease(attr);
+    return bounds;
+}
+
++ (nonnull NSAttributedString *)createAttributedString:(nonnull NSString *)string
+                                              fontName:(nonnull NSString *)fontName
+                                              fontSize:(double)fontSize
+                                                 color:(nonnull RAPaint *)color {
+    CGColorRef cgColor = RaCG::CGColorCreateFromColor(color.paint.color);
+    CFAttributedStringRef attr = RaCT::createAttributedString(string.UTF8String, fontName.UTF8String, fontSize, cgColor);
+    CGColorRelease(cgColor);
+    return (__bridge_transfer NSAttributedString *)attr;
+    
+}
+@end
+
 
 #pragma mark - RAScene
 

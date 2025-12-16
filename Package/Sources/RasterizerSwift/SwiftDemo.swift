@@ -46,7 +46,7 @@ class SwiftDemo: NSObject, RASceneListDelegate {
     
     var selectedFont: NSFont?
     var font: Font {
-        let f = selectedFont ?? NSFont(name: "HelveticaNeue-Medium", size: 14)!
+        let f = selectedFont ?? NSFont(name: "HelveticaNeue-Medium", size: 72)!
         return Font(name: f.fontName, size: f.pointSize)
     }
     
@@ -55,9 +55,9 @@ class SwiftDemo: NSObject, RASceneListDelegate {
         Page(controls: [
                 .label(label: .LogIn),
                 .label(label: .UserName),
-                .text(key: .username),
+                .text(label: .UserName, key: .username),
                 .label(label: .Password),
-                .text(key: .password),
+                .text(label: .Password, key: .password),
                 .button(label: .LogIn, closure: { [weak store] in
                     guard let store else {  return  }
                     let tapcount = store.intValue(key: .tapcount)
@@ -111,7 +111,7 @@ class SwiftDemo: NSObject, RASceneListDelegate {
             let inv = ctm.inverted()
             let ux = x * inv.a + y * inv.c + inv.tx
             let uy = x * inv.b + y * inv.d + inv.ty
-            loginPage.mouseDownIn(bounds, font: font, mx: ux, my: uy, store: store)
+//            loginPage.mouseDownIn(bounds, font: font, mx: ux, my: uy, store: store)
         case .mouseMove(let x, let y, let flags):
             if (flags.contains(.shift)) {
                 let inv = ctm.inverted()
@@ -144,7 +144,7 @@ class SwiftDemo: NSObject, RASceneListDelegate {
             )
         }
         let pg = RAScene()
-        loginPage.drawIn(bounds, font: font, scene: pg, store: store)
+        loginPage.drawIn(bounds, scene: pg, state: State(font: font, store: store))
         list.add(pg, ctm: .identity, clip: .zero)
         
         list.ctm = ctm

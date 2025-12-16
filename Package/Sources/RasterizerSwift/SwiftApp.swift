@@ -21,6 +21,9 @@ class Store {
     func intValue(key: Key) -> Int {
         dict[key] as? Int ?? 0
     }
+    func stringValue(key: Key) -> String {
+        dict[key] as? String ?? ""
+    }
     func setValue(value: any Hashable, key: Key) {
         dict[key] = value
     }
@@ -38,7 +41,7 @@ enum Control {
     
     case button(label: Label, closure: Closure)
     case label(label: Label)
-    case text(key: Store.Key)
+    case text(label: Label, key: Store.Key)
 }
 
 struct Font {
@@ -46,19 +49,90 @@ struct Font {
     let size: Double
 }
 
+struct State {
+    let font: Font
+    let store: Store
+}
+
+struct Run {
+    let string: String
+    let font: Font
+    let color: RAPaint
+    
+    var attributedString: NSAttributedString {
+        RAText.createAttributedString(string, fontName: font.name, fontSize: font.size, color: color)
+    }
+    var bounds: CGRect {
+        RAText.bounds(for: string, fontName: font.name, fontSize: font.size)
+    }
+    func draw(scene: RAScene, ctm: CGAffineTransform, clip: CGRect) {
+        scene.addTextLine(self.attributedString, ctm: ctm, clip: clip)
+    }
+}
+
+struct Line {
+    enum Alignment: Double {
+        case min = 0, mid = 0.5, max = 1
+    }
+    let alignx: Alignment
+    let aligny: Alignment
+    let runs: [Run]
+    
+    func drawIn(_ bounds: CGRect, scene: RAScene, clip: CGRect) {
+        let width = runs.reduce(0.0) { result, run in
+            result + run.bounds.width
+        }
+        let height = runs.reduce(0.0) { result, run in
+            result + run.bounds.height
+        }
+        let tx = alignx.rawValue * (bounds.width - width)
+        let ty = aligny.rawValue * (bounds.height - height)
+        let ctm = CGAffineTransform(translationX: bounds.minX + tx, y: bounds.minY + ty)
+        
+        for run in runs {
+            run.draw(scene: scene, ctm: ctm, clip: clip)
+        }
+    }
+}
+
 extension Control {
-    func drawAt(_ origin: CGPoint, font: Font, scene: RAScene, store: Store, clip: CGRect) {
-        let ctm = CGAffineTransform(translationX: origin.x, y: origin.y)
+    func runsFor(_ state: State) -> [Run] {
+        let font = state.font
         switch self {
         case .button(let label, _):
-            let string = label.rawValue
-            scene.addText(string, fontName: font.name, fontSize: font.size, ctm: ctm, color: RAPaint(red: 1, green: 0, blue: 0, alpha: 1), clip: clip)
+            return [Run(string: label.rawValue, font: font, color: RAPaint(red: 1, green: 0, blue: 0, alpha: 1))]
         case .label(let label):
-            let string = label.rawValue
-            scene.addText(string, fontName: font.name, fontSize: font.size, ctm: ctm, color: RAPaint(), clip: clip)
-        case .text(let key):
-            let string = store.getValue(key: key) as? String ?? ""
-            scene.addText(string, fontName: font.name, fontSize: font.size, ctm: ctm, color: RAPaint(), clip: clip)
+            return [Run(string: label.rawValue, font: font, color: RAPaint())]
+        case .text(let label, let key):
+            let run0 = Run(string: label.rawValue, font: font, color: RAPaint())
+            let run1 = Run(string: state.store.stringValue(key: key), font: font, color: RAPaint())
+            return [run0, run1]
+        }
+    }
+    
+    func lineFor(_ state: State) -> Line {
+        Line(alignx: .mid, aligny: .max, runs: runsFor(state))
+    }
+    
+    func drawIn(_ bounds: CGRect, scene: RAScene, clip: CGRect, state: State) {
+        lineFor(state).drawIn(bounds, scene: scene, clip: clip)
+    }
+    
+    func mouseIn(mx: Double, my: Double, state: State) -> Bool {
+        for run in runsFor(state) {
+            if run.bounds.contains(CGPoint(x: mx, y: my)) {
+                return true
+            }
+        }
+        return false
+    }
+    
+    func mouseDown() {
+        switch self {
+        case .button(_, let closure):
+            closure()
+        default:
+            break
         }
     }
 }
@@ -76,22 +150,22 @@ extension Page {
                       width: bounds.width,
                       height: dy)
     }
-    func drawIn(_ bounds: CGRect, font: Font, scene: RAScene, store: Store) {
+    func drawIn(_ bounds: CGRect, scene: RAScene, state: State) {
         for (i, control) in controls.enumerated() {
             let b = boundsForIndex(bounds, index: i)
-            control.drawAt(b.origin, font: font, scene: scene, store: store, clip: .zero)
+            
+            let path = RAPath(rect: b)
+            path.close()
+            scene.addStroke(path, ctm: .identity, color: RAPaint(), width: 1, capStyle: .capButt, joinStyle: .joinMiter)
+            
+            control.drawIn(b, scene: scene, clip: .zero, state: state)
         }
     }
     func mouseDownIn(_ bounds: CGRect, font: Font, mx: Double, my: Double, store: Store) {
         for (i, control) in controls.enumerated() {
             let b = boundsForIndex(bounds, index: i)
             if b.contains(CGPoint(x: mx, y: my)) {
-                switch control {
-                case .button(_, let closure):
-                    closure()
-                default:
-                    break
-                }
+//                control.mouseDownIn(b, font: font, mx: mx, my: my, store: store)
             }
         }
     }

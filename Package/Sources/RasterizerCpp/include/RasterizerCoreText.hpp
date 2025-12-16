@@ -24,13 +24,19 @@
 
 
 struct RasterizerCoreText {
-    static CGRect addTextLineToScene(CFAttributedStringRef string, CGAffineTransform ctm, CGRect clip, Ra::SceneRef& scene) {
-        Ra::SceneRef glyphs;
+    static CGRect boundsForString(CFAttributedStringRef string) {
         CTLineRef line = CTLineCreateWithAttributedString(string);
-        addCTLineToScene(line, CGPointZero, ctm, clip, glyphs);
+        CGRect bounds = CTLineGetBoundsWithOptions(line, 0);
         CFRelease(line);
-        scene->appendScene(*glyphs.ptr);
-        return RaCG::CGRectFromBounds(glyphs->bounds());
+        return bounds;
+    }
+                                     
+    static CGRect addTextLineToScene(CFAttributedStringRef string, CGAffineTransform ctm, CGRect clip, Ra::SceneRef& scene) {
+        CTLineRef line = CTLineCreateWithAttributedString(string);
+        CGRect bounds = CTLineGetBoundsWithOptions(line, 0);
+        addCTLineToScene(line, CGPointZero, ctm, clip, scene);
+        CFRelease(line);
+        return bounds;
     }
     
     static CGRect addTextToSceneInRect(CFAttributedStringRef string, CGRect rect, CGAffineTransform ctm, CGRect clip, Ra::SceneRef& scene) {

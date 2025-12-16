@@ -49,6 +49,19 @@
 @end
 
 
+@interface RAText: NSObject
++ (CGRect)boundsFor:(nonnull NSString *)string
+       fontName:(nonnull NSString *)fontName
+         fontSize:(double)fontSize;
+
++ (nonnull NSAttributedString *)createAttributedString:(nonnull NSString *)string
+                                              fontName:(nonnull NSString *)fontName
+                                              fontSize:(double)fontSize
+                                                 color:(nonnull RAPaint *)color;
+
+@end
+
+
 typedef NS_ENUM(NSUInteger, RACapStyle) {
     kCapButt = 0, kCapSquare, kCapRound
 };
