@@ -9,15 +9,6 @@ import Foundation
 import RasterizerObjC
 
 
-extension RAScene {
-    func addRect(_ rect: CGRect, ctm: CGAffineTransform, width: Double, color: RAPaint) {
-        let path = RAPath(rect: rect)
-        path.close()
-        addStroke(path, ctm: ctm, color: color, width: width, capStyle: .capButt, joinStyle: .joinMiter)
-    }
-}
-
-
 class Store {
     enum Key: String, CaseIterable {
         case username

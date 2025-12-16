@@ -1,11 +1,22 @@
 //
-//  CGExtensions.swift
+//  Extensions.swift
 //  RasterizerSwift
 //
 //  Created by Nigel Barber on 13/12/2025.
 //
 
 import CoreGraphics
+import RasterizerObjC
+
+
+extension RAScene {
+    func addRect(_ rect: CGRect, ctm: CGAffineTransform, width: Double, color: RAPaint) {
+        let path = RAPath(rect: rect)
+        path.close()
+        addStroke(path, ctm: ctm, color: color, width: width, capStyle: .capButt, joinStyle: .joinMiter)
+    }
+}
+
 
 extension CGAffineTransform {
     init(center: CGPoint, rotation: Double, scale: CGSize, translation: CGVector) {
@@ -19,6 +30,7 @@ extension CGAffineTransform {
         CGAffineTransform(a, b, c, d, tx - cx, ty - cy).concatenating(CGAffineTransform(t.a, t.b, t.c, t.d, t.tx + cx, t.ty + cy))
     }
 }
+
 
 extension CGPoint {
     init(center: CGPoint, r: Double, theta: Double) {
