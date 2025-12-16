@@ -44,14 +44,19 @@ enum Control {
     case text(label: Label, key: Store.Key)
 }
 
+struct Page {
+    let controls: [Control]
+}
+
+enum PageID: String, CaseIterable {
+    case LogIn
+}
+
+typealias PageMap = [PageID: Page]
+
 struct Font {
     let name: String
     let size: Double
-}
-
-struct State {
-    let font: Font
-    let store: Store
 }
 
 struct Run {
@@ -71,6 +76,11 @@ struct SetRun {
     let run: Run
     let origin: CGPoint
     let closure: Control.Closure?
+}
+
+struct State {
+    let font: Font
+    let store: Store
 }
 
 extension Control {
@@ -124,9 +134,6 @@ extension Control {
     }
 }
 
-struct Page {
-    let controls: [Control]
-}
 
 extension Page {
     func boundsForIndex(_ bounds: CGRect, index: Int) -> CGRect {

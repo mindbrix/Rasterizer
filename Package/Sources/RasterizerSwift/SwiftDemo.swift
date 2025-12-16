@@ -69,6 +69,14 @@ class SwiftDemo: NSObject, RASceneListDelegate {
                 })
             ])
     }
+    var pageMap: PageMap {
+        [.LogIn: loginPage]
+    }
+    var page: Page {
+        pageMap[pageID] ?? Page(controls: [])
+    }
+    var pageID = PageID.LogIn
+    
     func handleEvent(_ event: Event) -> Bool {
         switch event {
         case .keyDown(let character, let flags):
@@ -114,7 +122,7 @@ class SwiftDemo: NSObject, RASceneListDelegate {
             let inv = ctm.inverted()
             let ux = x * inv.a + y * inv.c + inv.tx
             let uy = x * inv.b + y * inv.d + inv.ty
-            loginPage.mouseDownIn(bounds, mx: ux, my: uy, state: state)
+            page.mouseDownIn(bounds, mx: ux, my: uy, state: state)
         case .mouseMove(let x, let y, let flags):
             if (flags.contains(.shift)) {
                 let inv = ctm.inverted()
@@ -147,7 +155,7 @@ class SwiftDemo: NSObject, RASceneListDelegate {
             )
         }
         let pg = RAScene()
-        loginPage.drawIn(bounds, scene: pg, state: state)
+        page.drawIn(bounds, scene: pg, state: state)
         list.add(pg, ctm: .identity, clip: .zero)
         
         list.ctm = ctm
