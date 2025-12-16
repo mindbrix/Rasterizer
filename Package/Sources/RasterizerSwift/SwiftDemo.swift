@@ -51,6 +51,9 @@ class SwiftDemo: NSObject, RASceneListDelegate {
     }
     
     let store = Store()
+    var state: State {
+        State(font: font, store: store)
+    }
     var loginPage: Page {
         Page(controls: [
                 .label(label: .LogIn),
@@ -111,7 +114,7 @@ class SwiftDemo: NSObject, RASceneListDelegate {
             let inv = ctm.inverted()
             let ux = x * inv.a + y * inv.c + inv.tx
             let uy = x * inv.b + y * inv.d + inv.ty
-//            loginPage.mouseDownIn(bounds, font: font, mx: ux, my: uy, store: store)
+            loginPage.mouseDownIn(bounds, mx: ux, my: uy, state: state)
         case .mouseMove(let x, let y, let flags):
             if (flags.contains(.shift)) {
                 let inv = ctm.inverted()
@@ -144,7 +147,7 @@ class SwiftDemo: NSObject, RASceneListDelegate {
             )
         }
         let pg = RAScene()
-        loginPage.drawIn(bounds, scene: pg, state: State(font: font, store: store))
+        loginPage.drawIn(bounds, scene: pg, state: state)
         list.add(pg, ctm: .identity, clip: .zero)
         
         list.ctm = ctm

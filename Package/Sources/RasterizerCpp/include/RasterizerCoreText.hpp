@@ -26,9 +26,12 @@
 struct RasterizerCoreText {
     static CGRect boundsForString(CFAttributedStringRef string) {
         CTLineRef line = CTLineCreateWithAttributedString(string);
-        CGRect bounds = CTLineGetBoundsWithOptions(line, 0);
+        CGFloat ascent, descent, leading, width;
+        width = CTLineGetTypographicBounds(line, & ascent, & descent, & leading);
+        CGRect bounds = CTLineGetBoundsWithOptions(line, kCTLineBoundsUseGlyphPathBounds);
         CFRelease(line);
         return bounds;
+        return CGRectMake(leading, -descent, width, ascent + descent);
     }
                                      
     static CGRect addTextLineToScene(CFAttributedStringRef string, CGAffineTransform ctm, CGRect clip, Ra::SceneRef& scene) {
