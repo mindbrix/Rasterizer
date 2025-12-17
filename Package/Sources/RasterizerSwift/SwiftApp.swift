@@ -89,7 +89,7 @@ struct Run {
 struct SetRun {
     let run: Run
     let origin: CGPoint
-    let closure: Control.Closure?
+    let control: Control
 }
 
 struct State {
@@ -114,6 +114,9 @@ extension Control {
         return CGPoint(x: bounds.minX + tx, y: bounds.minY + ty)
     }
     
+    var isTappable: Bool {
+        closure != nil
+    }
     var closure: Closure? {
         switch self {
         case .button(_, let closure):
@@ -167,7 +170,7 @@ extension Page {
             var setruns: [SetRun] = []
             var tx = 0.0
             for run in runs {
-                setruns.append(SetRun(run: run, origin: CGPoint(x: tx + origin.x, y: origin.y), closure: control.closure))
+                setruns.append(SetRun(run: run, origin: CGPoint(x: tx + origin.x, y: origin.y), control: control))
                 tx += run.bounds.width
             }
             return setruns
@@ -187,9 +190,9 @@ extension Page {
         }
     }
     func mouseDownIn(_ bounds: CGRect, mx: Double, my: Double) {
-        for setrun in setRunsIn(bounds).filter({ $0.closure != nil }).reversed() {
+        for setrun in setRunsIn(bounds).filter({ $0.control.isTappable }).reversed() {
             if setrun.run.bounds.contains(CGPoint(x: mx - setrun.origin.x, y: my - setrun.origin.y)) {
-                setrun.closure?(pageID, state)
+                setrun.control.closure?(pageID, state)
                 break
             }
         }
