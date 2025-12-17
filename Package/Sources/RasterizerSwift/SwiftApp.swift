@@ -9,31 +9,46 @@ import Foundation
 import RasterizerObjC
 
 
+enum PageID: String, CaseIterable {
+    case LogIn
+}
+
 class Store {
+    struct Entry {
+        let hash: Int
+        let object: any Hashable
+        let observers: Set<PageID>
+    }
     enum Key: String, CaseIterable {
         case username
         case password
         case tapcount
     }
-    func getValue(key: Key) -> Any? {
-        dict[key]
+    func getValue(key: Key, pageID: PageID) -> Any? {
+        guard let entry = dict[key] else {
+            return nil
+        }
+        return entry.object
     }
-    func intValue(key: Key) -> Int {
-        dict[key] as? Int ?? 0
+    func intValue(key: Key, pageID: PageID) -> Int {
+        getValue(key: key, pageID: pageID) as? Int ?? 0
     }
-    func stringValue(key: Key) -> String {
-        dict[key] as? String ?? "88"
+    func stringValue(key: Key, pageID: PageID) -> String {
+        getValue(key: key, pageID: pageID) as? String ?? "88"
     }
-    func setValue(value: any Hashable, key: Key) {
-        dict[key] = value
+    func setValue(value: any Hashable, key: Key, pageID: PageID) {
+        let observers = dict[key]?.observers ?? []
+        let entry = Entry(hash: value.hashValue, object: value, observers: observers.union([pageID]))
+        dict[key] = entry
     }
-    var dict: [Key: any Hashable] = [:]
+    var dict: [Key: Entry] = [:]
 }
 
 enum Label: String {
-    case UserName
+    case UserName = "User name"
     case Password
-    case LogIn
+    case LogIn = "Log in"
+    case Welcome
 }
 
 enum Control {
@@ -46,10 +61,6 @@ enum Control {
 
 struct Page {
     let controls: [Control]
-}
-
-enum PageID: String, CaseIterable {
-    case LogIn
 }
 
 typealias PageMap = [PageID: Page]
@@ -81,6 +92,7 @@ struct SetRun {
 struct State {
     let font: Font
     let store: Store
+    let pageID: PageID
 }
 
 extension Control {
@@ -128,7 +140,7 @@ extension Control {
         case .text(let label, let key):
             return [
                 Run(string: label.rawValue, font: font, color: black),
-                Run(string: state.store.stringValue(key: key), font: font, color: gray)
+                Run(string: state.store.stringValue(key: key, pageID: state.pageID), font: font, color: gray)
             ]
         }
     }

@@ -52,20 +52,18 @@ class SwiftDemo: NSObject, RASceneListDelegate {
     
     let store = Store()
     var state: State {
-        State(font: font, store: store)
+        State(font: font, store: store, pageID: pageID)
     }
     var loginPage: Page {
         Page(controls: [
-                .label(label: .LogIn),
-                .label(label: .UserName),
+                .label(label: .Welcome),
                 .text(label: .UserName, key: .username),
-                .label(label: .Password),
                 .text(label: .Password, key: .password),
-                .button(label: .LogIn, closure: { [weak store] in
-                    guard let store else {  return  }
-                    let tapcount = store.intValue(key: .tapcount)
+                .button(label: .LogIn, closure: { [weak store, weak self] in
+                    guard let self, let store else {  return  }
+                    let tapcount = store.intValue(key: .tapcount, pageID: self.pageID)
                     print("\(tapcount)")
-                    store.setValue(value: tapcount + 1, key: .tapcount)
+                    store.setValue(value: tapcount + 1, key: .tapcount, pageID: self.pageID)
                 })
             ])
     }

@@ -24,20 +24,23 @@
 
 
 struct RasterizerCoreText {
+    static CGRect boundsForLine(CTLineRef line) {
+        CGRect optical = CTLineGetBoundsWithOptions(line, kCTLineBoundsUseOpticalBounds);
+        CGRect glyph = CTLineGetBoundsWithOptions(line, kCTLineBoundsUseGlyphPathBounds);
+        return CGRectMake(optical.origin.x, glyph.origin.y, optical.size.width, glyph.size.height);
+    }
+    
     static CGRect boundsForString(CFAttributedStringRef string) {
         CTLineRef line = CTLineCreateWithAttributedString(string);
-        CGFloat ascent, descent, leading, width;
-        width = CTLineGetTypographicBounds(line, & ascent, & descent, & leading);
-        CGRect bounds = CTLineGetBoundsWithOptions(line, kCTLineBoundsUseGlyphPathBounds);
+        CGRect bounds = boundsForLine(line);
         CFRelease(line);
         return bounds;
-        return CGRectMake(leading, -descent, width, ascent + descent);
     }
                                      
     static CGRect addTextLineToScene(CFAttributedStringRef string, CGAffineTransform ctm, CGRect clip, Ra::SceneRef& scene) {
         CTLineRef line = CTLineCreateWithAttributedString(string);
-        CGRect bounds = CTLineGetBoundsWithOptions(line, 0);
         addCTLineToScene(line, CGPointZero, ctm, clip, scene);
+        CGRect bounds = boundsForLine(line);
         CFRelease(line);
         return bounds;
     }
