@@ -193,15 +193,8 @@
 #pragma mark - RAText
 
 @implementation RAText: NSObject
-+ (CGRect)boundsFor:(nonnull NSString *)string
-       fontName:(nonnull NSString *)fontName
-           fontSize:(double)fontSize {
-    CGColorRef color = CGColorCreateGenericGray(0, 1);
-    CFAttributedStringRef attr = RaCT::createAttributedString(string.UTF8String, fontName.UTF8String, fontSize, color);
-    CGColorRelease(color);
-    CGRect bounds = RaCT::boundsForString(attr);
-    CFRelease(attr);
-    return bounds;
++ (CGRect)boundsFor:(nonnull NSAttributedString *)attributedString {
+    return RaCT::boundsForString((__bridge CFAttributedStringRef)attributedString);
 }
 
 + (nonnull NSAttributedString *)createAttributedString:(nonnull NSString *)string

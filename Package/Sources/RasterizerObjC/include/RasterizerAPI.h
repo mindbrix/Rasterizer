@@ -50,9 +50,7 @@
 
 
 @interface RAText: NSObject
-+ (CGRect)boundsFor:(nonnull NSString *)string
-       fontName:(nonnull NSString *)fontName
-         fontSize:(double)fontSize;
++ (CGRect)boundsFor:(nonnull NSAttributedString *)attributedString;
 
 + (nonnull NSAttributedString *)createAttributedString:(nonnull NSString *)string
                                               fontName:(nonnull NSString *)fontName

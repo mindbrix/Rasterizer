@@ -79,7 +79,7 @@ struct Run {
         RAText.createAttributedString(string, fontName: font.name, fontSize: font.size, color: color)
     }
     var bounds: CGRect {
-        RAText.bounds(for: string, fontName: font.name, fontSize: font.size)
+        RAText.bounds(for: attributedString)
     }
 }
 
