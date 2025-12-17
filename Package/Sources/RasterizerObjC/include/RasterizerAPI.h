@@ -99,13 +99,6 @@ typedef NS_ENUM(NSUInteger, RAJoinStyle) {
              clip:(CGRect)clip
          clipPath:(nullable RAPath *)clipPath;
 
-- (CGRect)addText:(nonnull NSString *)string
-       fontName:(nonnull NSString *)fontName
-       fontSize:(double)fontSize
-            ctm:(CGAffineTransform)ctm
-          color:(nonnull RAPaint *)color
-           clip:(CGRect)clip;
-
 - (CGRect)addTextLine:(nonnull NSAttributedString *)string
                   ctm:(CGAffineTransform)ctm
                  clip:(CGRect)clip;

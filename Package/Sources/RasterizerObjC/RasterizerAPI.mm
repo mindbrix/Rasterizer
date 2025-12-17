@@ -263,20 +263,6 @@
     _scene->addPath(p, m, color.paint, width, capFlags | joinFlags, & clipBounds);
 }
 
-- (CGRect)addText:(nonnull NSString *)string
-       fontName:(nonnull NSString *)fontName
-       fontSize:(double)fontSize
-            ctm:(CGAffineTransform)ctm
-          color:(nonnull RAPaint *)color
-           clip:(CGRect)clip {
-    CGColorRef cgColor = RaCG::CGColorCreateFromColor(color.paint.color);
-    CFAttributedStringRef attr = RaCT::createAttributedString(string.UTF8String, fontName.UTF8String, fontSize, cgColor);
-    CGColorRelease(cgColor);
-    CGRect rect = RaCT::addTextLineToScene(attr, ctm, clip, _scene);
-    CFRelease(attr);
-    return rect;
-}
-
 - (CGRect)addTextLine:(NSAttributedString *)string ctm:(CGAffineTransform)ctm clip:(CGRect)clip {
     return RaCT::addTextLineToScene((__bridge CFAttributedStringRef)string, ctm, clip, _scene);
 }
