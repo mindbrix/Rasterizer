@@ -10,6 +10,7 @@ import RasterizerObjC
 
 
 enum PageID: String, CaseIterable {
+    case Null
     case LogIn
 }
 
@@ -52,7 +53,7 @@ enum Label: String {
 }
 
 enum Control {
-    typealias Closure = () -> Void
+    typealias Closure = (PageID, State) -> Void
     
     case button(label: Label, closure: Closure)
     case label(label: Label)
@@ -60,6 +61,8 @@ enum Control {
 }
 
 struct Page {
+    let pageID: PageID
+    let state: State
     let controls: [Control]
 }
 
@@ -92,7 +95,6 @@ struct SetRun {
 struct State {
     let font: Font
     let store: Store
-    let pageID: PageID
 }
 
 extension Control {
@@ -122,7 +124,7 @@ extension Control {
         return nil
     }
     
-    func runsFor(_ state: State) -> [Run] {
+    func runsFor(_ state: State, pageID: PageID) -> [Run] {
         let font = state.font
         let red = RAPaint(red: 1, green: 0, blue: 0, alpha: 1)
         let black = RAPaint()
@@ -140,7 +142,7 @@ extension Control {
         case .text(let label, let key):
             return [
                 Run(string: label.rawValue, font: font, color: black),
-                Run(string: state.store.stringValue(key: key, pageID: state.pageID), font: font, color: gray)
+                Run(string: state.store.stringValue(key: key, pageID: pageID), font: font, color: gray)
             ]
         }
     }
@@ -156,10 +158,10 @@ extension Page {
                       width: bounds.width,
                       height: dy)
     }
-    func setRunsIn(_ bounds: CGRect, state: State) -> [SetRun] {
+    func setRunsIn(_ bounds: CGRect) -> [SetRun] {
         controls.enumerated().flatMap({ i, control in
             let b = boundsForIndex(bounds, index: i)
-            let runs = control.runsFor(state)
+            let runs = control.runsFor(state, pageID: pageID)
             let origin = control.originIn(b, runs: runs, alignx: .mid, aligny: .mid)
 
             var setruns: [SetRun] = []
@@ -171,9 +173,9 @@ extension Page {
             return setruns
         })
     }
-    func drawIn(_ bounds: CGRect, scene: RAScene, state: State) {
+    func drawIn(_ bounds: CGRect, scene: RAScene) {
         drawGridIn(bounds, scene: scene)
-        for setrun in setRunsIn(bounds, state: state) {
+        for setrun in setRunsIn(bounds) {
             let ctm = CGAffineTransform(translationX: setrun.origin.x, y: setrun.origin.y)
 //            scene.addRect(run.run.bounds, ctm: ctm, width: 1, color: RAPaint())
             scene.addTextLine(setrun.run.attributedString, ctm: ctm, clip: .zero)
@@ -184,10 +186,10 @@ extension Page {
             scene.addRect(boundsForIndex(bounds, index: i), ctm: .identity, width: 1, color: RAPaint())
         }
     }
-    func mouseDownIn(_ bounds: CGRect, mx: Double, my: Double, state: State) {
-        for setrun in setRunsIn(bounds, state: state).filter({ $0.closure != nil }).reversed() {
+    func mouseDownIn(_ bounds: CGRect, mx: Double, my: Double) {
+        for setrun in setRunsIn(bounds).filter({ $0.closure != nil }).reversed() {
             if setrun.run.bounds.contains(CGPoint(x: mx - setrun.origin.x, y: my - setrun.origin.y)) {
-                setrun.closure?()
+                setrun.closure?(pageID, state)
                 break
             }
         }

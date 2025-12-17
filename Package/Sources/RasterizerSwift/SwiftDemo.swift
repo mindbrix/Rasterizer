@@ -52,18 +52,19 @@ class SwiftDemo: NSObject, RASceneListDelegate {
     
     let store = Store()
     var state: State {
-        State(font: font, store: store, pageID: pageID)
+        State(font: font, store: store)
     }
     var loginPage: Page {
-        Page(controls: [
+        Page(pageID: .LogIn,
+            state: state,
+            controls: [
                 .label(label: .Welcome),
                 .text(label: .UserName, key: .username),
                 .text(label: .Password, key: .password),
-                .button(label: .LogIn, closure: { [weak store, weak self] in
-                    guard let self, let store else {  return  }
-                    let tapcount = store.intValue(key: .tapcount, pageID: self.pageID)
+                .button(label: .LogIn, closure: { pageID, state in
+                    let tapcount = state.store.intValue(key: .tapcount, pageID: pageID)
                     print("\(tapcount)")
-                    store.setValue(value: tapcount + 1, key: .tapcount, pageID: self.pageID)
+                    state.store.setValue(value: tapcount + 1, key: .tapcount, pageID: pageID)
                 })
             ])
     }
@@ -71,7 +72,7 @@ class SwiftDemo: NSObject, RASceneListDelegate {
         [.LogIn: loginPage]
     }
     var page: Page {
-        pageMap[pageID] ?? Page(controls: [])
+        pageMap[pageID] ?? Page(pageID: .Null, state: state, controls: [])
     }
     var pageID = PageID.LogIn
     
@@ -120,7 +121,7 @@ class SwiftDemo: NSObject, RASceneListDelegate {
             let inv = ctm.inverted()
             let ux = x * inv.a + y * inv.c + inv.tx
             let uy = x * inv.b + y * inv.d + inv.ty
-            page.mouseDownIn(bounds, mx: ux, my: uy, state: state)
+            page.mouseDownIn(bounds, mx: ux, my: uy)
         case .mouseMove(let x, let y, let flags):
             if (flags.contains(.shift)) {
                 let inv = ctm.inverted()
@@ -153,7 +154,7 @@ class SwiftDemo: NSObject, RASceneListDelegate {
             )
         }
         let pg = RAScene()
-        page.drawIn(bounds, scene: pg, state: state)
+        page.drawIn(bounds, scene: pg)
         list.add(pg, ctm: .identity, clip: .zero)
         
         list.ctm = ctm
