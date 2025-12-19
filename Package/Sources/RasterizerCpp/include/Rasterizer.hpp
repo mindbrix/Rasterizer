@@ -888,28 +888,29 @@ struct Rasterizer {
         Row<Sample::Index> indices;  RefVector<Row<Sample>> samples;  Row<uint32_t> segmentsIndices;
     };
     
-    static void radixSort(uint32_t *in, int n, uint32_t lower, uint32_t range, bool single, uint16_t *counts) {
+    static void radixSort(uint32_t *in, int size, uint32_t lower, uint32_t range, bool single, uint16_t *counts) {
         range = range < 4 ? 4 : range;
-        uint32_t tmp[n], mask = range - 1;
+        uint32_t mask = range - 1;
+        uint32_t *tmp = (uint32_t *)alloca(size * sizeof(uint32_t));
         memset(counts, 0, sizeof(uint16_t) * range);
-        for (int i = 0; i < n; i++)
+        for (int i = 0; i < size; i++)
             counts[(in[i] - lower) & mask]++;
         uint64_t *sums = (uint64_t *)counts, sum = 0, count;
         for (int i = 0; i < range / 4; i++) {
             count = sums[i], sum += count + (count << 16) + (count << 32) + (count << 48), sums[i] = sum;
             sum = sum & 0xFFFF000000000000, sum = sum | (sum >> 16) | (sum >> 32) | (sum >> 48);
         }
-        for (int i = n - 1; i >= 0; i--)
+        for (int i = size - 1; i >= 0; i--)
             tmp[--counts[(in[i] - lower) & mask]] = in[i];
         if (single)
-            memcpy(in, tmp, n * sizeof(uint32_t));
+            memcpy(in, tmp, size * sizeof(uint32_t));
         else {
             memset(counts, 0, sizeof(uint16_t) * 64);
-            for (int i = 0; i < n; i++)
+            for (int i = 0; i < size; i++)
                 counts[(in[i] >> 8) & 0x3F]++;
             for (uint16_t *src = counts, *dst = src + 1, i = 1; i < 64; i++)
                 *dst++ += *src++;
-            for (int i = n - 1; i >= 0; i--)
+            for (int i = size - 1; i >= 0; i--)
                 in[--counts[(tmp[i] >> 8) & 0x3F]] = tmp[i];
         }
     }
