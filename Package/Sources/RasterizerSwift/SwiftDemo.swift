@@ -61,18 +61,20 @@ class SwiftDemo: NSObject, RASceneListDelegate {
                 .label(label: .Welcome),
                 .text(label: .UserName, key: .username),
                 .text(label: .Password, key: .password),
-                .button(label: .LogIn, closure: { pageID, state in
-                    let tapcount = state.store.intValue(key: .tapcount, pageID: pageID)
+                .button(label: .LogIn, closure: { context in
+                    let tapcount = context.getValue(key: .tapcount) as? Int ?? 0
                     print("\(tapcount)")
-                    state.store.setValue(value: tapcount + 1, key: .tapcount, pageID: pageID)
+                    context.setValue(value: tapcount + 1, key: .tapcount)
                 })
             ])
     }
-    var pageMap: PageMap {
-        [.LogIn: loginPage]
-    }
     var page: Page {
-        pageMap[pageID] ?? Page(pageID: .Null, state: state, controls: [])
+        switch pageID {
+        case .Null:
+            Page(pageID: .Null, state: state, controls: [])
+        case .LogIn:
+            loginPage
+        }
     }
     var pageID = PageID.LogIn
     

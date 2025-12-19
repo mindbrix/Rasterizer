@@ -29,6 +29,7 @@ class Store {
         guard let entry = dict[key] else {
             return nil
         }
+        setValue(value: entry.object, key: key, pageID: pageID)
         return entry.object
     }
     func intValue(key: Key, pageID: PageID) -> Int {
@@ -52,8 +53,20 @@ enum Label: String {
     case Welcome
 }
 
+struct Context {
+    let pageID: PageID
+    let store: Store
+    
+    func getValue(key: Store.Key) -> Any? {
+        store.getValue(key: key, pageID: pageID)
+    }
+    func setValue(value: any Hashable, key: Store.Key) {
+        store.setValue(value: value, key: key, pageID: pageID)
+    }
+}
+
 enum Control {
-    typealias Closure = (PageID, State) -> Void
+    typealias Closure = (Context) -> Void
     
     case button(label: Label, closure: Closure)
     case label(label: Label)
@@ -177,7 +190,7 @@ extension Page {
         })
     }
     func drawIn(_ bounds: CGRect, scene: RAScene) {
-        drawGridIn(bounds, scene: scene)
+//        drawGridIn(bounds, scene: scene)
         for setrun in setRunsIn(bounds) {
             let ctm = CGAffineTransform(translationX: setrun.origin.x, y: setrun.origin.y)
 //            scene.addRect(run.run.bounds, ctm: ctm, width: 1, color: RAPaint())
@@ -192,7 +205,7 @@ extension Page {
     func mouseDownIn(_ bounds: CGRect, mx: Double, my: Double) {
         for setrun in setRunsIn(bounds).filter({ $0.control.isTappable }).reversed() {
             if setrun.run.bounds.contains(CGPoint(x: mx - setrun.origin.x, y: my - setrun.origin.y)) {
-                setrun.control.closure?(pageID, state)
+                setrun.control.closure?(Context(pageID: pageID, store: state.store))
                 break
             }
         }
