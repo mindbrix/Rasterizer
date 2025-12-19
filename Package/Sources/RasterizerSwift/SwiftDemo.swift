@@ -11,6 +11,11 @@ import RasterizerObjC
 
 
 class SwiftDemo: NSObject, RASceneListDelegate {
+    override init() {
+        super.init()
+        swiftApp.delegate = self
+        swiftApp.pageID = .LogIn
+    }
     enum Event {
         case keyDown(character: Character, flags: NSEvent.ModifierFlags)
         case magnify(scale: Double)
@@ -50,36 +55,8 @@ class SwiftDemo: NSObject, RASceneListDelegate {
         return Font(name: f.fontName, size: f.pointSize)
     }
     
-    let app = SwiftApp()
-    
-    let store = Store()
-    var state: State {
-        State(font: font, store: store)
-    }
-    var loginPage: Page {
-        Page(pageID: .LogIn,
-            state: state,
-            controls: [
-                .label(label: .Welcome),
-                .text(label: .UserName, key: .username),
-                .text(label: .Password, key: .password),
-                .button(label: .LogIn, closure: { context in
-                    let tapcount = context.getValue(key: .tapcount) as? Int ?? 0
-                    print("\(tapcount)")
-                    context.setValue(value: tapcount + 1, key: .tapcount)
-                })
-            ])
-    }
-    var page: Page {
-        switch pageID {
-        case .Null:
-            Page(pageID: .Null, state: state, controls: [])
-        case .LogIn:
-            loginPage
-        }
-    }
-    var pageID = PageID.LogIn
-    
+    let swiftApp = SwiftApp()
+
     func handleEvent(_ event: Event) -> Bool {
         switch event {
         case .keyDown(let character, let flags):
@@ -125,9 +102,7 @@ class SwiftDemo: NSObject, RASceneListDelegate {
             let inv = ctm.inverted()
             let mx = x * inv.a + y * inv.c + inv.tx
             let my = x * inv.b + y * inv.d + inv.ty
-            app.pageID = .LogIn
-            app.delegate = self
-            app.mouseDownIn(bounds, mx: mx, my: my)
+            swiftApp.mouseDownIn(bounds, mx: mx, my: my)
         case .mouseMove(let x, let y, let flags):
             if (flags.contains(.shift)) {
                 let inv = ctm.inverted()
@@ -160,9 +135,7 @@ class SwiftDemo: NSObject, RASceneListDelegate {
             )
         }
         let pg = RAScene()
-        app.pageID = .LogIn
-        app.delegate = self
-        app.drawIn(bounds, scene: pg)
+        swiftApp.drawIn(bounds, scene: pg)
         list.add(pg, ctm: .identity, clip: .zero)
         
         list.ctm = ctm
@@ -175,12 +148,20 @@ class SwiftDemo: NSObject, RASceneListDelegate {
 }
 
 extension SwiftDemo: SwiftApp.Delegate {
-    func pageFor(_ pageID: PageID) -> Page? {
+    func controlsFor(_ pageID: PageID) -> [Control]? {
         switch pageID {
-        case .Null:
+        case .LogIn: [
+            .label(label: .Welcome),
+            .text(label: .UserName, key: .username),
+            .text(label: .Password, key: .password),
+            .button(label: .LogIn, closure: { app in
+                let tapcount = app.store.getValue(key: .tapcount, pageID: app.pageID) as? Int ?? 0
+                print("\(tapcount)")
+                app.store.setValue(value: tapcount + 1, key: .tapcount, pageID: app.pageID)
+            })
+        ]
+        default:
             nil
-        case .LogIn:
-            loginPage
         }
     }
 }

@@ -53,20 +53,8 @@ enum Label: String {
     case Welcome
 }
 
-struct Context {
-    let pageID: PageID
-    let store: Store
-    
-    func getValue(key: Store.Key) -> Any? {
-        store.getValue(key: key, pageID: pageID)
-    }
-    func setValue(value: any Hashable, key: Store.Key) {
-        store.setValue(value: value, key: key, pageID: pageID)
-    }
-}
-
 enum Control {
-    typealias Closure = (Context) -> Void
+    typealias Closure = (SwiftApp) -> Void
     
     case button(label: Label, closure: Closure)
     case label(label: Label)
@@ -74,12 +62,8 @@ enum Control {
 }
 
 struct Page {
-    let pageID: PageID
-    let state: State
-    let controls: [Control]
+   let controls: [Control]
 }
-
-typealias PageMap = [PageID: Page]
 
 struct Font {
     let name: String
@@ -103,11 +87,6 @@ struct SetRun {
     let run: Run
     let origin: CGPoint
     let control: Control
-}
-
-struct State {
-    let font: Font
-    let store: Store
 }
 
 extension Control {
@@ -140,8 +119,7 @@ extension Control {
         return nil
     }
     
-    func runsFor(_ state: State, pageID: PageID) -> [Run] {
-        let font = state.font
+    func runsFor(font: Font, store: Store, pageID: PageID) -> [Run] {
         let red = RAPaint(red: 1, green: 0, blue: 0, alpha: 1)
         let black = RAPaint()
         let gray = RAPaint(gray: 0.66, alpha: 1)
@@ -158,26 +136,49 @@ extension Control {
         case .text(let label, let key):
             return [
                 Run(string: label.rawValue, font: font, color: black),
-                Run(string: state.store.stringValue(key: key, pageID: pageID), font: font, color: gray)
+                Run(string: store.stringValue(key: key, pageID: pageID), font: font, color: gray)
             ]
         }
     }
 }
 
 
-extension Page {
-    func boundsForIndex(_ bounds: CGRect, index: Int) -> CGRect {
-        let count = Double(controls.count)
-        let dy = bounds.height / Double(controls.count)
-        return CGRect(x: bounds.origin.x,
-                      y: bounds.origin.y + (count - 1 - Double(index)) * dy,
-                      width: bounds.width,
-                      height: dy)
+class SwiftApp {
+    protocol Delegate: AnyObject {
+        func controlsFor(_ pageID: PageID) -> [Control]?
     }
-    func setRunsIn(_ bounds: CGRect) -> [SetRun] {
-        controls.enumerated().flatMap({ i, control in
-            let b = boundsForIndex(bounds, index: i)
-            let runs = control.runsFor(state, pageID: pageID)
+    weak var delegate: Delegate?
+    var pageID = PageID.Null
+    var font = Font(name: "HelveticaNeue-Medium", size: 72)
+    let store = Store()
+    
+    func drawIn(_ bounds: CGRect, scene: RAScene) {
+        guard pageID != .Null, let delegate, let controls = delegate.controlsFor(pageID) else {
+            return
+        }
+        CGRect.drawGridIn(bounds, count: controls.count, scene: scene)
+        for setrun in setRunsIn(bounds, page: controls) {
+            let ctm = CGAffineTransform(translationX: setrun.origin.x, y: setrun.origin.y)
+            scene.addRect(setrun.run.bounds, ctm: ctm, width: 1, color: RAPaint())
+            scene.addTextLine(setrun.run.attributedString, ctm: ctm, clip: .zero)
+        }
+    }
+    func mouseDownIn(_ bounds: CGRect, mx: Double, my: Double) {
+        guard pageID != .Null, let delegate, let page = delegate.controlsFor(pageID) else {
+            return
+        }
+        for setrun in setRunsIn(bounds, page: page).filter({ $0.control.isTappable }).reversed() {
+            if setrun.run.bounds.contains(CGPoint(x: mx - setrun.origin.x, y: my - setrun.origin.y)) {
+                setrun.control.closure?(self)
+                break
+            }
+        }
+    }
+    
+    func setRunsIn(_ bounds: CGRect, page: [Control]) -> [SetRun] {
+        return page.enumerated().flatMap({ i, control in
+            let b = CGRect.boundsForIndex(bounds, index: i, count: page.count)
+            let runs = control.runsFor(font: font, store: store, pageID: pageID)
             let origin = control.originIn(b, runs: runs, alignx: .mid, aligny: .mid)
 
             var setruns: [SetRun] = []
@@ -188,49 +189,5 @@ extension Page {
             }
             return setruns
         })
-    }
-    func drawIn(_ bounds: CGRect, scene: RAScene) {
-//        drawGridIn(bounds, scene: scene)
-        for setrun in setRunsIn(bounds) {
-            let ctm = CGAffineTransform(translationX: setrun.origin.x, y: setrun.origin.y)
-//            scene.addRect(run.run.bounds, ctm: ctm, width: 1, color: RAPaint())
-            scene.addTextLine(setrun.run.attributedString, ctm: ctm, clip: .zero)
-        }
-    }
-    func drawGridIn(_ bounds: CGRect, scene: RAScene) {
-        for i in 0..<controls.count {
-            scene.addRect(boundsForIndex(bounds, index: i), ctm: .identity, width: 1, color: RAPaint())
-        }
-    }
-    func mouseDownIn(_ bounds: CGRect, mx: Double, my: Double) {
-        for setrun in setRunsIn(bounds).filter({ $0.control.isTappable }).reversed() {
-            if setrun.run.bounds.contains(CGPoint(x: mx - setrun.origin.x, y: my - setrun.origin.y)) {
-                setrun.control.closure?(Context(pageID: pageID, store: state.store))
-                break
-            }
-        }
-    }
-}
-
- 
-class SwiftApp {
-    protocol Delegate: AnyObject {
-        func pageFor(_ pageID: PageID) -> Page?
-    }
-    weak var delegate: Delegate?
-    var pageID = PageID.Null
-    let store = Store()
-    
-    func drawIn(_ bounds: CGRect, scene: RAScene) {
-        guard pageID != .Null, let delegate, let page = delegate.pageFor(pageID) else {
-            return
-        }
-        page.drawIn(bounds, scene: scene)
-    }
-    func mouseDownIn(_ bounds: CGRect, mx: Double, my: Double) {
-        guard pageID != .Null, let delegate, let page = delegate.pageFor(pageID) else {
-            return
-        }
-        page.mouseDownIn(bounds, mx: mx, my: my)
     }
 }
