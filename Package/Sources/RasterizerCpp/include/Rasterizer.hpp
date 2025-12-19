@@ -652,7 +652,8 @@ struct Rasterizer {
                 scenes.add(scene);
         
             size_t i, sizes[] = { sizeof(Color), sizeof(Transform), sizeof(Transform), sizeof(float), sizeof(Bounds), sizeof(Transform), sizeof(uint32_t) };
-            size_t count = sizeof(sizes) / sizeof(*sizes), base = 0, bases[count];
+            size_t count = sizeof(sizes) / sizeof(*sizes), base = 0;
+            Vector<size_t> bases(count);
             for (i = 0; i < count; i++)
                 bases[i] = base, base += (pathsCount + 1) * sizes[i];
             colors = bases[0], ctms = bases[1], clips = bases[2], widths = bases[3], bounds = bases[4], texCtms = bases[5], texIdxs = bases[6];
