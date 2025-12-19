@@ -49,12 +49,14 @@ class SwiftDemo: NSObject, RASceneListDelegate {
     var bounds = CGRect.zero
     var pastedScene: RAScene?
     
-    var selectedFont: NSFont?
-    var font: Font {
-        let f = selectedFont ?? NSFont(name: "HelveticaNeue-Medium", size: 72)!
-        return Font(name: f.fontName, size: f.pointSize)
+    var selectedFont: NSFont? {
+        didSet {
+            if let f = selectedFont {
+                swiftApp.font = Font(name: f.fontName, size: f.pointSize)
+            }
+        }
     }
-    
+     
     let swiftApp = SwiftApp()
 
     func handleEvent(_ event: Event) -> Bool {
