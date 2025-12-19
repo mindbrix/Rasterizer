@@ -97,13 +97,13 @@
     if (colors.count > 1 && colors.count == locations.count) {
         NSInteger count = colors.count;
         
-        Ra::Color stops[count];
-        float locs[count];
+        Ra::Vector<Ra::Color> stops(count);
+        Ra::Vector<float> locs(count);
         for (NSInteger i = 0; i < count; i++) {
             stops[i] = colors[i].paint.color;
             locs[i] = locations[i].floatValue;
         }
-        _paint = Ra::Paint(stops, locs, count, RaCG::transformFromCG(transform), isRadial);
+        _paint = Ra::Paint(& stops[0], & locs[0], count, RaCG::transformFromCG(transform), isRadial);
     }
     return self;
 }
