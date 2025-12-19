@@ -39,7 +39,7 @@ struct RasterizerCoreText {
                                      
     static CGRect addTextLineToScene(CFAttributedStringRef string, CGAffineTransform ctm, CGRect clip, Ra::SceneRef& scene) {
         CTLineRef line = CTLineCreateWithAttributedString(string);
-        addCTLineToScene(line, CGPointZero, ctm, clip, scene);
+        addCTLineToScene(line, ctm, clip, scene);
         CGRect bounds = boundsForLine(line);
         CFRelease(line);
         return bounds;
@@ -55,9 +55,11 @@ struct RasterizerCoreText {
         Ra::Vector<CGPoint> origins(lineCount);
         CTFrameGetLineOrigins(frame, CFRangeMake(0, 0), & origins[0]);
         for (int i = 0; i < lineCount; i++) {
-            CGPoint origin = CGPointMake(rect.origin.x + origins[i].x, rect.origin.y + origins[i].y);
+            CGAffineTransform m = CGAffineTransformTranslate(ctm,
+                rect.origin.x + origins[i].x,
+                rect.origin.y + origins[i].y);
             CTLineRef line = (CTLineRef)CFArrayGetValueAtIndex(lines, i);
-            addCTLineToScene(line, origin, ctm, clip, glyphs);
+            addCTLineToScene(line, m, clip, glyphs);
         }
         scene->appendScene(*glyphs.ptr);
         CFRelease(frame);
@@ -75,7 +77,7 @@ struct RasterizerCoreText {
         return RaCG::BoundsFromCGRect(bounds);
     }
 
-    static void addCTLineToScene(CTLineRef line, CGPoint origin, CGAffineTransform ctm, CGRect clip, Ra::SceneRef& scene) {
+    static void addCTLineToScene(CTLineRef line, CGAffineTransform ctm, CGRect clip, Ra::SceneRef& scene) {
         Ra::Bounds clipBounds = CGRectIsNull(clip) || CGRectIsEmpty(clip) || CGRectIsInfinite(clip) ? Ra::Bounds::huge() : RaCG::BoundsFromCGRect(clip);
         CFArrayRef glyphRuns = CTLineGetGlyphRuns(line);
         for (int i = 0; i < CFArrayGetCount(glyphRuns); i++) {
@@ -95,7 +97,7 @@ struct RasterizerCoreText {
                 Ra::Path bgPath;
                 bgPath->addBounds(RaCG::BoundsFromCGRect(bounds));
                 Ra::Color bgColor = RaCG::colorFromCG(cgBackgroundColor);
-                Ra::Transform m = RaCG::transformFromCG(CGAffineTransformTranslate(ctm, origin.x, origin.y));
+                Ra::Transform m = RaCG::transformFromCG(ctm);
                 scene->addPath(bgPath, m, bgColor, 0, 0, & clipBounds);
             }
             
@@ -104,7 +106,7 @@ struct RasterizerCoreText {
                 CGPathRef cgPath = CTFontCreatePathForGlyph(font, glyphs[j], NULL);
                 Ra::Path path;
                 RaCG::writeCGPathToPath(cgPath, path);
-                Ra::Transform m = RaCG::transformFromCG(CGAffineTransformTranslate(ctm, origin.x + positions[j].x, origin.y + positions[j].y));
+                Ra::Transform m = RaCG::transformFromCG(CGAffineTransformTranslate(ctm, positions[j].x, positions[j].y));
                 scene->addPath(path, m, color, 0, 0, & clipBounds);
                 CGPathRelease(cgPath);
             }

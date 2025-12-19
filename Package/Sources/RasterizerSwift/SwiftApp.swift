@@ -71,16 +71,12 @@ struct Font {
 }
 
 struct Run {
-    let string: String
-    let font: Font
-    let color: RAPaint
-    
-    var attributedString: NSAttributedString {
-        RAText.createAttributedString(string, fontName: font.name, fontSize: font.size, color: color)
+    init(string: String, font: Font, color: RAPaint) {
+        attributedString = RAText.createAttributedString(string, fontName: font.name, fontSize: font.size, color: color)
+        bounds = RAText.bounds(for: attributedString)
     }
-    var bounds: CGRect {
-        RAText.bounds(for: attributedString)
-    }
+    let attributedString: NSAttributedString
+    let bounds: CGRect
 }
 
 struct SetRun {
