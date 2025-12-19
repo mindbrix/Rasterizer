@@ -548,7 +548,7 @@ struct Rasterizer {
         
         size_t refCount, count = 0, weight = 0, xxhash = 0, _xxhash = 0, fillcount = 0;
         RefVector<Path> paths;
-        Vector<uint32_t> p16bases;  uint32_t p16total = 0, stroketotal = 0;
+        Vector<uint32_t> p16bases;  uint32_t p16total = 0;
         RefVector<Path> clipPaths;
         Vector<uint32_t> clipIndices;
         Vector<Bounds> bnds, clips;
@@ -558,7 +558,7 @@ struct Rasterizer {
         Vector<uint32_t> gradientIndices;
         Vector<Color> gradients, matchedGradients = gradients;
         Vector<float> widths;
-        std::map<size_t, Entry> p16map, strokemap;
+        std::map<size_t, Entry> p16map;
         Vector<uint8_t> flags;
     };
     typedef Ref<Scene> SceneRef;
