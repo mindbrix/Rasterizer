@@ -212,7 +212,25 @@ extension Page {
     }
 }
 
-struct SwiftApp {
-    let store: Store
-    let page: Page
+ 
+class SwiftApp {
+    protocol Delegate: AnyObject {
+        func pageFor(_ pageID: PageID) -> Page?
+    }
+    weak var delegate: Delegate?
+    var pageID = PageID.Null
+    let store = Store()
+    
+    func drawIn(_ bounds: CGRect, scene: RAScene) {
+        guard pageID != .Null, let delegate, let page = delegate.pageFor(pageID) else {
+            return
+        }
+        page.drawIn(bounds, scene: scene)
+    }
+    func mouseDownIn(_ bounds: CGRect, mx: Double, my: Double) {
+        guard pageID != .Null, let delegate, let page = delegate.pageFor(pageID) else {
+            return
+        }
+        page.mouseDownIn(bounds, mx: mx, my: my)
+    }
 }

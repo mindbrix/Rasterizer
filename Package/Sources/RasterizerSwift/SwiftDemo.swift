@@ -50,6 +50,8 @@ class SwiftDemo: NSObject, RASceneListDelegate {
         return Font(name: f.fontName, size: f.pointSize)
     }
     
+    let app = SwiftApp()
+    
     let store = Store()
     var state: State {
         State(font: font, store: store)
@@ -121,9 +123,11 @@ class SwiftDemo: NSObject, RASceneListDelegate {
             ctm = ctm.concatAroundCenter(t: CGAffineTransform(scaleX: scale, y: scale), cx: bounds.midX, cy: bounds.midY)
         case .mouseDown(let x, let y, _):
             let inv = ctm.inverted()
-            let ux = x * inv.a + y * inv.c + inv.tx
-            let uy = x * inv.b + y * inv.d + inv.ty
-            page.mouseDownIn(bounds, mx: ux, my: uy)
+            let mx = x * inv.a + y * inv.c + inv.tx
+            let my = x * inv.b + y * inv.d + inv.ty
+            app.pageID = .LogIn
+            app.delegate = self
+            app.mouseDownIn(bounds, mx: mx, my: my)
         case .mouseMove(let x, let y, let flags):
             if (flags.contains(.shift)) {
                 let inv = ctm.inverted()
@@ -156,7 +160,9 @@ class SwiftDemo: NSObject, RASceneListDelegate {
             )
         }
         let pg = RAScene()
-        page.drawIn(bounds, scene: pg)
+        app.pageID = .LogIn
+        app.delegate = self
+        app.drawIn(bounds, scene: pg)
         list.add(pg, ctm: .identity, clip: .zero)
         
         list.ctm = ctm
@@ -165,5 +171,16 @@ class SwiftDemo: NSObject, RASceneListDelegate {
         list.showOpaques = showOpaques
         list.showOutlines = showOutlines
         return list
+    }
+}
+
+extension SwiftDemo: SwiftApp.Delegate {
+    func pageFor(_ pageID: PageID) -> Page? {
+        switch pageID {
+        case .Null:
+            nil
+        case .LogIn:
+            loginPage
+        }
     }
 }
