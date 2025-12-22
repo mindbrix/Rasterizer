@@ -92,9 +92,8 @@ struct Run {
     let bounds: CGRect
 }
 
-struct SetRun {
-    let run: Run
-    let origin: CGPoint
+struct Tappable {
+    let bounds: CGRect
     let control: Control
 }
 
@@ -109,44 +108,38 @@ class SwiftApp {
     var pageID = PageID.Null
     var font = Font(name: "HelveticaNeue-Medium", size: 72)
     let store = Store()
+    var tappables: [Tappable] = []
     
     func drawIn(_ bounds: CGRect, scene: RAScene) {
         guard pageID != .Null, let delegate, let controls = delegate.controlsFor(pageID) else {
             return
         }
         CGRect.drawGridIn(bounds, count: controls.count, scene: scene)
-        for setrun in setRunsIn(bounds, controls: controls) {
-            let ctm = CGAffineTransform(translationX: setrun.origin.x, y: setrun.origin.y)
-            scene.addRect(setrun.run.bounds, ctm: ctm, width: 1, color: RAPaint())
-            scene.addTextLine(setrun.run.attributedString, ctm: ctm, clip: .zero)
-        }
-    }
-    func mouseDownIn(_ bounds: CGRect, mx: Double, my: Double) {
-        guard pageID != .Null, let delegate, let page = delegate.controlsFor(pageID) else {
-            return
-        }
-        for setrun in setRunsIn(bounds, controls: page).filter({ $0.control.isTappable }).reversed() {
-            if setrun.run.bounds.contains(CGPoint(x: mx - setrun.origin.x, y: my - setrun.origin.y)) {
-                setrun.control.closure?(self)
-                break
-            }
-        }
-    }
-    
-    func setRunsIn(_ bounds: CGRect, controls: [Control]) -> [SetRun] {
-        return controls.enumerated().flatMap({ i, control in
+        
+        tappables.removeAll()
+        for (i, control) in controls.enumerated() {
             let b = CGRect.boundsForIndex(bounds, index: i, count: controls.count)
             let runs = runsFor(control: control)
             let origin = originIn(b, runs: runs, alignx: .mid, aligny: .mid)
-
-            var setruns: [SetRun] = []
             var tx = 0.0
             for run in runs {
-                setruns.append(SetRun(run: run, origin: CGPoint(x: tx + origin.x, y: origin.y), control: control))
+                let ctm = CGAffineTransform(translationX: tx + origin.x, y: origin.y)
+                scene.addRect(run.bounds, ctm: ctm, width: 1, color: RAPaint())
+                scene.addTextLine(run.attributedString, ctm: ctm, clip: .zero)
+                
+                if control.isTappable {
+                    tappables.append(Tappable(bounds: run.bounds.applying(ctm), control: control))
+                }
                 tx += run.bounds.width
             }
-            return setruns
-        })
+        }
+    }
+    func mouseDownIn(_ bounds: CGRect, mx: Double, my: Double) {
+        for tappable in tappables.reversed() {
+            if tappable.bounds.contains(CGPoint(x: mx, y: my)) {
+                tappable.control.closure?(self)
+            }
+        }
     }
     
     func runsFor(control: Control) -> [Run] {
