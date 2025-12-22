@@ -69,10 +69,6 @@ enum Control {
     }
 }
 
-struct Page {
-   let controls: [Control]
-}
-
 struct Font {
     let name: String
     let size: Double
@@ -105,6 +101,18 @@ class SwiftApp {
     let store = Store()
     var observers: [Store.Key: Set<PageID>] = [:]
     var tappables: [Tappable] = []
+    
+    func mouseDown(_ bounds: CGRect, p: CGPoint) {
+        for tappable in tappables.reversed() {
+            if tappable.bounds.contains(p) {
+                tappable.control.closure?(self)
+            }
+        }
+    }
+    func mouseMoved(_ bounds: CGRect, p: CGPoint) {
+    }
+    func mouseUp(_ bounds: CGRect, p: CGPoint) {
+    }
     
     func drawIn(_ bounds: CGRect) -> RAScene {
         let scene = RAScene()
@@ -139,17 +147,6 @@ class SwiftApp {
             }
         }
         return scene
-    }
-    func mouseDownIn(_ bounds: CGRect, p: CGPoint) {
-        for tappable in tappables.reversed() {
-            if tappable.bounds.contains(p) {
-                tappable.control.closure?(self)
-            }
-        }
-    }
-    func mouseMovedIn(_ bounds: CGRect, p: CGPoint) {
-    }
-    func mouseUpIn(_ bounds: CGRect, p: CGPoint) {
     }
     
     func runsFor(control: Control) -> [Run] {

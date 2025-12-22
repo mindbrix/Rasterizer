@@ -101,15 +101,15 @@ class SwiftDemo: NSObject, RASceneListDelegate {
         case .magnify(let scale):
             ctm = ctm.concatAroundCenter(t: CGAffineTransform(scaleX: scale, y: scale), cx: bounds.midX, cy: bounds.midY)
         case .mouseDown(let p, _):
-            swiftApp.mouseDownIn(bounds, p: p.applying(ctm.inverted()))
+            swiftApp.mouseDown(bounds, p: p.applying(ctm.inverted()))
         case .mouseMove(let p, let flags):
             if (flags.contains(.shift)) {
                 let inv = ctm.inverted()
                 slider = max(0.0, min(1.0, (p.x * inv.a + p.y * inv.c + inv.tx) / bounds.width))
             }
-            swiftApp.mouseMovedIn(bounds, p: p.applying(ctm.inverted()))
+            swiftApp.mouseMoved(bounds, p: p.applying(ctm.inverted()))
         case .mouseUp(let p, _):
-            swiftApp.mouseUpIn(bounds, p: p.applying(ctm.inverted()))
+            swiftApp.mouseUp(bounds, p: p.applying(ctm.inverted()))
         case .rotate(let angle):
             ctm = ctm.concatAroundCenter(t: CGAffineTransform(rotationAngle: CGFloat(angle)), cx: bounds.midX, cy: bounds.midY)
         case .translate(let tx, let ty):
