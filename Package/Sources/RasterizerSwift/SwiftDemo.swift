@@ -157,9 +157,9 @@ extension SwiftDemo: SwiftApp.Delegate {
             .text(label: .UserName, key: .username),
             .text(label: .Password, key: .password),
             .button(label: .LogIn, closure: { app in
-                let tapcount = app.store.getValue(key: .tapcount, pageID: app.pageID) as? Int ?? 0
+                let tapcount = app.store.getValue(key: .tapcount) as? Int ?? 0
                 print("\(tapcount)")
-                app.store.setValue(value: tapcount + 1, key: .tapcount, pageID: app.pageID)
+                app.store.setValue(value: tapcount + 1, key: .tapcount)
             })
         ]
         default:

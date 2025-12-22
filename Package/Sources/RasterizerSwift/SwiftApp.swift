@@ -15,35 +15,26 @@ enum PageID: String, CaseIterable {
 }
 
 class Store {
-    struct Entry {
-        let hash: Int
-        let object: any Hashable
-        let observers: Set<PageID>
-    }
+    typealias ValueType = any Hashable
+    
     enum Key: String, CaseIterable {
         case username
         case password
         case tapcount
     }
-    func getValue(key: Key, pageID: PageID) -> Any? {
-        guard let entry = dict[key] else {
-            return nil
-        }
-        setValue(value: entry.object, key: key, pageID: pageID)
-        return entry.object
+    func getValue(key: Key) -> ValueType? {
+        dict[key]
     }
-    func intValue(key: Key, pageID: PageID) -> Int {
-        getValue(key: key, pageID: pageID) as? Int ?? 0
+    func intValue(key: Key) -> Int {
+        getValue(key: key) as? Int ?? 0
     }
-    func stringValue(key: Key, pageID: PageID) -> String {
-        getValue(key: key, pageID: pageID) as? String ?? "88"
+    func stringValue(key: Key) -> String {
+        getValue(key: key) as? String ?? "88"
     }
-    func setValue(value: any Hashable, key: Key, pageID: PageID) {
-        let observers = dict[key]?.observers ?? []
-        let entry = Entry(hash: value.hashValue, object: value, observers: observers.union([pageID]))
-        dict[key] = entry
+    func setValue(value: ValueType, key: Key) {
+        dict[key] = value
     }
-    var dict: [Key: Entry] = [:]
+    var dict: [Key: ValueType] = [:]
 }
 
 enum Label: String {
@@ -60,17 +51,21 @@ enum Control {
     case label(label: Label)
     case text(label: Label, key: Store.Key)
     
-    var isTappable: Bool {
-        closure != nil
-    }
     var closure: Closure? {
         switch self {
         case .button(_, let closure):
-            return closure
+            closure
         default:
-            break
+            nil
         }
-        return nil
+    }
+    var key: Store.Key? {
+        switch self {
+        case .text(_, let key):
+            key
+        default:
+            nil
+        }
     }
 }
 
@@ -108,15 +103,24 @@ class SwiftApp {
     var pageID = PageID.Null
     var font = Font(name: "HelveticaNeue-Medium", size: 72)
     let store = Store()
+    var observers: [Store.Key: Set<PageID>] = [:]
     var tappables: [Tappable] = []
     
     func drawIn(_ bounds: CGRect, scene: RAScene) {
         guard pageID != .Null, let delegate, let controls = delegate.controlsFor(pageID) else {
             return
         }
-        CGRect.drawGridIn(bounds, count: controls.count, scene: scene)
-        
+        for key in observers.keys {
+            observers[key]?.remove(pageID)
+        }
+        for control in controls {
+            if let key = control.key {
+                let entry = observers[key] ?? []
+                observers[key] = entry.union([pageID])
+            }
+        }
         tappables.removeAll()
+        CGRect.drawGridIn(bounds, count: controls.count, scene: scene)
         for (i, control) in controls.enumerated() {
             let b = CGRect.boundsForIndex(bounds, index: i, count: controls.count)
             let runs = runsFor(control: control)
@@ -127,7 +131,7 @@ class SwiftApp {
                 scene.addRect(run.bounds, ctm: ctm, width: 1, color: RAPaint())
                 scene.addTextLine(run.attributedString, ctm: ctm, clip: .zero)
                 
-                if control.isTappable {
+                if control.closure != nil {
                     tappables.append(Tappable(bounds: run.bounds.applying(ctm), control: control))
                 }
                 tx += run.bounds.width
@@ -159,7 +163,7 @@ class SwiftApp {
         case .text(let label, let key):
             return [
                 Run(string: label.rawValue, font: font, color: black),
-                Run(string: store.stringValue(key: key, pageID: pageID), font: font, color: gray)
+                Run(string: store.stringValue(key: key), font: font, color: gray)
             ]
         }
     }
