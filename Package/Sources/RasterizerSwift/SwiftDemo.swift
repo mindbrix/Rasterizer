@@ -13,7 +13,7 @@ import RasterizerObjC
 class SwiftDemo: NSObject, RASceneListDelegate {
     override init() {
         super.init()
-        swiftApp.delegate = self
+        swiftApp.pageDelegate = self
         swiftApp.pageID = .LogIn
     }
     enum Event {
@@ -140,7 +140,7 @@ class SwiftDemo: NSObject, RASceneListDelegate {
     }
 }
 
-extension SwiftDemo: SwiftApp.Delegate {
+extension SwiftDemo: SwiftApp.PageDelegate {
     func controlsFor(_ pageID: PageID) -> [Control]? {
         switch pageID {
         case .LogIn: [

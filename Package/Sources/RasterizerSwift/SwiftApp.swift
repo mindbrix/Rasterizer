@@ -96,10 +96,10 @@ class SwiftApp {
     enum Alignment: Double {
         case min = 0, mid = 0.5, max = 1
     }
-    protocol Delegate: AnyObject {
+    protocol PageDelegate: AnyObject {
         func controlsFor(_ pageID: PageID) -> [Control]?
     }
-    weak var delegate: Delegate?
+    weak var pageDelegate: PageDelegate?
     var pageID = PageID.Null
     var font = Font(name: "HelveticaNeue-Medium", size: 72)
     let store = Store()
@@ -108,7 +108,7 @@ class SwiftApp {
     
     func drawIn(_ bounds: CGRect) -> RAScene {
         let scene = RAScene()
-        guard pageID != .Null, let delegate, let controls = delegate.controlsFor(pageID) else {
+        guard pageID != .Null, let pageDelegate, let controls = pageDelegate.controlsFor(pageID) else {
             return scene
         }
         for key in observers.keys {
