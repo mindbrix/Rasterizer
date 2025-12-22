@@ -45,19 +45,19 @@ public class SwiftDemoView: RasterizerView, NSFontChanging {
         guard let point = mousePoint(for: event) else {
             return
         }
-        _ = demo.handleEvent(.mouseDown(x: point.x, y: point.y, flags: event.modifierFlags))
+        _ = demo.handleEvent(.mouseDown(p: point, flags: event.modifierFlags))
     }
     override public func mouseMoved(with event: NSEvent) {
         guard let point = mousePoint(for: event) else {
             return
         }
-        _ = demo.handleEvent(.mouseMove(x: point.x, y: point.y, flags: event.modifierFlags))
+        _ = demo.handleEvent(.mouseMove(p: point, flags: event.modifierFlags))
     }
     override public func mouseUp(with event: NSEvent) {
         guard let point = mousePoint(for: event) else {
             return
         }
-        _ = demo.handleEvent(.mouseUp(x: point.x, y: point.y, flags: event.modifierFlags))
+        _ = demo.handleEvent(.mouseUp(p: point, flags: event.modifierFlags))
     }
     override public func magnify(with event: NSEvent) {
         _ = demo.handleEvent(.magnify(scale: 1.0 + event.magnification))

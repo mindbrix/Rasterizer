@@ -19,9 +19,9 @@ class SwiftDemo: NSObject, RASceneListDelegate {
     enum Event {
         case keyDown(character: Character, flags: NSEvent.ModifierFlags)
         case magnify(scale: Double)
-        case mouseDown(x: Double, y: Double, flags: NSEvent.ModifierFlags)
-        case mouseMove(x: Double, y: Double, flags: NSEvent.ModifierFlags)
-        case mouseUp(x: Double, y: Double, flags: NSEvent.ModifierFlags)
+        case mouseDown(p: CGPoint, flags: NSEvent.ModifierFlags)
+        case mouseMove(p: CGPoint, flags: NSEvent.ModifierFlags)
+        case mouseUp(p: CGPoint, flags: NSEvent.ModifierFlags)
         case rotate(angle: Float)
         case translate(tx: Double, ty: Double)
     }
@@ -100,18 +100,16 @@ class SwiftDemo: NSObject, RASceneListDelegate {
             break
         case .magnify(let scale):
             ctm = ctm.concatAroundCenter(t: CGAffineTransform(scaleX: scale, y: scale), cx: bounds.midX, cy: bounds.midY)
-        case .mouseDown(let x, let y, _):
-            let inv = ctm.inverted()
-            let mx = x * inv.a + y * inv.c + inv.tx
-            let my = x * inv.b + y * inv.d + inv.ty
-            swiftApp.mouseDownIn(bounds, mx: mx, my: my)
-        case .mouseMove(let x, let y, let flags):
+        case .mouseDown(let p, _):
+            swiftApp.mouseDownIn(bounds, p: p.applying(ctm.inverted()))
+        case .mouseMove(let p, let flags):
             if (flags.contains(.shift)) {
                 let inv = ctm.inverted()
-                slider = max(0.0, min(1.0, (x * inv.a + y * inv.c + inv.tx) / bounds.width))
+                slider = max(0.0, min(1.0, (p.x * inv.a + p.y * inv.c + inv.tx) / bounds.width))
             }
-        case .mouseUp(_, _, _):
-            break
+            swiftApp.mouseMovedIn(bounds, p: p.applying(ctm.inverted()))
+        case .mouseUp(let p, _):
+            swiftApp.mouseUpIn(bounds, p: p.applying(ctm.inverted()))
         case .rotate(let angle):
             ctm = ctm.concatAroundCenter(t: CGAffineTransform(rotationAngle: CGFloat(angle)), cx: bounds.midX, cy: bounds.midY)
         case .translate(let tx, let ty):

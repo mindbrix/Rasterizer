@@ -140,12 +140,16 @@ class SwiftApp {
         }
         return scene
     }
-    func mouseDownIn(_ bounds: CGRect, mx: Double, my: Double) {
+    func mouseDownIn(_ bounds: CGRect, p: CGPoint) {
         for tappable in tappables.reversed() {
-            if tappable.bounds.contains(CGPoint(x: mx, y: my)) {
+            if tappable.bounds.contains(p) {
                 tappable.control.closure?(self)
             }
         }
+    }
+    func mouseMovedIn(_ bounds: CGRect, p: CGPoint) {
+    }
+    func mouseUpIn(_ bounds: CGRect, p: CGPoint) {
     }
     
     func runsFor(control: Control) -> [Run] {
