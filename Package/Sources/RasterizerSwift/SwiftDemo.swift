@@ -128,18 +128,9 @@ class SwiftDemo: NSObject, RASceneListDelegate {
         bounds = CGRect(x: 0, y: 0, width: width, height: height)
         t = paused ? slider : time - floor(time)
         let list = RASceneList()
-        let scene = drawables[index].getSceneAtTime(t, bounds: bounds, state: self)
-        list.add(scene, ctm: .identity, clip: .zero)
-        if let pasted = pastedScene {
-            list.add(pasted,
-                ctm: .identity,
-                clip: .zero
-            )
-        }
-        let pg = RAScene()
-        swiftApp.drawIn(bounds, scene: pg)
-        list.add(pg, ctm: .identity, clip: .zero)
-        
+        list.add(drawables[index].getSceneAtTime(t, bounds: bounds, state: self))
+        list.add(pastedScene ?? RAScene())
+        list.add(swiftApp.drawIn(bounds))
         list.ctm = ctm
         list.useClips = useClips;
         list.useCurves = useCurves

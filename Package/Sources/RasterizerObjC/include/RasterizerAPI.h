@@ -122,6 +122,7 @@ typedef NS_ENUM(NSUInteger, RAJoinStyle) {
 @property(nonatomic) BOOL showOutlines;
 
 - (void)addList:(nonnull RASceneList *)list;
+- (void)addScene:(nonnull RAScene *)scene;
 - (void)addScene:(nonnull RAScene *)scene ctm:(CGAffineTransform)ctm clip:(CGRect)clip;
 @end
 

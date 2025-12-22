@@ -106,9 +106,10 @@ class SwiftApp {
     var observers: [Store.Key: Set<PageID>] = [:]
     var tappables: [Tappable] = []
     
-    func drawIn(_ bounds: CGRect, scene: RAScene) {
+    func drawIn(_ bounds: CGRect) -> RAScene {
+        let scene = RAScene()
         guard pageID != .Null, let delegate, let controls = delegate.controlsFor(pageID) else {
-            return
+            return scene
         }
         for key in observers.keys {
             observers[key]?.remove(pageID)
@@ -137,6 +138,7 @@ class SwiftApp {
                 tx += run.bounds.width
             }
         }
+        return scene
     }
     func mouseDownIn(_ bounds: CGRect, mx: Double, my: Double) {
         for tappable in tappables.reversed() {

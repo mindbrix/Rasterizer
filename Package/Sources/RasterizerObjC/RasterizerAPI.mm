@@ -326,6 +326,10 @@
     _list.addList(list.list);
 }
 
+- (void)addScene:(RAScene *)scene {
+    _list.addScene(scene.scene, Ra::Transform(), Ra::Bounds::huge());
+}
+
 - (void)addScene:(RAScene *)scene ctm:(CGAffineTransform)ctm clip:(CGRect)clip {
     Ra::Bounds clipBounds = CGRectIsNull(clip) || CGRectIsEmpty(clip) || CGRectIsInfinite(clip) ? Ra::Bounds::huge() : RaCG::BoundsFromCGRect(clip);
     _list.addScene(scene.scene, RaCG::transformFromCG(ctm), clipBounds);
