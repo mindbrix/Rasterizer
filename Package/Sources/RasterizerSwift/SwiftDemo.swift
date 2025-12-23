@@ -143,7 +143,7 @@ extension SwiftDemo: SwiftApp.PageDelegate {
         case Welcome
         
         func callAsFunction() -> String {
-            return self.rawValue
+            rawValue
         }
     }
     enum PageID: String, CaseIterable {
@@ -151,29 +151,39 @@ extension SwiftDemo: SwiftApp.PageDelegate {
         case Home
         
         func callAsFunction() -> String {
-            return self.rawValue
+            rawValue
         }
     }
-
+    enum Key: String, CaseIterable {
+        case username
+        case password
+        case slider0
+        case tapcount
+        
+        func callAsFunction() -> String {
+            rawValue
+        }
+    }
+    
     func pageFor(_ pageID: String) -> Page? {
         switch PageID(rawValue: pageID) {
         case .LogIn:
             Page(
                 defaults: [
-                    .username: "user",
-                    .password: "password",
-                    .slider0: SliderState(min: 0, max: 1, current: 0),
-                    .tapcount: 0
+                    Key.username(): "user",
+                    Key.password(): "password",
+                    Key.slider0(): SliderState(min: 0, max: 1, current: 0),
+                    Key.tapcount(): 0
                 ],
                 controls: [
                     .label(label: Label.Welcome()),
-                    .text(label: Label.UserName(), key: .username),
-                    .text(label: Label.Password(), key: .password),
-                    .slider(key: .slider0, closure: { app in }),
+                    .text(label: Label.UserName(), key: Key.username()),
+                    .text(label: Label.Password(), key: Key.password()),
+                    .slider(key: Key.slider0(), closure: { app in }),
                     .button(label: Label.LogIn(), closure: { app in
-                        if let tapcount = app.store.getValue(key: .tapcount) as? Int {
+                        if let tapcount = app.store.getValue(key: Key.tapcount()) as? Int {
                             print("\(tapcount)")
-                            app.store.setValue(value: tapcount + 1, key: .tapcount)
+                            app.store.setValue(value: tapcount + 1, key: Key.tapcount())
                             
                             if tapcount == 2 {
                                 app.pageID = PageID.Home()
@@ -184,7 +194,7 @@ extension SwiftDemo: SwiftApp.PageDelegate {
         case .Home:
             Page(defaults: [:], controls: [
                 .button(label: Label.Welcome(), closure: { app in
-                    app.store.setValue(value: 0, key: .tapcount)
+                    app.store.setValue(value: 0, key: Key.tapcount())
                     app.pageID = PageID.LogIn()
                 })
             ])

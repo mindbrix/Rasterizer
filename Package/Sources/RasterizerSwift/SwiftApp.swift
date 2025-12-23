@@ -10,19 +10,14 @@ import RasterizerObjC
 
 
 class Store {
-    enum Key: String, CaseIterable {
-        case username
-        case password
-        case slider0
-        case tapcount
-    }
+    typealias keyType = String
     typealias ValueType = any Hashable
-    typealias DictType = [Key: ValueType]
+    typealias DictType = [keyType: ValueType]
     
-    func getValue(key: Key) -> ValueType? {
+    func getValue(key: keyType) -> ValueType? {
         dict[key]
     }
-    func setValue(value: ValueType?, key: Key) {
+    func setValue(value: ValueType?, key: keyType) {
         dict[key] = value
     }
     var dict: DictType = [:]
@@ -33,8 +28,8 @@ enum Control {
     
     case button(label: String, closure: Closure)
     case label(label: String)
-    case slider(key: Store.Key, closure: Closure)
-    case text(label: String, key: Store.Key)
+    case slider(key: Store.keyType, closure: Closure)
+    case text(label: String, key: Store.keyType)
     
     var closure: Closure? {
         switch self {
@@ -46,7 +41,7 @@ enum Control {
             nil
         }
     }
-    var key: Store.Key? {
+    var key: Store.keyType? {
         switch self {
         case .slider(let key, _):
             key
@@ -98,7 +93,7 @@ class SwiftApp {
     var pageID: String?
     var font = Font(name: "HelveticaNeue-Medium", size: 72)
     let store = Store()
-    var observers: [Store.Key: Set<String>] = [:]
+    var observers: [Store.keyType: Set<String>] = [:]
     var tappables: [Tappable] = []
     var tapped: Tappable?
     var down: CGPoint = .zero
