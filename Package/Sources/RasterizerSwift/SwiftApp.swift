@@ -9,12 +9,6 @@ import Foundation
 import RasterizerObjC
 
 
-enum PageID: String, CaseIterable {
-    case Null
-    case LogIn
-    case Home
-}
-
 class Store {
     enum Key: String, CaseIterable {
         case username
@@ -98,13 +92,13 @@ class SwiftApp {
         case min = 0, mid = 0.5, max = 1
     }
     protocol PageDelegate: AnyObject {
-        func pageFor(_ pageID: PageID) -> Page?
+        func pageFor(_ pageID: String) -> Page?
     }
     weak var pageDelegate: PageDelegate?
-    var pageID = PageID.Null
+    var pageID: String?
     var font = Font(name: "HelveticaNeue-Medium", size: 72)
     let store = Store()
-    var observers: [Store.Key: Set<PageID>] = [:]
+    var observers: [Store.Key: Set<String>] = [:]
     var tappables: [Tappable] = []
     var tapped: Tappable?
     var down: CGPoint = .zero
@@ -134,7 +128,7 @@ class SwiftApp {
     
     func createSceneIn(_ bounds: CGRect) -> RAScene {
         let scene = RAScene()
-        guard pageID != .Null, let pageDelegate, let page = pageDelegate.pageFor(pageID) else {
+        guard let pageID, let pageDelegate, let page = pageDelegate.pageFor(pageID) else {
             return scene
         }
         for key in page.defaults.keys {

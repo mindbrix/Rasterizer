@@ -14,7 +14,7 @@ class SwiftDemo: NSObject {
     override init() {
         super.init()
         swiftApp.pageDelegate = self
-        swiftApp.pageID = .LogIn
+        swiftApp.pageID = PageID.LogIn()
     }
     enum Event {
         case keyDown(character: Character, flags: NSEvent.ModifierFlags)
@@ -146,9 +146,17 @@ extension SwiftDemo: SwiftApp.PageDelegate {
             return self.rawValue
         }
     }
+    enum PageID: String, CaseIterable {
+        case LogIn
+        case Home
+        
+        func callAsFunction() -> String {
+            return self.rawValue
+        }
+    }
 
-    func pageFor(_ pageID: PageID) -> Page? {
-        switch pageID {
+    func pageFor(_ pageID: String) -> Page? {
+        switch PageID(rawValue: pageID) {
         case .LogIn:
             Page(
                 defaults: [
@@ -168,7 +176,7 @@ extension SwiftDemo: SwiftApp.PageDelegate {
                             app.store.setValue(value: tapcount + 1, key: .tapcount)
                             
                             if tapcount == 2 {
-                                app.pageID = .Home
+                                app.pageID = PageID.Home()
                             }
                     }
                     })
@@ -177,7 +185,7 @@ extension SwiftDemo: SwiftApp.PageDelegate {
             Page(defaults: [:], controls: [
                 .button(label: Label.Welcome(), closure: { app in
                     app.store.setValue(value: 0, key: .tapcount)
-                    app.pageID = .LogIn
+                    app.pageID = PageID.LogIn()
                 })
             ])
         default:
