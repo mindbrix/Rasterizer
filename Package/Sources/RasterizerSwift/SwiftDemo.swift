@@ -136,6 +136,17 @@ extension SwiftDemo: RASceneListDelegate {
 }
 
 extension SwiftDemo: SwiftApp.PageDelegate {
+    enum Label: String {
+        case UserName = "User name"
+        case Password
+        case LogIn = "Log in"
+        case Welcome
+        
+        func callAsFunction() -> String {
+            return self.rawValue
+        }
+    }
+
     func pageFor(_ pageID: PageID) -> Page? {
         switch pageID {
         case .LogIn:
@@ -147,11 +158,11 @@ extension SwiftDemo: SwiftApp.PageDelegate {
                     .tapcount: 0
                 ],
                 controls: [
-                    .label(label: .Welcome),
-                    .text(label: .UserName, key: .username),
-                    .text(label: .Password, key: .password),
+                    .label(label: Label.Welcome()),
+                    .text(label: Label.UserName(), key: .username),
+                    .text(label: Label.Password(), key: .password),
                     .slider(key: .slider0, closure: { app in }),
-                    .button(label: .LogIn, closure: { app in
+                    .button(label: Label.LogIn(), closure: { app in
                         if let tapcount = app.store.getValue(key: .tapcount) as? Int {
                             print("\(tapcount)")
                             app.store.setValue(value: tapcount + 1, key: .tapcount)
@@ -164,7 +175,7 @@ extension SwiftDemo: SwiftApp.PageDelegate {
                 ])
         case .Home:
             Page(defaults: [:], controls: [
-                .label(label: .Welcome)
+                .label(label: Label.Welcome())
             ])
         default:
             nil

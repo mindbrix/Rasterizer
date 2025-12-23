@@ -34,20 +34,13 @@ class Store {
     var dict: DictType = [:]
 }
 
-enum Label: String {
-    case UserName = "User name"
-    case Password
-    case LogIn = "Log in"
-    case Welcome
-}
-
 enum Control {
     typealias Closure = (SwiftApp) -> Void
     
-    case button(label: Label, closure: Closure)
-    case label(label: Label)
+    case button(label: String, closure: Closure)
+    case label(label: String)
     case slider(key: Store.Key, closure: Closure)
-    case text(label: Label, key: Store.Key)
+    case text(label: String, key: Store.Key)
     
     var closure: Closure? {
         switch self {
@@ -188,11 +181,11 @@ class SwiftApp {
         switch control {
         case .button(let label, _):
             return [
-                Run(string: label.rawValue, font: font, color: isActive ? red : gray)
+                Run(string: label, font: font, color: isActive ? red : gray)
             ]
         case .label(let label):
             return [
-                Run(string: label.rawValue, font: font, color: black)
+                Run(string: label, font: font, color: black)
             ]
         case .slider(_, _):
             return [
@@ -200,7 +193,7 @@ class SwiftApp {
             ]
         case .text(let label, let key):
             return [
-                Run(string: label.rawValue, font: font, color: black),
+                Run(string: label, font: font, color: black),
                 Run(string: store.getValue(key: key) as? String ?? "", font: font, color: gray)
             ]
         }
