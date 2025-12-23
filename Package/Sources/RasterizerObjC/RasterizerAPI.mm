@@ -207,6 +207,9 @@
     return (__bridge_transfer NSAttributedString *)attr;
     
 }
++ (double)fontSizeFor:(nonnull NSString *)fontName lineHeight:(double)lineHeight {
+    return RaCT::fontSizeForLineHeight(fontName.UTF8String, lineHeight);
+}
 @end
 
 

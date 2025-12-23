@@ -98,6 +98,7 @@ class SwiftApp {
     var tapped: Tappable?
     var down: CGPoint = .zero
     var last: CGPoint = .zero
+    var showBounds = false
     
     func mouseDown(_ bounds: CGRect, p: CGPoint) {
         guard let tappable = tappables.reversed().filter({ $0.bounds.contains(p) }).first else {
@@ -116,7 +117,6 @@ class SwiftApp {
             let dt = (p.x - last.x) / b.width
             let t = max(state.min, min(state.max, state.current + dt))
             store.setValue(value: SliderState(min: state.min, max: state.max, current: t), key: key)
-            print(t)
         }
         last = p
     }
@@ -145,7 +145,11 @@ class SwiftApp {
             }
         }
         tappables.removeAll()
-        CGRect.drawGridIn(bounds, count: page.controls.count, scene: scene)
+        font = Font(name: font.name, size: RAText.fontSize(for: font.name, lineHeight: bounds.height / Double(page.controls.count)))
+        
+        if showBounds {
+            CGRect.drawGridIn(bounds, count: page.controls.count, scene: scene)
+        }
         for (i, control) in page.controls.enumerated() {
             let b = CGRect.boundsForIndex(bounds, index: i, count: page.controls.count)
             let isActive = i == (tapped?.index ?? -1)
@@ -154,7 +158,9 @@ class SwiftApp {
             var tx = 0.0
             for run in runs {
                 let ctm = CGAffineTransform(translationX: tx + origin.x, y: origin.y)
-                scene.addRect(run.bounds, ctm: ctm, width: 1, color: RAPaint())
+                if showBounds {
+                    scene.addRect(run.bounds, ctm: ctm, width: 1, color: RAPaint())
+                }
                 scene.addTextLine(run.attributedString, ctm: ctm, clip: .zero)
                 
                 if control.closure != nil {
@@ -180,9 +186,11 @@ class SwiftApp {
             return [
                 Run(string: label, font: font, color: black)
             ]
-        case .slider(_, _):
+        case .slider(let key, _):
+            let current = (store.getValue(key: key) as? SliderState)?.current ?? 0.0
             return [
-                Run(string: "Slider", font: font, color: isActive ? red : gray)
+                Run(string: key, font: font, color: isActive ? red : gray),
+                Run(string: String(format: "%.2f", current), font: font, color: black)
             ]
         case .text(let label, let key):
             return [

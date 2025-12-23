@@ -56,6 +56,7 @@
                                               fontName:(nonnull NSString *)fontName
                                               fontSize:(double)fontSize
                                                  color:(nonnull RAPaint *)color;
++ (double)fontSizeFor:(nonnull NSString *)fontName lineHeight:(double)lineHeight;
 
 @end
 

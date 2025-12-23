@@ -41,11 +41,11 @@ extension CGPoint {
 extension CGRect {
     static func boundsForIndex(_ bounds: CGRect, index: Int, count: Int) -> CGRect {
         let count = Double(count)
-        let dy = bounds.height / Double(count)
+        let height = bounds.height / Double(count)
         return CGRect(x: bounds.origin.x,
-                      y: bounds.origin.y + (count - 1 - Double(index)) * dy,
+                      y: bounds.origin.y + (count - 1 - Double(index)) * height,
                       width: bounds.width,
-                      height: dy)
+                      height: height)
     }
     static func drawGridIn(_ bounds: CGRect, count: Int, scene: RAScene) {
         for i in 0..<count {

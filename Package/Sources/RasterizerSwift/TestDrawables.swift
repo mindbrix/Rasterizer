@@ -152,7 +152,7 @@ class Test0: RADrawable {
         let dim = min(bounds.width, bounds.height)
         let unitRect = CGRect(x: 0, y: 0, width: 1, height: 1)
         let unitCenter = CGPoint(x: unitRect.midX, y: unitRect.midY)
-        let unitWidth = 0.0// 0.1
+        let unitWidth = 0.1
         let path = RAPath()
         if (state.useRect) {
             path.add(unitRect)
