@@ -84,6 +84,7 @@ struct Run {
 }
 
 struct Tappable {
+    let index: Int
     let bounds: CGRect
     let control: Control
 }
@@ -101,17 +102,31 @@ class SwiftApp {
     let store = Store()
     var observers: [Store.Key: Set<PageID>] = [:]
     var tappables: [Tappable] = []
+    var tapped: Tappable?
+    var down: CGPoint?
+    var last: CGPoint?
     
-    func mouseDown(_ bounds: CGRect, p: CGPoint) {
+    func tappableFor(_ point: CGPoint) -> Tappable? {
         for tappable in tappables.reversed() {
-            if tappable.bounds.contains(p) {
-                tappable.control.closure?(self)
+            if tappable.bounds.contains(point) {
+                return tappable
             }
+        }
+        return nil
+    }
+    func mouseDown(_ bounds: CGRect, p: CGPoint) {
+        if let tappable = tappableFor(p) {
+            down = p
+            tapped = tappable
+            tappable.control.closure?(self)
         }
     }
     func mouseMoved(_ bounds: CGRect, p: CGPoint) {
+        last = p
     }
     func mouseUp(_ bounds: CGRect, p: CGPoint) {
+        down = nil
+        tapped = nil
     }
     
     func drawIn(_ bounds: CGRect) -> RAScene {
@@ -132,7 +147,8 @@ class SwiftApp {
         CGRect.drawGridIn(bounds, count: controls.count, scene: scene)
         for (i, control) in controls.enumerated() {
             let b = CGRect.boundsForIndex(bounds, index: i, count: controls.count)
-            let runs = runsFor(control: control)
+            let isActive = (tapped?.index ?? -1) == i
+            let runs = runsFor(control: control, isActive: isActive)
             let origin = originIn(b, runs: runs, alignx: .mid, aligny: .mid)
             var tx = 0.0
             for run in runs {
@@ -141,7 +157,7 @@ class SwiftApp {
                 scene.addTextLine(run.attributedString, ctm: ctm, clip: .zero)
                 
                 if control.closure != nil {
-                    tappables.append(Tappable(bounds: run.bounds.applying(ctm), control: control))
+                    tappables.append(Tappable(index: i, bounds: run.bounds.applying(ctm), control: control))
                 }
                 tx += run.bounds.width
             }
@@ -149,7 +165,7 @@ class SwiftApp {
         return scene
     }
     
-    func runsFor(control: Control) -> [Run] {
+    func runsFor(control: Control, isActive: Bool) -> [Run] {
         let red = RAPaint(red: 1, green: 0, blue: 0, alpha: 1)
         let black = RAPaint()
         let gray = RAPaint(gray: 0.66, alpha: 1)
@@ -157,7 +173,7 @@ class SwiftApp {
         switch control {
         case .button(let label, _):
             return [
-                Run(string: label.rawValue, font: font, color: red)
+                Run(string: label.rawValue, font: font, color: isActive ? red : gray)
             ]
         case .label(let label):
             return [
