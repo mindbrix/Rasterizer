@@ -142,7 +142,8 @@ extension SwiftDemo: SwiftApp.PageDelegate {
             Page(
                 defaults: [
                     .username: "88",
-                    .slider0: SliderState(min: 0, max: 1, current: 0)
+                    .slider0: SliderState(min: 0, max: 1, current: 0),
+                    .tapcount: 10
                 ],
                 controls: [
                     .label(label: .Welcome),
@@ -150,9 +151,10 @@ extension SwiftDemo: SwiftApp.PageDelegate {
                     .text(label: .Password, key: .password),
                     .slider(key: .slider0, closure: { app in }),
                     .button(label: .LogIn, closure: { app in
-                        let tapcount = app.store.getValue(key: .tapcount) as? Int ?? 0
-                        print("\(tapcount)")
-                        app.store.setValue(value: tapcount + 1, key: .tapcount)
+                        if let tapcount = app.store.getValue(key: .tapcount) as? Int {
+                            print("\(tapcount)")
+                            app.store.setValue(value: tapcount + 1, key: .tapcount)
+                    }
                     })
                 ])
         default:

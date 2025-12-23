@@ -27,12 +27,6 @@ class Store {
     func getValue(key: Key) -> ValueType? {
         dict[key]
     }
-    func intValue(key: Key) -> Int {
-        getValue(key: key) as? Int ?? 0
-    }
-    func stringValue(key: Key) -> String {
-        getValue(key: key) as? String ?? ""
-    }
     func setValue(value: ValueType, key: Key) {
         dict[key] = value
     }
@@ -149,6 +143,11 @@ class SwiftApp {
         guard pageID != .Null, let pageDelegate, let page = pageDelegate.pageFor(pageID) else {
             return scene
         }
+        for key in page.defaults.keys {
+            if store.getValue(key: key) == nil, let value = page.defaults[key] {
+                store.setValue(value: value, key: key)
+            }
+        }
         for key in observers.keys {
             observers[key]?.remove(pageID)
         }
@@ -163,7 +162,7 @@ class SwiftApp {
         for (i, control) in page.controls.enumerated() {
             let b = CGRect.boundsForIndex(bounds, index: i, count: page.controls.count)
             let isActive = i == (tapped?.index ?? -1)
-            let runs = runsFor(control: control, isActive: isActive, defaults: page.defaults)
+            let runs = runsFor(control: control, isActive: isActive)
             let origin = originIn(b, runs: runs, alignx: .mid, aligny: .mid)
             var tx = 0.0
             for run in runs {
@@ -180,7 +179,7 @@ class SwiftApp {
         return scene
     }
     
-    func runsFor(control: Control, isActive: Bool, defaults: Store.DictType) -> [Run] {
+    func runsFor(control: Control, isActive: Bool) -> [Run] {
         let red = RAPaint(red: 1, green: 0, blue: 0, alpha: 1)
         let black = RAPaint()
         let gray = RAPaint(gray: 0.66, alpha: 1)
@@ -201,7 +200,7 @@ class SwiftApp {
         case .text(let label, let key):
             return [
                 Run(string: label.rawValue, font: font, color: black),
-                Run(string: (defaults[key] as? String) ?? store.stringValue(key: key), font: font, color: gray)
+                Run(string: store.getValue(key: key) as? String ?? "", font: font, color: gray)
             ]
         }
     }
