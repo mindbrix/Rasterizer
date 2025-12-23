@@ -15,14 +15,15 @@ enum PageID: String, CaseIterable {
 }
 
 class Store {
-    typealias ValueType = any Hashable
-    
     enum Key: String, CaseIterable {
         case username
         case password
         case slider0
         case tapcount
     }
+    typealias ValueType = any Hashable
+    typealias DictType = [Key: ValueType]
+    
     func getValue(key: Key) -> ValueType? {
         dict[key]
     }
@@ -30,12 +31,12 @@ class Store {
         getValue(key: key) as? Int ?? 0
     }
     func stringValue(key: Key) -> String {
-        getValue(key: key) as? String ?? "88"
+        getValue(key: key) as? String ?? ""
     }
     func setValue(value: ValueType, key: Key) {
         dict[key] = value
     }
-    var dict: [Key: ValueType] = [:]
+    var dict: DictType = [:]
 }
 
 enum Label: String {
@@ -99,12 +100,17 @@ struct Tappable {
     let control: Control
 }
 
+struct Page {
+    let defaults: Store.DictType
+    let controls: [Control]
+}
+
 class SwiftApp {
     enum Alignment: Double {
         case min = 0, mid = 0.5, max = 1
     }
     protocol PageDelegate: AnyObject {
-        func controlsFor(_ pageID: PageID) -> [Control]?
+        func pageFor(_ pageID: PageID) -> Page?
     }
     weak var pageDelegate: PageDelegate?
     var pageID = PageID.Null
@@ -140,24 +146,24 @@ class SwiftApp {
     
     func drawIn(_ bounds: CGRect) -> RAScene {
         let scene = RAScene()
-        guard pageID != .Null, let pageDelegate, let controls = pageDelegate.controlsFor(pageID) else {
+        guard pageID != .Null, let pageDelegate, let page = pageDelegate.pageFor(pageID) else {
             return scene
         }
         for key in observers.keys {
             observers[key]?.remove(pageID)
         }
-        for control in controls {
+        for control in page.controls {
             if let key = control.key {
                 let entry = observers[key] ?? []
                 observers[key] = entry.union([pageID])
             }
         }
         tappables.removeAll()
-        CGRect.drawGridIn(bounds, count: controls.count, scene: scene)
-        for (i, control) in controls.enumerated() {
-            let b = CGRect.boundsForIndex(bounds, index: i, count: controls.count)
-            let isActive = (tapped?.index ?? -1) == i
-            let runs = runsFor(control: control, isActive: isActive)
+        CGRect.drawGridIn(bounds, count: page.controls.count, scene: scene)
+        for (i, control) in page.controls.enumerated() {
+            let b = CGRect.boundsForIndex(bounds, index: i, count: page.controls.count)
+            let isActive = i == (tapped?.index ?? -1)
+            let runs = runsFor(control: control, isActive: isActive, defaults: page.defaults)
             let origin = originIn(b, runs: runs, alignx: .mid, aligny: .mid)
             var tx = 0.0
             for run in runs {
@@ -174,7 +180,7 @@ class SwiftApp {
         return scene
     }
     
-    func runsFor(control: Control, isActive: Bool) -> [Run] {
+    func runsFor(control: Control, isActive: Bool, defaults: Store.DictType) -> [Run] {
         let red = RAPaint(red: 1, green: 0, blue: 0, alpha: 1)
         let black = RAPaint()
         let gray = RAPaint(gray: 0.66, alpha: 1)
@@ -195,7 +201,7 @@ class SwiftApp {
         case .text(let label, let key):
             return [
                 Run(string: label.rawValue, font: font, color: black),
-                Run(string: store.stringValue(key: key), font: font, color: gray)
+                Run(string: (defaults[key] as? String) ?? store.stringValue(key: key), font: font, color: gray)
             ]
         }
     }

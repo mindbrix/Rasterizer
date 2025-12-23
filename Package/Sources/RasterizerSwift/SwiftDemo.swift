@@ -15,14 +15,13 @@ class SwiftDemo: NSObject {
         super.init()
         swiftApp.pageDelegate = self
         swiftApp.pageID = .LogIn
-        swiftApp.store.setValue(value: SliderState(min: 0, max: 1, current: 0), key: .slider0)
     }
     enum Event {
         case keyDown(character: Character, flags: NSEvent.ModifierFlags)
-        case magnify(scale: Double)
         case mouseDown(p: CGPoint, flags: NSEvent.ModifierFlags)
         case mouseMove(p: CGPoint, flags: NSEvent.ModifierFlags)
         case mouseUp(p: CGPoint, flags: NSEvent.ModifierFlags)
+        case magnify(scale: Double)
         case rotate(angle: Float)
         case translate(tx: Double, ty: Double)
     }
@@ -137,19 +136,25 @@ extension SwiftDemo: RASceneListDelegate {
 }
 
 extension SwiftDemo: SwiftApp.PageDelegate {
-    func controlsFor(_ pageID: PageID) -> [Control]? {
+    func pageFor(_ pageID: PageID) -> Page? {
         switch pageID {
-        case .LogIn: [
-            .label(label: .Welcome),
-            .text(label: .UserName, key: .username),
-            .text(label: .Password, key: .password),
-            .slider(key: .slider0, closure: { app in }),
-            .button(label: .LogIn, closure: { app in
-                let tapcount = app.store.getValue(key: .tapcount) as? Int ?? 0
-                print("\(tapcount)")
-                app.store.setValue(value: tapcount + 1, key: .tapcount)
-            })
-        ]
+        case .LogIn:
+            Page(
+                defaults: [
+                    .username: "88",
+                    .slider0: SliderState(min: 0, max: 1, current: 0)
+                ],
+                controls: [
+                    .label(label: .Welcome),
+                    .text(label: .UserName, key: .username),
+                    .text(label: .Password, key: .password),
+                    .slider(key: .slider0, closure: { app in }),
+                    .button(label: .LogIn, closure: { app in
+                        let tapcount = app.store.getValue(key: .tapcount) as? Int ?? 0
+                        print("\(tapcount)")
+                        app.store.setValue(value: tapcount + 1, key: .tapcount)
+                    })
+                ])
         default:
             nil
         }
