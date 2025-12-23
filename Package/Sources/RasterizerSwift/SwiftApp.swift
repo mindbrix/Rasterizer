@@ -106,17 +106,10 @@ class SwiftApp {
     var down: CGPoint?
     var last: CGPoint?
     
-    func tappableFor(_ point: CGPoint) -> Tappable? {
-        for tappable in tappables.reversed() {
-            if tappable.bounds.contains(point) {
-                return tappable
-            }
-        }
-        return nil
-    }
     func mouseDown(_ bounds: CGRect, p: CGPoint) {
-        if let tappable = tappableFor(p) {
+        if let tappable = tappables.reversed().filter({ $0.bounds.contains(p) }).first {
             down = p
+            last = p
             tapped = tappable
             tappable.control.closure?(self)
         }
@@ -125,7 +118,7 @@ class SwiftApp {
         last = p
     }
     func mouseUp(_ bounds: CGRect, p: CGPoint) {
-        down = nil
+        last = p
         tapped = nil
     }
     
