@@ -20,6 +20,7 @@ class Store {
     enum Key: String, CaseIterable {
         case username
         case password
+        case slider0
         case tapcount
     }
     func getValue(key: Key) -> ValueType? {
@@ -49,11 +50,14 @@ enum Control {
     
     case button(label: Label, closure: Closure)
     case label(label: Label)
+    case slider(key: Store.Key, closure: Closure)
     case text(label: Label, key: Store.Key)
     
     var closure: Closure? {
         switch self {
         case .button(_, let closure):
+            closure
+        case .slider(_, let closure):
             closure
         default:
             nil
@@ -61,6 +65,8 @@ enum Control {
     }
     var key: Store.Key? {
         switch self {
+        case .slider(let key, _):
+            key
         case .text(_, let key):
             key
         default:
@@ -81,6 +87,10 @@ struct Run {
     }
     let attributedString: NSAttributedString
     let bounds: CGRect
+}
+
+struct SliderState: Hashable {
+    let min, max, current: Double
 }
 
 struct Tappable {
@@ -107,15 +117,21 @@ class SwiftApp {
     var last: CGPoint?
     
     func mouseDown(_ bounds: CGRect, p: CGPoint) {
-        if let tappable = tappables.reversed().filter({ $0.bounds.contains(p) }).first {
-            down = p
-            last = p
-            tapped = tappable
-            tappable.control.closure?(self)
+        guard let tappable = tappables.reversed().filter({ $0.bounds.contains(p) }).first else {
+            return
         }
+        down = p
+        last = p
+        tapped = tappable
+        tappable.control.closure?(self)
     }
     func mouseMoved(_ bounds: CGRect, p: CGPoint) {
+        guard let b = tapped?.bounds else {
+            return
+        }
         last = p
+        let t = (p.x - b.minX) / b.width
+        print(t)
     }
     func mouseUp(_ bounds: CGRect, p: CGPoint) {
         last = p
@@ -171,6 +187,10 @@ class SwiftApp {
         case .label(let label):
             return [
                 Run(string: label.rawValue, font: font, color: black)
+            ]
+        case .slider(_, _):
+            return [
+                Run(string: "Slider", font: font, color: isActive ? red : gray)
             ]
         case .text(let label, let key):
             return [

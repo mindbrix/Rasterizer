@@ -15,6 +15,7 @@ class SwiftDemo: NSObject {
         super.init()
         swiftApp.pageDelegate = self
         swiftApp.pageID = .LogIn
+        swiftApp.store.setValue(value: SliderState(min: 0, max: 1, current: 0), key: .slider0)
     }
     enum Event {
         case keyDown(character: Character, flags: NSEvent.ModifierFlags)
@@ -147,6 +148,7 @@ extension SwiftDemo: SwiftApp.PageDelegate {
             .label(label: .Welcome),
             .text(label: .UserName, key: .username),
             .text(label: .Password, key: .password),
+            .slider(key: .slider0, closure: { app in }),
             .button(label: .LogIn, closure: { app in
                 let tapcount = app.store.getValue(key: .tapcount) as? Int ?? 0
                 print("\(tapcount)")

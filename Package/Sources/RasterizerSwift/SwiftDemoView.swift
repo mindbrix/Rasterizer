@@ -22,7 +22,7 @@ public class SwiftDemoView: RasterizerView, NSFontChanging {
         true
     }
     override public func becomeFirstResponder() -> Bool {
-        self.window?.acceptsMouseMovedEvents = true
+//        self.window?.acceptsMouseMovedEvents = true
         return true
     }
     public func changeFont(_ sender: NSFontManager?) {
@@ -41,13 +41,19 @@ public class SwiftDemoView: RasterizerView, NSFontChanging {
             }
         }
     }
+    override public func mouseMoved(with event: NSEvent) {
+        guard let point = mousePoint(for: event) else {
+            return
+        }
+        _ = demo.handleEvent(.mouseMove(p: point, flags: event.modifierFlags))
+    }
     override public func mouseDown(with event: NSEvent) {
         guard let point = mousePoint(for: event) else {
             return
         }
         _ = demo.handleEvent(.mouseDown(p: point, flags: event.modifierFlags))
     }
-    override public func mouseMoved(with event: NSEvent) {
+    override public func mouseDragged(with event: NSEvent) {
         guard let point = mousePoint(for: event) else {
             return
         }
@@ -61,9 +67,6 @@ public class SwiftDemoView: RasterizerView, NSFontChanging {
     }
     override public func magnify(with event: NSEvent) {
         _ = demo.handleEvent(.magnify(scale: 1.0 + event.magnification))
-    }
-    override public func mouseDragged(with event: NSEvent) {
-        _ = demo.handleEvent(.translate(tx: event.deltaX, ty: -event.deltaY))
     }
     override public func rotate(with event: NSEvent) {
         _ = demo.handleEvent(.rotate(angle: 0.1 * event.rotation))
