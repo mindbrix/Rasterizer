@@ -179,7 +179,8 @@ extension SwiftDemo: SwiftApp.PageDelegate {
                     .label(label: Label.Welcome()),
                     .text(label: Label.UserName(), key: Key.username()),
                     .text(label: Label.Password(), key: Key.password()),
-                    .slider(key: Key.slider0(), closure: { app in }),
+                    .slider(key: Key.slider0(), closure: { app in
+                    }),
                     .button(label: Label.LogIn(), closure: { app in
                         if let tapcount = app.store.getValue(key: Key.tapcount()) as? Int {
                             print("\(tapcount)")

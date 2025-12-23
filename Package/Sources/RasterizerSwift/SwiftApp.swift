@@ -112,9 +112,13 @@ class SwiftApp {
         guard let b = tapped?.bounds else {
             return
         }
+        if let key = tapped?.control.key, let state = store.getValue(key: key) as? SliderState {
+            let dt = (p.x - last.x) / b.width
+            let t = max(state.min, min(state.max, state.current + dt))
+            store.setValue(value: SliderState(min: state.min, max: state.max, current: t), key: key)
+            print(t)
+        }
         last = p
-        let dt = (p.x - down.x) / b.width
-        print(dt)
     }
     func mouseUp(_ bounds: CGRect, p: CGPoint) {
         last = p
