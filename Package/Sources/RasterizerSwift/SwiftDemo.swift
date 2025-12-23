@@ -43,7 +43,6 @@ class SwiftDemo: NSObject {
     var showOpaques = true
     var showOutlines = false
     var useRect = false
-    var t = 0.0
     var ctm = CGAffineTransform.identity
     var bounds = CGRect.zero
     var pastedScene: RAScene?
@@ -121,7 +120,7 @@ extension SwiftDemo: RASceneListDelegate {
     }
     func getListAtTime(_ time: Double, width: Double, height: Double) -> RASceneList {
         bounds = CGRect(x: 0, y: 0, width: width, height: height)
-        t = paused ? t : time - floor(time)
+        let t = paused ? slider0 : time - floor(time)
         let list = RASceneList()
         list.add(drawables[index].getSceneAtTime(t, bounds: bounds, state: self))
         list.add(pastedScene ?? RAScene())
@@ -165,6 +164,9 @@ extension SwiftDemo: SwiftApp.PageDelegate {
         }
     }
     
+    var slider0: Double {
+        (swiftApp.store.getValue(key: Key.slider0()) as? SliderState)?.current ?? 0.0
+    }
     func pageFor(_ pageID: String) -> Page? {
         switch PageID(rawValue: pageID) {
         case .LogIn:
@@ -189,7 +191,7 @@ extension SwiftDemo: SwiftApp.PageDelegate {
                             if tapcount == 2 {
                                 app.pageID = PageID.Home()
                             }
-                    }
+                        }
                     })
                 ])
         case .Home:

@@ -31,7 +31,6 @@ class TestDasher: RADrawable {
         .pi * (3 * (a + b) - sqrt((3 * a + b) * (a + 3 * b)))
     }
     func getSceneAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RAScene {
-        let tick = state.t
         let width = 10.0
         let b = bounds.insetBy(dx: 0.5 * width, dy: 0.5 * width)
         if b.width == 0 || b.height == 0 {
@@ -50,7 +49,7 @@ class TestDasher: RADrawable {
         let capLen = capStyle == .capRound ? width : 1
         let l0 = max(0, 0.666 * length - capLen)
         let lengths = [l0 as NSNumber, length - l0 as NSNumber]
-        let dashed = path.dashedCopy(withPhase: tick * length - 0.5 * capLen, lengths: lengths)
+        let dashed = path.dashedCopy(withPhase: time * length - 0.5 * capLen, lengths: lengths)
         
         let scene = RAScene()
         scene.addStroke(dashed,
@@ -84,8 +83,6 @@ class TestGradients: RADrawable {
     func getSceneAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RAScene {
         let inset = 40.0
         let b = bounds.insetBy(dx: inset, dy: inset)
-//        let clipPath = state.useRect ? RAPath(rect: b) : RAPath(ellipse: b)
-        
         let gradient = Self.gradientForBounds(bounds, isRadial: !state.useRect)
         
         let rect = RAPath(rect: bounds)
@@ -105,9 +102,7 @@ class TestQuadratics: RADrawable {
         let height = bounds.height
         let dim = min(width, height)
         let stroke = (state.flag ? 1e-2 : 1e-1) * dim
-        let ts = 1 * time
-        let t = ts - floor(ts)
-        let sine = sin(t * 2 * Double.pi)
+        let sine = sin(time * 2 * Double.pi)
         let color = RAPaint(gray: 0, alpha: 1)
         
         let path = RAPath()
@@ -130,7 +125,7 @@ class TestCubics: RADrawable {
         let path = RAPath()
         for i in 0 ..< count {
             let ti = Double(i) / Double(count)
-            let ts = 0.01 * time + ti
+            let ts = 2 * time / Double(count) + ti
             let t = ts - floor(ts)
             let origin = CGPoint(center: center, r: radius, theta: (i % 2 == 0 ? 1 : -1) * t * 2 * Double.pi)
             if state.useRect {
