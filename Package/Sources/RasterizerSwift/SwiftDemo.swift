@@ -175,7 +175,10 @@ extension SwiftDemo: SwiftApp.PageDelegate {
                 ])
         case .Home:
             Page(defaults: [:], controls: [
-                .label(label: Label.Welcome())
+                .button(label: Label.Welcome(), closure: { app in
+                    app.store.setValue(value: 0, key: .tapcount)
+                    app.pageID = .LogIn
+                })
             ])
         default:
             nil
