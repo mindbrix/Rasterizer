@@ -125,7 +125,7 @@ extension SwiftDemo: RASceneListDelegate {
         let list = RASceneList()
         list.add(drawables[index].getSceneAtTime(t, bounds: bounds, state: self))
         list.add(pastedScene ?? RAScene())
-        list.add(swiftApp.drawIn(bounds))
+        list.add(swiftApp.createSceneIn(bounds))
         list.ctm = ctm
         list.useClips = useClips;
         list.useCurves = useCurves
@@ -141,9 +141,10 @@ extension SwiftDemo: SwiftApp.PageDelegate {
         case .LogIn:
             Page(
                 defaults: [
-                    .username: "88",
+                    .username: "user",
+                    .password: "password",
                     .slider0: SliderState(min: 0, max: 1, current: 0),
-                    .tapcount: 10
+                    .tapcount: 0
                 ],
                 controls: [
                     .label(label: .Welcome),
@@ -154,9 +155,17 @@ extension SwiftDemo: SwiftApp.PageDelegate {
                         if let tapcount = app.store.getValue(key: .tapcount) as? Int {
                             print("\(tapcount)")
                             app.store.setValue(value: tapcount + 1, key: .tapcount)
+                            
+                            if tapcount == 2 {
+                                app.pageID = .Home
+                            }
                     }
                     })
                 ])
+        case .Home:
+            Page(defaults: [:], controls: [
+                .label(label: .Welcome)
+            ])
         default:
             nil
         }

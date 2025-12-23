@@ -12,6 +12,7 @@ import RasterizerObjC
 enum PageID: String, CaseIterable {
     case Null
     case LogIn
+    case Home
 }
 
 class Store {
@@ -27,7 +28,7 @@ class Store {
     func getValue(key: Key) -> ValueType? {
         dict[key]
     }
-    func setValue(value: ValueType, key: Key) {
+    func setValue(value: ValueType?, key: Key) {
         dict[key] = value
     }
     var dict: DictType = [:]
@@ -138,7 +139,7 @@ class SwiftApp {
         tapped = nil
     }
     
-    func drawIn(_ bounds: CGRect) -> RAScene {
+    func createSceneIn(_ bounds: CGRect) -> RAScene {
         let scene = RAScene()
         guard pageID != .Null, let pageDelegate, let page = pageDelegate.pageFor(pageID) else {
             return scene
