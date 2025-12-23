@@ -113,8 +113,8 @@ class SwiftApp {
     var observers: [Store.Key: Set<PageID>] = [:]
     var tappables: [Tappable] = []
     var tapped: Tappable?
-    var down: CGPoint?
-    var last: CGPoint?
+    var down: CGPoint = .zero
+    var last: CGPoint = .zero
     
     func mouseDown(_ bounds: CGRect, p: CGPoint) {
         guard let tappable = tappables.reversed().filter({ $0.bounds.contains(p) }).first else {
@@ -130,8 +130,8 @@ class SwiftApp {
             return
         }
         last = p
-        let t = (p.x - b.minX) / b.width
-        print(t)
+        let dt = (p.x - down.x) / b.width
+        print(dt)
     }
     func mouseUp(_ bounds: CGRect, p: CGPoint) {
         last = p

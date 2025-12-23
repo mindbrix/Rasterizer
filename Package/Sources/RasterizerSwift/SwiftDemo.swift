@@ -44,7 +44,6 @@ class SwiftDemo: NSObject {
     var showOpaques = true
     var showOutlines = false
     var useRect = false
-    var slider = 0.0
     var t = 0.0
     var ctm = CGAffineTransform.identity
     var bounds = CGRect.zero
@@ -99,18 +98,14 @@ class SwiftDemo: NSObject {
                 return false
             }
             break
-        case .magnify(let scale):
-            ctm = ctm.concatAroundCenter(t: CGAffineTransform(scaleX: scale, y: scale), cx: bounds.midX, cy: bounds.midY)
         case .mouseDown(let p, _):
             swiftApp.mouseDown(bounds, p: p.applying(ctm.inverted()))
-        case .mouseMove(let p, let flags):
-            if (flags.contains(.shift)) {
-                let inv = ctm.inverted()
-                slider = max(0.0, min(1.0, (p.x * inv.a + p.y * inv.c + inv.tx) / bounds.width))
-            }
+        case .mouseMove(let p, _):
             swiftApp.mouseMoved(bounds, p: p.applying(ctm.inverted()))
         case .mouseUp(let p, _):
             swiftApp.mouseUp(bounds, p: p.applying(ctm.inverted()))
+        case .magnify(let scale):
+            ctm = ctm.concatAroundCenter(t: CGAffineTransform(scaleX: scale, y: scale), cx: bounds.midX, cy: bounds.midY)
         case .rotate(let angle):
             ctm = ctm.concatAroundCenter(t: CGAffineTransform(rotationAngle: CGFloat(angle)), cx: bounds.midX, cy: bounds.midY)
         case .translate(let tx, let ty):
@@ -127,7 +122,7 @@ extension SwiftDemo: RASceneListDelegate {
     }
     func getListAtTime(_ time: Double, width: Double, height: Double) -> RASceneList {
         bounds = CGRect(x: 0, y: 0, width: width, height: height)
-        t = paused ? slider : time - floor(time)
+        t = paused ? t : time - floor(time)
         let list = RASceneList()
         list.add(drawables[index].getSceneAtTime(t, bounds: bounds, state: self))
         list.add(pastedScene ?? RAScene())
