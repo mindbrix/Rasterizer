@@ -10,7 +10,7 @@ import Foundation
 import RasterizerObjC
 
 
-class SwiftDemo: NSObject, RASceneListDelegate {
+class SwiftDemo: NSObject {
     override init() {
         super.init()
         swiftApp.pageDelegate = self
@@ -118,7 +118,9 @@ class SwiftDemo: NSObject, RASceneListDelegate {
         }
         return true
     }
-    
+}
+
+extension SwiftDemo: RASceneListDelegate {
     func shouldRedraw(atTime time: Double) -> Bool {
         true
     }
