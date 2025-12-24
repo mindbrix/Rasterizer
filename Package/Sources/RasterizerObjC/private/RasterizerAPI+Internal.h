@@ -24,6 +24,9 @@
 @property(nonatomic) CTLineRef line;
 @end
 
+@interface RAFrame ()
+@property(nonatomic) CTFrameRef frame;
+@end
 
 @interface RAScene ()
 @property(nonatomic) Ra::SceneRef scene;

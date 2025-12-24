@@ -60,8 +60,17 @@
 
 @interface RALine: NSObject
 @property(nonatomic, readonly) CGRect bounds;
+@property(nonatomic, readonly) NSUInteger runCount;
 
 - (nonnull id)initWithAttributedString:(nonnull NSAttributedString *)attributedString;
+@end
+
+
+@interface RAFrame: NSObject
+@property(nonatomic, readonly) CGRect bounds;
+@property(nonatomic, readonly) NSUInteger lineCount;
+
+- (nonnull id)initWithAttributedString:(nonnull NSAttributedString *)attributedString inRect:(CGRect)rect;
 @end
 
 

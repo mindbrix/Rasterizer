@@ -60,10 +60,11 @@ struct Font {
 
 struct Run {
     init(string: String, font: Font, color: RAPaint) {
-        let attributedString = RAText.createAttributedString(string, fontName: font.name, fontSize: font.size, color: color)
+        attributedString = RAText.createAttributedString(string, fontName: font.name, fontSize: font.size, color: color)
         line = RALine(attributedString: attributedString)
         bounds = line.bounds
     }
+    let attributedString: NSAttributedString
     let line: RALine
     let bounds: CGRect
 }
@@ -146,11 +147,13 @@ class SwiftApp {
             }
         }
         tappables.removeAll()
-        font = Font(name: font.name, size: RAText.fontSize(for: font.name, lineHeight: bounds.height / Double(page.controls.count)))
+//        font = Font(name: font.name, size: RAText.fontSize(for: font.name, lineHeight: bounds.height / Double(page.controls.count)))
         
         if showBounds {
             CGRect.drawGridIn(bounds, count: page.controls.count, scene: scene)
         }
+        let mutable = NSMutableAttributedString()
+        
         for (i, control) in page.controls.enumerated() {
             let b = CGRect.boundsForIndex(bounds, index: i, count: page.controls.count)
             let isActive = i == (tapped?.index ?? -1)
@@ -158,6 +161,7 @@ class SwiftApp {
             let origin = originIn(b, runs: runs, alignx: .mid, aligny: .max)
             var tx = 0.0
             for run in runs {
+                mutable.append(run.attributedString)
                 let ctm = CGAffineTransform(translationX: tx + origin.x, y: origin.y)
                 if showBounds {
                     scene.addRect(run.bounds, ctm: ctm, width: 1, color: RAPaint())
@@ -169,7 +173,11 @@ class SwiftApp {
                 }
                 tx += run.bounds.width
             }
+            mutable.append(NSAttributedString(string: "\n"))
         }
+        let gutter = bounds.height
+        let b = CGRect(x: bounds.minX, y: bounds.minY - gutter, width: bounds.width, height: bounds.height + gutter)
+//        scene.addText(mutable, in: b, ctm: .identity, clip: .zero)
         return scene
     }
     

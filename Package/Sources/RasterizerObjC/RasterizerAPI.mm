@@ -216,6 +216,10 @@
 - (CGRect)bounds {
     return RaCT::boundsForLine(_line);
 }
+- (NSUInteger)runCount {
+    CFArrayRef glyphRuns = CTLineGetGlyphRuns(_line);
+    return CFArrayGetCount(glyphRuns);
+}
 
 - (id)initWithAttributedString:(nonnull NSAttributedString *)attributedString {
     self = [super init];
@@ -231,6 +235,31 @@
 
 @end
 
+
+@implementation RAFrame: NSObject
+- (CGRect)bounds {
+    return CGPathGetBoundingBox(CTFrameGetPath(_frame));
+}
+- (NSUInteger)lineCount {
+    return CFArrayGetCount(CTFrameGetLines(_frame));
+}
+
+- (id)initWithAttributedString:(nonnull NSAttributedString *)attributedString inRect:(CGRect)rect {
+    self = [super init];
+    if (!self)
+        return nil;
+    CTFramesetterRef framesetter = CTFramesetterCreateWithAttributedString((__bridge CFAttributedStringRef)attributedString);
+    CGPathRef rectPath = CGPathCreateWithRect(rect, NULL);
+    _frame = CTFramesetterCreateFrame(framesetter, CFRangeMake(0, 0), rectPath, NULL);
+    CGPathRelease(rectPath);
+    CFRelease(framesetter);
+    return self;
+}
+
+- (void)dealloc {
+    CFRelease(_frame);
+}
+@end
 
 #pragma mark - RAScene
 
