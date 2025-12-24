@@ -69,9 +69,6 @@
 typedef void (^RAFrameApplyBlock)(CFRange range, CGRect bounds);
 
 @interface RAFrame: NSObject
-@property(nonatomic, readonly) CGRect bounds;
-@property(nonatomic, readonly) NSUInteger lineCount;
-
 - (nonnull id)initWithAttributedString:(nonnull NSAttributedString *)attributedString inRect:(CGRect)rect;
 
 - (void)applyRuns:(nonnull RAFrameApplyBlock)block;

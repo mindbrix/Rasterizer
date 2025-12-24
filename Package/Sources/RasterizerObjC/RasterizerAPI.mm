@@ -237,13 +237,6 @@
 
 
 @implementation RAFrame: NSObject
-- (CGRect)bounds {
-    return CGPathGetBoundingBox(CTFrameGetPath(_frame));
-}
-- (NSUInteger)lineCount {
-    return CFArrayGetCount(CTFrameGetLines(_frame));
-}
-
 - (id)initWithAttributedString:(nonnull NSAttributedString *)attributedString inRect:(CGRect)rect {
     self = [super init];
     if (!self)
