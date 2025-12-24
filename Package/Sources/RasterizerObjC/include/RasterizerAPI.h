@@ -53,7 +53,7 @@
 + (nonnull NSAttributedString *)createAttributedString:(nonnull NSString *)string
                                               fontName:(nonnull NSString *)fontName
                                               fontSize:(double)fontSize
-                                                 color:(nonnull RAPaint *)color;
+                                                 color:(nonnull CGColorRef)color;
 @end
 
 

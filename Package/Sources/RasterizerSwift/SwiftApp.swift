@@ -59,7 +59,7 @@ struct Font {
 }
 
 struct Run {
-    init(string: String, font: Font, color: RAPaint) {
+    init(string: String, font: Font, color: CGColor) {
         attributedString = RAText.createAttributedString(string, fontName: font.name, fontSize: font.size, color: color)
     }
     let attributedString: NSAttributedString
@@ -191,10 +191,10 @@ class SwiftApp {
     }
     
     func runsFor(control: Control, isActive: Bool) -> [Run] {
-        let red = RAPaint(red: 1, green: 0, blue: 0, alpha: 1)
-        let blue = RAPaint(red: 0, green: 0, blue: 1, alpha: 1)
-        let black = RAPaint()
-        let gray = RAPaint(gray: 0.66, alpha: 1)
+        let red = CGColor(red: 1, green: 0, blue: 0, alpha: 1)
+        let blue = CGColor(red: 0, green: 0, blue: 1, alpha: 1)
+        let black = CGColor(gray: 0, alpha: 1)
+        let gray = CGColor(gray: 0.66, alpha: 1)
         
         switch control {
         case .button(let label, _):

@@ -194,13 +194,11 @@
 #pragma mark - RAText
 
 @implementation RAText: NSObject
-+ (nonnull NSAttributedString *)createAttributedString:(nonnull NSString *)string
-                                              fontName:(nonnull NSString *)fontName
++ (nonnull NSAttributedString *)createAttributedString:(NSString *)string
+                                              fontName:(NSString *)fontName
                                               fontSize:(double)fontSize
-                                                 color:(nonnull RAPaint *)color {
-    CGColorRef cgColor = RaCG::CGColorCreateFromColor(color.paint.color);
+                                                 color:(CGColorRef)cgColor {
     CFAttributedStringRef attr = RaCT::createAttributedString(string.UTF8String, fontName.UTF8String, fontSize, cgColor);
-    CGColorRelease(cgColor);
     return (__bridge_transfer NSAttributedString *)attr;
     
 }
