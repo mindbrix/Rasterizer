@@ -25,9 +25,7 @@
 
 struct RasterizerCoreText {
     static CGRect boundsForLine(CTLineRef line) {
-        CGRect optical = CTLineGetBoundsWithOptions(line, kCTLineBoundsUseOpticalBounds);
-        CGRect glyph = CTLineGetBoundsWithOptions(line, kCTLineBoundsUseGlyphPathBounds);
-        return CGRectMake(optical.origin.x, glyph.origin.y, optical.size.width, glyph.size.height);
+        return CTLineGetBoundsWithOptions(line, kCTLineBoundsUseOpticalBounds);
     }
     
     static CGRect boundsForString(CFAttributedStringRef string) {
