@@ -194,10 +194,6 @@
 #pragma mark - RAText
 
 @implementation RAText: NSObject
-+ (CGRect)boundsFor:(nonnull NSAttributedString *)attributedString {
-    return RaCT::boundsForString((__bridge CFAttributedStringRef)attributedString);
-}
-
 + (nonnull NSAttributedString *)createAttributedString:(nonnull NSString *)string
                                               fontName:(nonnull NSString *)fontName
                                               fontSize:(double)fontSize

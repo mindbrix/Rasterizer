@@ -50,14 +50,11 @@
 
 
 @interface RAText: NSObject
-+ (CGRect)boundsFor:(nonnull NSAttributedString *)attributedString;
-
 + (nonnull NSAttributedString *)createAttributedString:(nonnull NSString *)string
                                               fontName:(nonnull NSString *)fontName
                                               fontSize:(double)fontSize
                                                  color:(nonnull RAPaint *)color;
 + (double)fontSizeFor:(nonnull NSString *)fontName lineHeight:(double)lineHeight;
-
 @end
 
 
@@ -65,7 +62,6 @@
 @property(nonatomic, readonly) CGRect bounds;
 
 - (nonnull id)initWithAttributedString:(nonnull NSAttributedString *)attributedString;
-
 @end
 
 
