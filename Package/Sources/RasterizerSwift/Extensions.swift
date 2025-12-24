@@ -36,21 +36,4 @@ extension CGPoint {
     init(center: CGPoint, r: Double, theta: Double) {
         self = CGPoint(x: center.x + r * cos(theta), y: center.y + r * sin(theta))
     }
-}
-
-extension CGRect {
-    static func boundsForIndex(_ bounds: CGRect, index: Int, count: Int) -> CGRect {
-        let count = Double(count)
-        let height = bounds.height / Double(count)
-        return CGRect(x: bounds.origin.x,
-                      y: bounds.origin.y + (count - 1 - Double(index)) * height,
-                      width: bounds.width,
-                      height: height)
-    }
-    static func drawGridIn(_ bounds: CGRect, count: Int, scene: RAScene) {
-        for i in 0..<count {
-            scene.addRect(boundsForIndex(bounds, index: i, count: count), ctm: .identity, width: 1, color: RAPaint())
-        }
-    }
-}
- 
+} 

@@ -61,12 +61,8 @@ struct Font {
 struct Run {
     init(string: String, font: Font, color: RAPaint) {
         attributedString = RAText.createAttributedString(string, fontName: font.name, fontSize: font.size, color: color)
-        line = RALine(attributedString: attributedString)
-        bounds = line.bounds
     }
     let attributedString: NSAttributedString
-    let line: RALine
-    let bounds: CGRect
 }
 
 struct SliderState: Hashable {
@@ -155,9 +151,6 @@ class SwiftApp {
         
 //        font = Font(name: font.name, size: RAText.fontSize(for: font.name, lineHeight: bounds.height / Double(page.controls.count)))
         
-        if showBounds {
-            CGRect.drawGridIn(bounds, count: page.controls.count, scene: scene)
-        }
         let mutable = NSMutableAttributedString()
         var range = NSRange(location: 0, length: 0)
         
