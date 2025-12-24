@@ -164,6 +164,7 @@ class SwiftApp {
         }
         let paragraphStyle = NSMutableParagraphStyle()
         paragraphStyle.alignment = .center
+        paragraphStyle.lineBreakMode = .byClipping
         mutable.addAttributes([.paragraphStyle: paragraphStyle], range: NSRange(location: 0, length: mutable.length))
         
         let gutter = bounds.height
