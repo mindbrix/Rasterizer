@@ -8,7 +8,7 @@
 
 #import <Foundation/Foundation.h>
 #import <CoreGraphics/CoreGraphics.h>
-
+#import <CoreText/CoreText.h>
 
 @interface RAPaint: NSObject
 - (nonnull id)initWithGray:(double)gray alpha:(double)alpha;
@@ -54,23 +54,16 @@
                                               fontName:(nonnull NSString *)fontName
                                               fontSize:(double)fontSize
                                                  color:(nonnull RAPaint *)color;
-+ (double)fontSizeFor:(nonnull NSString *)fontName lineHeight:(double)lineHeight;
-@end
-
-
-@interface RALine: NSObject
-@property(nonatomic, readonly) CGRect bounds;
-@property(nonatomic, readonly) NSUInteger runCount;
-
-- (nonnull id)initWithAttributedString:(nonnull NSAttributedString *)attributedString;
 @end
 
 
 typedef void (^RAFrameApplyBlock)(CFRange range, CGRect bounds);
+typedef void (^CTLineApplyBlock)(CTLineRef _Nonnull, CGPoint origin);
 
 @interface RAFrame: NSObject
 - (nonnull id)initWithAttributedString:(nonnull NSAttributedString *)attributedString inRect:(CGRect)rect;
 - (void)applyRuns:(nonnull RAFrameApplyBlock)block;
+- (void)applyLines:(nonnull CTLineApplyBlock)block;
 @end
 
 
@@ -113,7 +106,7 @@ typedef NS_ENUM(NSUInteger, RAJoinStyle) {
              clip:(CGRect)clip
          clipPath:(nullable RAPath *)clipPath;
 
-- (CGRect)addLine:(nonnull RALine *)line
+- (void)addLine:(nonnull CTLineRef)line
                   ctm:(CGAffineTransform)ctm
                  clip:(CGRect)clip;
 

@@ -148,9 +148,7 @@ class SwiftApp {
         }
         tappables.removeAll()
         tapMap.removeAll()
-        
-//        font = Font(name: font.name, size: RAText.fontSize(for: font.name, lineHeight: bounds.height / Double(page.controls.count)))
-        
+                
         let mutable = NSMutableAttributedString()
         var range = NSRange(location: 0, length: 0)
         
@@ -181,7 +179,9 @@ class SwiftApp {
                 scene.addStroke(path, ctm: .identity, color: RAPaint(), width: 1, capStyle: .capButt, joinStyle: .joinMiter)
             }
         })
-        scene.addText(mutable, in: b, ctm: .identity, clip: .zero)
+        frame.applyLines({ line, origin in
+            scene.add(line, ctm: CGAffineTransform(translationX: origin.x, y: origin.y), clip: .zero)
+        })
         return scene
     }
     

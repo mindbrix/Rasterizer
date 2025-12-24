@@ -204,35 +204,6 @@
     return (__bridge_transfer NSAttributedString *)attr;
     
 }
-+ (double)fontSizeFor:(nonnull NSString *)fontName lineHeight:(double)lineHeight {
-    return RaCT::fontSizeForLineHeight(fontName.UTF8String, lineHeight);
-}
-@end
-
-
-#pragma mark - RALine
-
-@implementation RALine: NSObject
-- (CGRect)bounds {
-    return RaCT::boundsForLine(_line);
-}
-- (NSUInteger)runCount {
-    CFArrayRef glyphRuns = CTLineGetGlyphRuns(_line);
-    return CFArrayGetCount(glyphRuns);
-}
-
-- (id)initWithAttributedString:(nonnull NSAttributedString *)attributedString {
-    self = [super init];
-    if (!self)
-        return nil;
-    _line = CTLineCreateWithAttributedString((__bridge CFAttributedStringRef)attributedString);
-    return self;
-}
-
-- (void)dealloc {
-    CFRelease(_line);
-}
-
 @end
 
 
@@ -267,6 +238,19 @@
             if (image.size.width > 0 && image.size.height > 0)
                 block(range, CGRectApplyAffineTransform(image, CGAffineTransformMakeTranslation(ox, oy)));
         }
+    }
+}
+- (void)applyLines:(nonnull CTLineApplyBlock)block {
+    CGRect rect = CGPathGetBoundingBox(CTFrameGetPath(_frame));
+    CFArrayRef lines = CTFrameGetLines(_frame);
+    CFIndex lineCount = CFArrayGetCount(lines);
+    Ra::Vector<CGPoint> origins(lineCount);
+    CTFrameGetLineOrigins(_frame, CFRangeMake(0, 0), & origins[0]);
+    for (int line = 0; line < lineCount; line++) {
+        CGFloat ox = rect.origin.x + origins[line].x;
+        CGFloat oy = rect.origin.y + origins[line].y;
+        CTLineRef ctLine = (CTLineRef)CFArrayGetValueAtIndex(lines, line);
+        block(ctLine, CGPointMake(ox, oy));
     }
 }
 - (void)dealloc {
@@ -327,11 +311,10 @@
     _scene->addPath(p, m, color.paint, width, capFlags | joinFlags, & clipBounds);
 }
 
-- (CGRect)addLine:(nonnull RALine *)line
+- (void)addLine:(CTLineRef)line
                   ctm:(CGAffineTransform)ctm
                  clip:(CGRect)clip {
-    RaCT::addCTLineToScene(line.line, ctm, clip, _scene);
-    return line.bounds;
+    RaCT::addCTLineToScene(line, ctm, clip, _scene);
 }
 
 - (CGRect)addTextLine:(NSAttributedString *)string ctm:(CGAffineTransform)ctm clip:(CGRect)clip {

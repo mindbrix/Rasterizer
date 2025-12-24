@@ -20,10 +20,6 @@
 @end
 
 
-@interface RALine ()
-@property(nonatomic) CTLineRef line;
-@end
-
 @interface RAFrame ()
 @property(nonatomic) CTFrameRef frame;
 @end
