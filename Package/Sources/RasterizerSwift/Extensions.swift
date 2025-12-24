@@ -9,15 +9,6 @@ import CoreGraphics
 import RasterizerObjC
 
 
-extension RAScene {
-    func addRect(_ rect: CGRect, ctm: CGAffineTransform, width: Double, color: RAPaint) {
-        let path = RAPath(rect: rect)
-        path.close()
-        addStroke(path, ctm: ctm, color: color, width: width, capStyle: .capButt, joinStyle: .joinMiter)
-    }
-}
-
-
 extension CGAffineTransform {
     init(center: CGPoint, rotation: Double, scale: CGSize, translation: CGVector) {
         self = CGAffineTransform(translationX: -center.x, y: -center.y)

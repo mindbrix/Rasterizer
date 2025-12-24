@@ -176,7 +176,9 @@ class SwiftApp {
             let range = NSRange(location: range.location, length: range.length)
             self.tapMap[range] = bounds
             if self.showBounds {
-                scene.addRect(bounds, ctm: .identity, width: 1, color: RAPaint())
+                let path = RAPath(rect: bounds)
+                path.close()
+                scene.addStroke(path, ctm: .identity, color: RAPaint(), width: 1, capStyle: .capButt, joinStyle: .joinMiter)
             }
         })
         scene.addText(mutable, in: b, ctm: .identity, clip: .zero)
