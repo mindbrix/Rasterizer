@@ -166,7 +166,7 @@ class SwiftApp {
                 if showBounds {
                     scene.addRect(run.bounds, ctm: ctm, width: 1, color: RAPaint())
                 }
-                scene.add(run.line, ctm: ctm, clip: .zero)
+//                scene.add(run.line, ctm: ctm, clip: .zero)
                 
                 if control.closure != nil {
                     tappables.append(Tappable(index: i, bounds: run.bounds.applying(ctm), control: control))
@@ -177,7 +177,12 @@ class SwiftApp {
         }
         let gutter = bounds.height
         let b = CGRect(x: bounds.minX, y: bounds.minY - gutter, width: bounds.width, height: bounds.height + gutter)
-//        scene.addText(mutable, in: b, ctm: .identity, clip: .zero)
+        let frame = RAFrame(attributedString: mutable, in: b)
+        
+        frame.applyRuns({ range, bounds in
+            scene.addRect(bounds, ctm: .identity, width: 1, color: RAPaint())
+        })
+        scene.addText(mutable, in: b, ctm: .identity, clip: .zero)
         return scene
     }
     

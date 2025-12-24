@@ -256,6 +256,25 @@
     return self;
 }
 
+- (void)applyRuns:(nonnull RAFrameApplyBlock)block {
+    CGRect rect = CGPathGetBoundingBox(CTFrameGetPath(_frame));
+    CFArrayRef lines = CTFrameGetLines(_frame);
+    CFIndex lineCount = CFArrayGetCount(lines);
+    Ra::Vector<CGPoint> origins(lineCount);
+    CTFrameGetLineOrigins(_frame, CFRangeMake(0, 0), & origins[0]);
+    for (int i = 0; i < lineCount; i++) {
+        CGFloat ox = rect.origin.x + origins[i].x;
+        CGFloat oy = rect.origin.y + origins[i].y;
+        CTLineRef line = (CTLineRef)CFArrayGetValueAtIndex(lines, i);
+        CFArrayRef glyphRuns = CTLineGetGlyphRuns(line);
+        for (int i = 0; i < CFArrayGetCount(glyphRuns); i++) {
+            CTRunRef run = (CTRunRef)CFArrayGetValueAtIndex(glyphRuns, i);
+            CFRange range = CTRunGetStringRange(run);
+            CGRect image = CTRunGetImageBounds(run, NULL, CFRangeMake(0, 0));
+            block(range, CGRectApplyAffineTransform(image, CGAffineTransformMakeTranslation(ox, oy)));
+        }
+    }
+}
 - (void)dealloc {
     CFRelease(_frame);
 }
