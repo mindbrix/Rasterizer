@@ -220,15 +220,18 @@
     return self;
 }
 
-- (void)applyRuns:(nonnull RAFrameApplyBlock)block {
+- (void)applyRuns:(nonnull CTRunApplyBlock)block {
     [self applyLines:^(CTLineRef _Nonnull ctLine, CGPoint origin) {
         CFArrayRef glyphRuns = CTLineGetGlyphRuns(ctLine);
         for (int run = 0; run < CFArrayGetCount(glyphRuns); run++) {
             CTRunRef ctRun = (CTRunRef)CFArrayGetValueAtIndex(glyphRuns, run);
-            CFRange range = CTRunGetStringRange(ctRun);
             CGRect image = CTRunGetImageBounds(ctRun, NULL, CFRangeMake(0, 0));
-            if (image.size.width > 0 && image.size.height > 0)
-                block(range, CGRectApplyAffineTransform(image, CGAffineTransformMakeTranslation(origin.x, origin.y)));
+            if (image.size.width > 0 && image.size.height > 0) {
+                CFRange range = CTRunGetStringRange(ctRun);
+                block(
+                      NSMakeRange(range.location, range.length),
+                      CGRectApplyAffineTransform(image, CGAffineTransformMakeTranslation(origin.x, origin.y)));
+            }
         }
     }];
 }

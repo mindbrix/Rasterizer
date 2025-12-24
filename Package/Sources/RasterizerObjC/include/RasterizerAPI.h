@@ -57,12 +57,12 @@
 @end
 
 
-typedef void (^RAFrameApplyBlock)(CFRange range, CGRect bounds);
+typedef void (^CTRunApplyBlock)(NSRange range, CGRect bounds);
 typedef void (^CTLineApplyBlock)(CTLineRef _Nonnull, CGPoint origin);
 
 @interface RAFrame: NSObject
 - (nonnull id)initWithAttributedString:(nonnull NSAttributedString *)attributedString inRect:(CGRect)rect;
-- (void)applyRuns:(nonnull RAFrameApplyBlock)block;
+- (void)applyRuns:(nonnull CTRunApplyBlock)block;
 - (void)applyLines:(nonnull CTLineApplyBlock)block;
 @end
 
