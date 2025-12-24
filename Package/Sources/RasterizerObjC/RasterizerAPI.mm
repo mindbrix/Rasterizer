@@ -221,24 +221,16 @@
 }
 
 - (void)applyRuns:(nonnull RAFrameApplyBlock)block {
-    CGRect rect = CGPathGetBoundingBox(CTFrameGetPath(_frame));
-    CFArrayRef lines = CTFrameGetLines(_frame);
-    CFIndex lineCount = CFArrayGetCount(lines);
-    Ra::Vector<CGPoint> origins(lineCount);
-    CTFrameGetLineOrigins(_frame, CFRangeMake(0, 0), & origins[0]);
-    for (int line = 0; line < lineCount; line++) {
-        CGFloat ox = rect.origin.x + origins[line].x;
-        CGFloat oy = rect.origin.y + origins[line].y;
-        CTLineRef ctLine = (CTLineRef)CFArrayGetValueAtIndex(lines, line);
+    [self applyLines:^(CTLineRef _Nonnull ctLine, CGPoint origin) {
         CFArrayRef glyphRuns = CTLineGetGlyphRuns(ctLine);
         for (int run = 0; run < CFArrayGetCount(glyphRuns); run++) {
             CTRunRef ctRun = (CTRunRef)CFArrayGetValueAtIndex(glyphRuns, run);
             CFRange range = CTRunGetStringRange(ctRun);
             CGRect image = CTRunGetImageBounds(ctRun, NULL, CFRangeMake(0, 0));
             if (image.size.width > 0 && image.size.height > 0)
-                block(range, CGRectApplyAffineTransform(image, CGAffineTransformMakeTranslation(ox, oy)));
+                block(range, CGRectApplyAffineTransform(image, CGAffineTransformMakeTranslation(origin.x, origin.y)));
         }
-    }
+    }];
 }
 - (void)applyLines:(nonnull CTLineApplyBlock)block {
     CGRect rect = CGPathGetBoundingBox(CTFrameGetPath(_frame));
@@ -247,10 +239,11 @@
     Ra::Vector<CGPoint> origins(lineCount);
     CTFrameGetLineOrigins(_frame, CFRangeMake(0, 0), & origins[0]);
     for (int line = 0; line < lineCount; line++) {
-        CGFloat ox = rect.origin.x + origins[line].x;
-        CGFloat oy = rect.origin.y + origins[line].y;
         CTLineRef ctLine = (CTLineRef)CFArrayGetValueAtIndex(lines, line);
-        block(ctLine, CGPointMake(ox, oy));
+        CGPoint origin = CGPointMake(
+            rect.origin.x + origins[line].x,
+            rect.origin.y + origins[line].y);
+        block(ctLine, origin);
     }
 }
 - (void)dealloc {
