@@ -61,6 +61,14 @@
 @end
 
 
+@interface RALine: NSObject
+@property(nonatomic, readonly) CGRect bounds;
+
+- (nonnull id)initWithAttributedString:(nonnull NSAttributedString *)attributedString;
+
+@end
+
+
 typedef NS_ENUM(NSUInteger, RACapStyle) {
     kCapButt = 0, kCapSquare, kCapRound
 };
@@ -99,6 +107,10 @@ typedef NS_ENUM(NSUInteger, RAJoinStyle) {
         joinStyle:(RAJoinStyle)joinStyle
              clip:(CGRect)clip
          clipPath:(nullable RAPath *)clipPath;
+
+- (CGRect)addLine:(nonnull RALine *)line
+                  ctm:(CGAffineTransform)ctm
+                 clip:(CGRect)clip;
 
 - (CGRect)addTextLine:(nonnull NSAttributedString *)string
                   ctm:(CGAffineTransform)ctm

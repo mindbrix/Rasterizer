@@ -60,10 +60,11 @@ struct Font {
 
 struct Run {
     init(string: String, font: Font, color: RAPaint) {
-        attributedString = RAText.createAttributedString(string, fontName: font.name, fontSize: font.size, color: color)
-        bounds = RAText.bounds(for: attributedString)
+        let attributedString = RAText.createAttributedString(string, fontName: font.name, fontSize: font.size, color: color)
+        line = RALine(attributedString: attributedString)
+        bounds = line.bounds
     }
-    let attributedString: NSAttributedString
+    let line: RALine
     let bounds: CGRect
 }
 
@@ -161,7 +162,7 @@ class SwiftApp {
                 if showBounds {
                     scene.addRect(run.bounds, ctm: ctm, width: 1, color: RAPaint())
                 }
-                scene.addTextLine(run.attributedString, ctm: ctm, clip: .zero)
+                scene.add(run.line, ctm: ctm, clip: .zero)
                 
                 if control.closure != nil {
                     tappables.append(Tappable(index: i, bounds: run.bounds.applying(ctm), control: control))

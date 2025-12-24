@@ -1,5 +1,5 @@
 //
-//  RasterizerObjC.mm
+//  RasterizerAPI.mm
 //  Rasterizer
 //
 //  Created by Nigel Barber on 03/09/2025.
@@ -7,6 +7,7 @@
 //
 
 #import <Foundation/Foundation.h>
+#import <CoreText/CoreText.h>
 #import "RasterizerAPI+Internal.h"
 #import "RasterizerCG.hpp"
 #import "RasterizerSVG.hpp"
@@ -213,6 +214,28 @@
 @end
 
 
+#pragma mark - RALine
+
+@implementation RALine: NSObject
+- (CGRect)bounds {
+    return RaCT::boundsForLine(_line);
+}
+
+- (id)initWithAttributedString:(nonnull NSAttributedString *)attributedString {
+    self = [super init];
+    if (!self)
+        return nil;
+    _line = CTLineCreateWithAttributedString((__bridge CFAttributedStringRef)attributedString);
+    return self;
+}
+
+- (void)dealloc {
+    CFRelease(_line);
+}
+
+@end
+
+
 #pragma mark - RAScene
 
 @implementation RAScene: NSObject
@@ -264,6 +287,13 @@
     uint8_t capFlags = capStyle == kCapButt ? 0 : capStyle == kCapSquare ? Ra::Scene::kSquareCap : Ra::Scene::kRoundCap;
     uint8_t joinFlags = joinStyle == kJoinMiter ? 0 : Ra::Scene::kRoundJoin;
     _scene->addPath(p, m, color.paint, width, capFlags | joinFlags, & clipBounds);
+}
+
+- (CGRect)addLine:(nonnull RALine *)line
+                  ctm:(CGAffineTransform)ctm
+                 clip:(CGRect)clip {
+    RaCT::addCTLineToScene(line.line, ctm, clip, _scene);
+    return line.bounds;
 }
 
 - (CGRect)addTextLine:(NSAttributedString *)string ctm:(CGAffineTransform)ctm clip:(CGRect)clip {
