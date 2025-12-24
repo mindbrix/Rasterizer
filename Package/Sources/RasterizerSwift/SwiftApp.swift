@@ -97,10 +97,7 @@ class SwiftApp {
     var last: CGPoint = .zero
     
     func mouseDown(_ bounds: CGRect, p: CGPoint) {
-        guard let tappable = tappables.reversed().filter({ tappable in
-            let b = tapMap[tappable.range] ?? .zero
-            return b.contains(p)
-            }).first else {
+        guard let tappable = tappables.reversed().filter({ (tapMap[$0.range] ?? .zero).contains(p) }).first else {
             return
         }
         down = p
