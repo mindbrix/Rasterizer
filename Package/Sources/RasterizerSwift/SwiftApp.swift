@@ -93,11 +93,11 @@ class SwiftApp {
     let store = Store()
     var observers: [Store.keyType: Set<String>] = [:]
     var tappables: [Tappable] = []
+    var showTapMap = false
     var tapMap: [NSRange: CGRect] = [:]
     var tapped: Tappable?
     var down: CGPoint = .zero
     var last: CGPoint = .zero
-    var showBounds = false
     
     func mouseDown(_ bounds: CGRect, p: CGPoint) {
         guard let tappable = tappables.reversed().filter({ tappable in
@@ -147,7 +147,6 @@ class SwiftApp {
             }
         }
         tappables.removeAll()
-        tapMap.removeAll()
                 
         let mutable = NSMutableAttributedString()
         var range = NSRange(location: 0, length: 0)
@@ -170,15 +169,17 @@ class SwiftApp {
         let b = CGRect(x: bounds.minX, y: bounds.minY - gutter, width: bounds.width, height: bounds.height + gutter)
         let frame = RAFrame(attributedString: mutable, in: b)
         
+        tapMap.removeAll()
         frame.applyRuns({ range, bounds in
-            let range = NSRange(location: range.location, length: range.length)
             self.tapMap[range] = bounds
-            if self.showBounds {
-                let path = RAPath(rect: bounds)
+        })
+        if self.showTapMap {
+            for b in tapMap.values {
+                let path = RAPath(rect: b)
                 path.close()
                 scene.addStroke(path, ctm: .identity, color: RAPaint(), width: 1, capStyle: .capButt, joinStyle: .joinMiter)
             }
-        })
+        }
         frame.applyLines({ line, origin in
             scene.add(line, ctm: CGAffineTransform(translationX: origin.x, y: origin.y), clip: .zero)
         })
