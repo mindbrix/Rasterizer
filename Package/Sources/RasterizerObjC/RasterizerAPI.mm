@@ -109,7 +109,7 @@
     return self;
 }
 
-- (nonnull id)initWithCGImage:(nonnull CGImageRef)cgImage {
+- (id)initWithCGImage:(CGImageRef)cgImage {
     self = [super init];
     if (!self)
         return nil;

@@ -81,9 +81,6 @@ struct Page {
 }
 
 class SwiftApp {
-    enum Alignment: Double {
-        case min = 0, mid = 0.5, max = 1
-    }
     protocol PageDelegate: AnyObject {
         func pageFor(_ pageID: String) -> Page?
     }
@@ -146,8 +143,8 @@ class SwiftApp {
                 observers[key] = entry.union([pageID])
             }
         }
+        
         tappables.removeAll()
-                
         let mutable = NSMutableAttributedString()
         var range = NSRange(location: 0, length: 0)
         
@@ -165,10 +162,17 @@ class SwiftApp {
             mutable.append(NSAttributedString(string: "\n"))
             range.location += 1
         }
-        let gutter = bounds.height
-        let b = CGRect(x: bounds.minX, y: bounds.minY - gutter, width: bounds.width, height: bounds.height + gutter)
-        let frame = RAFrame(attributedString: mutable, in: b)
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.alignment = .center
+        mutable.addAttributes([.paragraphStyle: paragraphStyle], range: NSRange(location: 0, length: mutable.length))
         
+        let gutter = bounds.height
+        let frame = RAFrame(
+            attributedString: mutable,
+            in: CGRect(
+                x: bounds.minX, y: bounds.minY - gutter,
+                width: bounds.width, height: bounds.height + gutter)
+        )
         tapMap.removeAll()
         frame.applyRuns({ range, bounds in
             self.tapMap[range] = bounds

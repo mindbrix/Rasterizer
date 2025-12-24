@@ -122,18 +122,23 @@ struct RasterizerCoreText {
         return cgColor;
     }
     
-    static CFAttributedStringRef createAttributedString(const char *string, const char *fontName, float fontSize, CGColorRef color) {
-        CFStringRef cfString = CFStringCreateWithCString(kCFAllocatorDefault, string, kCFStringEncodingUTF8);
+    static CTFontRef createFont(const char *fontName, float fontSize) {
         CFStringRef cfFontName = CFStringCreateWithCString(kCFAllocatorDefault, fontName, kCFStringEncodingUTF8);
         CTFontRef ctFont = CTFontCreateWithName(cfFontName, fontSize, NULL);
+        CFRelease(cfFontName);
+        return ctFont;
+        
+    }
+    static CFAttributedStringRef createAttributedString(const char *string, const char *fontName, float fontSize, CGColorRef color) {
+        CTFontRef ctFont = createFont(fontName, fontSize);
         const void *keys[] = { kCTFontAttributeName, kCTForegroundColorAttributeName };
         const void *values[] = { ctFont, color };
         CFDictionaryRef attributes = CFDictionaryCreate(kCFAllocatorDefault, keys, values, 2, NULL, &kCFTypeDictionaryValueCallBacks);
+        CFStringRef cfString = CFStringCreateWithCString(kCFAllocatorDefault, string, kCFStringEncodingUTF8);
         CFAttributedStringRef attrString = CFAttributedStringCreate(kCFAllocatorDefault, cfString, attributes);
         CFRelease(attributes);
         CFRelease(ctFont);
         CFRelease(cfString);
-        CFRelease(cfFontName);
         return attrString;
     }
 
