@@ -229,8 +229,9 @@
             if (image.size.width > 0 && image.size.height > 0) {
                 CFRange range = CTRunGetStringRange(ctRun);
                 block(
-                      NSMakeRange(range.location, range.length),
-                      CGRectApplyAffineTransform(image, CGAffineTransformMakeTranslation(origin.x, origin.y)));
+                    NSMakeRange(range.location, range.length),
+                    CGRectApplyAffineTransform(image, CGAffineTransformMakeTranslation(origin.x, origin.y))
+                );
             }
         }
     }];
@@ -242,11 +243,10 @@
     Ra::Vector<CGPoint> origins(lineCount);
     CTFrameGetLineOrigins(_frame, CFRangeMake(0, 0), & origins[0]);
     for (int line = 0; line < lineCount; line++) {
-        CTLineRef ctLine = (CTLineRef)CFArrayGetValueAtIndex(lines, line);
-        CGPoint origin = CGPointMake(
-            rect.origin.x + origins[line].x,
-            rect.origin.y + origins[line].y);
-        block(ctLine, origin);
+        block(
+            (CTLineRef)CFArrayGetValueAtIndex(lines, line),
+            CGPointMake(rect.origin.x + origins[line].x, rect.origin.y + origins[line].y)
+        );
     }
 }
 - (void)dealloc {
