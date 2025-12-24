@@ -75,7 +75,7 @@ struct SliderState: Hashable {
 
 struct Tappable {
     let index: Int
-    let bounds: CGRect
+    let range: NSRange
     let control: Control
 }
 
@@ -97,13 +97,17 @@ class SwiftApp {
     let store = Store()
     var observers: [Store.keyType: Set<String>] = [:]
     var tappables: [Tappable] = []
+    var tapMap: [NSRange: CGRect] = [:]
     var tapped: Tappable?
     var down: CGPoint = .zero
     var last: CGPoint = .zero
     var showBounds = false
     
     func mouseDown(_ bounds: CGRect, p: CGPoint) {
-        guard let tappable = tappables.reversed().filter({ $0.bounds.contains(p) }).first else {
+        guard let tappable = tappables.reversed().filter({ tappable in
+            let b = tapMap[tappable.range] ?? .zero
+            return b.contains(p)
+            }).first else {
             return
         }
         down = p
@@ -112,7 +116,7 @@ class SwiftApp {
         tappable.control.closure?(self)
     }
     func mouseMoved(_ bounds: CGRect, p: CGPoint) {
-        guard let b = tapped?.bounds else {
+        guard let range = tapped?.range, let b = tapMap[range] else {
             return
         }
         if let key = tapped?.control.key, let state = store.getValue(key: key) as? SliderState {
@@ -147,40 +151,40 @@ class SwiftApp {
             }
         }
         tappables.removeAll()
+        tapMap.removeAll()
+        
 //        font = Font(name: font.name, size: RAText.fontSize(for: font.name, lineHeight: bounds.height / Double(page.controls.count)))
         
         if showBounds {
             CGRect.drawGridIn(bounds, count: page.controls.count, scene: scene)
         }
         let mutable = NSMutableAttributedString()
+        var range = NSRange(location: 0, length: 0)
         
         for (i, control) in page.controls.enumerated() {
-            let b = CGRect.boundsForIndex(bounds, index: i, count: page.controls.count)
             let isActive = i == (tapped?.index ?? -1)
             let runs = runsFor(control: control, isActive: isActive)
-            let origin = originIn(b, runs: runs, alignx: .mid, aligny: .max)
-            var tx = 0.0
             for run in runs {
+                range.length = run.attributedString.length
                 mutable.append(run.attributedString)
-                let ctm = CGAffineTransform(translationX: tx + origin.x, y: origin.y)
-                if showBounds {
-                    scene.addRect(run.bounds, ctm: ctm, width: 1, color: RAPaint())
-                }
-//                scene.add(run.line, ctm: ctm, clip: .zero)
-                
                 if control.closure != nil {
-                    tappables.append(Tappable(index: i, bounds: run.bounds.applying(ctm), control: control))
+                    tappables.append(Tappable(index: i, range: range, control: control))
                 }
-                tx += run.bounds.width
+                range.location += range.length
             }
             mutable.append(NSAttributedString(string: "\n"))
+            range.location += 1
         }
         let gutter = bounds.height
         let b = CGRect(x: bounds.minX, y: bounds.minY - gutter, width: bounds.width, height: bounds.height + gutter)
         let frame = RAFrame(attributedString: mutable, in: b)
         
         frame.applyRuns({ range, bounds in
-            scene.addRect(bounds, ctm: .identity, width: 1, color: RAPaint())
+            let range = NSRange(location: range.location, length: range.length)
+            self.tapMap[range] = bounds
+            if self.showBounds {
+                scene.addRect(bounds, ctm: .identity, width: 1, color: RAPaint())
+            }
         })
         scene.addText(mutable, in: b, ctm: .identity, clip: .zero)
         return scene
@@ -213,18 +217,5 @@ class SwiftApp {
                 Run(string: store.getValue(key: key) as? String ?? "", font: font, color: black)
             ]
         }
-    }
-    
-    func originIn(_ bounds: CGRect, runs: [Run], alignx: Alignment, aligny: Alignment) -> CGPoint {
-        let width = runs.reduce(0.0) { result, run in
-            result + run.bounds.width
-        }
-        let height = runs.reduce(0.0) { result, run in
-            max(result, run.bounds.maxY)
-        }
-        let tx = alignx.rawValue * (bounds.width - width)
-        let ty = aligny.rawValue * (bounds.height - height)
-        
-        return CGPoint(x: bounds.minX + tx, y: bounds.minY + ty)
     }
 }

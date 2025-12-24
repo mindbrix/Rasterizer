@@ -70,7 +70,6 @@ typedef void (^RAFrameApplyBlock)(CFRange range, CGRect bounds);
 
 @interface RAFrame: NSObject
 - (nonnull id)initWithAttributedString:(nonnull NSAttributedString *)attributedString inRect:(CGRect)rect;
-
 - (void)applyRuns:(nonnull RAFrameApplyBlock)block;
 @end
 

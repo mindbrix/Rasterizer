@@ -255,16 +255,17 @@
     CFIndex lineCount = CFArrayGetCount(lines);
     Ra::Vector<CGPoint> origins(lineCount);
     CTFrameGetLineOrigins(_frame, CFRangeMake(0, 0), & origins[0]);
-    for (int i = 0; i < lineCount; i++) {
-        CGFloat ox = rect.origin.x + origins[i].x;
-        CGFloat oy = rect.origin.y + origins[i].y;
-        CTLineRef line = (CTLineRef)CFArrayGetValueAtIndex(lines, i);
-        CFArrayRef glyphRuns = CTLineGetGlyphRuns(line);
-        for (int i = 0; i < CFArrayGetCount(glyphRuns); i++) {
-            CTRunRef run = (CTRunRef)CFArrayGetValueAtIndex(glyphRuns, i);
-            CFRange range = CTRunGetStringRange(run);
-            CGRect image = CTRunGetImageBounds(run, NULL, CFRangeMake(0, 0));
-            block(range, CGRectApplyAffineTransform(image, CGAffineTransformMakeTranslation(ox, oy)));
+    for (int line = 0; line < lineCount; line++) {
+        CGFloat ox = rect.origin.x + origins[line].x;
+        CGFloat oy = rect.origin.y + origins[line].y;
+        CTLineRef ctLine = (CTLineRef)CFArrayGetValueAtIndex(lines, line);
+        CFArrayRef glyphRuns = CTLineGetGlyphRuns(ctLine);
+        for (int run = 0; run < CFArrayGetCount(glyphRuns); run++) {
+            CTRunRef ctRun = (CTRunRef)CFArrayGetValueAtIndex(glyphRuns, run);
+            CFRange range = CTRunGetStringRange(ctRun);
+            CGRect image = CTRunGetImageBounds(ctRun, NULL, CFRangeMake(0, 0));
+            if (image.size.width > 0 && image.size.height > 0)
+                block(range, CGRectApplyAffineTransform(image, CGAffineTransformMakeTranslation(ox, oy)));
         }
     }
 }
