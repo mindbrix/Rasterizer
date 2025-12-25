@@ -157,6 +157,7 @@ extension SwiftDemo: SwiftApp.PageDelegate {
         case username
         case password
         case slider0
+        case flag0
         case tapcount
         
         func callAsFunction() -> String {
@@ -164,6 +165,9 @@ extension SwiftDemo: SwiftApp.PageDelegate {
         }
     }
     
+    var flag0: Bool {
+        (swiftApp.store.getValue(key: Key.flag0()) as? Bool) ?? false
+    }
     var slider0: Double {
         (swiftApp.store.getValue(key: Key.slider0()) as? SliderState)?.current ?? 0.0
     }
@@ -173,24 +177,23 @@ extension SwiftDemo: SwiftApp.PageDelegate {
             Page(
                 defaults: [
                     Key.username(): "user",
-                    Key.password(): "password",
-                    Key.slider0(): SliderState(min: 0, max: 1, current: 0),
-                    Key.tapcount(): 0
+                    Key.password(): "password"
                 ],
                 controls: [
                     .label(label: Label.Welcome()),
                     .text(label: Label.UserName(), key: Key.username()),
                     .text(label: Label.Password(), key: Key.password()),
+                    .flag(key: Key.flag0(), closure: { app in
+                    }),
                     .slider(key: Key.slider0(), closure: { app in
                     }),
                     .button(label: Label.LogIn(), closure: { app in
-                        if let tapcount = app.store.getValue(key: Key.tapcount()) as? Int {
-                            print("\(tapcount)")
-                            app.store.setValue(value: tapcount + 1, key: Key.tapcount())
-                            
-                            if tapcount == 2 {
-                                app.pageID = PageID.Home()
-                            }
+                        let tapcount = app.store.getValue(key: Key.tapcount()) as? Int ?? 0
+                        print("\(tapcount)")
+                        app.store.setValue(value: tapcount + 1, key: Key.tapcount())
+                        
+                        if tapcount == 2 {
+                            app.pageID = PageID.Home()
                         }
                     })
                 ])

@@ -29,13 +29,12 @@ enum Control {
     case button(label: String, closure: Closure)
     case label(label: String)
     case slider(key: Store.keyType, closure: Closure)
+    case flag(key: Store.keyType, closure: Closure)
     case text(label: String, key: Store.keyType)
     
     var closure: Closure? {
         switch self {
-        case .button(_, let closure):
-            closure
-        case .slider(_, let closure):
+        case .button(_, let closure), .flag(_, let closure), .slider(_, let closure):
             closure
         default:
             nil
@@ -43,9 +42,7 @@ enum Control {
     }
     var key: Store.keyType? {
         switch self {
-        case .slider(let key, _):
-            key
-        case .text(_, let key):
+        case .flag(let key, _), .slider(let key, _), .text(_, let key):
             key
         default:
             nil
@@ -103,13 +100,13 @@ class SwiftApp {
         down = p
         last = p
         tapped = tappable
-        tappable.control.closure?(self)
     }
     func mouseMoved(_ bounds: CGRect, p: CGPoint) {
-        guard let range = tapped?.range, let b = tapMap[range] else {
+        guard let tapped, let b = tapMap[tapped.range] else {
             return
         }
-        if let key = tapped?.control.key, let state = store.getValue(key: key) as? SliderState {
+        if case Control.slider = tapped.control, let key = tapped.control.key {
+            let state = store.getValue(key: key) as? SliderState ?? SliderState(min: 0, max: 1, current: 0)
             let dt = (p.x - last.x) / b.width
             let t = max(state.min, min(state.max, state.current + dt))
             store.setValue(value: SliderState(min: state.min, max: state.max, current: t), key: key)
@@ -117,8 +114,17 @@ class SwiftApp {
         last = p
     }
     func mouseUp(_ bounds: CGRect, p: CGPoint) {
+        guard let tapped else {
+            return
+        }
+        if case Control.flag = tapped.control, let key = tapped.control.key {
+            let flag = store.getValue(key: key) as? Bool ?? false
+            store.setValue(value: !flag, key: key)
+        }
+        tapped.control.closure?(self)
+        
         last = p
-        tapped = nil
+        self.tapped = nil
     }
     
     func createSceneIn(_ bounds: CGRect) -> RAScene {
@@ -198,6 +204,12 @@ class SwiftApp {
         case .button(let label, _):
             return [
                 Run(string: label, font: font, color: isActive ? red : blue)
+            ]
+        case .flag(let key, _):
+            let current = store.getValue(key: key) as? Bool ?? false
+            return [
+                Run(string: "\(key):", font: font, color: gray),
+                Run(string: String(current ? 1 : 0), font: font, color: isActive ? red : black)
             ]
         case .label(let label):
             return [
