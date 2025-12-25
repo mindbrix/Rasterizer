@@ -154,8 +154,6 @@ extension SwiftDemo: SwiftApp.PageDelegate {
         }
     }
     enum Key: String, CaseIterable {
-        case username
-        case password
         case slider0
         case flag0
         case tapcount
