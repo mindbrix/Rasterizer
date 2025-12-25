@@ -175,14 +175,9 @@ extension SwiftDemo: SwiftApp.PageDelegate {
         switch PageID(rawValue: pageID) {
         case .LogIn:
             Page(
-                defaults: [
-                    Key.username(): "user",
-                    Key.password(): "password"
-                ],
+                defaults: [:],
                 controls: [
                     .label(label: Label.Welcome()),
-                    .text(label: Label.UserName(), key: Key.username()),
-                    .text(label: Label.Password(), key: Key.password()),
                     .flag(key: Key.flag0(), closure: { app in
                     }),
                     .slider(key: Key.slider0(), closure: { app in
