@@ -41,7 +41,6 @@ class SwiftDemo: NSObject {
     var useCurves = true
     var showOpaques = true
     var showOutlines = false
-    var useRect = false
     var ctm = CGAffineTransform.identity
     var bounds = CGRect.zero
     var pastedScene: RAScene?
@@ -96,11 +95,11 @@ class SwiftDemo: NSObject {
             }
             break
         case .mouseDown(let p, _):
-            swiftApp.mouseDown(bounds, p: p.applying(ctm.inverted()))
+            swiftApp.mouseDown(bounds, p: p)
         case .mouseMove(let p, _):
-            swiftApp.mouseMoved(bounds, p: p.applying(ctm.inverted()))
+            swiftApp.mouseMoved(bounds, p: p)
         case .mouseUp(let p, _):
-            swiftApp.mouseUp(bounds, p: p.applying(ctm.inverted()))
+            swiftApp.mouseUp(bounds, p: p)
         case .magnify(let scale):
             ctm = ctm.concatAroundCenter(t: CGAffineTransform(scaleX: scale, y: scale), cx: bounds.midX, cy: bounds.midY)
         case .rotate(let angle):
@@ -156,6 +155,7 @@ extension SwiftDemo: SwiftApp.PageDelegate {
         case slider0
         case flag0
         case tapcount
+        case useRect
         
         func callAsFunction() -> String {
             rawValue
@@ -173,6 +173,14 @@ extension SwiftDemo: SwiftApp.PageDelegate {
     var slider0: Double {
         (swiftApp.store.getValue(key: Key.slider0()) as? SliderState)?.current ?? 0.0
     }
+    var useRect: Bool {
+        get {
+            (swiftApp.store.getValue(key: Key.useRect()) as? Bool) ?? false
+        }
+        set {
+            swiftApp.store.setValue(value: newValue, key: Key.useRect())
+        }
+    }
     func pageFor(_ pageID: String) -> Page? {
         switch PageID(rawValue: pageID) {
         case .LogIn:
@@ -181,6 +189,8 @@ extension SwiftDemo: SwiftApp.PageDelegate {
                 controls: [
                     .label(label: Label.Welcome()),
                     .flag(key: Key.flag0(), closure: { app in
+                    }),
+                    .flag(key: Key.useRect(), closure: { app in
                     }),
                     .slider(key: Key.slider0(), closure: { app in
                     }),
