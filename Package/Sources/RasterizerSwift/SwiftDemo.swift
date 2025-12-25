@@ -37,7 +37,6 @@ class SwiftDemo: NSObject {
     
     var useClips = true
     var index = 0
-    var flag = false
     var paused = false
     var useCurves = true
     var showOpaques = true
@@ -124,7 +123,7 @@ extension SwiftDemo: RASceneListDelegate {
         let list = RASceneList()
         list.add(drawables[index].getSceneAtTime(t, bounds: bounds, state: self))
         list.add(pastedScene ?? RAScene())
-        list.add(swiftApp.createSceneIn(bounds))
+        list.add(swiftApp.createSceneIn(bounds), ctm: ctm.inverted(), clip: .zero)
         list.ctm = ctm
         list.useClips = useClips;
         list.useCurves = useCurves
@@ -163,8 +162,13 @@ extension SwiftDemo: SwiftApp.PageDelegate {
         }
     }
     
-    var flag0: Bool {
-        (swiftApp.store.getValue(key: Key.flag0()) as? Bool) ?? false
+    var flag: Bool {
+        get {
+            (swiftApp.store.getValue(key: Key.flag0()) as? Bool) ?? false
+        }
+        set {
+            swiftApp.store.setValue(value: newValue, key: Key.flag0())
+        }
     }
     var slider0: Double {
         (swiftApp.store.getValue(key: Key.slider0()) as? SliderState)?.current ?? 0.0
@@ -173,7 +177,7 @@ extension SwiftDemo: SwiftApp.PageDelegate {
         switch PageID(rawValue: pageID) {
         case .LogIn:
             Page(
-                defaults: [:],
+                alignment: .left,
                 controls: [
                     .label(label: Label.Welcome()),
                     .flag(key: Key.flag0(), closure: { app in
@@ -191,7 +195,8 @@ extension SwiftDemo: SwiftApp.PageDelegate {
                     })
                 ])
         case .Home:
-            Page(defaults: [:], controls: [
+            Page(alignment: .center,
+                 controls: [
                 .button(label: Label.Welcome(), closure: { app in
                     app.store.setValue(value: 0, key: Key.tapcount())
                     app.pageID = PageID.LogIn()

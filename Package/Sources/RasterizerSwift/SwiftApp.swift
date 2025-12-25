@@ -73,7 +73,7 @@ struct Tappable {
 }
 
 struct Page {
-    let defaults: Store.DictType
+    let alignment: NSTextAlignment
     let controls: [Control]
 }
 
@@ -132,11 +132,6 @@ class SwiftApp {
         guard let pageID, let pageDelegate, let page = pageDelegate.pageFor(pageID) else {
             return scene
         }
-        for key in page.defaults.keys {
-            if store.getValue(key: key) == nil, let value = page.defaults[key] {
-                store.setValue(value: value, key: key)
-            }
-        }
         for key in observers.keys {
             observers[key]?.remove(pageID)
         }
@@ -166,7 +161,7 @@ class SwiftApp {
             range.location += 1
         }
         let paragraphStyle = NSMutableParagraphStyle()
-        paragraphStyle.alignment = .center
+        paragraphStyle.alignment = page.alignment
         paragraphStyle.lineBreakMode = .byClipping
         mutable.addAttributes([.paragraphStyle: paragraphStyle], range: NSRange(location: 0, length: mutable.length))
         
