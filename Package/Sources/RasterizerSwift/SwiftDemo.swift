@@ -187,13 +187,9 @@ extension SwiftDemo: SwiftApp.PageDelegate {
             Page(
                 alignment: .left,
                 controls: [
-                    .label(label: Label.Welcome()),
-                    .flag(key: Key.flag0(), closure: { app in
-                    }),
-                    .flag(key: Key.useRect(), closure: { app in
-                    }),
-                    .slider(key: Key.slider0(), closure: { app in
-                    }),
+                    .flag(key: Key.flag0(), closure: nil),
+                    .flag(key: Key.useRect(), closure: nil),
+                    .slider(key: Key.slider0(), closure: nil),
                     .button(label: Label.LogIn(), closure: { app in
                         let tapcount = app.store.getValue(key: Key.tapcount()) as? Int ?? 0
                         print("\(tapcount)")
@@ -205,7 +201,7 @@ extension SwiftDemo: SwiftApp.PageDelegate {
                     })
                 ])
         case .Home:
-            Page(alignment: .center,
+            Page(alignment: .left,
                  controls: [
                 .button(label: Label.Welcome(), closure: { app in
                     app.store.setValue(value: 0, key: Key.tapcount())

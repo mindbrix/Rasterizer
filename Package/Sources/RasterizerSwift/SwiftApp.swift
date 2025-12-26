@@ -26,10 +26,10 @@ class Store {
 enum Control {
     typealias Closure = (SwiftApp) -> Void
     
-    case button(label: String, closure: Closure)
+    case button(label: String, closure: Closure?)
     case label(label: String)
-    case slider(key: Store.keyType, closure: Closure)
-    case flag(key: Store.keyType, closure: Closure)
+    case slider(key: Store.keyType, closure: Closure?)
+    case flag(key: Store.keyType, closure: Closure?)
     case text(label: String, key: Store.keyType)
     
     var closure: Closure? {
@@ -46,6 +46,14 @@ enum Control {
             key
         default:
             nil
+        }
+    }
+    var isTappable: Bool {
+        switch self {
+        case .button(_, _), .flag(_, _), .slider(_, _):
+            true
+        default:
+            false
         }
     }
 }
@@ -152,7 +160,7 @@ class SwiftApp {
             for run in runs {
                 range.length = run.attributedString.length
                 mutable.append(run.attributedString)
-                if control.closure != nil {
+                if control.isTappable {
                     tappables.append(Tappable(index: i, range: range, control: control))
                 }
                 range.location += range.length
