@@ -26,13 +26,12 @@ class Store {
 enum Control {
     typealias Closure = (SwiftApp) -> Void
     
-    case button(label: String, closure: Closure?)
     case label(label: String)
     case object(key: Store.keyType, closure: Closure?)
     
     var closure: Closure? {
         switch self {
-        case .button(_, let closure), .object(_, let closure):
+        case .object(_, let closure):
             closure
         default:
             nil
@@ -152,32 +151,9 @@ class SwiftApp {
             }
         }
         
-        tappables.removeAll()
-        let mutable = NSMutableAttributedString()
-        var range = NSRange(location: 0, length: 0)
-        
-        for (i, control) in page.controls.enumerated() {
-            let isActive = i == (tapped?.index ?? -1)
-            let runs = runsFor(control: control, isActive: isActive)
-            for run in runs {
-                range.length = run.attributedString.length
-                mutable.append(run.attributedString)
-                if run.isTappable {
-                    tappables.append(Tappable(index: i, range: range, control: control, key: run.key))
-                }
-                range.location += range.length
-            }
-            mutable.append(NSAttributedString(string: "\n"))
-            range.location += 1
-        }
-        let paragraphStyle = NSMutableParagraphStyle()
-        paragraphStyle.alignment = page.alignment
-        paragraphStyle.lineBreakMode = .byClipping
-        mutable.addAttributes([.paragraphStyle: paragraphStyle], range: NSRange(location: 0, length: mutable.length))
-        
         let gutter = bounds.height
         let frame = RAFrame(
-            attributedString: mutable,
+            attributedString: stringForPage(page),
             in: CGRect(
                 x: bounds.minX, y: bounds.minY - gutter,
                 width: bounds.width, height: bounds.height + gutter)
@@ -199,38 +175,56 @@ class SwiftApp {
         return scene
     }
     
-    func runsFor(control: Control, isActive: Bool) -> [Run] {
+    func stringForPage(_ page: Page) -> NSAttributedString {
         let red = CGColor(red: 1, green: 0, blue: 0, alpha: 1)
         let blue = CGColor(red: 0, green: 0, blue: 1, alpha: 1)
         let black = CGColor(gray: 0, alpha: 1)
         let gray = CGColor(gray: 0.66, alpha: 1)
         
-        switch control {
-        case .button(let label, _):
-            return [
-                Run(string: label, font: font, color: isActive ? red : blue, isTappable: true)
-            ]
-        case .label(let label):
-            return [
-                Run(string: label, font: font, color: black)
-            ]
-        case .object(let key, _):
-            var runs = [
-                Run(string: "\(key):\n", font: font, color: gray)
-            ]
-            if let dict = store.getValue(key: key) as? Store.DictType {
-                for key in dict.keys.sorted() {
-                    runs.append(Run(string: "\t\(key):", font: font, color: gray, isTappable: true, key: key))
-                    if let flag = dict[key] as? Bool {
-                        runs.append(Run(string: String(flag ? 1 : 0) + "\n", font: font, color: black))
-                    } else if let slider = dict[key] as? Double {
-                        runs.append(Run(string: String(format: "%.2f\n", slider), font: font, color: black))
-                    } else if let string = dict[key] as? String {
-                        runs.append(Run(string: "\(string)\n", font: font, color: black))
+        tappables.removeAll()
+        let mutable = NSMutableAttributedString()
+        
+        for (i, control) in page.controls.enumerated() {
+            let isActive = i == (tapped?.index ?? -1)
+            let runs = {
+                switch control {
+                case .label(let label):
+                    return [
+                        Run(string: label, font: font, color: black)
+                    ]
+                case .object(let key, _):
+                    guard let dict = store.getValue(key: key) as? Store.DictType else {
+                        return [Run(string: key, font: font, color: gray, isTappable: true, key: key)]
                     }
+                    var runs = [
+                        Run(string: "\(key):\n", font: font, color: gray)
+                    ]
+                    for key in dict.keys.sorted() {
+                        runs.append(Run(string: "\t\(key):", font: font, color: gray, isTappable: true, key: key))
+                        if let flag = dict[key] as? Bool {
+                            runs.append(Run(string: String(flag ? 1 : 0) + "\n", font: font, color: black))
+                        } else if let slider = dict[key] as? Double {
+                            runs.append(Run(string: String(format: "%.2f\n", slider), font: font, color: black))
+                        } else if let string = dict[key] as? String {
+                            runs.append(Run(string: "\(string)\n", font: font, color: black))
+                        }
+                    }
+                    return runs
+                }
+            }()
+            
+            for run in runs {
+                let range = mutable.appendString(run.attributedString)
+                if run.isTappable {
+                    tappables.append(Tappable(index: i, range: range, control: control, key: run.key))
                 }
             }
-            return runs
+            mutable.append(NSAttributedString(string: "\n"))
         }
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.alignment = page.alignment
+        paragraphStyle.lineBreakMode = .byClipping
+        mutable.addAttributes([.paragraphStyle: paragraphStyle], range: NSRange(location: 0, length: mutable.length))
+        return mutable
     }
 }

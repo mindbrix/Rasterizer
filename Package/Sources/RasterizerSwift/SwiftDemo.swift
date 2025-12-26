@@ -18,7 +18,7 @@ class SwiftDemo: NSObject {
         dict = [
             Key.flag0()  : false,
             Key.slider0(): 0.0,
-            Key.useRect(): true
+            Key.useRect(): false
         ]
     }
     enum Event {
@@ -160,7 +160,7 @@ extension SwiftDemo: SwiftApp.PageDelegate {
         case slider0
         case flag0
         case useRect
-        case tapcount
+        case button
         
         func callAsFunction() -> String {
             rawValue
@@ -193,10 +193,10 @@ extension SwiftDemo: SwiftApp.PageDelegate {
                 alignment: .left,
                 controls: [
                     .object(key: Key.dict(), closure: nil),
-                    .button(label: "Button", closure: { app in
-                        let tapcount = app.store.getValue(key: Key.tapcount()) as? Int ?? 0
+                    .object(key: Key.button(), closure: { app in
+                        let tapcount = app.store.getValue(key: Key.button()) as? Int ?? 0
                         print("\(tapcount)")
-                        app.store.setValue(value: tapcount + 1, key: Key.tapcount())
+                        app.store.setValue(value: tapcount + 1, key: Key.button())
                         
                         if tapcount == 2 {
                             app.pageID = PageID.Home()
@@ -206,9 +206,9 @@ extension SwiftDemo: SwiftApp.PageDelegate {
         case .Home:
             Page(alignment: .left,
                  controls: [
-                .button(label: "Button", closure: { app in
-                    app.store.setValue(value: 0, key: Key.tapcount())
-                    app.pageID = PageID.LogIn()
+                    .object(key: Key.button(), closure: { app in
+                        app.store.setValue(value: 0, key: Key.button())
+                        app.pageID = PageID.LogIn()
                 })
             ])
         default:

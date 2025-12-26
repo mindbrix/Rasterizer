@@ -27,4 +27,12 @@ extension CGPoint {
     init(center: CGPoint, r: Double, theta: Double) {
         self = CGPoint(x: center.x + r * cos(theta), y: center.y + r * sin(theta))
     }
-} 
+}
+
+extension NSMutableAttributedString {
+    func appendString(_ string: NSAttributedString) -> NSRange {
+        let range = NSRange(location: length, length: string.length)
+        append(string)
+        return range
+    }
+}
