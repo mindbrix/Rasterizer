@@ -186,31 +186,24 @@ extension SwiftDemo: SwiftApp.PageDelegate {
             dict?[Key.useRect()] = newValue
         }
     }
-    func pageFor(_ pageID: String) -> Page? {
+    func controlsFor(_ pageID: String) -> [Control]? {
         switch PageID(rawValue: pageID) {
-        case .LogIn:
-            Page(
-                alignment: .left,
-                controls: [
-                    Control(key: Key.dict(), closure: nil),
-                    Control(key: Key.button(), closure: { app in
-                        let tapcount = app.store.getValue(key: Key.button()) as? Int ?? 0
-                        print("\(tapcount)")
-                        app.store.setValue(value: tapcount + 1, key: Key.button())
-                        
-                        if tapcount == 2 {
-                            app.pageID = PageID.Home()
-                        }
-                    })
-                ])
-        case .Home:
-            Page(alignment: .left,
-                 controls: [
-                    Control(key: Key.button(), closure: { app in
-                        app.store.setValue(value: 0, key: Key.button())
-                        app.pageID = PageID.LogIn()
-                })
-            ])
+        case .LogIn: [
+            Control(key: Key.dict(), closure: nil),
+            Control(key: Key.button(), closure: { app in
+                let tapcount = app.store.getValue(key: Key.button()) as? Int ?? 0
+                print("\(tapcount)")
+                app.store.setValue(value: tapcount + 1, key: Key.button())
+                
+                if tapcount == 2 {
+                    app.pageID = PageID.Home()
+                }
+            })]
+        case .Home: [
+            Control(key: Key.button(), closure: { app in
+                app.store.setValue(value: 0, key: Key.button())
+                app.pageID = PageID.LogIn()
+            })]
         default:
             nil
         }

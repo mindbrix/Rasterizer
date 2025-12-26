@@ -40,16 +40,12 @@ struct Tappable {
     let key: Store.keyType
 }
 
-struct Page {
-    let alignment: NSTextAlignment
-    let controls: [Control]
-}
-
 class SwiftApp {
     protocol PageDelegate: AnyObject {
-        func pageFor(_ pageID: String) -> Page?
+        func controlsFor(_ pageID: String) -> [Control]?
     }
     weak var pageDelegate: PageDelegate?
+    var alignment: NSTextAlignment = .left
     var pageID: String?
     var font = Font(name: "HelveticaNeue-Medium", size: 28)
     let store = Store()
@@ -103,13 +99,13 @@ class SwiftApp {
     
     func createSceneIn(_ bounds: CGRect) -> RAScene {
         let scene = RAScene()
-        guard let pageID, let pageDelegate, let page = pageDelegate.pageFor(pageID) else {
+        guard let pageID, let pageDelegate, let controls = pageDelegate.controlsFor(pageID) else {
             return scene
         }
         for key in observers.keys {
             observers[key]?.remove(pageID)
         }
-        for control in page.controls {
+        for control in controls {
             let key = control.key
             let entry = observers[key] ?? []
             observers[key] = entry.union([pageID])
@@ -117,7 +113,7 @@ class SwiftApp {
         
         let gutter = bounds.height
         let frame = RAFrame(
-            attributedString: stringForPage(page),
+            attributedString: stringForControls(controls),
             in: CGRect(
                 x: bounds.minX, y: bounds.minY - gutter,
                 width: bounds.width, height: bounds.height + gutter)
@@ -139,7 +135,7 @@ class SwiftApp {
         return scene
     }
     
-    func stringForPage(_ page: Page) -> NSAttributedString {
+    func stringForControls(_ controls: [Control]) -> NSAttributedString {
         let red = CGColor(red: 1, green: 0, blue: 0, alpha: 1)
         let blue = CGColor(red: 0, green: 0, blue: 1, alpha: 1)
         let black = CGColor(gray: 0, alpha: 1)
@@ -148,18 +144,17 @@ class SwiftApp {
         tappables.removeAll()
         let mutable = NSMutableAttributedString()
         
-        for control in page.controls {
-            let key = control.key
-            guard let dict = store.getValue(key: key) as? Store.DictType else {
-                let range = mutable.appendString("\(key)\n")
+        for control in controls {
+            guard let dict = store.getValue(key: control.key) as? Store.DictType else {
+                let range = mutable.appendString("\(control.key)\n")
                 let isActive = (tapped?.range ?? NSRange()) == range
                 mutable.addAttributes(
                     RAText.createAttributes(font.name, fontSize: font.size, color: isActive ? red : blue), range: range)
-                tappables.append(Tappable(range: range, control: control, key: key))
+                tappables.append(Tappable(range: range, control: control, key: control.key))
                 continue
             }
             mutable.append(
-                RAText.createAttributedString("\(key):\n", fontName: font.name, fontSize: font.size, color: gray))
+                RAText.createAttributedString("\(control.key):\n", fontName: font.name, fontSize: font.size, color: gray))
             
             for key in dict.keys.sorted() {
                 let range = mutable.appendString("\t\(key):")
@@ -184,7 +179,7 @@ class SwiftApp {
             mutable.append(NSAttributedString(string: "\n"))
         }
         let paragraphStyle = NSMutableParagraphStyle()
-        paragraphStyle.alignment = page.alignment
+        paragraphStyle.alignment = alignment
         paragraphStyle.lineBreakMode = .byClipping
         mutable.addAttributes([.paragraphStyle: paragraphStyle], range: NSRange(location: 0, length: mutable.length))
         return mutable
