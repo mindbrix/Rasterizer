@@ -133,6 +133,19 @@ extension SwiftDemo: RASceneListDelegate {
 }
 
 extension SwiftDemo: SwiftApp.PageDelegate {
+    struct State: Codable, Hashable {
+        var flag = false
+        var slider = 0.0
+        var useRect = false
+    }
+    var state: State {
+        get {
+            swiftApp.store.get(key: Key.state()) ?? State()
+        }
+        set {
+            swiftApp.store.set(value: newValue, key: Key.state())
+        }
+    }
     enum Label: String {
         case UserName = "User name"
         case Password
@@ -152,6 +165,7 @@ extension SwiftDemo: SwiftApp.PageDelegate {
         }
     }
     enum Key: String, CaseIterable {
+        case state
         case slider0
         case flag0
         case tapcount
@@ -164,10 +178,10 @@ extension SwiftDemo: SwiftApp.PageDelegate {
     
     var flag: Bool {
         get {
-            (swiftApp.store.getValue(key: Key.flag0()) as? Bool) ?? false
+            swiftApp.store.get(key: Key.flag0()) ?? false
         }
         set {
-            swiftApp.store.setValue(value: newValue, key: Key.flag0())
+            swiftApp.store.set(value: newValue, key: Key.flag0())
         }
     }
     var slider0: Double {
@@ -187,6 +201,7 @@ extension SwiftDemo: SwiftApp.PageDelegate {
             Page(
                 alignment: .left,
                 controls: [
+                    .object(key: Key.state(), closure: nil),
                     .flag(key: Key.flag0(), closure: nil),
                     .flag(key: Key.useRect(), closure: nil),
                     .slider(key: Key.slider0(), closure: nil),

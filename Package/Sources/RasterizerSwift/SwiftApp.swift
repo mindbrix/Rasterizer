@@ -11,9 +11,15 @@ import RasterizerObjC
 
 class Store {
     typealias keyType = String
-    typealias ValueType = any Hashable
+    typealias ValueType = any Codable & Hashable
     typealias DictType = [keyType: ValueType]
     
+    func get<T>(key: keyType) -> T? where T: Decodable {
+        dict[key] as? T
+    }
+    func set<T>(value: T?, key: keyType) {
+        dict[key] = value as? ValueType
+    }
     func getValue(key: keyType) -> ValueType? {
         dict[key]
     }
@@ -28,13 +34,14 @@ enum Control {
     
     case button(label: String, closure: Closure?)
     case label(label: String)
+    case object(key: Store.keyType, closure: Closure?)
     case slider(key: Store.keyType, closure: Closure?)
     case flag(key: Store.keyType, closure: Closure?)
     case text(label: String, key: Store.keyType)
     
     var closure: Closure? {
         switch self {
-        case .button(_, let closure), .flag(_, let closure), .slider(_, let closure):
+        case .button(_, let closure), .flag(_, let closure), .object(_, let closure), .slider(_, let closure):
             closure
         default:
             nil
@@ -42,7 +49,7 @@ enum Control {
     }
     var key: Store.keyType? {
         switch self {
-        case .flag(let key, _), .slider(let key, _), .text(_, let key):
+        case .flag(let key, _), .object(let key, _), .slider(let key, _), .text(_, let key):
             key
         default:
             nil
@@ -50,7 +57,7 @@ enum Control {
     }
     var isTappable: Bool {
         switch self {
-        case .button(_, _), .flag(_, _), .slider(_, _):
+        case .button(_, _), .flag(_, _), .object(_, _), .slider(_, _):
             true
         default:
             false
@@ -70,7 +77,7 @@ struct Run {
     let attributedString: NSAttributedString
 }
 
-struct SliderState: Hashable {
+struct SliderState: Codable, Hashable {
     let min, max, current: Double
 }
 
@@ -125,6 +132,23 @@ class SwiftApp {
         guard let tapped else {
             return
         }
+        var dict: Store.DictType = [:]
+        if let key = tapped.control.key, let value = store.getValue(key: key) {
+            let mirror = Mirror(reflecting: value)
+            for child in mirror.children {
+                guard let label = child.label, let val = child.value as? Store.ValueType else {
+                    continue
+                }
+                dict[label] = val
+            }
+            
+            if let jsonData = try? JSONSerialization.data(withJSONObject: dict, options: .prettyPrinted),
+               let object = try? JSONDecoder().decode(SliderState.self, from: jsonData) {
+                print(object)
+            }
+        }
+        
+        
         if case Control.flag = tapped.control, let key = tapped.control.key {
             let flag = store.getValue(key: key) as? Bool ?? false
             store.setValue(value: !flag, key: key)
@@ -217,6 +241,10 @@ class SwiftApp {
         case .label(let label):
             return [
                 Run(string: label, font: font, color: black)
+            ]
+        case .object(let key, _):
+            return [
+                Run(string: "\(key):", font: font, color: gray)
             ]
         case .slider(let key, _):
             let current = (store.getValue(key: key) as? SliderState)?.current ?? 0.0
