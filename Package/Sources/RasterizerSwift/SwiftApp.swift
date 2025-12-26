@@ -52,17 +52,6 @@ struct Font {
     let size: Double
 }
 
-struct Run {
-    init(string: String, font: Font, color: CGColor, isTappable: Bool = false, key: Store.keyType = "") {
-        attributedString = RAText.createAttributedString(string, fontName: font.name, fontSize: font.size, color: color)
-        self.isTappable = isTappable
-        self.key = key
-    }
-    let attributedString: NSAttributedString
-    let isTappable: Bool
-    let key: Store.keyType
-}
-
 struct SliderState: Codable, Hashable {
     let min, max, current: Double
 }
@@ -186,37 +175,38 @@ class SwiftApp {
         
         for (i, control) in page.controls.enumerated() {
             let isActive = i == (tapped?.index ?? -1)
-            let runs = {
-                switch control {
-                case .label(let label):
-                    return [
-                        Run(string: label, font: font, color: black)
-                    ]
-                case .object(let key, _):
-                    guard let dict = store.getValue(key: key) as? Store.DictType else {
-                        return [Run(string: key, font: font, color: gray, isTappable: true, key: key)]
-                    }
-                    var runs = [
-                        Run(string: "\(key):\n", font: font, color: gray)
-                    ]
-                    for key in dict.keys.sorted() {
-                        runs.append(Run(string: "\t\(key):", font: font, color: gray, isTappable: true, key: key))
-                        if let flag = dict[key] as? Bool {
-                            runs.append(Run(string: String(flag ? 1 : 0) + "\n", font: font, color: black))
-                        } else if let slider = dict[key] as? Double {
-                            runs.append(Run(string: String(format: "%.2f\n", slider), font: font, color: black))
-                        } else if let string = dict[key] as? String {
-                            runs.append(Run(string: "\(string)\n", font: font, color: black))
-                        }
-                    }
-                    return runs
+            switch control {
+            case .label(let label):
+                mutable.append(RAText.createAttributedString(label, fontName: font.name, fontSize: font.size, color: black))
+            case .object(let key, _):
+                guard let dict = store.getValue(key: key) as? Store.DictType else {
+                    let range = mutable.appendString(
+                        RAText.createAttributedString("\(key)\n", fontName: font.name, fontSize: font.size, color: blue))
+                    tappables.append(Tappable(index: i, range: range, control: control, key: key))
+                    continue
+                    
                 }
-            }()
-            
-            for run in runs {
-                let range = mutable.appendString(run.attributedString)
-                if run.isTappable {
-                    tappables.append(Tappable(index: i, range: range, control: control, key: run.key))
+                mutable.append(
+                    RAText.createAttributedString("\(key):\n", fontName: font.name, fontSize: font.size, color: gray))
+                
+                for key in dict.keys.sorted() {
+                    let range = mutable.appendString(
+                        RAText.createAttributedString("\t\(key):", fontName: font.name, fontSize: font.size, color: gray))
+                    tappables.append(Tappable(index: i, range: range, control: control, key: key))
+                    
+                    let string = {
+                        if let flag = dict[key] as? Bool {
+                            return String(flag ? 1 : 0) + "\n"
+                        } else if let slider = dict[key] as? Double {
+                            return String(format: "%.2f\n", slider)
+                        } else if let string = dict[key] as? String {
+                            return "\(string)\n"
+                        }
+                        return ""
+                    }()
+                    
+                    mutable.append(
+                        RAText.createAttributedString(string, fontName: font.name, fontSize: font.size, color: black))
                 }
             }
             mutable.append(NSAttributedString(string: "\n"))
