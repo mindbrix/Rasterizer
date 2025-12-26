@@ -23,28 +23,10 @@ class Store {
     var dict: DictType = [:]
 }
 
-enum Control {
+struct Control {
     typealias Closure = (SwiftApp) -> Void
-    
-    case label(label: String)
-    case object(key: Store.keyType, closure: Closure?)
-    
-    var closure: Closure? {
-        switch self {
-        case .object(_, let closure):
-            closure
-        default:
-            nil
-        }
-    }
-    var key: Store.keyType? {
-        switch self {
-        case .object(let key, _):
-            key
-        default:
-            nil
-        }
-    }
+    let key: Store.keyType
+    let closure: Closure?
 }
 
 struct Font {
@@ -91,14 +73,13 @@ class SwiftApp {
         guard let tapped, let b = tapMap[tapped.range] else {
             return
         }
-        if let key = tapped.control.key {
-            if var dict = store.getValue(key: key) as? Store.DictType,
-               let value = dict[tapped.key],
-               let slider = value as? Double {
-                let dt = (p.x - last.x) / b.width
-                dict[tapped.key] = max(0.0, min(1.0, slider + dt))
-                store.setValue(value: dict, key: key)
-            }
+        let key = tapped.control.key
+        if var dict = store.getValue(key: key) as? Store.DictType,
+           let value = dict[tapped.key],
+           let slider = value as? Double {
+            let dt = (p.x - last.x) / b.width
+            dict[tapped.key] = max(0.0, min(1.0, slider + dt))
+            store.setValue(value: dict, key: key)
         }
         last = p
     }
@@ -106,8 +87,8 @@ class SwiftApp {
         guard let tapped else {
             return
         }
-        if let key = tapped.control.key,
-            var dict = store.getValue(key: key) as? Store.DictType,
+        let key = tapped.control.key
+        if var dict = store.getValue(key: key) as? Store.DictType,
            let value = dict[tapped.key] {
             if let flag = value as? Bool {
                 dict[tapped.key] = !flag
@@ -129,10 +110,9 @@ class SwiftApp {
             observers[key]?.remove(pageID)
         }
         for control in page.controls {
-            if let key = control.key {
-                let entry = observers[key] ?? []
-                observers[key] = entry.union([pageID])
-            }
+            let key = control.key
+            let entry = observers[key] ?? []
+            observers[key] = entry.union([pageID])
         }
         
         let gutter = bounds.height
@@ -169,41 +149,37 @@ class SwiftApp {
         let mutable = NSMutableAttributedString()
         
         for control in page.controls {
-            switch control {
-            case .label(let label):
-                mutable.append(RAText.createAttributedString(label, fontName: font.name, fontSize: font.size, color: black))
-            case .object(let key, _):
-                guard let dict = store.getValue(key: key) as? Store.DictType else {
-                    let range = mutable.appendString("\(key)\n")
-                    let isActive = (tapped?.range ?? NSRange()) == range
-                    mutable.addAttributes(
-                        RAText.createAttributes(font.name, fontSize: font.size, color: isActive ? red : blue), range: range)
-                    tappables.append(Tappable(range: range, control: control, key: key))
-                    continue
-                }
-                mutable.append(
-                    RAText.createAttributedString("\(key):\n", fontName: font.name, fontSize: font.size, color: gray))
+            let key = control.key
+            guard let dict = store.getValue(key: key) as? Store.DictType else {
+                let range = mutable.appendString("\(key)\n")
+                let isActive = (tapped?.range ?? NSRange()) == range
+                mutable.addAttributes(
+                    RAText.createAttributes(font.name, fontSize: font.size, color: isActive ? red : blue), range: range)
+                tappables.append(Tappable(range: range, control: control, key: key))
+                continue
+            }
+            mutable.append(
+                RAText.createAttributedString("\(key):\n", fontName: font.name, fontSize: font.size, color: gray))
+            
+            for key in dict.keys.sorted() {
+                let range = mutable.appendString("\t\(key):")
+                let isActive = (tapped?.range ?? NSRange()) == range
+                mutable.addAttributes(
+                    RAText.createAttributes(font.name, fontSize: font.size, color: isActive ? red : gray), range: range)
+                tappables.append(Tappable(range: range, control: control, key: key))
                 
-                for key in dict.keys.sorted() {
-                    let range = mutable.appendString("\t\(key):")
-                    let isActive = (tapped?.range ?? NSRange()) == range
-                    mutable.addAttributes(
-                        RAText.createAttributes(font.name, fontSize: font.size, color: isActive ? red : gray), range: range)
-                    tappables.append(Tappable(range: range, control: control, key: key))
-                    
-                    let string = {
-                        if let flag = dict[key] as? Bool {
-                            return String(flag ? 1 : 0) + "\n"
-                        } else if let slider = dict[key] as? Double {
-                            return String(format: "%.2f\n", slider)
-                        } else if let string = dict[key] as? String {
-                            return "\(string)\n"
-                        }
-                        return ""
-                    }()
-                    mutable.append(
-                        RAText.createAttributedString(string, fontName: font.name, fontSize: font.size, color: black))
-                }
+                let string = {
+                    if let flag = dict[key] as? Bool {
+                        return String(flag ? 1 : 0) + "\n"
+                    } else if let slider = dict[key] as? Double {
+                        return String(format: "%.2f\n", slider)
+                    } else if let string = dict[key] as? String {
+                        return "\(string)\n"
+                    }
+                    return ""
+                }()
+                mutable.append(
+                    RAText.createAttributedString(string, fontName: font.name, fontSize: font.size, color: black))
             }
             mutable.append(NSAttributedString(string: "\n"))
         }

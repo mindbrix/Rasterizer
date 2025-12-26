@@ -192,8 +192,8 @@ extension SwiftDemo: SwiftApp.PageDelegate {
             Page(
                 alignment: .left,
                 controls: [
-                    .object(key: Key.dict(), closure: nil),
-                    .object(key: Key.button(), closure: { app in
+                    Control(key: Key.dict(), closure: nil),
+                    Control(key: Key.button(), closure: { app in
                         let tapcount = app.store.getValue(key: Key.button()) as? Int ?? 0
                         print("\(tapcount)")
                         app.store.setValue(value: tapcount + 1, key: Key.button())
@@ -206,7 +206,7 @@ extension SwiftDemo: SwiftApp.PageDelegate {
         case .Home:
             Page(alignment: .left,
                  controls: [
-                    .object(key: Key.button(), closure: { app in
+                    Control(key: Key.button(), closure: { app in
                         app.store.setValue(value: 0, key: Key.button())
                         app.pageID = PageID.LogIn()
                 })
