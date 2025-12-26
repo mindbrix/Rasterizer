@@ -172,7 +172,6 @@ class SwiftApp {
                 let range0 = mutable.appendString(string)
                 mutable.addAttribute(.foregroundColor, value: black, range: range0)
             }
-            mutable.append(NSAttributedString(string: "\n"))
         }
         let ctFont = CTFontCreateWithName(font.name as CFString, font.size, nil)
         let range = NSRange(location: 0, length: mutable.length)
