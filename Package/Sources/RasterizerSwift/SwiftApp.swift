@@ -124,9 +124,7 @@ class SwiftApp {
         })
         if self.showTapMap {
             for b in tapMap.values {
-                let path = RAPath(rect: b)
-                path.close()
-                scene.addStroke(path, ctm: .identity, color: RAPaint(), width: 1, capStyle: .capButt, joinStyle: .joinMiter)
+                scene.strokeRect(b, width: 1, paint: RAPaint())
             }
         }
         frame.applyLines({ line, origin in

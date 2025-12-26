@@ -49,3 +49,11 @@ extension NSMutableAttributedString {
         return range
     }
 }
+
+extension RAScene {
+    func strokeRect(_ rect: CGRect, width: Double, paint: RAPaint) {
+        let path = RAPath(rect: rect)
+        path.close()
+        addStroke(path, ctm: .identity, color: paint, width: width, capStyle: .capButt, joinStyle: .joinMiter)
+    }
+}
