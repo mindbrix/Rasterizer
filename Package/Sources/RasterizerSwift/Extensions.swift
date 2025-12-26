@@ -29,6 +29,15 @@ extension CGPoint {
     }
 }
 
+extension CGRect {
+    func withGutter() -> CGRect {
+        let gutter = height
+        return CGRect(
+            x: minX, y: minY - gutter,
+            width: width, height: height + gutter)
+    }
+}
+
 extension NSMutableAttributedString {
     func appendString(_ string: String) -> NSRange {
         appendString(NSAttributedString(string: string))

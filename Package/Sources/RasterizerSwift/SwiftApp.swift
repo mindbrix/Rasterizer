@@ -111,12 +111,9 @@ class SwiftApp {
             observers[key] = entry.union([pageID])
         }
         
-        let gutter = bounds.height
         let frame = RAFrame(
             attributedString: stringForControls(controls),
-            in: CGRect(
-                x: bounds.minX, y: bounds.minY - gutter,
-                width: bounds.width, height: bounds.height + gutter)
+            in: bounds.withGutter()
         )
         tapMap.removeAll()
         frame.applyRuns({ range, bounds in
