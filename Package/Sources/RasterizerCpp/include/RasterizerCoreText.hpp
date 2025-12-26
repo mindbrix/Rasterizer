@@ -24,21 +24,10 @@
 
 
 struct RasterizerCoreText {
-    static CGRect boundsForLine(CTLineRef line) {
-        return CTLineGetBoundsWithOptions(line, kCTLineBoundsUseOpticalBounds);
-    }
-    
-    static CGRect boundsForString(CFAttributedStringRef string) {
-        CTLineRef line = CTLineCreateWithAttributedString(string);
-        CGRect bounds = boundsForLine(line);
-        CFRelease(line);
-        return bounds;
-    }
-                                     
     static CGRect addTextLineToScene(CFAttributedStringRef string, CGAffineTransform ctm, CGRect clip, Ra::SceneRef& scene) {
         CTLineRef line = CTLineCreateWithAttributedString(string);
         addCTLineToScene(line, ctm, clip, scene);
-        CGRect bounds = boundsForLine(line);
+        CGRect bounds = CTLineGetBoundsWithOptions(line, kCTLineBoundsUseOpticalBounds);
         CFRelease(line);
         return bounds;
     }
@@ -87,7 +76,8 @@ struct RasterizerCoreText {
             CTRunGetPositions(run, CFRangeMake(0, count), & positions[0]);
             CFDictionaryRef attributes = CTRunGetAttributes(run);
             CTFontRef font = (CTFontRef)CFDictionaryGetValue(attributes, kCTFontAttributeName);
-            CGColorRef cgColor = GetCGColor(attributes, CFSTR("NSColor"), kCTForegroundColorAttributeName);
+            CGColorRef cgColor = (CGColorRef)CFDictionaryGetValue(attributes, CFSTR("NSColor"));
+//            CGColorRef cgColor = GetCGColor(attributes, CFSTR("NSColor"), kCTForegroundColorAttributeName);
             CGColorRef cgBackgroundColor = GetCGColor(attributes, CFSTR("NSBackgroundColor"), kCTBackgroundColorAttributeName);
             
             if (cgBackgroundColor) {

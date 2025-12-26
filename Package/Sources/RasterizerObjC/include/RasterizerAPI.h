@@ -49,17 +49,6 @@
 @end
 
 
-@interface RAText: NSObject
-+ (nonnull NSDictionary<NSAttributedStringKey, id> *)createAttributes:(nonnull NSString *)fontName
-                                                             fontSize:(double)fontSize
-                                                                color:(nonnull CGColorRef)color;
-+ (nonnull NSAttributedString *)createAttributedString:(nonnull NSString *)string
-                                              fontName:(nonnull NSString *)fontName
-                                              fontSize:(double)fontSize
-                                                 color:(nonnull CGColorRef)color;
-@end
-
-
 typedef void (^CTRunApplyBlock)(NSRange range, CGRect bounds);
 typedef void (^CTLineApplyBlock)(CTLineRef _Nonnull, CGPoint origin);
 

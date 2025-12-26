@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import CoreText
 import RasterizerObjC
 
 
@@ -137,7 +138,7 @@ class SwiftApp {
         let blue = CGColor(red: 0, green: 0, blue: 1, alpha: 1)
         let black = CGColor(gray: 0, alpha: 1)
         let gray = CGColor(gray: 0.66, alpha: 1)
-        
+
         tappables.removeAll()
         let mutable = NSMutableAttributedString()
         
@@ -145,19 +146,17 @@ class SwiftApp {
             guard let dict = store.getValue(key: control.key) as? Store.DictType else {
                 let range = mutable.appendString("\(control.key)\n")
                 let isActive = (tapped?.range ?? NSRange()) == range
-                mutable.addAttributes(
-                    RAText.createAttributes(font.name, fontSize: font.size, color: isActive ? red : blue), range: range)
+                mutable.addAttribute(.foregroundColor, value: isActive ? red : blue, range: range)
                 tappables.append(Tappable(range: range, control: control, key: control.key))
                 continue
             }
-            mutable.append(
-                RAText.createAttributedString("\(control.key):\n", fontName: font.name, fontSize: font.size, color: gray))
+            let range = mutable.appendString("\(control.key):\n")
+            mutable.addAttribute(.foregroundColor, value: gray, range: range)
             
             for key in dict.keys.sorted() {
                 let range = mutable.appendString("\t\(key):")
                 let isActive = (tapped?.range ?? NSRange()) == range
-                mutable.addAttributes(
-                    RAText.createAttributes(font.name, fontSize: font.size, color: isActive ? red : gray), range: range)
+                mutable.addAttribute(.foregroundColor, value: isActive ? red : gray, range: range)
                 tappables.append(Tappable(range: range, control: control, key: key))
                 
                 let string = {
@@ -170,15 +169,18 @@ class SwiftApp {
                     }
                     return ""
                 }()
-                mutable.append(
-                    RAText.createAttributedString(string, fontName: font.name, fontSize: font.size, color: black))
+                let range0 = mutable.appendString(string)
+                mutable.addAttribute(.foregroundColor, value: black, range: range0)
             }
             mutable.append(NSAttributedString(string: "\n"))
         }
+        let ctFont = CTFontCreateWithName(font.name as CFString, font.size, nil)
+        let range = NSRange(location: 0, length: mutable.length)
         let paragraphStyle = NSMutableParagraphStyle()
         paragraphStyle.alignment = alignment
         paragraphStyle.lineBreakMode = .byClipping
-        mutable.addAttributes([.paragraphStyle: paragraphStyle], range: NSRange(location: 0, length: mutable.length))
+        mutable.addAttribute(.paragraphStyle, value: paragraphStyle, range: range)
+        mutable.addAttribute(.font, value: ctFont, range: range)
         return mutable
     }
 }
