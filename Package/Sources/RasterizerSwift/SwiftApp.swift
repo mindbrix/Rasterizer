@@ -11,14 +11,14 @@ import RasterizerObjC
 
 class Store {
     typealias keyType = String
-    typealias ValueType = any Codable & Hashable
+    typealias ValueType = Any
     typealias DictType = [keyType: ValueType]
     
     func get<T>(key: keyType) -> T? where T: Decodable {
         dict[key] as? T
     }
     func set<T>(value: T?, key: keyType) {
-        dict[key] = value as? ValueType
+        dict[key] = value
     }
     func getValue(key: keyType) -> ValueType? {
         dict[key]
@@ -37,8 +37,7 @@ enum Control {
     case object(key: Store.keyType, closure: Closure?)
     case slider(key: Store.keyType, closure: Closure?)
     case flag(key: Store.keyType, closure: Closure?)
-    case text(label: String, key: Store.keyType)
-    
+   
     var closure: Closure? {
         switch self {
         case .button(_, let closure), .flag(_, let closure), .object(_, let closure), .slider(_, let closure):
@@ -49,18 +48,10 @@ enum Control {
     }
     var key: Store.keyType? {
         switch self {
-        case .flag(let key, _), .object(let key, _), .slider(let key, _), .text(_, let key):
+        case .flag(let key, _), .object(let key, _), .slider(let key, _):
             key
         default:
             nil
-        }
-    }
-    var isTappable: Bool {
-        switch self {
-        case .button(_, _), .flag(_, _), .object(_, _), .slider(_, _):
-            true
-        default:
-            false
         }
     }
 }
@@ -71,10 +62,12 @@ struct Font {
 }
 
 struct Run {
-    init(string: String, font: Font, color: CGColor) {
+    init(string: String, font: Font, color: CGColor, isTappable: Bool = false) {
         attributedString = RAText.createAttributedString(string, fontName: font.name, fontSize: font.size, color: color)
+        self.isTappable = isTappable
     }
     let attributedString: NSAttributedString
+    let isTappable: Bool
 }
 
 struct SliderState: Codable, Hashable {
@@ -132,20 +125,8 @@ class SwiftApp {
         guard let tapped else {
             return
         }
-        var dict: Store.DictType = [:]
-        if let key = tapped.control.key, let value = store.getValue(key: key) {
-            let mirror = Mirror(reflecting: value)
-            for child in mirror.children {
-                guard let label = child.label, let val = child.value as? Store.ValueType else {
-                    continue
-                }
-                dict[label] = val
-            }
-            
-            if let jsonData = try? JSONSerialization.data(withJSONObject: dict, options: .prettyPrinted),
-               let object = try? JSONDecoder().decode(SliderState.self, from: jsonData) {
-                print(object)
-            }
+        if let key = tapped.control.key, let dict = store.getValue(key: key) as? Store.DictType {
+            print(dict)
         }
         
         
@@ -184,7 +165,7 @@ class SwiftApp {
             for run in runs {
                 range.length = run.attributedString.length
                 mutable.append(run.attributedString)
-                if control.isTappable {
+                if run.isTappable {
                     tappables.append(Tappable(index: i, range: range, control: control))
                 }
                 range.location += range.length
@@ -230,32 +211,40 @@ class SwiftApp {
         switch control {
         case .button(let label, _):
             return [
-                Run(string: label, font: font, color: isActive ? red : blue)
+                Run(string: label, font: font, color: isActive ? red : blue, isTappable: true)
             ]
         case .flag(let key, _):
             let current = store.getValue(key: key) as? Bool ?? false
             return [
-                Run(string: "\(key):", font: font, color: gray),
-                Run(string: String(current ? 1 : 0), font: font, color: isActive ? red : black)
+                Run(string: "\(key):", font: font, color: gray, isTappable: true),
+                Run(string: String(current ? 1 : 0), font: font, color: isActive ? red : black, isTappable: true)
             ]
         case .label(let label):
             return [
                 Run(string: label, font: font, color: black)
             ]
         case .object(let key, _):
-            return [
-                Run(string: "\(key):", font: font, color: gray)
+            var runs = [
+                Run(string: "\(key):\n", font: font, color: gray)
             ]
+            if let dict = store.getValue(key: key) as? Store.DictType {
+                for key in dict.keys.sorted() {
+                    runs.append(Run(string: "\t\(key):", font: font, color: gray))
+                    if let flag = dict[key] as? Bool {
+                        runs.append(Run(string: String(flag ? 1 : 0) + "\n", font: font, color: black))
+                    } else if let slider = dict[key] as? Double {
+                        runs.append(Run(string: String(format: "%.2f\n", slider), font: font, color: black))
+                    } else if let string = dict[key] as? String {
+                        runs.append(Run(string: "\(string)\n", font: font, color: black))
+                    }
+                }
+            }
+            return runs
         case .slider(let key, _):
             let current = (store.getValue(key: key) as? SliderState)?.current ?? 0.0
             return [
-                Run(string: "\(key):", font: font, color: gray),
-                Run(string: String(format: "%.2f", current), font: font, color: isActive ? red : black)
-            ]
-        case .text(_, let key):
-            return [
-                Run(string: "\(key):", font: font, color: gray),
-                Run(string: store.getValue(key: key) as? String ?? "", font: font, color: black)
+                Run(string: "\(key):", font: font, color: gray, isTappable: true),
+                Run(string: String(format: "%.2f", current), font: font, color: isActive ? red : black, isTappable: true)
             ]
         }
     }

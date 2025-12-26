@@ -15,6 +15,11 @@ class SwiftDemo: NSObject {
         super.init()
         swiftApp.pageDelegate = self
         swiftApp.pageID = PageID.LogIn()
+        dict = [
+            "flag"   : false,
+            "slider" : 0.0,
+            "useRect": false
+        ]
     }
     enum Event {
         case keyDown(character: Character, flags: NSEvent.ModifierFlags)
@@ -133,19 +138,15 @@ extension SwiftDemo: RASceneListDelegate {
 }
 
 extension SwiftDemo: SwiftApp.PageDelegate {
-    struct State: Codable, Hashable {
-        var flag = false
-        var slider = 0.0
-        var useRect = false
-    }
-    var state: State {
+    var dict: Store.DictType? {
         get {
-            swiftApp.store.get(key: Key.state()) ?? State()
+            swiftApp.store.getValue(key: Key.dict()) as? Store.DictType
         }
         set {
-            swiftApp.store.set(value: newValue, key: Key.state())
+            swiftApp.store.setValue(value: newValue, key: Key.dict())
         }
     }
+    
     enum Label: String {
         case UserName = "User name"
         case Password
@@ -165,7 +166,7 @@ extension SwiftDemo: SwiftApp.PageDelegate {
         }
     }
     enum Key: String, CaseIterable {
-        case state
+        case dict
         case slider0
         case flag0
         case tapcount
@@ -201,7 +202,7 @@ extension SwiftDemo: SwiftApp.PageDelegate {
             Page(
                 alignment: .left,
                 controls: [
-                    .object(key: Key.state(), closure: nil),
+                    .object(key: Key.dict(), closure: nil),
                     .flag(key: Key.flag0(), closure: nil),
                     .flag(key: Key.useRect(), closure: nil),
                     .slider(key: Key.slider0(), closure: nil),
