@@ -14,12 +14,6 @@ class Store {
     typealias ValueType = Any
     typealias DictType = [keyType: ValueType]
     
-    func get<T>(key: keyType) -> T? where T: Decodable {
-        dict[key] as? T
-    }
-    func set<T>(value: T?, key: keyType) {
-        dict[key] = value
-    }
     func getValue(key: keyType) -> ValueType? {
         dict[key]
     }
@@ -35,12 +29,10 @@ enum Control {
     case button(label: String, closure: Closure?)
     case label(label: String)
     case object(key: Store.keyType, closure: Closure?)
-    case slider(key: Store.keyType, closure: Closure?)
-    case flag(key: Store.keyType, closure: Closure?)
-   
+    
     var closure: Closure? {
         switch self {
-        case .button(_, let closure), .flag(_, let closure), .object(_, let closure), .slider(_, let closure):
+        case .button(_, let closure), .object(_, let closure):
             closure
         default:
             nil
@@ -48,7 +40,7 @@ enum Control {
     }
     var key: Store.keyType? {
         switch self {
-        case .flag(let key, _), .object(let key, _), .slider(let key, _):
+        case .object(let key, _):
             key
         default:
             nil
@@ -62,12 +54,14 @@ struct Font {
 }
 
 struct Run {
-    init(string: String, font: Font, color: CGColor, isTappable: Bool = false) {
+    init(string: String, font: Font, color: CGColor, isTappable: Bool = false, key: Store.keyType = "") {
         attributedString = RAText.createAttributedString(string, fontName: font.name, fontSize: font.size, color: color)
         self.isTappable = isTappable
+        self.key = key
     }
     let attributedString: NSAttributedString
     let isTappable: Bool
+    let key: Store.keyType
 }
 
 struct SliderState: Codable, Hashable {
@@ -78,6 +72,7 @@ struct Tappable {
     let index: Int
     let range: NSRange
     let control: Control
+    let key: Store.keyType
 }
 
 struct Page {
@@ -113,11 +108,14 @@ class SwiftApp {
         guard let tapped, let b = tapMap[tapped.range] else {
             return
         }
-        if case Control.slider = tapped.control, let key = tapped.control.key {
-            let state = store.getValue(key: key) as? SliderState ?? SliderState(min: 0, max: 1, current: 0)
-            let dt = (p.x - last.x) / b.width
-            let t = max(state.min, min(state.max, state.current + dt))
-            store.setValue(value: SliderState(min: state.min, max: state.max, current: t), key: key)
+        if let key = tapped.control.key {
+            if var dict = store.getValue(key: key) as? Store.DictType,
+               let value = dict[tapped.key],
+               let slider = value as? Double {
+                let dt = (p.x - last.x) / b.width
+                dict[tapped.key] = max(0.0, min(1.0, slider + dt))
+                store.setValue(value: dict, key: key)
+            }
         }
         last = p
     }
@@ -125,14 +123,13 @@ class SwiftApp {
         guard let tapped else {
             return
         }
-        if let key = tapped.control.key, let dict = store.getValue(key: key) as? Store.DictType {
-            print(dict)
-        }
-        
-        
-        if case Control.flag = tapped.control, let key = tapped.control.key {
-            let flag = store.getValue(key: key) as? Bool ?? false
-            store.setValue(value: !flag, key: key)
+        if let key = tapped.control.key,
+            var dict = store.getValue(key: key) as? Store.DictType,
+           let value = dict[tapped.key] {
+            if let flag = value as? Bool {
+                dict[tapped.key] = !flag
+            }
+            store.setValue(value: dict, key: key)
         }
         tapped.control.closure?(self)
         
@@ -166,7 +163,7 @@ class SwiftApp {
                 range.length = run.attributedString.length
                 mutable.append(run.attributedString)
                 if run.isTappable {
-                    tappables.append(Tappable(index: i, range: range, control: control))
+                    tappables.append(Tappable(index: i, range: range, control: control, key: run.key))
                 }
                 range.location += range.length
             }
@@ -213,12 +210,6 @@ class SwiftApp {
             return [
                 Run(string: label, font: font, color: isActive ? red : blue, isTappable: true)
             ]
-        case .flag(let key, _):
-            let current = store.getValue(key: key) as? Bool ?? false
-            return [
-                Run(string: "\(key):", font: font, color: gray, isTappable: true),
-                Run(string: String(current ? 1 : 0), font: font, color: isActive ? red : black, isTappable: true)
-            ]
         case .label(let label):
             return [
                 Run(string: label, font: font, color: black)
@@ -229,7 +220,7 @@ class SwiftApp {
             ]
             if let dict = store.getValue(key: key) as? Store.DictType {
                 for key in dict.keys.sorted() {
-                    runs.append(Run(string: "\t\(key):", font: font, color: gray))
+                    runs.append(Run(string: "\t\(key):", font: font, color: gray, isTappable: true, key: key))
                     if let flag = dict[key] as? Bool {
                         runs.append(Run(string: String(flag ? 1 : 0) + "\n", font: font, color: black))
                     } else if let slider = dict[key] as? Double {
@@ -240,12 +231,6 @@ class SwiftApp {
                 }
             }
             return runs
-        case .slider(let key, _):
-            let current = (store.getValue(key: key) as? SliderState)?.current ?? 0.0
-            return [
-                Run(string: "\(key):", font: font, color: gray, isTappable: true),
-                Run(string: String(format: "%.2f", current), font: font, color: isActive ? red : black, isTappable: true)
-            ]
         }
     }
 }

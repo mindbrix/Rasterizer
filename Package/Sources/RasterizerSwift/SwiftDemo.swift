@@ -16,9 +16,9 @@ class SwiftDemo: NSObject {
         swiftApp.pageDelegate = self
         swiftApp.pageID = PageID.LogIn()
         dict = [
-            "flag"   : false,
-            "slider" : 0.0,
-            "useRect": false
+            Key.flag0()  : false,
+            Key.slider0(): 0.0,
+            Key.useRect(): true
         ]
     }
     enum Event {
@@ -147,16 +147,6 @@ extension SwiftDemo: SwiftApp.PageDelegate {
         }
     }
     
-    enum Label: String {
-        case UserName = "User name"
-        case Password
-        case LogIn = "Log in"
-        case Welcome
-        
-        func callAsFunction() -> String {
-            rawValue
-        }
-    }
     enum PageID: String, CaseIterable {
         case LogIn
         case Home
@@ -169,8 +159,8 @@ extension SwiftDemo: SwiftApp.PageDelegate {
         case dict
         case slider0
         case flag0
-        case tapcount
         case useRect
+        case tapcount
         
         func callAsFunction() -> String {
             rawValue
@@ -179,21 +169,21 @@ extension SwiftDemo: SwiftApp.PageDelegate {
     
     var flag: Bool {
         get {
-            swiftApp.store.get(key: Key.flag0()) ?? false
+            dict?[Key.flag0()] as? Bool ?? false
         }
         set {
-            swiftApp.store.set(value: newValue, key: Key.flag0())
+            dict?[Key.flag0()] = newValue
         }
     }
     var slider0: Double {
-        (swiftApp.store.getValue(key: Key.slider0()) as? SliderState)?.current ?? 0.0
+        dict?[Key.slider0()] as? Double ?? 0.0
     }
     var useRect: Bool {
         get {
-            (swiftApp.store.getValue(key: Key.useRect()) as? Bool) ?? false
+            dict?[Key.useRect()] as? Bool ?? false
         }
         set {
-            swiftApp.store.setValue(value: newValue, key: Key.useRect())
+            dict?[Key.useRect()] = newValue
         }
     }
     func pageFor(_ pageID: String) -> Page? {
@@ -203,10 +193,7 @@ extension SwiftDemo: SwiftApp.PageDelegate {
                 alignment: .left,
                 controls: [
                     .object(key: Key.dict(), closure: nil),
-                    .flag(key: Key.flag0(), closure: nil),
-                    .flag(key: Key.useRect(), closure: nil),
-                    .slider(key: Key.slider0(), closure: nil),
-                    .button(label: Label.LogIn(), closure: { app in
+                    .button(label: "Button", closure: { app in
                         let tapcount = app.store.getValue(key: Key.tapcount()) as? Int ?? 0
                         print("\(tapcount)")
                         app.store.setValue(value: tapcount + 1, key: Key.tapcount())
@@ -219,7 +206,7 @@ extension SwiftDemo: SwiftApp.PageDelegate {
         case .Home:
             Page(alignment: .left,
                  controls: [
-                .button(label: Label.Welcome(), closure: { app in
+                .button(label: "Button", closure: { app in
                     app.store.setValue(value: 0, key: Key.tapcount())
                     app.pageID = PageID.LogIn()
                 })
