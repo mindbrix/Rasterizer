@@ -52,12 +52,7 @@ struct Font {
     let size: Double
 }
 
-struct SliderState: Codable, Hashable {
-    let min, max, current: Double
-}
-
 struct Tappable {
-    let index: Int
     let range: NSRange
     let control: Control
     let key: Store.keyType
@@ -173,26 +168,28 @@ class SwiftApp {
         tappables.removeAll()
         let mutable = NSMutableAttributedString()
         
-        for (i, control) in page.controls.enumerated() {
-            let isActive = i == (tapped?.index ?? -1)
+        for control in page.controls {
             switch control {
             case .label(let label):
                 mutable.append(RAText.createAttributedString(label, fontName: font.name, fontSize: font.size, color: black))
             case .object(let key, _):
                 guard let dict = store.getValue(key: key) as? Store.DictType else {
-                    let range = mutable.appendString(
-                        RAText.createAttributedString("\(key)\n", fontName: font.name, fontSize: font.size, color: blue))
-                    tappables.append(Tappable(index: i, range: range, control: control, key: key))
+                    let range = mutable.appendString("\(key)\n")
+                    let isActive = (tapped?.range ?? NSRange()) == range
+                    mutable.addAttributes(
+                        RAText.createAttributes(font.name, fontSize: font.size, color: isActive ? red : blue), range: range)
+                    tappables.append(Tappable(range: range, control: control, key: key))
                     continue
-                    
                 }
                 mutable.append(
                     RAText.createAttributedString("\(key):\n", fontName: font.name, fontSize: font.size, color: gray))
                 
                 for key in dict.keys.sorted() {
-                    let range = mutable.appendString(
-                        RAText.createAttributedString("\t\(key):", fontName: font.name, fontSize: font.size, color: gray))
-                    tappables.append(Tappable(index: i, range: range, control: control, key: key))
+                    let range = mutable.appendString("\t\(key):")
+                    let isActive = (tapped?.range ?? NSRange()) == range
+                    mutable.addAttributes(
+                        RAText.createAttributes(font.name, fontSize: font.size, color: isActive ? red : gray), range: range)
+                    tappables.append(Tappable(range: range, control: control, key: key))
                     
                     let string = {
                         if let flag = dict[key] as? Bool {
@@ -204,7 +201,6 @@ class SwiftApp {
                         }
                         return ""
                     }()
-                    
                     mutable.append(
                         RAText.createAttributedString(string, fontName: font.name, fontSize: font.size, color: black))
                 }

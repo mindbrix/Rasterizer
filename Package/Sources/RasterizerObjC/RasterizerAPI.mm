@@ -194,6 +194,12 @@
 #pragma mark - RAText
 
 @implementation RAText: NSObject
++ (NSDictionary<NSAttributedStringKey, id> *)createAttributes:(NSString *)fontName
+                          fontSize:(double)fontSize
+                             color:(CGColorRef)color {
+    CFDictionaryRef attribs = RaCT::createAttributes(fontName.UTF8String, fontSize, color);
+    return (__bridge_transfer NSDictionary<NSAttributedStringKey, id> *)attribs;
+}
 + (nonnull NSAttributedString *)createAttributedString:(NSString *)string
                                               fontName:(NSString *)fontName
                                               fontSize:(double)fontSize

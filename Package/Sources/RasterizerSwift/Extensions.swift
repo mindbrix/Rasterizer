@@ -30,6 +30,10 @@ extension CGPoint {
 }
 
 extension NSMutableAttributedString {
+    func appendString(_ string: String) -> NSRange {
+        appendString(NSAttributedString(string: string))
+    }
+    
     func appendString(_ string: NSAttributedString) -> NSRange {
         let range = NSRange(location: length, length: string.length)
         append(string)

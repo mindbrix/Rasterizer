@@ -50,6 +50,9 @@
 
 
 @interface RAText: NSObject
++ (nonnull NSDictionary<NSAttributedStringKey, id> *)createAttributes:(nonnull NSString *)fontName
+                                                             fontSize:(double)fontSize
+                                                                color:(nonnull CGColorRef)color;
 + (nonnull NSAttributedString *)createAttributedString:(nonnull NSString *)string
                                               fontName:(nonnull NSString *)fontName
                                               fontSize:(double)fontSize

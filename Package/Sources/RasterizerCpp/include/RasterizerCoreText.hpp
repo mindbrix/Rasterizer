@@ -129,6 +129,15 @@ struct RasterizerCoreText {
         return ctFont;
         
     }
+    static CFDictionaryRef createAttributes(const char *fontName, float fontSize, CGColorRef color){
+        CTFontRef ctFont = createFont(fontName, fontSize);
+        const void *keys[] = { kCTFontAttributeName, kCTForegroundColorAttributeName };
+        const void *values[] = { ctFont, color };
+        CFDictionaryRef attributes = CFDictionaryCreate(kCFAllocatorDefault, keys, values, 2, NULL, &kCFTypeDictionaryValueCallBacks);
+        CFRelease(ctFont);
+        return attributes;
+    }
+    
     static CFAttributedStringRef createAttributedString(const char *string, const char *fontName, float fontSize, CGColorRef color) {
         CTFontRef ctFont = createFont(fontName, fontSize);
         const void *keys[] = { kCTFontAttributeName, kCTForegroundColorAttributeName };
