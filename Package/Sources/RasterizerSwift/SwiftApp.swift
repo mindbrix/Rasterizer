@@ -112,8 +112,10 @@ class SwiftApp {
             observers[key] = entry.union([pageID])
         }
         
+        let tuple = tappablesAndStringForControls(controls)
+        tappables = tuple.0
         let frame = RAFrame(
-            attributedString: stringForControls(controls),
+            attributedString: tuple.1,
             in: bounds.withGutter()
         )
         tapMap.removeAll()
@@ -133,13 +135,13 @@ class SwiftApp {
         return scene
     }
     
-    func stringForControls(_ controls: [Control]) -> NSAttributedString {
+    func tappablesAndStringForControls(_ controls: [Control]) -> ([Tappable], NSAttributedString) {
         let red = CGColor(red: 1, green: 0, blue: 0, alpha: 1)
         let blue = CGColor(red: 0, green: 0, blue: 1, alpha: 1)
         let black = CGColor(gray: 0, alpha: 1)
         let gray = CGColor(gray: 0.66, alpha: 1)
 
-        tappables.removeAll()
+        var tappables: [Tappable] = []
         let mutable = NSMutableAttributedString()
         
         for control in controls {
@@ -181,6 +183,6 @@ class SwiftApp {
         paragraphStyle.lineBreakMode = .byClipping
         mutable.addAttribute(.paragraphStyle, value: paragraphStyle, range: range)
         mutable.addAttribute(.font, value: ctFont, range: range)
-        return mutable
+        return (tappables, mutable)
     }
 }

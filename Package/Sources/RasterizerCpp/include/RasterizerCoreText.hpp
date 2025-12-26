@@ -76,8 +76,7 @@ struct RasterizerCoreText {
             CTRunGetPositions(run, CFRangeMake(0, count), & positions[0]);
             CFDictionaryRef attributes = CTRunGetAttributes(run);
             CTFontRef font = (CTFontRef)CFDictionaryGetValue(attributes, kCTFontAttributeName);
-            CGColorRef cgColor = (CGColorRef)CFDictionaryGetValue(attributes, CFSTR("NSColor"));
-//            CGColorRef cgColor = GetCGColor(attributes, CFSTR("NSColor"), kCTForegroundColorAttributeName);
+            CGColorRef cgColor = GetCGColor(attributes, CFSTR("NSColor"), kCTForegroundColorAttributeName);
             CGColorRef cgBackgroundColor = GetCGColor(attributes, CFSTR("NSBackgroundColor"), kCTBackgroundColorAttributeName);
             
             if (cgBackgroundColor) {
@@ -102,14 +101,15 @@ struct RasterizerCoreText {
     }
     
     static CGColorRef GetCGColor(CFDictionaryRef attributes, CFStringRef platformName, CFStringRef ctName) {
-        CGColorRef cgColor = NULL;
-        NSColor *nsColor = (__bridge NSColor *)CFDictionaryGetValue(attributes, platformName);
-        if (nsColor != nil)
-            cgColor = nsColor.CGColor;
-        else {
-            cgColor = (CGColorRef)CFDictionaryGetValue(attributes, ctName);
-        }
-        return cgColor;
+        const CFTypeRef value = CFDictionaryGetValue(attributes, platformName);
+        if (value == NULL)
+            return NULL;
+        
+        if (CFGetTypeID(value) == CGColorGetTypeID())
+            return (CGColorRef)value;
+        
+        NSColor *nsColor = (__bridge NSColor *)value;
+        return nsColor.CGColor;;
     }
     
     static CTFontRef createFont(const char *fontName, float fontSize) {
