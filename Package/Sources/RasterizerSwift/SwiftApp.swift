@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import OrderedCollections
 import CoreText
 import RasterizerObjC
 
@@ -13,7 +14,7 @@ import RasterizerObjC
 class Store {
     typealias keyType = String
     typealias ValueType = Any
-    typealias DictType = [keyType: ValueType]
+    typealias DictType = OrderedDictionary<keyType, ValueType>
     
     func getValue(key: keyType) -> ValueType? {
         dict[key]
@@ -153,7 +154,7 @@ class SwiftApp {
             let range = mutable.appendString("\(control.key):\n")
             mutable.addAttribute(.foregroundColor, value: gray, range: range)
             
-            for key in dict.keys.sorted() {
+            for key in dict.keys {
                 let range = mutable.appendString("\t\(key):")
                 let isActive = (tapped?.range ?? NSRange()) == range
                 mutable.addAttribute(.foregroundColor, value: isActive ? red : gray, range: range)
