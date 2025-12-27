@@ -378,6 +378,10 @@ struct Rasterizer {
             float s = 1.f - t;
             b = s * c0.b + t * c1.b, g = s * c0.g + t * c1.g, r = s * c0.r + t * c1.r, a = s * c0.a + t * c1.a;
         }
+        Color premultiplied() const {
+            float alpha = a / 255.f;
+            return Color(b * alpha, g * alpha, r * alpha, a);
+        }
         Component b, g, r, a;
     };
     
@@ -457,7 +461,7 @@ struct Rasterizer {
                     if (t >= *t0 && t <= *t1)
                         break;
                 t = fmaxf(0.f, fminf(1.f, (t - *t0) / (*t1 - *t0)));
-                dst[i] = Color(stops[loc], stops[loc + 1], t);
+                dst[i] = Color(stops[loc], stops[loc + 1], t).premultiplied();
             }
         }
         Type type = kColor;
@@ -819,7 +823,7 @@ struct Rasterizer {
                         if (list.params.showOutlines)
                             colors[iz] = uw == 0.f ? black : red;
                         else
-                            colors[iz] = scn->colors[is];
+                            colors[iz] = scn->colors[is].premultiplied();
                         
                         ctms[iz] = m, widths[iz] = width, clips[iz] = invclip;
                         Geometry *g = scn->paths[is].ptr;
