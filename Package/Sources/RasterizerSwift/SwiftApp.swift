@@ -177,6 +177,7 @@ class SwiftApp {
         let paragraphStyle = NSMutableParagraphStyle()
         paragraphStyle.alignment = .left
         paragraphStyle.lineBreakMode = .byClipping
+        paragraphStyle.tabStops = [NSTextTab(type: .leftTabStopType, location: font.size)]
         mutable.addAttribute(.paragraphStyle, value: paragraphStyle, range: range)
         mutable.addAttribute(.font, value: ctFont, range: range)
         return (tappables, mutable)
