@@ -24,14 +24,6 @@
 
 
 struct RasterizerCoreText {
-    static CGRect addTextLineToScene(CFAttributedStringRef string, CGAffineTransform ctm, CGRect clip, Ra::SceneRef& scene) {
-        CTLineRef line = CTLineCreateWithAttributedString(string);
-        addCTLineToScene(line, ctm, clip, scene);
-        CGRect bounds = CTLineGetBoundsWithOptions(line, kCTLineBoundsUseOpticalBounds);
-        CFRelease(line);
-        return bounds;
-    }
-    
     static CGRect addTextToSceneInRect(CFAttributedStringRef string, CGRect rect, CGAffineTransform ctm, CGRect clip, Ra::SceneRef& scene) {
         Ra::SceneRef glyphs;
         CTFramesetterRef framesetter = CTFramesetterCreateWithAttributedString(string);
@@ -124,7 +116,6 @@ struct RasterizerCoreText {
         CTFontRef ctFont = CTFontCreateWithName(cfFontName, fontSize, NULL);
         CFRelease(cfFontName);
         return ctFont;
-        
     }
     static CFDictionaryRef createAttributes(const char *fontName, float fontSize, CGColorRef color){
         CTFontRef ctFont = createFont(fontName, fontSize);

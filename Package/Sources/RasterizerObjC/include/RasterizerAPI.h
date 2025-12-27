@@ -102,10 +102,6 @@ typedef NS_ENUM(NSUInteger, RAJoinStyle) {
                   ctm:(CGAffineTransform)ctm
                  clip:(CGRect)clip;
 
-- (CGRect)addTextLine:(nonnull NSAttributedString *)string
-                  ctm:(CGAffineTransform)ctm
-                 clip:(CGRect)clip;
-
 - (CGRect)addText:(nonnull NSAttributedString *)string
            inRect:(CGRect)rect
               ctm:(CGAffineTransform)ctm
