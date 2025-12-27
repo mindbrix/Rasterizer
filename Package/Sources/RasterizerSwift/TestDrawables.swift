@@ -161,7 +161,7 @@ class Test0: RADrawable {
         path.close()
         
         let scene = RAScene()
-        let count = state.flag ? 2000 : 20
+        let count = state.flag ? 80 : 20
         let r1 = 0.0625 * dim
         let r0 = 0.5 * dim - r1 - unitWidth * r1
         let center = CGPoint(x: bounds.midX, y: bounds.midY)
