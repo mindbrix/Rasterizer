@@ -148,7 +148,6 @@ class TestCubics: RADrawable {
 class Test0: RADrawable {
     func getSceneAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RAScene {
         let ts = 0.1 * time
-        let t = ts - floor(ts)
         let dim = min(bounds.width, bounds.height)
         let unitRect = CGRect(x: 0, y: 0, width: 1, height: 1)
         let unitCenter = CGPoint(x: unitRect.midX, y: unitRect.midY)
@@ -179,7 +178,7 @@ class Test0: RADrawable {
             
             let ctm = CGAffineTransform(
                 center: unitCenter,
-                rotation: -t * 2 * Double.pi,
+                rotation: -(1 - ti) * 2 * Double.pi,
                 scale: CGSize(width: 2 * r1, height: 2 * r1),
                 translation: CGVector(dx: radial.x - unitCenter.x, dy: radial.y - unitCenter.y)
             )
