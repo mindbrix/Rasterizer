@@ -89,23 +89,26 @@ struct RasterizerCoreText {
             
             Ra::Color color = RaCG::colorFromCG(cgColor);
             for (int j = 0; j < count; j++) {
-                Ra::Path path;
+                Ra::Transform m = RaCG::transformFromCG(CGAffineTransformTranslate(ctm, positions[j].x, positions[j].y));
                 if (cache) {
-                    if (cache->find(glyphs[j]) != cache->end()) {
-                        path = cache->find(glyphs[j])->second;
+                    auto it = cache->find(glyphs[j]);
+                    if (it != cache->end()) {
+                        scene->addPath(it->second, m, color, 0, 0, & clipBounds);
                     } else {
+                        Ra::Path path;
                         CGPathRef cgPath = CTFontCreatePathForGlyph(font, glyphs[j], NULL);
                         RaCG::writeCGPathToPath(cgPath, path);
                         CGPathRelease(cgPath);
                         cache->emplace(glyphs[j], path);
+                        scene->addPath(path, m, color, 0, 0, & clipBounds);
                     }
                 } else {
+                    Ra::Path path;
                     CGPathRef cgPath = CTFontCreatePathForGlyph(font, glyphs[j], NULL);
                     RaCG::writeCGPathToPath(cgPath, path);
                     CGPathRelease(cgPath);
+                    scene->addPath(path, m, color, 0, 0, & clipBounds);
                 }
-                Ra::Transform m = RaCG::transformFromCG(CGAffineTransformTranslate(ctm, positions[j].x, positions[j].y));
-                scene->addPath(path, m, color, 0, 0, & clipBounds);
             }
         }
     }
