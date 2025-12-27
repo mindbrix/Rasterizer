@@ -14,7 +14,7 @@ class SwiftDemo: NSObject {
     override init() {
         super.init()
         swiftApp.pageDelegate = self
-        swiftApp.pageID = PageID.LogIn()
+        swiftApp.pageName = PageID.LogIn()
         dict = [
             Key.flag()  : false,
             Key.slider(): 0.0,
@@ -40,7 +40,6 @@ class SwiftDemo: NSObject {
         TestImage()
     ]
     
-    var pageID: PageID = .LogIn
     var useClips = true
     var index = 0
     var paused = false
@@ -187,23 +186,20 @@ extension SwiftDemo: SwiftApp.PageDelegate {
             dict?[Key.useRect()] = newValue
         }
     }
-    func controlsFor(_ pageID: String) -> [Control]? {
-        switch PageID(rawValue: pageID) {
+    func controlsFor(_ pageName: String) -> [Control]? {
+        switch PageID(rawValue: pageName) {
         case .LogIn: [
             Control(key: Key.dict(), closure: nil),
-            Control(key: Key.button(), closure: { app, key, value in
+            Control(key: Key.button(), closure: { store, key, value in
                 let tapcount = value as? Int ?? 0
                 print("\(tapcount)")
-                app.store.setValue(value: tapcount + 1, key: key)
-                
-                if tapcount == 2 {
-                    app.pageID = PageID.Home()
-                }
+                store.setValue(value: tapcount + 1, key: key)
+                return tapcount == 2 ? PageID.Home() : nil
             })]
         case .Home: [
-            Control(key: Key.button(), closure: { app, key, value in
-                app.store.setValue(value: 0, key: key)
-                app.pageID = PageID.LogIn()
+            Control(key: Key.button(), closure: { store, key, value in
+                store.setValue(value: 0, key: key)
+                return PageID.LogIn()
             })]
         default:
             nil

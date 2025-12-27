@@ -25,7 +25,7 @@ class Store {
 }
 
 struct Control {
-    typealias Closure = (SwiftApp, Store.keyType, Store.ValueType?) -> Void
+    typealias Closure = (Store, Store.keyType, Store.ValueType?) -> String?
     let key: Store.keyType
     let closure: Closure?
 }
@@ -43,10 +43,10 @@ struct Tappable {
 
 class SwiftApp {
     protocol PageDelegate: AnyObject {
-        func controlsFor(_ pageID: String) -> [Control]?
+        func controlsFor(_ pageName: String) -> [Control]?
     }
     weak var pageDelegate: PageDelegate?
-    var pageID: String?
+    var pageName: String?
     var font = Font(name: "HelveticaNeue-Medium", size: 28)
     let store = Store()
     var observers: [Store.keyType: Set<String>] = [:]
@@ -91,24 +91,25 @@ class SwiftApp {
             }
             store.setValue(value: dict, key: key)
         }
-        tapped.control.closure?(self, key, store.getValue(key: key))
-        
+        if let name = tapped.control.closure?(self.store, key, store.getValue(key: key)) {
+            pageName = name
+        }
         last = p
         self.tapped = nil
     }
     
     func createSceneIn(_ bounds: CGRect) -> RAScene {
         let scene = RAScene()
-        guard let pageID, let pageDelegate, let controls = pageDelegate.controlsFor(pageID) else {
+        guard let pageName, let pageDelegate, let controls = pageDelegate.controlsFor(pageName) else {
             return scene
         }
         for key in observers.keys {
-            observers[key]?.remove(pageID)
+            observers[key]?.remove(pageName)
         }
         for control in controls {
             let key = control.key
             let entry = observers[key] ?? []
-            observers[key] = entry.union([pageID])
+            observers[key] = entry.union([pageName])
         }
         
         let tuple = tappablesAndStringForControls(controls)
