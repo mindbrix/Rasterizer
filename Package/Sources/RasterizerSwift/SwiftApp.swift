@@ -42,6 +42,13 @@ struct Tappable {
     let range: NSRange
 }
 
+struct Colors {
+    static let red = CGColor(red: 1, green: 0, blue: 0, alpha: 1)
+    static let blue = CGColor(red: 0, green: 0, blue: 1, alpha: 1)
+    static let black = CGColor(gray: 0, alpha: 1)
+    static let gray = CGColor(gray: 0.66, alpha: 1)
+}
+
 class SwiftApp {
     protocol PageDelegate: AnyObject {
         func controlsFor(_ pageName: String) -> [Control]?
@@ -135,11 +142,6 @@ class SwiftApp {
     }
     
     func tappablesAndStringForControls(_ controls: [Control]) -> ([Tappable], NSAttributedString) {
-        let red = CGColor(red: 1, green: 0, blue: 0, alpha: 1)
-        let blue = CGColor(red: 0, green: 0, blue: 1, alpha: 1)
-        let black = CGColor(gray: 0, alpha: 1)
-        let gray = CGColor(gray: 0.66, alpha: 1)
-
         var tappables: [Tappable] = []
         let mutable = NSMutableAttributedString()
         
@@ -147,17 +149,17 @@ class SwiftApp {
             guard let dict = store.getValue(key: control.key) as? Store.DictType else {
                 let range = mutable.appendString("\(control.key)\n")
                 let isActive = (tapped?.range ?? NSRange()) == range
-                mutable.addAttribute(.foregroundColor, value: isActive ? red : blue, range: range)
+                mutable.addAttribute(.foregroundColor, value: isActive ? Colors.red : Colors.blue, range: range)
                 tappables.append(Tappable(control: control, key: control.key, range: range))
                 continue
             }
             var range = mutable.appendString("\(control.key):\n")
-            mutable.addAttribute(.foregroundColor, value: gray, range: range)
+            mutable.addAttribute(.foregroundColor, value: Colors.gray, range: range)
             
             for key in dict.keys {
                 range = mutable.appendString("\t\(key):")
                 let isActive = (tapped?.range ?? NSRange()) == range
-                mutable.addAttribute(.foregroundColor, value: isActive ? red : gray, range: range)
+                mutable.addAttribute(.foregroundColor, value: isActive ? Colors.red : Colors.gray, range: range)
                 tappables.append(Tappable(control: control, key: key, range: range))
                 
                 let string = {
@@ -171,7 +173,7 @@ class SwiftApp {
                     return "nil"
                 }() + "\n"
                 range = mutable.appendString(string)
-                mutable.addAttribute(.foregroundColor, value: black, range: range)
+                mutable.addAttribute(.foregroundColor, value: Colors.black, range: range)
             }
         }
         let ctFont = CTFontCreateWithName(font.name as CFString, font.size, nil)
