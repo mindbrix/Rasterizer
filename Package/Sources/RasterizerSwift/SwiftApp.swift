@@ -162,14 +162,14 @@ class SwiftApp {
                 
                 let string = {
                     if let flag = dict[key] as? Bool {
-                        return String(flag ? 1 : 0) + "\n"
+                        return String(flag ? 1 : 0)
                     } else if let slider = dict[key] as? Double {
-                        return String(format: "%.2f\n", slider)
-                    } else if let string = dict[key] as? String {
-                        return "\(string)\n"
+                        return String(format: "%.2f", slider)
+                    } else if let value = dict[key] {
+                        return String(describing: value)
                     }
                     return ""
-                }()
+                }() + "\n"
                 let range0 = mutable.appendString(string)
                 mutable.addAttribute(.foregroundColor, value: black, range: range0)
             }

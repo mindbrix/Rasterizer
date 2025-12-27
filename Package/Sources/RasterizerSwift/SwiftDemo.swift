@@ -18,7 +18,8 @@ class SwiftDemo: NSObject {
         dict = [
             Key.flag()  : false,
             Key.slider(): 0.0,
-            Key.useRect(): false
+            Key.useRect(): false,
+            Key.range(): NSRange(location: 0, length: drawables.count)
         ]
     }
     enum Event {
@@ -160,6 +161,7 @@ extension SwiftDemo: SwiftApp.PageDelegate {
         case slider
         case flag
         case useRect
+        case range
         case button
         
         func callAsFunction() -> String {
