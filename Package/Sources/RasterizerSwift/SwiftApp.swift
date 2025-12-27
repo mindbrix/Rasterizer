@@ -37,9 +37,9 @@ struct Font {
 }
 
 struct Tappable {
-    let range: NSRange
     let control: Control
     let key: Store.keyType
+    let range: NSRange
 }
 
 class SwiftApp {
@@ -148,17 +148,17 @@ class SwiftApp {
                 let range = mutable.appendString("\(control.key)\n")
                 let isActive = (tapped?.range ?? NSRange()) == range
                 mutable.addAttribute(.foregroundColor, value: isActive ? red : blue, range: range)
-                tappables.append(Tappable(range: range, control: control, key: control.key))
+                tappables.append(Tappable(control: control, key: control.key, range: range))
                 continue
             }
-            let range = mutable.appendString("\(control.key):\n")
+            var range = mutable.appendString("\(control.key):\n")
             mutable.addAttribute(.foregroundColor, value: gray, range: range)
             
             for key in dict.keys {
-                let range = mutable.appendString("\t\(key):")
+                range = mutable.appendString("\t\(key):")
                 let isActive = (tapped?.range ?? NSRange()) == range
                 mutable.addAttribute(.foregroundColor, value: isActive ? red : gray, range: range)
-                tappables.append(Tappable(range: range, control: control, key: key))
+                tappables.append(Tappable(control: control, key: key, range: range))
                 
                 let string = {
                     if let flag = dict[key] as? Bool {
@@ -170,8 +170,8 @@ class SwiftApp {
                     }
                     return "nil"
                 }() + "\n"
-                let range0 = mutable.appendString(string)
-                mutable.addAttribute(.foregroundColor, value: black, range: range0)
+                range = mutable.appendString(string)
+                mutable.addAttribute(.foregroundColor, value: black, range: range)
             }
         }
         let ctFont = CTFontCreateWithName(font.name as CFString, font.size, nil)
