@@ -296,12 +296,12 @@
 - (void)addFrame:(RAFrame *)frame
                ctm:(CGAffineTransform)ctm
               clip:(CGRect)clip {
-    std::map<CGGlyph, Ra::Path> cache;
+    GlyphCache cache;
     RaCT::addFrameToScene(frame.frame, ctm, clip, _scene, & cache);
 }
 
 - (CGRect)addText:(NSAttributedString *)string inRect:(CGRect)rect ctm:(CGAffineTransform)ctm clip:(CGRect)clip {
-    std::map<CGGlyph, Ra::Path> cache;
+    GlyphCache cache;
     return RaCT::addTextToSceneInRect((__bridge CFAttributedStringRef)string, rect, ctm, clip, _scene, & cache);
 }
 - (CGAffineTransform)addSvgFromUrl:(NSURL *)url {
