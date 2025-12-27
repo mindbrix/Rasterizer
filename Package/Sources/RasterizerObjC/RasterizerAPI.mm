@@ -12,6 +12,7 @@
 #import "RasterizerCG.hpp"
 #import "RasterizerSVG.hpp"
 #import "RasterizerCoreText.hpp"
+#import <map>
 
 
 #pragma mark - RAColor
@@ -292,14 +293,16 @@
     _scene->addPath(p, m, color.paint, width, capFlags | joinFlags, & clipBounds);
 }
 
-- (void)addLine:(CTLineRef)line
-                  ctm:(CGAffineTransform)ctm
-                 clip:(CGRect)clip {
-    RaCT::addCTLineToScene(line, ctm, clip, _scene);
+- (void)addFrame:(RAFrame *)frame
+               ctm:(CGAffineTransform)ctm
+              clip:(CGRect)clip {
+    std::map<CGGlyph, Ra::Path> cache;
+    RaCT::addFrameToScene(frame.frame, ctm, clip, _scene, & cache);
 }
 
 - (CGRect)addText:(NSAttributedString *)string inRect:(CGRect)rect ctm:(CGAffineTransform)ctm clip:(CGRect)clip {
-    return RaCT::addTextToSceneInRect((__bridge CFAttributedStringRef)string, rect, ctm, clip, _scene);
+    std::map<CGGlyph, Ra::Path> cache;
+    return RaCT::addTextToSceneInRect((__bridge CFAttributedStringRef)string, rect, ctm, clip, _scene, & cache);
 }
 - (CGAffineTransform)addSvgFromUrl:(NSURL *)url {
     return RaCG::CGFromTransform(RaSVG::addSvgToScene(url.path.UTF8String, _scene));

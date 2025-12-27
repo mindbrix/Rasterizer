@@ -135,9 +135,7 @@ class SwiftApp {
                 scene.strokeRect(b, width: 1, paint: RAPaint())
             }
         }
-        frame.applyLines({ line, origin in
-            scene.add(line, ctm: CGAffineTransform(translationX: origin.x, y: origin.y), clip: .zero)
-        })
+        scene.add(frame, ctm: .identity, clip: .zero)
         return scene
     }
     

@@ -24,10 +24,8 @@
 
 
 struct RasterizerCoreText {
-    static CGRect addTextToSceneInRect(CFAttributedStringRef string, CGRect rect, CGAffineTransform ctm, CGRect clip, Ra::SceneRef& scene) {
-        CTFramesetterRef framesetter = CTFramesetterCreateWithAttributedString(string);
-        CGPathRef rectPath = CGPathCreateWithRect(rect, NULL);
-        CTFrameRef frame = CTFramesetterCreateFrame(framesetter, CFRangeMake(0, 0), rectPath, NULL);
+    static void addFrameToScene(CTFrameRef frame, CGAffineTransform ctm, CGRect clip, Ra::SceneRef& scene, std::map<CGGlyph, Ra::Path> *cache = nullptr) {
+        CGRect rect = CGPathGetBoundingBox(CTFrameGetPath(frame));
         CFArrayRef lines = CTFrameGetLines(frame);
         CFIndex lineCount = CFArrayGetCount(lines);
         Ra::Vector<CGPoint> origins(lineCount);
@@ -37,8 +35,15 @@ struct RasterizerCoreText {
                 rect.origin.x + origins[i].x,
                 rect.origin.y + origins[i].y);
             CTLineRef line = (CTLineRef)CFArrayGetValueAtIndex(lines, i);
-            addCTLineToScene(line, m, clip, scene);
+            addCTLineToScene(line, m, clip, scene, cache);
         }
+    }
+    
+    static CGRect addTextToSceneInRect(CFAttributedStringRef string, CGRect rect, CGAffineTransform ctm, CGRect clip, Ra::SceneRef& scene, std::map<CGGlyph, Ra::Path> *cache = nullptr) {
+        CTFramesetterRef framesetter = CTFramesetterCreateWithAttributedString(string);
+        CGPathRef rectPath = CGPathCreateWithRect(rect, NULL);
+        CTFrameRef frame = CTFramesetterCreateFrame(framesetter, CFRangeMake(0, 0), rectPath, NULL);
+        addFrameToScene(frame, ctm, clip, scene, cache);
         CFRelease(frame);
         CGPathRelease(rectPath);
         CFRelease(framesetter);
@@ -58,7 +63,7 @@ struct RasterizerCoreText {
         return RaCG::BoundsFromCGRect(bounds);
     }
 
-    static void addCTLineToScene(CTLineRef line, CGAffineTransform ctm, CGRect clip, Ra::SceneRef& scene) {
+    static void addCTLineToScene(CTLineRef line, CGAffineTransform ctm, CGRect clip, Ra::SceneRef& scene, std::map<CGGlyph, Ra::Path> *cache = nullptr) {
         Ra::Bounds clipBounds = CGRectIsNull(clip) || CGRectIsEmpty(clip) || CGRectIsInfinite(clip) ? Ra::Bounds::huge() : RaCG::BoundsFromCGRect(clip);
         CFArrayRef glyphRuns = CTLineGetGlyphRuns(line);
         for (int i = 0; i < CFArrayGetCount(glyphRuns); i++) {
@@ -84,12 +89,23 @@ struct RasterizerCoreText {
             
             Ra::Color color = RaCG::colorFromCG(cgColor);
             for (int j = 0; j < count; j++) {
-                CGPathRef cgPath = CTFontCreatePathForGlyph(font, glyphs[j], NULL);
                 Ra::Path path;
-                RaCG::writeCGPathToPath(cgPath, path);
+                if (cache) {
+                    if (cache->find(glyphs[j]) != cache->end()) {
+                        path = cache->find(glyphs[j])->second;
+                    } else {
+                        CGPathRef cgPath = CTFontCreatePathForGlyph(font, glyphs[j], NULL);
+                        RaCG::writeCGPathToPath(cgPath, path);
+                        CGPathRelease(cgPath);
+                        cache->emplace(glyphs[j], path);
+                    }
+                } else {
+                    CGPathRef cgPath = CTFontCreatePathForGlyph(font, glyphs[j], NULL);
+                    RaCG::writeCGPathToPath(cgPath, path);
+                    CGPathRelease(cgPath);
+                }
                 Ra::Transform m = RaCG::transformFromCG(CGAffineTransformTranslate(ctm, positions[j].x, positions[j].y));
                 scene->addPath(path, m, color, 0, 0, & clipBounds);
-                CGPathRelease(cgPath);
             }
         }
     }
