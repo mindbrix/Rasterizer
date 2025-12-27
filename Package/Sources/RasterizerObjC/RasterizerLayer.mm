@@ -92,7 +92,7 @@ struct TextureCache : MetalCache<id <MTLTexture>, const Ra::Paint &> {
         auto texture = [device newTextureWithDescriptor:desc];
         [texture replaceRegion:MTLRegionMake2D(0, 0, image.w, image.h)
                         mipmapLevel:0
-                          withBytes:& image.matched[0]
+                          withBytes:& image.colors[0]
                         bytesPerRow:image.w * sizeof(Ra::Color)];
         return texture;
     }

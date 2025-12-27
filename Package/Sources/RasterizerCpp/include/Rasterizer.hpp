@@ -463,7 +463,7 @@ struct Rasterizer {
         Type type = kColor;
         size_t refCount, xxhash = 0, w = 0, h = 0;
         Color color;
-        Vector<Color> colors, matched = colors;
+        Vector<Color> colors;
         Vector<float> locs;
         Transform ctm;
         Component minAlpha = 255, maxAlpha = 255;
