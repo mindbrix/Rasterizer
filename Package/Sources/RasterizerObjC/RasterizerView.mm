@@ -94,7 +94,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
         RASceneList *list = [self.listDelegate getListAtTime: NSDate.timeIntervalSinceReferenceDate
                                                                width: w
                                                               height: h];
-        _renderer.renderList(list.list, scale, w, h, buffer, self.window.colorSpace.CGColorSpace);
+        _renderer.renderList(list.list, scale, w, h, buffer);
     }
 }
 
@@ -126,6 +126,9 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     } else {
         [self setLayer:[RasterizerLayer layer]];
         ((RasterizerLayer *)self.layer).layerDelegate = self;
+        CGColorSpaceRef rgb = CGColorSpaceCreateDeviceRGB();
+        ((RasterizerLayer *)self.layer).colorspace = rgb;
+        CGColorSpaceRelease(rgb);
     }
     _renderer.reset();
     self.layer.contentsScale = scale;

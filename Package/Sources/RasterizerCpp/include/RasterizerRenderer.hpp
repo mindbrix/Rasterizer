@@ -18,14 +18,12 @@
 //  3. This notice may not be removed or altered from any source distribution.
 //
 #import <CoreGraphics/CoreGraphics.h>
-#import "RasterizerMatcher.hpp"
 
 
 struct RasterizerRenderer {
     
-    void renderList(const Ra::SceneList& list, float scale, float w, float h, Ra::Buffer *buffer, CGColorSpaceRef destSpace) {
+    void renderList(const Ra::SceneList& list, float scale, float w, float h, Ra::Buffer *buffer) {
         buffer->prepare(list);
-        colorMatcher.matchColors(list, destSpace);
         
         Ra::Bounds device(0.f, 0.f, ceilf(scale * w), ceilf(scale * h));
         Ra::Transform view = list.ctm.concat(Ra::Transform(scale, 0.f, 0.f, scale, 0.f, 0.f));
@@ -73,8 +71,6 @@ struct RasterizerRenderer {
         for (auto& ctx : contexts)
             ctx.reset();
     }
-    
-    RasterizerMatcher colorMatcher;
     
     static const int kContextCount = 8;
     Ra::Context contexts[kContextCount];

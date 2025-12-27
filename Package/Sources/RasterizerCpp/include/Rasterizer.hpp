@@ -554,9 +554,9 @@ struct Rasterizer {
         Vector<Bounds> bnds, clips;
         Vector<Transform> ctms;
         RefVector<Paint> paints;
-        Vector<Color> colors, matchedColors = colors;
+        Vector<Color> colors;
         Vector<uint32_t> gradientIndices;
-        Vector<Color> gradients, matchedGradients = gradients;
+        Vector<Color> gradients;
         Vector<float> widths;
         std::map<size_t, Entry> p16map;
         Vector<uint8_t> flags;
@@ -809,7 +809,7 @@ struct Rasterizer {
                         if (isGradient) {
                             texCtms[iz] = color->ctm.concat(m).invert();
                             size_t idx = scn->gradientIndices[is];
-                            texs.add(TexRef(iz, & scn->matchedGradients[idx]));
+                            texs.add(TexRef(iz, & scn->gradients[idx]));
                         } else if (isImage) {
                             texCtms[iz] = quad.invert();
                             new (blends.alloc(1)) Blend(iz | Instance::kIsImage | Instance::kNextImage);
@@ -819,7 +819,7 @@ struct Rasterizer {
                         if (list.params.showOutlines)
                             colors[iz] = uw == 0.f ? black : red;
                         else
-                            colors[iz] = scn->matchedColors[is];
+                            colors[iz] = scn->colors[is];
                         
                         ctms[iz] = m, widths[iz] = width, clips[iz] = invclip;
                         Geometry *g = scn->paths[is].ptr;
