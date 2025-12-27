@@ -16,8 +16,8 @@ class SwiftDemo: NSObject {
         swiftApp.pageDelegate = self
         swiftApp.pageID = PageID.LogIn()
         dict = [
-            Key.flag0()  : false,
-            Key.slider0(): 0.0,
+            Key.flag()  : false,
+            Key.slider(): 0.0,
             Key.useRect(): false
         ]
     }
@@ -124,7 +124,7 @@ extension SwiftDemo: RASceneListDelegate {
     }
     func getListAtTime(_ time: Double, width: Double, height: Double) -> RASceneList {
         bounds = CGRect(x: 0, y: 0, width: width, height: height)
-        let t = paused ? slider0 : time - floor(time)
+        let t = paused ? slider : time - floor(time)
         let list = RASceneList()
         list.add(drawables[index].getSceneAtTime(t, bounds: bounds, state: self))
         list.add(pastedScene ?? RAScene())
@@ -158,8 +158,8 @@ extension SwiftDemo: SwiftApp.PageDelegate {
     }
     enum Key: String, CaseIterable {
         case dict
-        case slider0
-        case flag0
+        case slider
+        case flag
         case useRect
         case button
         
@@ -170,14 +170,14 @@ extension SwiftDemo: SwiftApp.PageDelegate {
     
     var flag: Bool {
         get {
-            dict?[Key.flag0()] as? Bool ?? false
+            dict?[Key.flag()] as? Bool ?? false
         }
         set {
-            dict?[Key.flag0()] = newValue
+            dict?[Key.flag()] = newValue
         }
     }
-    var slider0: Double {
-        dict?[Key.slider0()] as? Double ?? 0.0
+    var slider: Double {
+        dict?[Key.slider()] as? Double ?? 0.0
     }
     var useRect: Bool {
         get {
