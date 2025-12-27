@@ -720,8 +720,8 @@ struct Rasterizer {
             uint16_t lx, i;
             inline bool operator< (const Index& other) const { return lx < other.lx; }
         };
-        Sample(float lx, float ux, float cover, size_t is): lx(lx), ux(ceilf(ux)), cover(int16_t(cover)), is(uint32_t(is)) {}
-        int16_t lx, ux, cover;  uint32_t is;
+        Sample(float lx, float ux, float cover, size_t is): lx(lx), ux(ceilf(ux)), cover(cover), is(uint32_t(is)) {}
+        int16_t lx, ux; float cover;  uint32_t is;
     };
     
     struct TexRef {
@@ -948,7 +948,7 @@ struct Rasterizer {
                 ly = iy * kfh + clip.ly, ly = ly < clip.ly ? clip.ly : ly > clip.uy ? clip.uy : ly;
                 uy = (iy + 1) * kfh + clip.ly, uy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
                 for (h = uy - ly, wscale = 0.00003051850948f * kfh / h, cover = winding = 0.f, index = indices->base, lx = ux = index->lx, i = begin = 0; i < size; i++, index++) {
-                    if (index->lx >= ux && fabsf((winding - floorf(winding)) - 0.5f) > 0.499f) {
+                    if (index->lx >= ux && fabsf((winding - floorf(winding)) - 0.5f) > 0.49999f) {
                         if (lx != ux) {
                             Blend *inst = new (ctx.blends.alloc(1)) Blend(edgeIz);
                             ctx.allocator.alloc(lx, ly, ux, uy, ctx.blends.end - 1, & inst->quad.cell, type, (i - begin + 1) / 2);
