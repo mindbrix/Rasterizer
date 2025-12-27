@@ -293,11 +293,11 @@
     _scene->addPath(p, m, color.paint, width, capFlags | joinFlags, & clipBounds);
 }
 
-- (void)addFrame:(RAFrame *)frame
+- (CGRect)addFrame:(RAFrame *)frame
                ctm:(CGAffineTransform)ctm
               clip:(CGRect)clip {
     GlyphCache cache;
-    RaCT::addFrameToScene(frame.frame, ctm, clip, _scene, cache);
+    return RaCT::addFrameToScene(frame.frame, ctm, clip, _scene, cache);
 }
 
 - (CGRect)addText:(NSAttributedString *)string inRect:(CGRect)rect ctm:(CGAffineTransform)ctm clip:(CGRect)clip {
