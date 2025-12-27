@@ -13,7 +13,7 @@ import RasterizerObjC
 
 class Store {
     typealias keyType = String
-    typealias ValueType = Any
+    typealias ValueType = Any?
     typealias DictType = OrderedDictionary<keyType, ValueType>
     
     func getValue(key: keyType) -> ValueType? {
@@ -165,10 +165,10 @@ class SwiftApp {
                         return String(flag ? 1 : 0)
                     } else if let slider = dict[key] as? Double {
                         return String(format: "%.2f", slider)
-                    } else if let value = dict[key] {
+                    } else if let value = dict[key], let value {
                         return String(describing: value)
                     }
-                    return ""
+                    return "nil"
                 }() + "\n"
                 let range0 = mutable.appendString(string)
                 mutable.addAttribute(.foregroundColor, value: black, range: range0)
