@@ -57,9 +57,13 @@ struct RasterizerCoreText {
     
     static Ra::Bounds addCStringToSceneInRect(const char *string, const char *fontName, float fontSize, Ra::Color color, Ra::Bounds rect, Ra::Transform ctm, Ra::Bounds clip, Ra::SceneRef& scene) {
         CGColorRef cgColor = RaCG::CGColorCreateFromColor(color);
-        CFAttributedStringRef attr = createAttributedString(string, fontName, fontSize, cgColor);
+        CFStringRef cfString = CFStringCreateWithCString(kCFAllocatorDefault, string, kCFStringEncodingUTF8);
+        CFDictionaryRef attributes = createAttributes(fontName, fontSize, cgColor);
+        CFAttributedStringRef attr = CFAttributedStringCreate(kCFAllocatorDefault, cfString, attributes);
         CGRect bounds = addTextToSceneInRect(attr, RaCG::CGRectFromBounds(rect), RaCG::CGFromTransform(ctm), clip.isNull() ? CGRectNull : RaCG::CGRectFromBounds(clip), scene);
         CGColorRelease(cgColor);
+        CFRelease(cfString);
+        CFRelease(attributes);
         CFRelease(attr);
         return RaCG::BoundsFromCGRect(bounds);
     }
@@ -131,19 +135,6 @@ struct RasterizerCoreText {
         return attributes;
     }
     
-    static CFAttributedStringRef createAttributedString(const char *string, const char *fontName, float fontSize, CGColorRef color) {
-        CTFontRef ctFont = createFont(fontName, fontSize);
-        const void *keys[] = { kCTFontAttributeName, kCTForegroundColorAttributeName };
-        const void *values[] = { ctFont, color };
-        CFDictionaryRef attributes = CFDictionaryCreate(kCFAllocatorDefault, keys, values, 2, NULL, &kCFTypeDictionaryValueCallBacks);
-        CFStringRef cfString = CFStringCreateWithCString(kCFAllocatorDefault, string, kCFStringEncodingUTF8);
-        CFAttributedStringRef attrString = CFAttributedStringCreate(kCFAllocatorDefault, cfString, attributes);
-        CFRelease(attributes);
-        CFRelease(ctFont);
-        CFRelease(cfString);
-        return attrString;
-    }
-
     static float fontSizeForLineHeight(const char *fontName, float height) {
         CFStringRef cfFontName = CFStringCreateWithCString(kCFAllocatorDefault, fontName, kCFStringEncodingUTF8);
         CTFontRef ctFont = CTFontCreateWithName(cfFontName, height, NULL);
