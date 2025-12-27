@@ -25,7 +25,7 @@ class Store {
 }
 
 struct Control {
-    typealias Closure = (SwiftApp) -> Void
+    typealias Closure = (SwiftApp, Store.keyType, Store.ValueType?) -> Void
     let key: Store.keyType
     let closure: Closure?
 }
@@ -46,7 +46,6 @@ class SwiftApp {
         func controlsFor(_ pageID: String) -> [Control]?
     }
     weak var pageDelegate: PageDelegate?
-    var alignment: NSTextAlignment = .left
     var pageID: String?
     var font = Font(name: "HelveticaNeue-Medium", size: 28)
     let store = Store()
@@ -92,7 +91,7 @@ class SwiftApp {
             }
             store.setValue(value: dict, key: key)
         }
-        tapped.control.closure?(self)
+        tapped.control.closure?(self, key, store.getValue(key: key))
         
         last = p
         self.tapped = nil
@@ -176,7 +175,7 @@ class SwiftApp {
         let ctFont = CTFontCreateWithName(font.name as CFString, font.size, nil)
         let range = NSRange(location: 0, length: mutable.length)
         let paragraphStyle = NSMutableParagraphStyle()
-        paragraphStyle.alignment = alignment
+        paragraphStyle.alignment = .left
         paragraphStyle.lineBreakMode = .byClipping
         mutable.addAttribute(.paragraphStyle, value: paragraphStyle, range: range)
         mutable.addAttribute(.font, value: ctFont, range: range)

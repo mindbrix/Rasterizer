@@ -40,6 +40,7 @@ class SwiftDemo: NSObject {
         TestImage()
     ]
     
+    var pageID: PageID = .LogIn
     var useClips = true
     var index = 0
     var paused = false
@@ -190,18 +191,18 @@ extension SwiftDemo: SwiftApp.PageDelegate {
         switch PageID(rawValue: pageID) {
         case .LogIn: [
             Control(key: Key.dict(), closure: nil),
-            Control(key: Key.button(), closure: { app in
-                let tapcount = app.store.getValue(key: Key.button()) as? Int ?? 0
+            Control(key: Key.button(), closure: { app, key, value in
+                let tapcount = value as? Int ?? 0
                 print("\(tapcount)")
-                app.store.setValue(value: tapcount + 1, key: Key.button())
+                app.store.setValue(value: tapcount + 1, key: key)
                 
                 if tapcount == 2 {
                     app.pageID = PageID.Home()
                 }
             })]
         case .Home: [
-            Control(key: Key.button(), closure: { app in
-                app.store.setValue(value: 0, key: Key.button())
+            Control(key: Key.button(), closure: { app, key, value in
+                app.store.setValue(value: 0, key: key)
                 app.pageID = PageID.LogIn()
             })]
         default:
