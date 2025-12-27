@@ -101,15 +101,18 @@ struct RasterizerCoreText {
     }
     
     static CGColorRef GetCGColor(CFDictionaryRef attributes, CFStringRef platformName, CFStringRef ctName) {
-        const CFTypeRef value = CFDictionaryGetValue(attributes, platformName);
+        return GetCGColor(attributes, platformName) ?: GetCGColor(attributes, ctName);
+    }
+    static CGColorRef GetCGColor(CFDictionaryRef attributes, CFStringRef name) {
+        const CFTypeRef value = CFDictionaryGetValue(attributes, name);
         if (value == NULL)
             return NULL;
-        
         if (CFGetTypeID(value) == CGColorGetTypeID())
             return (CGColorRef)value;
-        
         NSColor *nsColor = (__bridge NSColor *)value;
-        return nsColor.CGColor;;
+        if ([nsColor isKindOfClass: [NSColor class]])
+             return nsColor.CGColor;
+        return NULL;
     }
     
     static CTFontRef createFont(const char *fontName, float fontSize) {
