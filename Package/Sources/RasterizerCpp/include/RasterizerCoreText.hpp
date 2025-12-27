@@ -25,7 +25,7 @@
 typedef std::map<CFIndex, Ra::Path> GlyphCache;
 
 struct RasterizerCoreText {
-    static void addFrameToScene(CTFrameRef frame, CGAffineTransform ctm, CGRect clip, Ra::SceneRef& scene, GlyphCache *cache = nullptr) {
+    static void addFrameToScene(CTFrameRef frame, CGAffineTransform ctm, CGRect clip, Ra::SceneRef& scene, GlyphCache& cache) {
         CGRect rect = CGPathGetBoundingBox(CTFrameGetPath(frame));
         CFArrayRef lines = CTFrameGetLines(frame);
         CFIndex lineCount = CFArrayGetCount(lines);
@@ -40,7 +40,7 @@ struct RasterizerCoreText {
         }
     }
     
-    static CGRect addTextToSceneInRect(CFAttributedStringRef string, CGRect rect, CGAffineTransform ctm, CGRect clip, Ra::SceneRef& scene, GlyphCache *cache = nullptr) {
+    static CGRect addTextToSceneInRect(CFAttributedStringRef string, CGRect rect, CGAffineTransform ctm, CGRect clip, Ra::SceneRef& scene, GlyphCache& cache) {
         CTFramesetterRef framesetter = CTFramesetterCreateWithAttributedString(string);
         CGPathRef rectPath = CGPathCreateWithRect(rect, NULL);
         CTFrameRef frame = CTFramesetterCreateFrame(framesetter, CFRangeMake(0, 0), rectPath, NULL);
@@ -56,7 +56,8 @@ struct RasterizerCoreText {
         CFStringRef cfString = CFStringCreateWithCString(kCFAllocatorDefault, string, kCFStringEncodingUTF8);
         CFDictionaryRef attributes = createAttributes(fontName, fontSize, cgColor);
         CFAttributedStringRef attr = CFAttributedStringCreate(kCFAllocatorDefault, cfString, attributes);
-        CGRect bounds = addTextToSceneInRect(attr, RaCG::CGRectFromBounds(rect), RaCG::CGFromTransform(ctm), clip.isNull() ? CGRectNull : RaCG::CGRectFromBounds(clip), scene);
+        GlyphCache cache;
+        CGRect bounds = addTextToSceneInRect(attr, RaCG::CGRectFromBounds(rect), RaCG::CGFromTransform(ctm), clip.isNull() ? CGRectNull : RaCG::CGRectFromBounds(clip), scene, cache);
         CGColorRelease(cgColor);
         CFRelease(cfString);
         CFRelease(attributes);
@@ -64,7 +65,7 @@ struct RasterizerCoreText {
         return RaCG::BoundsFromCGRect(bounds);
     }
 
-    static void addCTLineToScene(CTLineRef line, CGAffineTransform ctm, CGRect clip, Ra::SceneRef& scene, GlyphCache *cache = nullptr) {
+    static void addCTLineToScene(CTLineRef line, CGAffineTransform ctm, CGRect clip, Ra::SceneRef& scene, GlyphCache& cache) {
         Ra::Bounds clipBounds = CGRectIsNull(clip) || CGRectIsEmpty(clip) || CGRectIsInfinite(clip) ? Ra::Bounds::huge() : RaCG::BoundsFromCGRect(clip);
         CFArrayRef glyphRuns = CTLineGetGlyphRuns(line);
         for (int i = 0; i < CFArrayGetCount(glyphRuns); i++) {
@@ -92,24 +93,16 @@ struct RasterizerCoreText {
             Ra::Color color = RaCG::colorFromCG(cgColor);
             for (int j = 0; j < count; j++) {
                 Ra::Transform m = RaCG::transformFromCG(CGAffineTransformTranslate(ctm, positions[j].x, positions[j].y));
-                if (cache) {
-                    auto key = hash + glyphs[j];
-                    auto it = cache->find(key);
-                    if (it != cache->end()) {
-                        scene->addPath(it->second, m, color, 0, 0, & clipBounds);
-                    } else {
-                        Ra::Path path;
-                        CGPathRef cgPath = CTFontCreatePathForGlyph(font, glyphs[j], NULL);
-                        RaCG::writeCGPathToPath(cgPath, path);
-                        CGPathRelease(cgPath);
-                        cache->emplace(key, path);
-                        scene->addPath(path, m, color, 0, 0, & clipBounds);
-                    }
+                auto key = hash + glyphs[j];
+                auto it = cache.find(key);
+                if (it != cache.end()) {
+                    scene->addPath(it->second, m, color, 0, 0, & clipBounds);
                 } else {
                     Ra::Path path;
                     CGPathRef cgPath = CTFontCreatePathForGlyph(font, glyphs[j], NULL);
                     RaCG::writeCGPathToPath(cgPath, path);
                     CGPathRelease(cgPath);
+                    cache.emplace(key, path);
                     scene->addPath(path, m, color, 0, 0, & clipBounds);
                 }
             }
