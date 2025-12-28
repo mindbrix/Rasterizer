@@ -40,6 +40,7 @@ struct Tappable {
     let control: Control
     let key: Store.keyType
     let range: NSRange
+    var bounds = CGRect.zero
 }
 
 struct Colors {
@@ -66,29 +67,32 @@ class SwiftApp {
     var last: CGPoint = .zero
     
     func mouseDown(_ bounds: CGRect, p: CGPoint) {
-        guard let tappable = tappables.reversed().filter({ (tapMap[$0.range] ?? .zero).contains(p) }).first else {
+        guard let elem = tapMap.enumerated().filter({ $0.element.value.contains(p) }).first?.element,
+              let tappable = tappables.filter({ $0.range.contains(elem.key.location) }).first
+        else {
             return
         }
         down = p
         last = p
         tapped = tappable
+        tapped?.bounds = elem.value
     }
     func mouseMoved(_ bounds: CGRect, p: CGPoint) {
-        guard let tapped, let b = tapMap[tapped.range] else {
+        guard let tapped else {
             return
         }
         let key = tapped.control.key
         if var dict = store.getValue(key: key) as? Store.DictType,
            let value = dict[tapped.key],
            let slider = value as? Double {
-            let dt = (p.x - last.x) / b.width
+            let dt = (p.x - last.x) / tapped.bounds.width
             dict[tapped.key] = max(0.0, min(1.0, slider + dt))
             store.setValue(value: dict, key: key)
         }
         last = p
     }
     func mouseUp(_ bounds: CGRect, p: CGPoint) {
-        guard let tapped, let b = tapMap[tapped.range] else {
+        guard let tapped else {
             return
         }
         let key = tapped.control.key
@@ -97,7 +101,7 @@ class SwiftApp {
             if let flag = value as? Bool {
                 dict[tapped.key] = !flag
             } else if let range = value as? NSRange {
-                let delta = down.x < b.midX ? -1 : 1
+                let delta = down.x < tapped.bounds.midX ? -1 : 1
                 let location = max(0, min(range.length - 1, range.location + delta))
                 dict[tapped.key] = NSRange(location: location, length: range.length)
             }

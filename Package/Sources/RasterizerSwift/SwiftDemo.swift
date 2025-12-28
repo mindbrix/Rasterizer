@@ -141,7 +141,7 @@ extension SwiftDemo: SwiftApp.PageDelegate {
         case slider
         case useRect
         case index
-        case button
+        case button = "اللغة البشتوية"
         
         func callAsFunction() -> String {
             rawValue
