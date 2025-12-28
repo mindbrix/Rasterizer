@@ -67,15 +67,15 @@ class SwiftApp {
     var last: CGPoint = .zero
     
     func mouseDown(_ bounds: CGRect, p: CGPoint) {
-        guard let elem = tapMap.enumerated().reversed().filter({ $0.element.value.contains(p) }).first?.element,
-              let tappable = tappables.filter({ $0.range.contains(elem.key.location) }).first
+        guard let element = tapMap.enumerated().reversed().filter({ $0.element.value.contains(p) }).first?.element,
+              let tappable = tappables.filter({ $0.range.contains(element.key.location) }).first
         else {
             return
         }
         down = p
         last = p
         tapped = tappable
-        tapped?.bounds = elem.value
+        tapped?.bounds = element.value
     }
     func mouseMoved(_ bounds: CGRect, p: CGPoint) {
         guard let tapped else {
