@@ -199,14 +199,14 @@ extension SwiftDemo: SwiftApp.PageDelegate {
         switch PageID(rawValue: pageName) {
         case .LogIn: [
             Control(key: Key.dict(), closure: nil),
-            Control(key: Key.button(), closure: { store, key, value in
-                let tapcount = value as? Int ?? 0
+            Control(key: Key.button(), closure: { store, key in
+                let tapcount = store.getValue(key: key) as? Int ?? 0
                 print("\(tapcount)")
                 store.setValue(value: tapcount + 1, key: key)
                 return tapcount == 2 ? PageID.Home() : nil
             })]
         case .Home: [
-            Control(key: Key.button(), closure: { store, key, value in
+            Control(key: Key.button(), closure: { store, key in
                 store.setValue(value: 0, key: key)
                 return PageID.LogIn()
             })]

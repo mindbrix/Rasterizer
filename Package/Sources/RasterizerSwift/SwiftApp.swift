@@ -26,7 +26,7 @@ class Store {
 }
 
 struct Control {
-    typealias Closure = (Store, Store.keyType, Store.ValueType?) -> String?
+    typealias Closure = (Store, Store.keyType) -> String?
     let key: Store.keyType
     let closure: Closure?
 }
@@ -107,7 +107,7 @@ class SwiftApp {
             }
             store.setValue(value: dict, key: key)
         }
-        if let name = tapped.control.closure?(self.store, key, store.getValue(key: key)) {
+        if let name = tapped.control.closure?(self.store, key) {
             pageName = name
         }
         last = p
