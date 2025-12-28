@@ -61,13 +61,13 @@ class SwiftApp {
     var observers: [Store.keyType: Set<String>] = [:]
     var tappables: [Tappable] = []
     var showTapMap = false
-    var tapMap: [NSRange: CGRect] = [:]
+    var tapMap: OrderedDictionary<NSRange, CGRect> = [:]
     var tapped: Tappable?
     var down: CGPoint = .zero
     var last: CGPoint = .zero
     
     func mouseDown(_ bounds: CGRect, p: CGPoint) {
-        guard let elem = tapMap.enumerated().filter({ $0.element.value.contains(p) }).first?.element,
+        guard let elem = tapMap.enumerated().reversed().filter({ $0.element.value.contains(p) }).first?.element,
               let tappable = tappables.filter({ $0.range.contains(elem.key.location) }).first
         else {
             return
