@@ -845,7 +845,7 @@ struct Rasterizer {
                             applyPath(g, m, outlineClip, unclipped, false, outliner);
                             i1 = uint32_t(outlines.idx);
                             inst->data.idx = i0, inst->data.count = i1 - i0;
-                        } else if (clipWidth * clipHeight / g->types.end < kMoleculesPixelsPerEdge) {
+                        } else if (0 && clipWidth * clipHeight / g->types.end < kMoleculesPixelsPerEdge) {
                             bounds[iz] = *bnds;
                             bool fast = !buffer->params.useCurves || g->maxCurve * det < 16.f;
                             Blend *inst = new (blends.alloc(1)) Blend(iz | colorFlags | Instance::kMolecule | bool(flags & Scene::kFillEvenOdd) * Instance::kEvenOdd | fast * Instance::kFastEdges);
@@ -947,7 +947,7 @@ struct Rasterizer {
                 
                 ly = iy * kfh + clip.ly, ly = ly < clip.ly ? clip.ly : ly > clip.uy ? clip.uy : ly;
                 uy = (iy + 1) * kfh + clip.ly, uy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
-                for (h = uy - ly, wscale = 0.00003051850948f * kfh / h, cover = winding = 0.f, index = indices->base, lx = ux = index->lx, i = begin = 0; i < size; i++, index++) {
+                for (h = uy - ly, wscale = 1.f / h, cover = winding = 0.f, index = indices->base, lx = ux = index->lx, i = begin = 0; i < size; i++, index++) {
                     if (index->lx >= ux && fabsf((winding - floorf(winding)) - 0.5f) > 0.49999f) {
                         if (lx != ux) {
                             Blend *inst = new (ctx.blends.alloc(1)) Blend(edgeIz);
@@ -1287,17 +1287,17 @@ struct Rasterizer {
             
             y0 -= clip.ly, y1 -= clip.ly;
             if ((uint32_t(y0) & kFatMask) == (uint32_t(y1) & kFatMask))
-                new (samples[int(y0 * krfh)].alloc(1)) Sample(fminf(x0, x1), fmaxf(x0, x1), (y1 - y0) * kCoverScale, si);
+                new (samples[int(y0 * krfh)].alloc(1)) Sample(fminf(x0, x1), fmaxf(x0, x1), y1 - y0, si);
             else {
-                float lx, ux, ly, uy, iy, m, c, ny, minx, maxx, scale;
+                float lx, ux, ly, uy, iy, m, c, ny, minx, maxx, sign = copysignf(1.f, y1 - y0);
                 lx = fminf(x0, x1), ux = fmaxf(x0, x1);
-                ly = fminf(y0, y1), uy = fmaxf(y0, y1), scale = copysignf(kCoverScale, y1 - y0);
+                ly = fminf(y0, y1), uy = fmaxf(y0, y1);
                 iy = floorf(ly * krfh), m = (x1 - x0) / (y1 - y0), c = x0 - m * y0, m *= kfh;
                 minx = (iy + float(m < 0.f)) * m + c;
                 maxx = (iy + float(m > 0.f)) * m + c;
                 for (ny = iy * kfh; ly < uy; ly = ny, minx += m, maxx += m, iy++) {
                     ny = fminf(uy, ny + kfh);
-                    new (samples[int(iy)].alloc(1)) Sample(fmaxf(lx, minx), fminf(ux, maxx), (ny - ly) * scale, si);
+                    new (samples[int(iy)].alloc(1)) Sample(fmaxf(lx, minx), fminf(ux, maxx), (ny - ly) * sign, si);
                 }
             }
         }
@@ -1310,12 +1310,12 @@ struct Rasterizer {
             
             y0 -= clip.ly, y1 -= clip.ly, y2 -= clip.ly;
             if ((uint32_t(y0) & kFatMask) == (uint32_t(y2) & kFatMask))
-                new (samples[int(y0 * krfh)].alloc(1)) Sample(fminf(x0, x2), fmaxf(x0, x2), (y2 - y0) * kCoverScale, si);
+                new (samples[int(y0 * krfh)].alloc(1)) Sample(fminf(x0, x2), fmaxf(x0, x2), y2 - y0, si);
             else {
                 float ay, by, ax, bx, ly, uy, lx, ux, d2a, ity, iy, t, ny, sign = copysignf(1.f, y2 - y0);
                 ax = x2 - x1, bx = x1 - x0, ax -= bx, bx *= 2.f;
                 ay = y2 - y1, by = y1 - y0, ay -= by, by *= 2.f;
-                d2a = 0.5f / ay, ity = -by * d2a, d2a *= sign, sign *= kCoverScale;
+                d2a = 0.5f / ay, ity = -by * d2a, d2a *= sign;
                 lx = y0 < y2 ? x0 : x2, ly = fminf(y0, y2), uy = fmaxf(y0, y2);
                 for (iy = floorf(ly * krfh), ny = iy * kfh; ly < uy; ly = ny, iy++, lx = ux) {
                     ny = fminf(uy, ny + kfh);
