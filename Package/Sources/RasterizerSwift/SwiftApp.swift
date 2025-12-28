@@ -60,11 +60,12 @@ class SwiftApp {
     let store = Store()
     var observers: [Store.keyType: Set<String>] = [:]
     var tappables: [Tappable] = []
-    var showTapMap = false
+    var showTapMap = true
     var tapMap: OrderedDictionary<NSRange, CGRect> = [:]
     var tapped: Tappable?
     var down: CGPoint = .zero
     var last: CGPoint = .zero
+    var excludes: [NSValue] = []
     
     func mouseDown(_ bounds: CGRect, p: CGPoint) {
         guard let element = tapMap.enumerated().reversed().filter({ $0.element.value.contains(p) }).first?.element,
@@ -127,7 +128,7 @@ class SwiftApp {
             let entry = observers[key] ?? []
             observers[key] = entry.union([pageName])
         }
-        
+        excludes.removeAll()
         let tuple = tappablesAndStringForControls(controls)
         tappables = tuple.0
         let frame = RAFrame(
@@ -143,7 +144,7 @@ class SwiftApp {
                 scene.strokeRect(b, width: 1, paint: RAPaint())
             }
         }
-        scene.add(frame, ctm: .identity, clip: .zero)
+        scene.add(frame, excludes: excludes, ctm: .identity, clip: .zero)
         return scene
     }
     
@@ -182,6 +183,7 @@ class SwiftApp {
                 }() + "\n"
                 range = mutable.appendString(string)
                 mutable.addAttribute(.foregroundColor, value: Colors.black, range: range)
+//                excludes.append(NSValue(range: range))
             }
         }
         let ctFont = CTFontCreateWithName(font.name as CFString, font.size, nil)

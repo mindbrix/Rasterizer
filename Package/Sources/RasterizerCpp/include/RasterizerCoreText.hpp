@@ -43,14 +43,14 @@ struct RasterizerCoreText {
         CTFramesetterRef framesetter = CTFramesetterCreateWithAttributedString(string);
         CGPathRef rectPath = CGPathCreateWithRect(rect, NULL);
         CTFrameRef frame = CTFramesetterCreateFrame(framesetter, CFRangeMake(0, 0), rectPath, NULL);
-        CGRect bounds = addFrameToScene(frame, ctm, clip, scene, cache);
+        CGRect bounds = addFrameToScene(frame, NULL, ctm, clip, scene, cache);
         CFRelease(frame);
         CGPathRelease(rectPath);
         CFRelease(framesetter);
         return bounds;
     }
     
-    static CGRect addFrameToScene(CTFrameRef frame, CGAffineTransform ctm, CGRect clip, Ra::SceneRef& scene, GlyphCache& cache) {
+    static CGRect addFrameToScene(CTFrameRef frame, NSArray<NSValue *> *excludes, CGAffineTransform ctm, CGRect clip, Ra::SceneRef& scene, GlyphCache& cache) {
         CGRect bounds = CGRectZero;
         CGRect rect = CGPathGetBoundingBox(CTFrameGetPath(frame));
         CFArrayRef lines = CTFrameGetLines(frame);
@@ -62,17 +62,31 @@ struct RasterizerCoreText {
                 rect.origin.x + origins[i].x,
                 rect.origin.y + origins[i].y);
             CTLineRef line = (CTLineRef)CFArrayGetValueAtIndex(lines, i);
-            bounds = CGRectUnion(bounds, addCTLineToScene(line, m, clip, scene, cache));
+            bounds = CGRectUnion(bounds, addCTLineToScene(line, excludes, m, clip, scene, cache));
         }
         return bounds;
     }
     
-    static CGRect addCTLineToScene(CTLineRef line, CGAffineTransform ctm, CGRect clip, Ra::SceneRef& scene, GlyphCache& cache) {
+    static CGRect addCTLineToScene(CTLineRef line, NSArray<NSValue *> *excludes, CGAffineTransform ctm, CGRect clip, Ra::SceneRef& scene, GlyphCache& cache) {
         Ra::Bounds clipBounds = CGRectIsNull(clip) || CGRectIsEmpty(clip) || CGRectIsInfinite(clip) ? Ra::Bounds::huge() : RaCG::BoundsFromCGRect(clip);
         CGRect bounds = CGRectZero;
         CFArrayRef glyphRuns = CTLineGetGlyphRuns(line);
         for (int i = 0; i < CFArrayGetCount(glyphRuns); i++) {
             CTRunRef run = (CTRunRef)CFArrayGetValueAtIndex(glyphRuns, i);
+            BOOL exclude = false;
+            if (excludes.count) {
+                NSUInteger location = CTRunGetStringRange(run).location;
+                for (NSValue *value in excludes) {
+                    NSRange rng = value.rangeValue;
+                    if (location >= rng.location && location < rng.location + rng.length) {
+                        exclude = YES;
+                        break;
+                    }
+                }
+            }
+            if (exclude)
+                continue;
+            
             CFIndex count = CTRunGetGlyphCount(run);
             Ra::Vector<CGPoint> positions(count);
             Ra::Vector<CGGlyph> glyphs(count);

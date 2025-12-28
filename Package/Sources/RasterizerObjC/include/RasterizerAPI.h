@@ -99,6 +99,7 @@ typedef NS_ENUM(NSUInteger, RAJoinStyle) {
          clipPath:(nullable RAPath *)clipPath;
 
 - (CGRect)addFrame:(nonnull RAFrame *)frame
+          excludes:(nonnull NSArray<NSValue *> *)excludes
                ctm:(CGAffineTransform)ctm
               clip:(CGRect)clip;
 
