@@ -18,6 +18,7 @@ class SwiftDemo: NSObject {
         swiftApp.store.setValue(value: nil, key: Key.longText())
         dict = [
             Key.flag()  : false,
+            Key.paused(): false,
             Key.slider(): 0.0,
             Key.useRect(): false,
             Key.range(): NSRange(location: 0, length: drawables.count)
@@ -44,7 +45,6 @@ class SwiftDemo: NSObject {
     
     var useClips = true
     var index = 0
-    var paused = false
     var useCurves = true
     var showOpaques = true
     var showOutlines = false
@@ -160,8 +160,9 @@ extension SwiftDemo: SwiftApp.PageDelegate {
     enum Key: String, CaseIterable {
         case dict
         case longText = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
-        case slider
         case flag
+        case paused
+        case slider
         case useRect
         case range
         case button
@@ -177,6 +178,14 @@ extension SwiftDemo: SwiftApp.PageDelegate {
         }
         set {
             dict?[Key.flag()] = newValue
+        }
+    }
+    var paused: Bool {
+        get {
+            dict?[Key.paused()] as? Bool ?? false
+        }
+        set {
+            dict?[Key.paused()] = newValue
         }
     }
     var slider: Double {
