@@ -65,8 +65,6 @@ class SwiftDemo: NSObject {
         switch event {
         case .keyDown(let character, let flags):
             switch character {
-            case "a":
-                flag.toggle()
             case "b":
                 useClips.toggle()
             case "c":
@@ -77,10 +75,6 @@ class SwiftDemo: NSObject {
                 showOpaques.toggle()
             case "o":
                 showOutlines.toggle()
-            case "p":
-                paused.toggle()
-            case "r":
-                useRect.toggle()
             case "v":
                 if (flags.contains(.command)) {
                     let objects = NSPasteboard.general.readObjects(forClasses: [NSAttributedString.self])
