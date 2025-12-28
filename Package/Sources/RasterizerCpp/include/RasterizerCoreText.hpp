@@ -83,10 +83,9 @@ struct RasterizerCoreText {
             CFIndex hash = CFHash(font);
             CGColorRef cgColor = GetCGColor(attributes, CFSTR("NSColor"), kCTForegroundColorAttributeName);
             CGColorRef cgBackgroundColor = GetCGColor(attributes, CFSTR("NSBackgroundColor"), kCTBackgroundColorAttributeName);
-            CGRect imageBounds = CTRunGetImageBounds(run, NULL, CFRangeMake(0, 0));
-            bounds = CGRectUnion(bounds, imageBounds);
             
             if (cgBackgroundColor) {
+                CGRect imageBounds = CTRunGetImageBounds(run, NULL, CFRangeMake(0, 0));
                 Ra::Path bgPath;
                 bgPath->addBounds(RaCG::BoundsFromCGRect(imageBounds));
                 Ra::Color bgColor = RaCG::colorFromCG(cgBackgroundColor);
@@ -99,8 +98,10 @@ struct RasterizerCoreText {
                 Ra::Transform m = RaCG::transformFromCG(CGAffineTransformTranslate(ctm, positions[j].x, positions[j].y));
                 auto key = hash + glyphs[j];
                 auto it = cache.find(key);
+                CGRect pathBounds = CGRectZero;
                 if (it != cache.end()) {
                     scene->addPath(it->second, m, color, 0, 0, & clipBounds);
+                    pathBounds = RaCG::CGRectFromBounds(it->second->bounds);
                 } else {
                     Ra::Path path;
                     CGPathRef cgPath = CTFontCreatePathForGlyph(font, glyphs[j], NULL);
@@ -108,7 +109,9 @@ struct RasterizerCoreText {
                     CGPathRelease(cgPath);
                     cache.emplace(key, path);
                     scene->addPath(path, m, color, 0, 0, & clipBounds);
+                    pathBounds = RaCG::CGRectFromBounds(path->bounds);
                 }
+                bounds = CGRectUnion(bounds, CGRectApplyAffineTransform(pathBounds, CGAffineTransformTranslate(ctm, positions[j].x, positions[j].y)));
             }
         }
         return bounds;
