@@ -65,12 +65,6 @@ class SwiftDemo: NSObject {
         switch event {
         case .keyDown(let character, let flags):
             switch character {
-            case "1"..."9":
-                guard drawables.count > 0 else {
-                    break
-                }
-                let i = Int(character.asciiValue ?? 0) - Int(Character("1").asciiValue ?? 0)
-                index = min(drawables.count - 1, i)
             case "a":
                 flag.toggle()
             case "b":
