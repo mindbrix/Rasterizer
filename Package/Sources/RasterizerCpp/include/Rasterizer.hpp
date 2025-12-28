@@ -1387,9 +1387,9 @@ struct Rasterizer {
             if (x1 == FLT_MAX || fabsf(A) < 1e-3f)
                 return;
             if (t0 > 0.f && t0 < 1.f)
-                t0 = fmaxf(0.f, fminf(1.f, 0.5F * (-B + sqrtf(B * B - 4.f * A * -t0)) / A));
+                t0 = fmaxf(0.f, fminf(1.f, 0.5f * (-B + sqrtf(B * B - 4.f * A * -t0)) / A));
             if (t1 > 0.f && t1 < 1.f)
-                t1 = fmaxf(0.f, fminf(1.f, 0.5F * (-B + sqrtf(B * B - 4.f * A * -t1)) / A));
+                t1 = fmaxf(0.f, fminf(1.f, 0.5f * (-B + sqrtf(B * B - 4.f * A * -t1)) / A));
         }
         void writeDash() {
             if (x1 == FLT_MAX) {
