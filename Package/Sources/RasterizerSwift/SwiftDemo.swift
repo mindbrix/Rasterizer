@@ -15,7 +15,6 @@ class SwiftDemo: NSObject {
         super.init()
         swiftApp.pageDelegate = self
         swiftApp.pageName = PageID.LogIn()
-        swiftApp.store.setValue(value: nil, key: Key.longText())
         dict = [
             Key.flag()   : false,
             Key.paused() : false,
@@ -146,7 +145,6 @@ extension SwiftDemo: SwiftApp.PageDelegate {
     }
     enum Key: String, CaseIterable {
         case dict
-        case longText = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
         case flag
         case paused
         case slider
@@ -198,7 +196,6 @@ extension SwiftDemo: SwiftApp.PageDelegate {
     func controlsFor(_ pageName: String) -> [Control]? {
         switch PageID(rawValue: pageName) {
         case .LogIn: [
-//            Control(key: Key.longText(), closure: nil),
             Control(key: Key.dict(), closure: nil),
             Control(key: Key.button(), closure: { store, key, value in
                 let tapcount = value as? Int ?? 0
