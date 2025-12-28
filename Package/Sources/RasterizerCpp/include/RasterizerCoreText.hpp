@@ -25,6 +25,31 @@
 typedef std::map<CFIndex, Ra::Path> GlyphCache;
 
 struct RasterizerCoreText {
+    static Ra::Bounds addCStringToSceneInRect(const char *string, const char *fontName, float fontSize, Ra::Color color, Ra::Bounds rect, Ra::Transform ctm, Ra::Bounds clip, Ra::SceneRef& scene) {
+        CGColorRef cgColor = RaCG::CGColorCreateFromColor(color);
+        CFStringRef cfString = CFStringCreateWithCString(kCFAllocatorDefault, string, kCFStringEncodingUTF8);
+        CFDictionaryRef attributes = createAttributes(fontName, fontSize, cgColor);
+        CFAttributedStringRef attr = CFAttributedStringCreate(kCFAllocatorDefault, cfString, attributes);
+        GlyphCache cache;
+        CGRect bounds = addTextToSceneInRect(attr, RaCG::CGRectFromBounds(rect), RaCG::CGFromTransform(ctm), clip.isNull() ? CGRectNull : RaCG::CGRectFromBounds(clip), scene, cache);
+        CGColorRelease(cgColor);
+        CFRelease(cfString);
+        CFRelease(attributes);
+        CFRelease(attr);
+        return RaCG::BoundsFromCGRect(bounds);
+    }
+
+    static CGRect addTextToSceneInRect(CFAttributedStringRef string, CGRect rect, CGAffineTransform ctm, CGRect clip, Ra::SceneRef& scene, GlyphCache& cache) {
+        CTFramesetterRef framesetter = CTFramesetterCreateWithAttributedString(string);
+        CGPathRef rectPath = CGPathCreateWithRect(rect, NULL);
+        CTFrameRef frame = CTFramesetterCreateFrame(framesetter, CFRangeMake(0, 0), rectPath, NULL);
+        CGRect bounds = addFrameToScene(frame, ctm, clip, scene, cache);
+        CFRelease(frame);
+        CGPathRelease(rectPath);
+        CFRelease(framesetter);
+        return bounds;
+    }
+    
     static CGRect addFrameToScene(CTFrameRef frame, CGAffineTransform ctm, CGRect clip, Ra::SceneRef& scene, GlyphCache& cache) {
         CGRect bounds = CGRectZero;
         CGRect rect = CGPathGetBoundingBox(CTFrameGetPath(frame));
@@ -42,31 +67,6 @@ struct RasterizerCoreText {
         return bounds;
     }
     
-    static CGRect addTextToSceneInRect(CFAttributedStringRef string, CGRect rect, CGAffineTransform ctm, CGRect clip, Ra::SceneRef& scene, GlyphCache& cache) {
-        CTFramesetterRef framesetter = CTFramesetterCreateWithAttributedString(string);
-        CGPathRef rectPath = CGPathCreateWithRect(rect, NULL);
-        CTFrameRef frame = CTFramesetterCreateFrame(framesetter, CFRangeMake(0, 0), rectPath, NULL);
-        CGRect bounds = addFrameToScene(frame, ctm, clip, scene, cache);
-        CFRelease(frame);
-        CGPathRelease(rectPath);
-        CFRelease(framesetter);
-        return bounds;
-    }
-    
-    static Ra::Bounds addCStringToSceneInRect(const char *string, const char *fontName, float fontSize, Ra::Color color, Ra::Bounds rect, Ra::Transform ctm, Ra::Bounds clip, Ra::SceneRef& scene) {
-        CGColorRef cgColor = RaCG::CGColorCreateFromColor(color);
-        CFStringRef cfString = CFStringCreateWithCString(kCFAllocatorDefault, string, kCFStringEncodingUTF8);
-        CFDictionaryRef attributes = createAttributes(fontName, fontSize, cgColor);
-        CFAttributedStringRef attr = CFAttributedStringCreate(kCFAllocatorDefault, cfString, attributes);
-        GlyphCache cache;
-        CGRect bounds = addTextToSceneInRect(attr, RaCG::CGRectFromBounds(rect), RaCG::CGFromTransform(ctm), clip.isNull() ? CGRectNull : RaCG::CGRectFromBounds(clip), scene, cache);
-        CGColorRelease(cgColor);
-        CFRelease(cfString);
-        CFRelease(attributes);
-        CFRelease(attr);
-        return RaCG::BoundsFromCGRect(bounds);
-    }
-
     static CGRect addCTLineToScene(CTLineRef line, CGAffineTransform ctm, CGRect clip, Ra::SceneRef& scene, GlyphCache& cache) {
         Ra::Bounds clipBounds = CGRectIsNull(clip) || CGRectIsEmpty(clip) || CGRectIsInfinite(clip) ? Ra::Bounds::huge() : RaCG::BoundsFromCGRect(clip);
         CGRect bounds = CGRectZero;
