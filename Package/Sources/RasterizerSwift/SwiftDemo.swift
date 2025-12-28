@@ -17,11 +17,11 @@ class SwiftDemo: NSObject {
         swiftApp.pageName = PageID.LogIn()
         swiftApp.store.setValue(value: nil, key: Key.longText())
         dict = [
-            Key.flag()  : false,
-            Key.paused(): false,
-            Key.slider(): 0.0,
+            Key.flag()   : false,
+            Key.paused() : false,
+            Key.slider() : 0.0,
             Key.useRect(): false,
-            Key.range(): NSRange(location: 0, length: drawables.count)
+            Key.range()  : NSRange(location: 0, length: drawables.count)
         ]
     }
     enum Event {
