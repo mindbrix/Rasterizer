@@ -47,6 +47,7 @@ class SwiftDemo: NSObject {
     var showOpaques = true
     var showOutlines = false
     var ctm = CGAffineTransform.identity
+    var appCtm = CGAffineTransform.identity
     var bounds = CGRect.zero
     var pastedScene: RAScene?
     
@@ -88,11 +89,11 @@ class SwiftDemo: NSObject {
             }
             break
         case .mouseDown(let p, _):
-            swiftApp.mouseDown(bounds, p: p)
+            swiftApp.mouseDown(bounds, p: p.applying(ctm.concatenating(appCtm).inverted()))
         case .mouseMove(let p, _):
-            swiftApp.mouseMoved(bounds, p: p)
+            swiftApp.mouseMoved(bounds, p: p.applying(ctm.concatenating(appCtm).inverted()))
         case .mouseUp(let p, _):
-            swiftApp.mouseUp(bounds, p: p)
+            swiftApp.mouseUp(bounds, p: p.applying(ctm.concatenating(appCtm).inverted()))
         case .magnify(let scale):
             ctm = ctm.concatAroundCenter(t: CGAffineTransform(scaleX: scale, y: scale), cx: bounds.midX, cy: bounds.midY)
         case .rotate(let angle):
@@ -115,7 +116,8 @@ extension SwiftDemo: RASceneListDelegate {
         let list = RASceneList()
         list.add(drawables[index].getSceneAtTime(t, bounds: bounds, state: self))
         list.add(pastedScene ?? RAScene())
-        list.add(swiftApp.createSceneIn(bounds), ctm: ctm.inverted(), clip: .zero)
+        appCtm = ctm.inverted()
+        list.add(swiftApp.createSceneIn(bounds), ctm: appCtm, clip: .zero)
         list.ctm = ctm
         list.useClips = useClips;
         list.useCurves = useCurves
