@@ -88,7 +88,7 @@ class SwiftApp {
         last = p
     }
     func mouseUp(_ bounds: CGRect, p: CGPoint) {
-        guard let tapped else {
+        guard let tapped, let b = tapMap[tapped.range] else {
             return
         }
         let key = tapped.control.key
@@ -96,6 +96,10 @@ class SwiftApp {
            let value = dict[tapped.key] {
             if let flag = value as? Bool {
                 dict[tapped.key] = !flag
+            } else if let range = value as? NSRange {
+                let delta = down.x < b.midX ? -1 : 1
+                let location = max(0, min(range.length - 1, range.location + delta))
+                dict[tapped.key] = NSRange(location: location, length: range.length)
             }
             store.setValue(value: dict, key: key)
         }
@@ -165,6 +169,8 @@ class SwiftApp {
                         return String(flag ? 1 : 0)
                     } else if let slider = dict[key] as? Double {
                         return String(format: "%.2f", slider)
+                    } else if let range = dict[key] as? NSRange {
+                        return String(range.location)
                     } else if let value = dict[key], let value {
                         return String(describing: value)
                     }

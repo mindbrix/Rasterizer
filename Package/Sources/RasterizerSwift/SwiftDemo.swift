@@ -21,7 +21,7 @@ class SwiftDemo: NSObject {
             Key.paused() : false,
             Key.slider() : 0.0,
             Key.useRect(): false,
-            Key.range()  : NSRange(location: 0, length: drawables.count)
+            Key.index()  : NSRange(location: 0, length: drawables.count)
         ]
     }
     enum Event {
@@ -44,7 +44,6 @@ class SwiftDemo: NSObject {
     ]
     
     var useClips = true
-    var index = 0
     var useCurves = true
     var showOpaques = true
     var showOutlines = false
@@ -164,7 +163,7 @@ extension SwiftDemo: SwiftApp.PageDelegate {
         case paused
         case slider
         case useRect
-        case range
+        case index
         case button
         
         func callAsFunction() -> String {
@@ -172,6 +171,15 @@ extension SwiftDemo: SwiftApp.PageDelegate {
         }
     }
     
+    var index: Int {
+        get {
+            (dict?[Key.index()] as? NSRange)?.location ?? 0
+        }
+        set {
+            let length = (dict?[Key.index()] as? NSRange)?.length ?? 0
+            dict?[Key.index()] = NSRange(location: newValue, length: length)
+        }
+    }
     var flag: Bool {
         get {
             dict?[Key.flag()] as? Bool ?? false
@@ -202,7 +210,7 @@ extension SwiftDemo: SwiftApp.PageDelegate {
     func controlsFor(_ pageName: String) -> [Control]? {
         switch PageID(rawValue: pageName) {
         case .LogIn: [
-            Control(key: Key.longText(), closure: nil),
+//            Control(key: Key.longText(), closure: nil),
             Control(key: Key.dict(), closure: nil),
             Control(key: Key.button(), closure: { store, key, value in
                 let tapcount = value as? Int ?? 0
