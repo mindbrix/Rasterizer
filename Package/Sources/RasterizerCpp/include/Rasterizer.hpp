@@ -1331,7 +1331,10 @@ struct Rasterizer {
         static Path CreateDashedPath(Path path, float phase, float *pattern, size_t count) {
             if (pattern == nullptr || count < 2 || count % 2 == 1)
                 return path;
-            Dasher dasher(phase, pattern, count);
+            float length = 0.f;
+            for (size_t i = 0; i < count; i++)
+                length += pattern[i];
+            Dasher dasher(fmod(phase, length), pattern, count);
             applyPath(path.ptr, Transform(), Bounds(), true, false, dasher);
             return dasher.dashed;
         }

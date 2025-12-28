@@ -49,7 +49,7 @@ class TestDasher: RADrawable {
         let capLen = capStyle == .capRound ? width : 1
         let l0 = max(0, 0.666 * length - capLen)
         let lengths = [l0 as NSNumber, length - l0 as NSNumber]
-        let dashed = path.dashedCopy(withPhase: time * length - 0.5 * capLen, lengths: lengths)
+        let dashed = path.dashedCopy(withPhase: 1e3 + time * length, lengths: lengths)
         
         let scene = RAScene()
         scene.addStroke(dashed,
