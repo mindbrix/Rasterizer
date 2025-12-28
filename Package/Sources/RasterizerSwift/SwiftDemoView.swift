@@ -21,10 +21,6 @@ public class SwiftDemoView: RasterizerView, NSFontChanging {
     override public var acceptsFirstResponder: Bool {
         true
     }
-    override public func becomeFirstResponder() -> Bool {
-//        self.window?.acceptsMouseMovedEvents = true
-        return true
-    }
     public func changeFont(_ sender: NSFontManager?) {
         demo.selectedFont = NSFontManager.shared.convert(NSFont(name: "HelveticaNeue-Medium", size: 14)!)
     }
