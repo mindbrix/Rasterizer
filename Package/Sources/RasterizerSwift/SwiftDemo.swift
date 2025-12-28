@@ -126,15 +126,6 @@ extension SwiftDemo: RASceneListDelegate {
 }
 
 extension SwiftDemo: SwiftApp.PageDelegate {
-    var dict: Store.DictType? {
-        get {
-            swiftApp.store.getValue(key: Key.dict()) as? Store.DictType
-        }
-        set {
-            swiftApp.store.setValue(value: newValue, key: Key.dict())
-        }
-    }
-    
     enum PageID: String, CaseIterable {
         case LogIn
         case Home
@@ -154,6 +145,15 @@ extension SwiftDemo: SwiftApp.PageDelegate {
         
         func callAsFunction() -> String {
             rawValue
+        }
+    }
+    
+    var dict: Store.DictType? {
+        get {
+            swiftApp.store.getValue(key: Key.dict()) as? Store.DictType
+        }
+        set {
+            swiftApp.store.setValue(value: newValue, key: Key.dict())
         }
     }
     
