@@ -90,16 +90,17 @@ extension RAScene {
         let corner = fontSize / 6
         let width = fontSize / 16
         let inset = 0.5 * width
+        let dimension = min(0.5 * rect.width, rect.height)
+        let radius =  max(0.0, 0.5 * dimension - fontSize / 4)
+        let x0 = 0.5 * (rect.minX + rect.midX)
+        let x1 = 0.5 * (rect.midX + rect.maxX)
+        
         let rounded = RAPath(roundedRect: rect.insetBy(dx: inset, dy: inset), cornerWidth: corner, cornerHeight: corner)
         rounded.close()
         rounded.move(to: rect.midX, y: rect.minY + corner)
         rounded.line(to: rect.midX, y: rect.maxY - corner)
         addStroke(rounded, ctm: .identity, color: gray, width: width, capStyle: .capButt, joinStyle: .joinMiter)
         
-        let dimension = min(0.5 * rect.width, rect.height)
-        let radius =  max(0.0, 0.5 * dimension - fontSize / 4)
-        let x0 = 0.5 * (rect.minX + rect.midX)
-        let x1 = 0.5 * (rect.midX + rect.maxX)
         let glyphs = RAPath()
         glyphs.move(to: x0 - radius, y: rect.midY)
         glyphs.line(to: x0 + radius, y: rect.midY)
