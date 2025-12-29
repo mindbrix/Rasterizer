@@ -52,7 +52,7 @@ class SwiftDemo: NSObject {
     ]
     
     var ctm = CGAffineTransform.identity
-    var appCtm = CGAffineTransform.identity
+    var mouseCtm = CGAffineTransform.identity
     var bounds = CGRect.zero
     var pastedScene: RAScene?
     
@@ -75,11 +75,11 @@ class SwiftDemo: NSObject {
             scene.addText(attributed, in: bounds, ctm: .identity, clip: .zero)
             pastedScene = scene
         case .mouseDown(let p, _):
-            swiftApp.mouseDown(bounds, p: p.applying(appCtm))
+            swiftApp.mouseDown(bounds, p: p.applying(mouseCtm))
         case .mouseMove(let p, _):
-            swiftApp.mouseMoved(bounds, p: p.applying(appCtm))
+            swiftApp.mouseMoved(bounds, p: p.applying(mouseCtm))
         case .mouseUp(let p, _):
-            swiftApp.mouseUp(bounds, p: p.applying(appCtm))
+            swiftApp.mouseUp(bounds, p: p.applying(mouseCtm))
         case .reset:
             ctm = .identity
         case .magnify(let scale):
@@ -104,9 +104,9 @@ extension SwiftDemo: RASceneListDelegate {
         let list = RASceneList()
         list.add(drawables[index].getSceneAtTime(t, bounds: bounds, state: self))
         list.add(pastedScene ?? RAScene())
-        appCtm = ctm.inverted()
+        let appCtm = ctm.inverted()
         list.add(swiftApp.createSceneIn(bounds), ctm: appCtm, clip: .zero)
-        appCtm = ctm.concatenating(appCtm).inverted()
+        mouseCtm = ctm.concatenating(appCtm).inverted()
         list.ctm = ctm
         list.useClips = useClips;
         list.useCurves = useCurves
