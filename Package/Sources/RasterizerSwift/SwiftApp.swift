@@ -111,7 +111,6 @@ class SwiftApp {
         if let name = tapped.control.closure?(self.store, key) {
             pageName = name
         }
-        last = p
         self.tapped = nil
     }
     
@@ -138,10 +137,10 @@ class SwiftApp {
         frame.applyRuns({ range, bounds in
             self.tapMap[range] = bounds
         })
-        let excludes = tappables.filter({ $0.exclude }).map { NSValue(range: $0.range) }
-        scene.add(frame, excludes: excludes, ctm: .identity, clip: .zero)
+        let excludes = tappables.filter{ $0.exclude }
+        scene.add(frame, excludes: excludes.map{ NSValue(range: $0.range) }, ctm: .identity, clip: .zero)
         for exclude in excludes {
-            if let b = tapMap[exclude.rangeValue] {
+            if let b = tapMap[exclude.range] {
                 scene.fillRect(b, paint: RAPaint(cgColor: Colors.red))
             }
         }
