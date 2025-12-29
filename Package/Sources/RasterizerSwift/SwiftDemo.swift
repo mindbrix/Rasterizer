@@ -70,18 +70,18 @@ class SwiftDemo: NSObject {
         switch event {
         case .keyDown(_, _):
             return false
-        case .reset:
-            ctm = .identity
         case .paste(let attributed):
             let scene = RAScene()
             scene.addText(attributed, in: bounds, ctm: .identity, clip: .zero)
             pastedScene = scene
         case .mouseDown(let p, _):
-            swiftApp.mouseDown(bounds, p: p.applying(ctm.concatenating(appCtm).inverted()))
+            swiftApp.mouseDown(bounds, p: p.applying(appCtm))
         case .mouseMove(let p, _):
-            swiftApp.mouseMoved(bounds, p: p.applying(ctm.concatenating(appCtm).inverted()))
+            swiftApp.mouseMoved(bounds, p: p.applying(appCtm))
         case .mouseUp(let p, _):
-            swiftApp.mouseUp(bounds, p: p.applying(ctm.concatenating(appCtm).inverted()))
+            swiftApp.mouseUp(bounds, p: p.applying(appCtm))
+        case .reset:
+            ctm = .identity
         case .magnify(let scale):
             ctm = ctm.concatAroundCenter(t: CGAffineTransform(scaleX: scale, y: scale), cx: bounds.midX, cy: bounds.midY)
         case .rotate(let angle):
@@ -106,6 +106,7 @@ extension SwiftDemo: RASceneListDelegate {
         list.add(pastedScene ?? RAScene())
         appCtm = ctm.inverted()
         list.add(swiftApp.createSceneIn(bounds), ctm: appCtm, clip: .zero)
+        appCtm = ctm.concatenating(appCtm).inverted()
         list.ctm = ctm
         list.useClips = useClips;
         list.useCurves = useCurves
