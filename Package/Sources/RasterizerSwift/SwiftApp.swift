@@ -59,13 +59,15 @@ class SwiftApp {
     var pageName: String?
     var font = Font(name: "HelveticaNeue-Medium", size: 20)
     let store = Store()
-    var observers: [Store.keyType: Set<String>] = [:]
+    var observed: [String: Set<Store.keyType>] = [:]
     var tappables: [Tappable] = []
     var showTapMap = false
     var tapMap: OrderedDictionary<NSRange, CGRect> = [:]
     var tapped: Tappable?
     var down: CGPoint = .zero
     var last: CGPoint = .zero
+    var lastHash: Int?
+    var lastScene: RAScene?
     
     func mouseDown(_ bounds: CGRect, p: CGPoint) {
         guard let element = tapMap.enumerated().reversed().filter({ $0.element.value.contains(p) }).first?.element,
@@ -119,13 +121,36 @@ class SwiftApp {
         guard let pageName, let pageDelegate, let controls = pageDelegate.controlsFor(pageName) else {
             return scene
         }
-        for key in observers.keys {
-            observers[key]?.remove(pageName)
+        var hasher = Hasher()
+        hasher.combine(bounds)
+        hasher.combine(pageName)
+        hasher.combine(tapped?.range ?? NSRange())
+        let set = observed[pageName] ?? []
+        hasher.combine(observed[pageName] ?? [])
+        for key in set.enumerated() {
+            if let dict = store.getValue(key: key.element) as? Store.DictType {
+                for subKey in dict.keys {
+                    if let flag = dict[subKey] as? Bool {
+                        hasher.combine(flag)
+                    } else if let slider = dict[subKey] as? Double {
+                        hasher.combine(slider)
+                    } else if let range = dict[subKey] as? NSRange {
+                        hasher.combine(range)
+                    }
+                }
+            }
         }
+        let hash = hasher.finalize()
+        if hash == (lastHash ?? 0), let lastScene {
+            return lastScene
+        }
+        lastHash = hash
+        
+        observed.removeAll()
         for control in controls {
             let key = control.key
-            let entry = observers[key] ?? []
-            observers[key] = entry.union([pageName])
+            let set = observed[pageName] ?? []
+            observed[pageName] = set.union([key])
         }
         let tuple = tappablesAndStringForControls(controls)
         tappables = tuple.0
@@ -159,6 +184,7 @@ class SwiftApp {
                 scene.strokeRect(b, width: -1, paint: RAPaint())
             }
         }
+        lastScene = scene
         return scene
     }
     

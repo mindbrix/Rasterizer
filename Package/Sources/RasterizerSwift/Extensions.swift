@@ -29,6 +29,15 @@ extension CGPoint {
     }
 }
 
+extension CGRect: @retroactive Hashable {
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(minX)
+        hasher.combine(minY)
+        hasher.combine(width)
+        hasher.combine(height)
+    }
+}
+
 extension CGRect {
     func withGutter() -> CGRect {
         let gutter = height

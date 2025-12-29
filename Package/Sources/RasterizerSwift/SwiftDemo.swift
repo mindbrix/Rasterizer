@@ -176,7 +176,7 @@ extension SwiftDemo: SwiftApp.PageDelegate {
         switch PageID(rawValue: pageName) {
         case .LogIn: [
             Control(key: Key.dict(), closure: nil),
-            Control(key: Key.reset(), closure: { [weak self] store, key in
+            Control(key: Key.reset(), closure: { [weak self] _, _ in
                 self?.ctm = .identity
                 return nil
             }),

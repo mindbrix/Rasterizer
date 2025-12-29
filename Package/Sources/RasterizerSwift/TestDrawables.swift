@@ -146,19 +146,15 @@ class TestCubics: RADrawable {
 }
 
 class Test0: RADrawable {
+    let unitRectPath = RAPath(rect: CGRect(x: 0, y: 0, width: 1, height: 1))
+    let unitEllipsePath = RAPath(ellipse: CGRect(x: 0, y: 0, width: 1, height: 1))
+    
     func getSceneAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RAScene {
         let ts = 0.1 * time
         let dim = min(bounds.width, bounds.height)
         let unitRect = CGRect(x: 0, y: 0, width: 1, height: 1)
         let unitCenter = CGPoint(x: unitRect.midX, y: unitRect.midY)
         let unitWidth = 0.1
-        let path = RAPath()
-        if (state.useRect) {
-            path.add(unitRect)
-        } else {
-            path.addEllipse(unitRect)
-        }
-        path.close()
         
         let scene = RAScene()
         let count = state.flag ? 80 : 20
@@ -182,6 +178,7 @@ class Test0: RADrawable {
                 scale: CGSize(width: 2 * r1, height: 2 * r1),
                 translation: CGVector(dx: radial.x - unitCenter.x, dy: radial.y - unitCenter.y)
             )
+            let path = state.useRect ? unitRectPath : unitEllipsePath
             scene.addFill(path, ctm: ctm, color: gradient, evenOdd: false)
         }
         return scene
