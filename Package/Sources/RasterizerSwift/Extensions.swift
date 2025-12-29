@@ -51,6 +51,9 @@ extension NSMutableAttributedString {
 }
 
 extension RAScene {
+    func fillRect(_ rect: CGRect, paint: RAPaint) {
+        addFill(RAPath(rect: rect), ctm: .identity, color: paint, evenOdd: false)
+    }
     func strokeRect(_ rect: CGRect, width: Double, paint: RAPaint) {
         let path = RAPath(rect: rect)
         path.close()

@@ -145,6 +145,11 @@ class SwiftApp {
             }
         }
         scene.add(frame, excludes: excludes, ctm: .identity, clip: .zero)
+        for exclude in excludes {
+            if let b = tapMap[exclude.rangeValue] {
+                scene.fillRect(b, paint: RAPaint(cgColor: Colors.red))
+            }
+        }
         return scene
     }
     
@@ -183,7 +188,7 @@ class SwiftApp {
                 }() + "\n"
                 range = mutable.appendString(string)
                 mutable.addAttribute(.foregroundColor, value: Colors.black, range: range)
-//                excludes.append(NSValue(range: range))
+                excludes.append(NSValue(range: range))
             }
         }
         let ctFont = CTFontCreateWithName(font.name as CFString, font.size, nil)
