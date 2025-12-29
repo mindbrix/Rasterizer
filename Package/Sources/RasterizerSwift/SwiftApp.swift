@@ -138,17 +138,16 @@ class SwiftApp {
         frame.applyRuns({ range, bounds in
             self.tapMap[range] = bounds
         })
-        if self.showTapMap {
-            for b in tapMap.values {
-                scene.strokeRect(b, width: 1, paint: RAPaint())
-            }
-        }
         let excludes = tappables.filter({ $0.exclude }).map { NSValue(range: $0.range) }
-        
         scene.add(frame, excludes: excludes, ctm: .identity, clip: .zero)
         for exclude in excludes {
             if let b = tapMap[exclude.rangeValue] {
                 scene.fillRect(b, paint: RAPaint(cgColor: Colors.red))
+            }
+        }
+        if self.showTapMap {
+            for b in tapMap.values {
+                scene.strokeRect(b, width: -1, paint: RAPaint())
             }
         }
         return scene
