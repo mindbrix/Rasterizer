@@ -57,7 +57,7 @@ class SwiftApp {
     }
     weak var pageDelegate: PageDelegate?
     var pageName: String?
-    var font = Font(name: "HelveticaNeue-Medium", size: 28)
+    var font = Font(name: "HelveticaNeue-Medium", size: 20)
     let store = Store()
     var observers: [Store.keyType: Set<String>] = [:]
     var tappables: [Tappable] = []

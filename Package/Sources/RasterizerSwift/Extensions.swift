@@ -53,9 +53,9 @@ extension NSMutableAttributedString {
 extension RAScene {
     func addFlag(_ flag: Bool, in rect: CGRect, paint: RAPaint, fontSize: Double) {
         let white = RAPaint(gray: 1, alpha: 1)
-        
+        let gray = RAPaint(gray: 0.66, alpha: 1)
         let corner = 0.5 * min(rect.width, rect.height)
-        addFill(RAPath(roundedRect: rect, cornerWidth: corner, cornerHeight: corner), ctm: .identity, color: paint, evenOdd: false)
+        addFill(RAPath(roundedRect: rect, cornerWidth: corner, cornerHeight: corner), ctm: .identity, color: flag ? paint : gray, evenOdd: false)
         let inset = fontSize / 12
         let innerRect = rect.insetBy(dx:inset, dy: inset)
         let radius = 0.5 * innerRect.height
