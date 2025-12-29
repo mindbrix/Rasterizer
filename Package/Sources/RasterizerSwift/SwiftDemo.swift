@@ -32,11 +32,12 @@ class SwiftDemo: NSObject {
     }
     enum Event {
         case keyDown(character: Character, flags: NSEvent.ModifierFlags)
+        case paste(attributed: NSAttributedString)
         case mouseDown(p: CGPoint, flags: NSEvent.ModifierFlags)
         case mouseMove(p: CGPoint, flags: NSEvent.ModifierFlags)
         case mouseUp(p: CGPoint, flags: NSEvent.ModifierFlags)
+        case reset
         case magnify(scale: Double)
-        case paste(attributed: NSAttributedString)
         case rotate(angle: Float)
         case translate(tx: Double, ty: Double)
     }
@@ -67,14 +68,10 @@ class SwiftDemo: NSObject {
 
     func handleEvent(_ event: Event) -> Bool {
         switch event {
-        case .keyDown(let character, _):
-            switch character {
-            case "f":
-                ctm = .identity
-            default:
-                return false
-            }
-            break
+        case .keyDown(_, _):
+            return false
+        case .reset:
+            ctm = .identity
         case .paste(let attributed):
             let scene = RAScene()
             scene.addText(attributed, in: bounds, ctm: .identity, clip: .zero)
