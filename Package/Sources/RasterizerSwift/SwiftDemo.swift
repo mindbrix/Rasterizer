@@ -19,12 +19,12 @@ class SwiftDemo: NSObject {
             Key.flag()   : false,
             Key.paused() : false,
             Key.slider() : 0.0,
-            Key.useRect(): false,
+            Key.rect(): false,
             Key.index()  : NSRange(location: 0, length: drawables.count),
-            Key.showOutlines(): false,
-            Key.showOpaques() : true,
-            Key.useClips()    : true,
-            Key.useCurves()   : true
+            Key.outlines(): false,
+            Key.opaques() : true,
+            Key.clips()    : true,
+            Key.curves()   : true
         ]
         swiftApp.store.setValue(
             value: dict,
@@ -132,12 +132,12 @@ extension SwiftDemo: SwiftApp.PageDelegate {
         case flag
         case paused
         case slider
-        case useRect
+        case rect
         case index
-        case useClips
-        case useCurves
-        case showOpaques
-        case showOutlines
+        case clips
+        case curves
+        case opaques
+        case outlines
         case button = "اللغة البشتوية"
         
         func callAsFunction() -> String {
@@ -161,19 +161,19 @@ extension SwiftDemo: SwiftApp.PageDelegate {
         dict?[Key.slider()] as? Double ?? 0.0
     }
     var useRect: Bool {
-        dict?[Key.useRect()] as? Bool ?? false
+        dict?[Key.rect()] as? Bool ?? false
     }
     var showOutlines: Bool {
-        dict?[Key.showOutlines()] as? Bool ?? false
+        dict?[Key.outlines()] as? Bool ?? false
     }
     var showOpaques: Bool {
-        dict?[Key.showOpaques()] as? Bool ?? false
+        dict?[Key.opaques()] as? Bool ?? false
     }
     var useClips: Bool {
-        dict?[Key.useClips()] as? Bool ?? false
+        dict?[Key.clips()] as? Bool ?? false
     }
     var useCurves: Bool {
-        dict?[Key.useCurves()] as? Bool ?? false
+        dict?[Key.curves()] as? Bool ?? false
     }
     
     func controlsFor(_ pageName: String) -> [Control]? {

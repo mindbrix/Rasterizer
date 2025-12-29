@@ -147,6 +147,8 @@ class SwiftApp {
                     scene.addFlag(flag, in: b, paint: RAPaint(cgColor: isActive ? Colors.red : Colors.blue), fontSize: font.size)
                 } else if let slider = dict[exclude.subKey] as? Double {
                     scene.addSlider(slider, in: b, paint: RAPaint(cgColor: isActive ? Colors.red : Colors.blue), fontSize: font.size)
+                } else if let _ = dict[exclude.subKey] as? NSRange {
+                    scene.addStepper(in: b, paint: RAPaint(cgColor: isActive ? Colors.red : Colors.blue), fontSize: font.size)
                 } else {
                     scene.fillRect(b, paint: RAPaint(cgColor: Colors.red))
                 }
@@ -185,7 +187,7 @@ class SwiftApp {
                     } else if let slider = dict[subKey] as? Double {
                         return "sligeeer" // String(format: "%.2f", slider)
                     } else if let range = dict[subKey] as? NSRange {
-                        return String(range.location)
+                        return "Range" // String(range.location)
                     } else if let value = dict[subKey], let value {
                         return String(describing: value)
                     }

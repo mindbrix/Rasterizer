@@ -85,6 +85,31 @@ extension RAScene {
         addFill(rounded, ctm: .identity, color: paint, evenOdd: false)
     }
     
+    func addStepper(in rect: CGRect, paint: RAPaint, fontSize: Double) {
+        let gray = RAPaint(gray: 0.66, alpha: 1)
+        let corner = fontSize / 6
+        let width = fontSize / 16
+        let inset = 0.5 * width
+        let rounded = RAPath(roundedRect: rect.insetBy(dx: inset, dy: inset), cornerWidth: corner, cornerHeight: corner)
+        rounded.close()
+        rounded.move(to: rect.midX, y: rect.minY + corner)
+        rounded.line(to: rect.midX, y: rect.maxY - corner)
+        addStroke(rounded, ctm: .identity, color: gray, width: width, capStyle: .capButt, joinStyle: .joinMiter)
+        
+        let dimension = min(0.5 * rect.width, rect.height)
+        let radius =  max(0.0, 0.5 * dimension - fontSize / 4)
+        let x0 = 0.5 * (rect.minX + rect.midX)
+        let x1 = 0.5 * (rect.midX + rect.maxX)
+        let glyphs = RAPath()
+        glyphs.move(to: x0 - radius, y: rect.midY)
+        glyphs.line(to: x0 + radius, y: rect.midY)
+        glyphs.move(to: x1 - radius, y: rect.midY)
+        glyphs.line(to: x1 + radius, y: rect.midY)
+        glyphs.move(to: x1, y: rect.midY - radius)
+        glyphs.line(to: x1, y: rect.midY + radius)
+        addStroke(glyphs, ctm: .identity, color: paint, width: width, capStyle: .capButt, joinStyle: .joinMiter)
+    }
+    
     func fillRect(_ rect: CGRect, paint: RAPaint) {
         addFill(RAPath(rect: rect), ctm: .identity, color: paint, evenOdd: false)
     }
