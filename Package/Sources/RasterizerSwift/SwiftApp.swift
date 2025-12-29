@@ -40,6 +40,7 @@ struct Tappable {
     let control: Control
     let key: Store.keyType
     let range: NSRange
+    let exclude: Bool
     var bounds = CGRect.zero
 }
 
@@ -65,7 +66,6 @@ class SwiftApp {
     var tapped: Tappable?
     var down: CGPoint = .zero
     var last: CGPoint = .zero
-    var excludes: [NSValue] = []
     
     func mouseDown(_ bounds: CGRect, p: CGPoint) {
         guard let element = tapMap.enumerated().reversed().filter({ $0.element.value.contains(p) }).first?.element,
@@ -128,7 +128,6 @@ class SwiftApp {
             let entry = observers[key] ?? []
             observers[key] = entry.union([pageName])
         }
-        excludes.removeAll()
         let tuple = tappablesAndStringForControls(controls)
         tappables = tuple.0
         let frame = RAFrame(
@@ -144,6 +143,8 @@ class SwiftApp {
                 scene.strokeRect(b, width: 1, paint: RAPaint())
             }
         }
+        let excludes = tappables.filter({ $0.exclude }).map { NSValue(range: $0.range) }
+        
         scene.add(frame, excludes: excludes, ctm: .identity, clip: .zero)
         for exclude in excludes {
             if let b = tapMap[exclude.rangeValue] {
@@ -162,7 +163,7 @@ class SwiftApp {
                 let range = mutable.appendString("\(control.key)\n")
                 let isActive = (tapped?.range ?? NSRange()) == range
                 mutable.addAttribute(.foregroundColor, value: isActive ? Colors.red : Colors.blue, range: range)
-                tappables.append(Tappable(control: control, key: control.key, range: range))
+                tappables.append(Tappable(control: control, key: control.key, range: range, exclude: false))
                 continue
             }
             var range = mutable.appendString("\(control.key):\n")
@@ -172,7 +173,7 @@ class SwiftApp {
                 range = mutable.appendString("\t\(key):")
                 let isActive = (tapped?.range ?? NSRange()) == range
                 mutable.addAttribute(.foregroundColor, value: isActive ? Colors.red : Colors.gray, range: range)
-                tappables.append(Tappable(control: control, key: key, range: range))
+                tappables.append(Tappable(control: control, key: key, range: range, exclude: true))
                 
                 let string = {
                     if let flag = dict[key] as? Bool {
@@ -188,7 +189,6 @@ class SwiftApp {
                 }() + "\n"
                 range = mutable.appendString(string)
                 mutable.addAttribute(.foregroundColor, value: Colors.black, range: range)
-                excludes.append(NSValue(range: range))
             }
         }
         let ctFont = CTFontCreateWithName(font.name as CFString, font.size, nil)
