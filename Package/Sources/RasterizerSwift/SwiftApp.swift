@@ -13,7 +13,7 @@ import RasterizerObjC
 
 class Store {
     typealias keyType = String
-    typealias ValueType = Any?
+    typealias ValueType = Any
     typealias DictType = OrderedDictionary<keyType, ValueType>
     
     func getValue(key: keyType) -> ValueType? {
@@ -125,26 +125,16 @@ class SwiftApp {
         hasher.combine(bounds)
         hasher.combine(pageName)
         hasher.combine(tapped?.range ?? NSRange())
-        let set = observed[pageName] ?? []
-        hasher.combine(observed[pageName] ?? [])
-        for key in set.enumerated() {
-            if let dict = store.getValue(key: key.element) as? Store.DictType {
-                for subKey in dict.keys {
-                    if let flag = dict[subKey] as? Bool {
-                        hasher.combine(flag)
-                    } else if let slider = dict[subKey] as? Double {
-                        hasher.combine(slider)
-                    } else if let range = dict[subKey] as? NSRange {
-                        hasher.combine(range)
-                    }
-                }
+        for key in (observed[pageName] ?? []).enumerated() {
+            hasher.combine(key.element)
+            if let object = store.getValue(key: key.element) as? CustomStringConvertible {
+                hasher.combine(String(describing: object))
             }
         }
         let hash = hasher.finalize()
         if hash == (lastHash ?? 0), let lastScene {
             return lastScene
         }
-        lastHash = hash
         
         observed.removeAll()
         for control in controls {
@@ -184,6 +174,7 @@ class SwiftApp {
                 scene.strokeRect(b, width: -1, paint: RAPaint())
             }
         }
+        lastHash = hash
         lastScene = scene
         return scene
     }
@@ -206,17 +197,15 @@ class SwiftApp {
             for subKey in dict.keys {
                 range = mutable.appendString("\t\(subKey):")
                 mutable.addAttribute(.foregroundColor, value: Colors.black, range: range)
-                var placeholder: String
+                var placeholder = ""
                 if let _ = dict[subKey] as? Bool {
                     placeholder = "flag"
                 } else if let _ = dict[subKey] as? Double {
                     placeholder = "sligeeer"
                 } else if let _ = dict[subKey] as? NSRange {
                     placeholder = "Rang"
-                } else if let value = dict[subKey], let value {
+                } else if let value = dict[subKey] as? CustomStringConvertible {
                     placeholder = String(describing: value)
-                } else {
-                    placeholder = "nil"
                 }
                 placeholder = placeholder + "\n"
                 range = mutable.appendString(placeholder)
