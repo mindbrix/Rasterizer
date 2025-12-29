@@ -64,9 +64,31 @@ extension RAScene {
         
         addFill(RAPath(ellipse: b), ctm: .identity, color: white, evenOdd: false)
     }
+    
+    func addSlider(_ slider: Double, in rect: CGRect, paint: RAPaint, fontSize: Double) {
+        let gray = RAPaint(gray: 0.66, alpha: 1)
+        let b = rect.insetBy(dx: fontSize / 4, dy: 0)
+        addSliderTrack(in: b, paint: gray, fontSize: fontSize)
+        addSliderThumb(slider, in: b, paint: paint, fontSize: fontSize)
+    }
+    func addSliderThumb(_ slider: Double, in rect: CGRect, paint: RAPaint, fontSize: Double) {
+        let height = fontSize / 2
+        let radius = 0.5 * height
+        let b = CGRect(x: rect.minX - radius + slider * rect.width, y: rect.midY - radius, width: height, height: height)
+        addFill(RAPath(ellipse: b), ctm: .identity, color: paint, evenOdd: false)
+    }
+    func addSliderTrack(in rect: CGRect, paint: RAPaint, fontSize: Double) {
+        let height = fontSize / 12
+        let corner = 0.5 * height
+        let b = CGRect(x: rect.minX, y: rect.midY - corner, width: rect.width, height: height)
+        let rounded = RAPath(roundedRect: b, cornerWidth: corner, cornerHeight: corner)
+        addFill(rounded, ctm: .identity, color: paint, evenOdd: false)
+    }
+    
     func fillRect(_ rect: CGRect, paint: RAPaint) {
         addFill(RAPath(rect: rect), ctm: .identity, color: paint, evenOdd: false)
     }
+    
     func strokeRect(_ rect: CGRect, width: Double, paint: RAPaint) {
         let path = RAPath(rect: rect)
         path.close()

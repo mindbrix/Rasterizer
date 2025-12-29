@@ -141,8 +141,12 @@ class SwiftApp {
         scene.add(frame, excludes: excludes.map{ NSValue(range: $0.range) }, ctm: .identity, clip: .zero)
         for exclude in excludes {
             if let b = tapMap[exclude.range], let dict = store.getValue(key: exclude.control.key) as? Store.DictType {
+                let isActive = (tapped?.range ?? NSRange()) == exclude.range
+                
                 if let flag = dict[exclude.subKey] as? Bool {
-                    scene.addFlag(flag, in: b, paint: RAPaint(cgColor: Colors.blue), fontSize: font.size)
+                    scene.addFlag(flag, in: b, paint: RAPaint(cgColor: isActive ? Colors.red : Colors.blue), fontSize: font.size)
+                } else if let slider = dict[exclude.subKey] as? Double {
+                    scene.addSlider(slider, in: b, paint: RAPaint(cgColor: isActive ? Colors.red : Colors.blue), fontSize: font.size)
                 } else {
                     scene.fillRect(b, paint: RAPaint(cgColor: Colors.red))
                 }
@@ -173,13 +177,13 @@ class SwiftApp {
             
             for subKey in dict.keys {
                 range = mutable.appendString("\t\(subKey):")
-                let isActive = (tapped?.range ?? NSRange()) == range
-                mutable.addAttribute(.foregroundColor, value: isActive ? Colors.red : Colors.gray, range: range)
+//                let isActive = (tapped?.range ?? NSRange()) == range
+                mutable.addAttribute(.foregroundColor, value: Colors.black, range: range)
                 let string = {
                     if let flag = dict[subKey] as? Bool {
                         return "flag"
                     } else if let slider = dict[subKey] as? Double {
-                        return String(format: "%.2f", slider)
+                        return "sligeeer" // String(format: "%.2f", slider)
                     } else if let range = dict[subKey] as? NSRange {
                         return String(range.location)
                     } else if let value = dict[subKey], let value {
@@ -189,7 +193,7 @@ class SwiftApp {
                 }() + "\n"
                 range = mutable.appendString(string)
                 tappables.append(Tappable(control: control, subKey: subKey, range: range, exclude: true))
-                mutable.addAttribute(.foregroundColor, value: Colors.black, range: range)
+                mutable.addAttribute(.foregroundColor, value: Colors.gray, range: range)
             }
         }
         let ctFont = CTFontCreateWithName(font.name as CFString, font.size, nil)
