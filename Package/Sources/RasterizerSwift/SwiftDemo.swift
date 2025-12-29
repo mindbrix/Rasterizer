@@ -36,7 +36,6 @@ class SwiftDemo: NSObject {
         case mouseDown(p: CGPoint, flags: NSEvent.ModifierFlags)
         case mouseMove(p: CGPoint, flags: NSEvent.ModifierFlags)
         case mouseUp(p: CGPoint, flags: NSEvent.ModifierFlags)
-        case reset
         case magnify(scale: Double)
         case rotate(angle: Float)
         case translate(tx: Double, ty: Double)
@@ -80,8 +79,6 @@ class SwiftDemo: NSObject {
             swiftApp.mouseMoved(bounds, p: p.applying(mouseCtm))
         case .mouseUp(let p, _):
             swiftApp.mouseUp(bounds, p: p.applying(mouseCtm))
-        case .reset:
-            ctm = .identity
         case .magnify(let scale):
             ctm = ctm.concatAroundCenter(t: CGAffineTransform(scaleX: scale, y: scale), cx: bounds.midX, cy: bounds.midY)
         case .rotate(let angle):
@@ -136,6 +133,7 @@ extension SwiftDemo: SwiftApp.PageDelegate {
         case curves
         case opaques
         case outlines
+        case reset
         case button = "اللغة البشتوية"
         
         func callAsFunction() -> String {
@@ -178,6 +176,10 @@ extension SwiftDemo: SwiftApp.PageDelegate {
         switch PageID(rawValue: pageName) {
         case .LogIn: [
             Control(key: Key.dict(), closure: nil),
+            Control(key: Key.reset(), closure: { [weak self] store, key in
+                self?.ctm = .identity
+                return nil
+            }),
             Control(key: Key.button(), closure: { store, key in
                 let tapcount = store.getValue(key: key) as? Int ?? 0
                 print("\(tapcount)")

@@ -31,8 +31,6 @@ public class SwiftDemoView: RasterizerView, NSFontChanging {
         demo.bounds = self.bounds
         if !demo.handleEvent(.keyDown(character: character, flags: event.modifierFlags)) {
             switch character {
-            case "f":
-                _ = demo.handleEvent(.reset)
             case "v":
                 if (event.modifierFlags.contains(.command)) {
                     let objects = NSPasteboard.general.readObjects(forClasses: [NSAttributedString.self])
