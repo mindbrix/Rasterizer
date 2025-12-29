@@ -180,19 +180,20 @@ class SwiftApp {
             for subKey in dict.keys {
                 range = mutable.appendString("\t\(subKey):")
                 mutable.addAttribute(.foregroundColor, value: Colors.black, range: range)
-                let string = {
-                    if let _ = dict[subKey] as? Bool {
-                        return "flag"
-                    } else if let _ = dict[subKey] as? Double {
-                        return "sligeeer"
-                    } else if let _ = dict[subKey] as? NSRange {
-                        return "Rang"
-                    } else if let value = dict[subKey], let value {
-                        return String(describing: value)
-                    }
-                    return "nil"
-                }() + "\n"
-                range = mutable.appendString(string)
+                var placeholder: String
+                if let _ = dict[subKey] as? Bool {
+                    placeholder = "flag"
+                } else if let _ = dict[subKey] as? Double {
+                    placeholder = "sligeeer"
+                } else if let _ = dict[subKey] as? NSRange {
+                    placeholder = "Rang"
+                } else if let value = dict[subKey], let value {
+                    placeholder = String(describing: value)
+                } else {
+                    placeholder = "nil"
+                }
+                placeholder = placeholder + "\n"
+                range = mutable.appendString(placeholder)
                 tappables.append(Tappable(control: control, subKey: subKey, range: range, exclude: true))
                 mutable.addAttribute(.foregroundColor, value: Colors.gray, range: range)
             }
