@@ -36,6 +36,9 @@
 - (nonnull id)initWithCGPath:(nonnull CGPathRef)cgPath;
 - (nonnull id)initWithRect:(CGRect)rect;
 - (nonnull id)initWithEllipse:(CGRect)rect;
+- (nonnull id)initWithRoundedRect:(CGRect)rect
+                      cornerWidth:(double)cornerWidth
+                     cornerHeight:(double)cornerHeight;
 - (void)moveTo:(double)x y:(double)y;
 - (void)lineTo:(double)x y:(double)y;
 - (void)quadTo:(double)x1 y1:(double)y1 x2:(double)x2 y2:(double)y2;
@@ -44,6 +47,10 @@
 - (void)addCGPath:(nonnull CGPathRef)path;
 - (void)addRect:(CGRect)rect;
 - (void)addEllipse:(CGRect)rect;
+- (void)addRoundedRect:(CGRect)rect
+           cornerWidth:(double)cornerWidth
+          cornerHeight:(double)cornerHeight;
+
 - (nonnull RAPath *)dashedCopyWithPhase:(double)phase
                                 lengths:(nonnull NSArray<NSNumber *>*)lengths;
 @end

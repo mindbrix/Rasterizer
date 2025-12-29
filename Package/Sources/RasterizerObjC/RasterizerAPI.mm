@@ -148,6 +148,18 @@
     return self;
 }
 
+- (nonnull id)initWithRoundedRect:(CGRect)rect
+                      cornerWidth:(double)cornerWidth
+                     cornerHeight:(double)cornerHeight {
+    self = [super init];
+    if (!self)
+        return nil;
+    CGPathRef cgPath = CGPathCreateWithRoundedRect(rect, cornerWidth, cornerHeight, NULL);
+    [self addCGPath:cgPath];
+    CGPathRelease(cgPath);
+    return self;
+}
+
 - (CGRect)bounds {
     return RaCG::CGRectFromBounds(_path->bounds);
 }
@@ -172,6 +184,13 @@
 }
 - (void)addEllipse:(CGRect)rect {
     _path->addEllipse(RaCG::BoundsFromCGRect(rect));
+}
+- (void)addRoundedRect:(CGRect)rect
+           cornerWidth:(double)cornerWidth
+          cornerHeight:(double)cornerHeight {
+    CGPathRef cgPath = CGPathCreateWithRoundedRect(rect, cornerWidth, cornerHeight, NULL);
+    [self addCGPath:cgPath];
+    CGPathRelease(cgPath);
 }
 - (void)addCGPath:(CGPathRef)cgPath {
     RaCG::writeCGPathToPath(cgPath, _path);

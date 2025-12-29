@@ -61,7 +61,7 @@ class SwiftApp {
     let store = Store()
     var observers: [Store.keyType: Set<String>] = [:]
     var tappables: [Tappable] = []
-    var showTapMap = true
+    var showTapMap = false
     var tapMap: OrderedDictionary<NSRange, CGRect> = [:]
     var tapped: Tappable?
     var down: CGPoint = .zero
@@ -140,8 +140,12 @@ class SwiftApp {
         let excludes = tappables.filter{ $0.exclude }
         scene.add(frame, excludes: excludes.map{ NSValue(range: $0.range) }, ctm: .identity, clip: .zero)
         for exclude in excludes {
-            if let b = tapMap[exclude.range] {
-                scene.fillRect(b, paint: RAPaint(cgColor: Colors.red))
+            if let b = tapMap[exclude.range], let dict = store.getValue(key: exclude.control.key) as? Store.DictType {
+                if let flag = dict[exclude.subKey] as? Bool {
+                    scene.addFlag(flag, in: b, paint: RAPaint(cgColor: Colors.blue), fontSize: font.size)
+                } else {
+                    scene.fillRect(b, paint: RAPaint(cgColor: Colors.red))
+                }
             }
         }
         if self.showTapMap {
@@ -173,7 +177,7 @@ class SwiftApp {
                 mutable.addAttribute(.foregroundColor, value: isActive ? Colors.red : Colors.gray, range: range)
                 let string = {
                     if let flag = dict[subKey] as? Bool {
-                        return String(flag ? 1 : 0)
+                        return "flag"
                     } else if let slider = dict[subKey] as? Double {
                         return String(format: "%.2f", slider)
                     } else if let range = dict[subKey] as? NSRange {
