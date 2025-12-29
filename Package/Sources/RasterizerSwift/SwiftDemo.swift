@@ -20,7 +20,11 @@ class SwiftDemo: NSObject {
             Key.paused() : false,
             Key.slider() : 0.0,
             Key.useRect(): false,
-            Key.index()  : NSRange(location: 0, length: drawables.count)
+            Key.index()  : NSRange(location: 0, length: drawables.count),
+            Key.showOutlines(): false,
+            Key.showOpaques() : true,
+            Key.useClips()    : true,
+            Key.useCurves()   : true
         ]
         swiftApp.store.setValue(
             value: dict,
@@ -46,10 +50,6 @@ class SwiftDemo: NSObject {
         TestImage()
     ]
     
-    var useClips = true
-    var useCurves = true
-    var showOpaques = true
-    var showOutlines = false
     var ctm = CGAffineTransform.identity
     var appCtm = CGAffineTransform.identity
     var bounds = CGRect.zero
@@ -69,16 +69,8 @@ class SwiftDemo: NSObject {
         switch event {
         case .keyDown(let character, _):
             switch character {
-            case "b":
-                useClips.toggle()
-            case "c":
-                useCurves.toggle()
             case "f":
                 ctm = .identity
-            case "i":
-                showOpaques.toggle()
-            case "o":
-                showOutlines.toggle()
             default:
                 return false
             }
@@ -142,6 +134,10 @@ extension SwiftDemo: SwiftApp.PageDelegate {
         case slider
         case useRect
         case index
+        case useClips
+        case useCurves
+        case showOpaques
+        case showOutlines
         case button = "اللغة البشتوية"
         
         func callAsFunction() -> String {
@@ -166,6 +162,18 @@ extension SwiftDemo: SwiftApp.PageDelegate {
     }
     var useRect: Bool {
         dict?[Key.useRect()] as? Bool ?? false
+    }
+    var showOutlines: Bool {
+        dict?[Key.showOutlines()] as? Bool ?? false
+    }
+    var showOpaques: Bool {
+        dict?[Key.showOpaques()] as? Bool ?? false
+    }
+    var useClips: Bool {
+        dict?[Key.useClips()] as? Bool ?? false
+    }
+    var useCurves: Bool {
+        dict?[Key.useCurves()] as? Bool ?? false
     }
     
     func controlsFor(_ pageName: String) -> [Control]? {
