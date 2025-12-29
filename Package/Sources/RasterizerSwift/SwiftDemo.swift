@@ -15,13 +15,16 @@ class SwiftDemo: NSObject {
         super.init()
         swiftApp.pageDelegate = self
         swiftApp.pageName = PageID.LogIn()
-        dict = [
+        let dict: Store.DictType = [
             Key.flag()   : false,
             Key.paused() : false,
             Key.slider() : 0.0,
             Key.useRect(): false,
             Key.index()  : NSRange(location: 0, length: drawables.count)
         ]
+        swiftApp.store.setValue(
+            value: dict,
+            key: Key.dict())
     }
     enum Event {
         case keyDown(character: Character, flags: NSEvent.ModifierFlags)
@@ -151,50 +154,24 @@ extension SwiftDemo: SwiftApp.PageDelegate {
     }
     
     var dict: Store.DictType? {
-        get {
-            swiftApp.store.getValue(key: Key.dict()) as? Store.DictType
-        }
-        set {
-            swiftApp.store.setValue(value: newValue, key: Key.dict())
-        }
+        swiftApp.store.getValue(key: Key.dict()) as? Store.DictType
     }
-    
     var index: Int {
-        get {
-            (dict?[Key.index()] as? NSRange)?.location ?? 0
-        }
-        set {
-            let length = (dict?[Key.index()] as? NSRange)?.length ?? 0
-            dict?[Key.index()] = NSRange(location: newValue, length: length)
-        }
+        (dict?[Key.index()] as? NSRange)?.location ?? 0
     }
     var flag: Bool {
-        get {
-            dict?[Key.flag()] as? Bool ?? false
-        }
-        set {
-            dict?[Key.flag()] = newValue
-        }
+        dict?[Key.flag()] as? Bool ?? false
     }
     var paused: Bool {
-        get {
-            dict?[Key.paused()] as? Bool ?? false
-        }
-        set {
-            dict?[Key.paused()] = newValue
-        }
+        dict?[Key.paused()] as? Bool ?? false
     }
     var slider: Double {
         dict?[Key.slider()] as? Double ?? 0.0
     }
     var useRect: Bool {
-        get {
-            dict?[Key.useRect()] as? Bool ?? false
-        }
-        set {
-            dict?[Key.useRect()] = newValue
-        }
+        dict?[Key.useRect()] as? Bool ?? false
     }
+    
     func controlsFor(_ pageName: String) -> [Control]? {
         switch PageID(rawValue: pageName) {
         case .LogIn: [
