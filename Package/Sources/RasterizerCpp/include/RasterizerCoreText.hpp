@@ -74,14 +74,12 @@ struct RasterizerCoreText {
         for (int i = 0; i < CFArrayGetCount(glyphRuns); i++) {
             CTRunRef run = (CTRunRef)CFArrayGetValueAtIndex(glyphRuns, i);
             BOOL exclude = false;
-            if (excludes.count) {
-                NSUInteger location = CTRunGetStringRange(run).location;
-                for (NSValue *value in excludes) {
-                    NSRange rng = value.rangeValue;
-                    if (location >= rng.location && location < rng.location + rng.length) {
-                        exclude = YES;
-                        break;
-                    }
+            NSUInteger location = CTRunGetStringRange(run).location;
+            for (NSValue *value in excludes) {
+               NSRange rng = value.rangeValue;
+                if (location >= rng.location && location < rng.location + rng.length) {
+                    exclude = YES;
+                    break;
                 }
             }
             if (exclude)
