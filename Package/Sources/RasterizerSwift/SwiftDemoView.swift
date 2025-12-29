@@ -30,9 +30,17 @@ public class SwiftDemoView: RasterizerView, NSFontChanging {
         }
         demo.bounds = self.bounds
         if !demo.handleEvent(.keyDown(character: character, flags: event.modifierFlags)) {
-            if character == "0" {
+            switch character {
+            case "v":
+                if (event.modifierFlags.contains(.command)) {
+                    let objects = NSPasteboard.general.readObjects(forClasses: [NSAttributedString.self])
+                    if let attrString = objects?.first as? NSAttributedString {
+                        _ = demo.handleEvent(.paste(attributed: attrString))
+                    }
+                }
+            case "0":
                 useCG.toggle()
-            } else {
+            default:
                 super.keyDown(with: event)
             }
         }

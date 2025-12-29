@@ -32,6 +32,7 @@ class SwiftDemo: NSObject {
         case mouseMove(p: CGPoint, flags: NSEvent.ModifierFlags)
         case mouseUp(p: CGPoint, flags: NSEvent.ModifierFlags)
         case magnify(scale: Double)
+        case paste(attributed: NSAttributedString)
         case rotate(angle: Float)
         case translate(tx: Double, ty: Double)
     }
@@ -66,7 +67,7 @@ class SwiftDemo: NSObject {
 
     func handleEvent(_ event: Event) -> Bool {
         switch event {
-        case .keyDown(let character, let flags):
+        case .keyDown(let character, _):
             switch character {
             case "b":
                 useClips.toggle()
@@ -78,19 +79,14 @@ class SwiftDemo: NSObject {
                 showOpaques.toggle()
             case "o":
                 showOutlines.toggle()
-            case "v":
-                if (flags.contains(.command)) {
-                    let objects = NSPasteboard.general.readObjects(forClasses: [NSAttributedString.self])
-                    if let attrString = objects?.first as? NSAttributedString {
-                        let scene = RAScene()
-                        scene.addText(attrString, in: bounds, ctm: .identity, clip: .zero)
-                        pastedScene = scene
-                    }
-                }
             default:
                 return false
             }
             break
+        case .paste(let attributed):
+            let scene = RAScene()
+            scene.addText(attributed, in: bounds, ctm: .identity, clip: .zero)
+            pastedScene = scene
         case .mouseDown(let p, _):
             swiftApp.mouseDown(bounds, p: p.applying(ctm.concatenating(appCtm).inverted()))
         case .mouseMove(let p, _):
