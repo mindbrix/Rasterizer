@@ -38,7 +38,7 @@ struct Font {
 
 struct Tappable {
     let control: Control
-    let key: Store.keyType
+    let subKey: Store.keyType
     let range: NSRange
     let exclude: Bool
     var bounds = CGRect.zero
@@ -84,10 +84,10 @@ class SwiftApp {
         }
         let key = tapped.control.key
         if var dict = store.getValue(key: key) as? Store.DictType,
-           let value = dict[tapped.key],
+           let value = dict[tapped.subKey],
            let slider = value as? Double {
             let dt = (p.x - last.x) / tapped.bounds.width
-            dict[tapped.key] = max(0.0, min(1.0, slider + dt))
+            dict[tapped.subKey] = max(0.0, min(1.0, slider + dt))
             store.setValue(value: dict, key: key)
         }
         last = p
@@ -98,13 +98,13 @@ class SwiftApp {
         }
         let key = tapped.control.key
         if var dict = store.getValue(key: key) as? Store.DictType,
-           let value = dict[tapped.key] {
+           let value = dict[tapped.subKey] {
             if let flag = value as? Bool {
-                dict[tapped.key] = !flag
+                dict[tapped.subKey] = !flag
             } else if let range = value as? NSRange {
                 let delta = down.x < tapped.bounds.midX ? -1 : 1
                 let location = max(0, min(range.length - 1, range.location + delta))
-                dict[tapped.key] = NSRange(location: location, length: range.length)
+                dict[tapped.subKey] = NSRange(location: location, length: range.length)
             }
             store.setValue(value: dict, key: key)
         }
@@ -161,30 +161,30 @@ class SwiftApp {
                 let range = mutable.appendString("\(control.key)\n")
                 let isActive = (tapped?.range ?? NSRange()) == range
                 mutable.addAttribute(.foregroundColor, value: isActive ? Colors.red : Colors.blue, range: range)
-                tappables.append(Tappable(control: control, key: control.key, range: range, exclude: false))
+                tappables.append(Tappable(control: control, subKey: control.key, range: range, exclude: false))
                 continue
             }
             var range = mutable.appendString("\(control.key):\n")
             mutable.addAttribute(.foregroundColor, value: Colors.gray, range: range)
             
-            for key in dict.keys {
-                range = mutable.appendString("\t\(key):")
+            for subKey in dict.keys {
+                range = mutable.appendString("\t\(subKey):")
                 let isActive = (tapped?.range ?? NSRange()) == range
                 mutable.addAttribute(.foregroundColor, value: isActive ? Colors.red : Colors.gray, range: range)
                 let string = {
-                    if let flag = dict[key] as? Bool {
+                    if let flag = dict[subKey] as? Bool {
                         return String(flag ? 1 : 0)
-                    } else if let slider = dict[key] as? Double {
+                    } else if let slider = dict[subKey] as? Double {
                         return String(format: "%.2f", slider)
-                    } else if let range = dict[key] as? NSRange {
+                    } else if let range = dict[subKey] as? NSRange {
                         return String(range.location)
-                    } else if let value = dict[key], let value {
+                    } else if let value = dict[subKey], let value {
                         return String(describing: value)
                     }
                     return "nil"
                 }() + "\n"
                 range = mutable.appendString(string)
-                tappables.append(Tappable(control: control, key: key, range: range, exclude: true))
+                tappables.append(Tappable(control: control, subKey: subKey, range: range, exclude: true))
                 mutable.addAttribute(.foregroundColor, value: Colors.black, range: range)
             }
         }
