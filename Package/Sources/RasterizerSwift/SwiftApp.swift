@@ -173,8 +173,6 @@ class SwiftApp {
                 range = mutable.appendString("\t\(key):")
                 let isActive = (tapped?.range ?? NSRange()) == range
                 mutable.addAttribute(.foregroundColor, value: isActive ? Colors.red : Colors.gray, range: range)
-                tappables.append(Tappable(control: control, key: key, range: range, exclude: true))
-                
                 let string = {
                     if let flag = dict[key] as? Bool {
                         return String(flag ? 1 : 0)
@@ -188,6 +186,7 @@ class SwiftApp {
                     return "nil"
                 }() + "\n"
                 range = mutable.appendString(string)
+                tappables.append(Tappable(control: control, key: key, range: range, exclude: true))
                 mutable.addAttribute(.foregroundColor, value: Colors.black, range: range)
             }
         }
