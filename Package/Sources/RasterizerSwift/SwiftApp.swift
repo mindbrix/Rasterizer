@@ -12,22 +12,22 @@ import RasterizerObjC
 
 
 class Store {
-    typealias keyType = String
+    typealias KeyType = String
     typealias ValueType = Any
-    typealias DictType = OrderedDictionary<keyType, ValueType>
+    typealias DictType = OrderedDictionary<KeyType, ValueType>
     
-    func getValue(key: keyType) -> ValueType? {
+    func getValue(key: KeyType) -> ValueType? {
         dict[key]
     }
-    func setValue(value: ValueType?, key: keyType) {
+    func setValue(value: ValueType?, key: KeyType) {
         dict[key] = value
     }
     var dict: DictType = [:]
 }
 
 struct Control {
-    typealias Closure = (Store, Store.keyType) -> String?
-    let key: Store.keyType
+    typealias Closure = (Store, Store.KeyType) -> String?
+    let key: Store.KeyType
     let closure: Closure?
 }
 
@@ -38,7 +38,7 @@ struct Font {
 
 struct Tappable {
     let control: Control
-    let subKey: Store.keyType
+    let subKey: Store.KeyType
     let range: NSRange
     let exclude: Bool
     var bounds = CGRect.zero
@@ -59,7 +59,7 @@ class SwiftApp {
     var pageName: String?
     var font = Font(name: "HelveticaNeue-Medium", size: 20)
     let store = Store()
-    var observed: [String: Set<Store.keyType>] = [:]
+    var observed: [String: Set<Store.KeyType>] = [:]
     var tappables: [Tappable] = []
     var showTapMap = false
     var tapMap: OrderedDictionary<NSRange, CGRect> = [:]
