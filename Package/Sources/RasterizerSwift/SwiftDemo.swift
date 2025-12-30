@@ -30,10 +30,10 @@ class SwiftDemo: NSObject {
         ]
         swiftApp.store.setValue(
             value: dict,
-            key: Key.dict())
+            key: Key.settings())
         swiftApp.store.setValue(
             value: settings,
-            key: Key.settings())
+            key: Key.debug())
     }
     enum Event {
         case keyDown(character: Character, flags: NSEvent.ModifierFlags)
@@ -137,8 +137,8 @@ extension SwiftDemo: SwiftApp.PageDelegate {
         }
     }
     enum Key: String, CaseIterable {
-        case dict
         case settings
+        case debug
         
         case flag
         case paused
@@ -149,53 +149,53 @@ extension SwiftDemo: SwiftApp.PageDelegate {
         case curves
         case opaques
         case outlines
-        case reset
-        case button = "اللغة البشتوية"
+        case reset = "reset ctm"
+        case button
         
         func callAsFunction() -> String {
             rawValue
         }
     }
     
-    var dict: Store.DictType? {
-        swiftApp.store.getValue(key: Key.dict()) as? Store.DictType
-    }
     var settings: Store.DictType? {
         swiftApp.store.getValue(key: Key.settings()) as? Store.DictType
     }
+    var debug: Store.DictType? {
+        swiftApp.store.getValue(key: Key.debug()) as? Store.DictType
+    }
     var index: Int {
-        (dict?[Key.index()] as? NSRange)?.location ?? 0
+        (settings?[Key.index()] as? NSRange)?.location ?? 0
     }
     var flag: Bool {
-        dict?[Key.flag()] as? Bool ?? false
+        settings?[Key.flag()] as? Bool ?? false
     }
     var paused: Bool {
-        dict?[Key.paused()] as? Bool ?? false
+        settings?[Key.paused()] as? Bool ?? false
     }
     var slider: Double {
-        dict?[Key.slider()] as? Double ?? 0.0
+        settings?[Key.slider()] as? Double ?? 0.0
     }
     var useRect: Bool {
-        dict?[Key.rect()] as? Bool ?? false
+        settings?[Key.rect()] as? Bool ?? false
     }
     var showOutlines: Bool {
-        settings?[Key.outlines()] as? Bool ?? false
+        debug?[Key.outlines()] as? Bool ?? false
     }
     var showOpaques: Bool {
-        settings?[Key.opaques()] as? Bool ?? false
+        debug?[Key.opaques()] as? Bool ?? false
     }
     var useClips: Bool {
-        settings?[Key.clips()] as? Bool ?? false
+        debug?[Key.clips()] as? Bool ?? false
     }
     var useCurves: Bool {
-        settings?[Key.curves()] as? Bool ?? false
+        debug?[Key.curves()] as? Bool ?? false
     }
     
     func controlsFor(_ pageName: String) -> [Control]? {
         switch PageID(rawValue: pageName) {
         case .LogIn: [
-            Control(key: Key.dict(), closure: nil),
             Control(key: Key.settings(), closure: nil),
+            Control(key: Key.debug(), closure: nil),
             Control(key: Key.reset(), closure: { [weak self] _, _ in
                 self?.ctm = .identity
                 return nil
@@ -205,7 +205,8 @@ extension SwiftDemo: SwiftApp.PageDelegate {
                 print("\(tapcount)")
                 store.setValue(value: tapcount + 1, key: key)
                 return tapcount == 2 ? PageID.Home() : nil
-            })]
+            })
+        ]
         case .Home: [
             Control(key: Key.button(), closure: { store, key in
                 store.setValue(value: 0, key: key)

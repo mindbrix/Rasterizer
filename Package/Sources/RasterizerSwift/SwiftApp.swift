@@ -156,10 +156,8 @@ class SwiftApp {
         frame.applyRuns({ range, bounds in
             tapMap[range] = bounds
         })
-        scene.strokeRect(bounds, width: -1, paint: RAPaint())
         let excludes = tappables.filter{ $0.exclude }
         let rect = scene.add(frame, excludes: excludes.map{ NSValue(range: $0.range) }, ctm: .identity, clip: .zero)
-        scene.strokeRect(rect, width: -1, paint: RAPaint())
         for exclude in excludes {
             if let b = tapMap[exclude.range], let dict = store.getValue(key: exclude.control.key) as? Store.DictType {
                 let isActive = (tapped?.range ?? NSRange()) == exclude.range
@@ -176,6 +174,8 @@ class SwiftApp {
             }
         }
         if self.showTapMap {
+            scene.strokeRect(bounds, width: -1, paint: RAPaint())
+            scene.strokeRect(rect, width: -1, paint: RAPaint())
             for b in tapMap.values {
                 scene.strokeRect(b, width: -1, paint: RAPaint())
             }
@@ -190,7 +190,7 @@ class SwiftApp {
         
         for control in controls {
             guard let dict = store.getValue(key: control.key) as? Store.DictType else {
-                let range = mutable.appendString("\(control.key)\n")
+                let range = mutable.appendString("\t\t\(control.key)\n")
                 let isActive = (tapped?.range ?? NSRange()) == range
                 mutable.addAttribute(.foregroundColor, value: isActive ? Colors.red : Colors.blue, range: range)
                 tappables.append(Tappable(control: control, subKey: control.key, range: range, exclude: false))
