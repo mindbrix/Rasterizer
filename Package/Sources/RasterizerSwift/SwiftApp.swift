@@ -26,8 +26,12 @@ class Store {
 }
 
 struct Control {
+    enum Mode {
+        case button, mutable, readonly
+    }
     typealias Closure = (Store, Store.KeyType) -> String?
     let key: Store.KeyType
+    let mode: Mode
     let closure: Closure?
 }
 
@@ -199,34 +203,56 @@ class SwiftApp {
         let mutable = NSMutableAttributedString()
         
         for control in controls {
-            guard let dict = store.getValue(key: control.key) as? Store.DictType else {
+            switch control.mode {
+            case .button:
                 let range = mutable.appendString("\t\t\(control.key)\n")
                 let isActive = (tapped?.range ?? NSRange()) == range
                 mutable.addAttribute(.foregroundColor, value: isActive ? Colors.red : Colors.blue, range: range)
                 tappables.append(Tappable(control: control, subKey: control.key, range: range, exclude: false))
                 continue
-            }
-            var range = mutable.appendString("\(control.key):\n")
-            mutable.addAttribute(.foregroundColor, value: Colors.gray, range: range)
-            
-            for subKey in dict.keys {
-                range = mutable.appendString("\t\(subKey):")
-                mutable.addAttribute(.foregroundColor, value: Colors.black, range: range)
-                var placeholder = ""
-                if let _ = dict[subKey] as? Bool {
-                    placeholder = "flag"
-                } else if let _ = dict[subKey] as? Double {
-                    placeholder = "sligeeer"
-                } else if let _ = dict[subKey] as? NSRange {
-                    placeholder = "Rang"
-                } else if let value = dict[subKey] as? CustomStringConvertible {
-                    placeholder = String(describing: value)
+            case .mutable:
+                guard let dict = store.getValue(key: control.key) as? Store.DictType else {
+                    continue
                 }
-                placeholder = "\t" + placeholder + "\n"
-                range = mutable.appendString(placeholder)
-                tappables.append(Tappable(control: control, subKey: subKey, range: range, exclude: true))
+                var range = mutable.appendString("\(control.key):\n")
                 mutable.addAttribute(.foregroundColor, value: Colors.gray, range: range)
+                
+                for subKey in dict.keys {
+                    range = mutable.appendString("\t\(subKey):")
+                    mutable.addAttribute(.foregroundColor, value: Colors.black, range: range)
+                    var placeholder = ""
+                    if let _ = dict[subKey] as? Bool {
+                        placeholder = "flag"
+                    } else if let _ = dict[subKey] as? Double {
+                        placeholder = "sligeeer"
+                    } else if let _ = dict[subKey] as? NSRange {
+                        placeholder = "Rang"
+                    } else if let value = dict[subKey] as? CustomStringConvertible {
+                        placeholder = String(describing: value)
+                    }
+                    placeholder = "\t" + placeholder + "\n"
+                    range = mutable.appendString(placeholder)
+                    tappables.append(Tappable(control: control, subKey: subKey, range: range, exclude: true))
+                    mutable.addAttribute(.foregroundColor, value: Colors.gray, range: range)
+                }
+            case .readonly:
+                guard let dict = store.getValue(key: control.key) as? Store.DictType else {
+                    continue
+                }
+                var range = mutable.appendString("\(control.key):\n")
+                mutable.addAttribute(.foregroundColor, value: Colors.gray, range: range)
+                
+                for (subKey, value) in dict {
+                    range = mutable.appendString("\t\(subKey):")
+                    mutable.addAttribute(.foregroundColor, value: Colors.gray, range: range)
+                    
+                    if let convertible = value as? CustomStringConvertible {
+                        range = mutable.appendString("\t\(String(describing: convertible))\n")
+                        mutable.addAttribute(.foregroundColor, value: Colors.black, range: range)
+                    }
+                }
             }
+            
         }
         let ctFont = CTFontCreateWithName(font.name as CFString, font.size, nil)
         let range = NSRange(location: 0, length: mutable.length)

@@ -202,13 +202,13 @@ extension SwiftDemo: SwiftApp.PageDelegate {
     func controlsFor(_ pageName: String) -> [Control]? {
         switch PageID(rawValue: pageName) {
         case .LogIn: [
-            Control(key: Key.settings(), closure: nil),
-            Control(key: Key.debug(), closure: nil),
-            Control(key: Key.reset(), closure: { [weak self] _, _ in
+            Control(key: Key.settings(), mode: .mutable, closure: nil),
+            Control(key: Key.debug(), mode: .readonly, closure: nil),
+            Control(key: Key.reset(), mode: .button, closure: { [weak self] _, _ in
                 self?.ctm = .identity
                 return nil
             }),
-            Control(key: Key.button(), closure: { store, key in
+            Control(key: Key.button(), mode: .button, closure: { store, key in
                 let tapcount = store.getValue(key: key) as? Int ?? 0
                 print("\(tapcount)")
                 store.setValue(value: tapcount + 1, key: key)
@@ -216,7 +216,7 @@ extension SwiftDemo: SwiftApp.PageDelegate {
             })
         ]
         case .Home: [
-            Control(key: Key.button(), closure: { store, key in
+            Control(key: Key.button(), mode: .button, closure: { store, key in
                 store.setValue(value: 0, key: key)
                 return PageID.LogIn()
             })]
