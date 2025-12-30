@@ -209,7 +209,7 @@ class SwiftApp {
                 } else if let value = dict[subKey] as? CustomStringConvertible {
                     placeholder = String(describing: value)
                 }
-                placeholder = placeholder + "\n"
+                placeholder = "\t" + placeholder + "\n"
                 range = mutable.appendString(placeholder)
                 tappables.append(Tappable(control: control, subKey: subKey, range: range, exclude: true))
                 mutable.addAttribute(.foregroundColor, value: Colors.gray, range: range)
@@ -220,7 +220,10 @@ class SwiftApp {
         let paragraphStyle = NSMutableParagraphStyle()
         paragraphStyle.alignment = .left
         paragraphStyle.lineBreakMode = .byWordWrapping
-        paragraphStyle.tabStops = [NSTextTab(type: .leftTabStopType, location: font.size)]
+        paragraphStyle.tabStops = [
+            NSTextTab(type: .leftTabStopType, location: font.size),
+            NSTextTab(type: .rightTabStopType, location: 8 * font.size)
+        ]
         mutable.addAttribute(.paragraphStyle, value: paragraphStyle, range: range)
         mutable.addAttribute(.font, value: ctFont, range: range)
         return (tappables, mutable)
