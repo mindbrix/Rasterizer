@@ -203,7 +203,8 @@ extension SwiftDemo: SwiftApp.PageDelegate {
         switch PageID(rawValue: pageName) {
         case .LogIn: [
             Control(key: Key.settings(), mode: .mutable, closure: nil),
-            Control(key: Key.debug(), mode: .readonly, closure: nil),
+            Control(key: Key.settings(), mode: .readonly, closure: nil),
+            Control(key: Key.debug(), mode: .mutable, closure: nil),
             Control(key: Key.reset(), mode: .button, closure: { [weak self] _, _ in
                 self?.ctm = .identity
                 return nil

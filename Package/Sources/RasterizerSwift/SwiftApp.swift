@@ -217,17 +217,17 @@ class SwiftApp {
                 var range = mutable.appendString("\(control.key):\n")
                 mutable.addAttribute(.foregroundColor, value: Colors.gray, range: range)
                 
-                for subKey in dict.keys {
+                for (subKey, value) in dict {
                     range = mutable.appendString("\t\(subKey):")
                     mutable.addAttribute(.foregroundColor, value: Colors.black, range: range)
                     var placeholder = ""
-                    if let _ = dict[subKey] as? Bool {
+                    if let _ = value as? Bool {
                         placeholder = "flag"
-                    } else if let _ = dict[subKey] as? Double {
+                    } else if let _ = value as? Double {
                         placeholder = "sligeeer"
-                    } else if let _ = dict[subKey] as? NSRange {
+                    } else if let _ = value as? NSRange {
                         placeholder = "Rang"
-                    } else if let value = dict[subKey] as? CustomStringConvertible {
+                    } else if let value = value as? CustomStringConvertible {
                         placeholder = String(describing: value)
                     }
                     placeholder = "\t" + placeholder + "\n"
@@ -246,10 +246,17 @@ class SwiftApp {
                     range = mutable.appendString("\t\(subKey):")
                     mutable.addAttribute(.foregroundColor, value: Colors.gray, range: range)
                     
-                    if let convertible = value as? CustomStringConvertible {
-                        range = mutable.appendString("\t\(String(describing: convertible))\n")
-                        mutable.addAttribute(.foregroundColor, value: Colors.black, range: range)
+                    var placeholder = ""
+                     if let slider = value as? Double {
+                         placeholder = String(format: "%.2f", slider)
+                    } else if let range = value as? NSRange {
+                        placeholder = String(range.location)
+                    } else if let value = value as? CustomStringConvertible {
+                        placeholder = String(describing: value)
                     }
+                    placeholder = "\t" + placeholder + "\n"
+                    range = mutable.appendString(placeholder)
+                    mutable.addAttribute(.foregroundColor, value: Colors.black, range: range)
                 }
             }
             
