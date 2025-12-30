@@ -127,8 +127,7 @@ class SwiftApp {
         guard let pageHash = pageMap[pageName]?.hash else {
             return true
         }
-        let hash = hashFor(pageName, in: bounds)
-        return hash != pageHash
+        return pageHash != hashFor(pageName, in: bounds)
     }
     
     func hashFor(_ pageName: String, in bounds: CGRect) -> Int {
@@ -138,9 +137,9 @@ class SwiftApp {
         hasher.combine(font.size)
         hasher.combine(pageName)
         hasher.combine(tapped?.range ?? NSRange())
-        for key in (observed[pageName] ?? []).enumerated() {
-            hasher.combine(key.element)
-            if let object = store.getValue(key: key.element) as? CustomStringConvertible {
+        for key in (observed[pageName] ?? []) {
+            hasher.combine(key)
+            if let object = store.getValue(key: key) as? CustomStringConvertible {
                 hasher.combine(String(describing: object))
             }
         }
