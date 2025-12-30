@@ -35,6 +35,16 @@ struct Control {
     let closure: Closure?
 }
 
+extension Control: Hashable {
+    static func == (lhs: Control, rhs: Control) -> Bool {
+        lhs.hashValue == rhs.hashValue
+    }
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(key)
+        hasher.combine(mode)
+    }
+}
+
 struct Font {
     let name: String
     let size: Double
@@ -135,7 +145,11 @@ class SwiftApp {
     }
     
     func hashFor(_ pageName: String, in bounds: CGRect) -> Int {
+        guard let pageDelegate, let controls = pageDelegate.controlsFor(pageName) else {
+            return 0
+        }
         var hasher = Hasher()
+        hasher.combine(controls)
         hasher.combine(bounds)
         hasher.combine(font.name)
         hasher.combine(font.size)
