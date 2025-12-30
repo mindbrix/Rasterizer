@@ -123,11 +123,15 @@ class SwiftApp {
         self.tapped = nil
     }
     
-    func sceneFor(_ pageName: String, in bounds: CGRect) -> RAScene {
-        let scene = RAScene()
-        guard let pageDelegate, let controls = pageDelegate.controlsFor(pageName) else {
-            return scene
+    func shouldRedraw(_ pageName: String, in bounds: CGRect) -> Bool {
+        guard let pageHash = pageMap[pageName]?.hash else {
+            return true
         }
+        let hash = hashFor(pageName, in: bounds)
+        return hash != pageHash
+    }
+    
+    func hashFor(_ pageName: String, in bounds: CGRect) -> Int {
         var hasher = Hasher()
         hasher.combine(bounds)
         hasher.combine(font.name)
@@ -140,7 +144,14 @@ class SwiftApp {
                 hasher.combine(String(describing: object))
             }
         }
-        let hash = hasher.finalize()
+        return hasher.finalize()
+    }
+    func sceneFor(_ pageName: String, in bounds: CGRect) -> RAScene {
+        let scene = RAScene()
+        guard let pageDelegate, let controls = pageDelegate.controlsFor(pageName) else {
+            return scene
+        }
+        let hash = hashFor(pageName, in: bounds)
         if let entry = pageMap[pageName], hash == entry.hash {
             return entry.scene
         }

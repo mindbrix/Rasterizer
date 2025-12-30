@@ -99,8 +99,10 @@ class SwiftDemo: NSObject {
 }
 
 extension SwiftDemo: RASceneListDelegate {
-    func shouldRedraw(atTime time: Double) -> Bool {
-        true
+    func shouldRedraw(atTime time: Double, width: Double, height: Double) -> Bool {
+        bounds = CGRect(x: 0, y: 0, width: width, height: height)
+        appCtm = ctm.inverted()
+        return !hidden || swiftApp.shouldRedraw(swiftApp.pageName ?? "", in: bounds)
     }
     func getListAtTime(_ time: Double, width: Double, height: Double) -> RASceneList {
         bounds = CGRect(x: 0, y: 0, width: width, height: height)
