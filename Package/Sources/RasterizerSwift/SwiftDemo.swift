@@ -16,6 +16,7 @@ class SwiftDemo: NSObject {
         swiftApp.pageDelegate = self
         swiftApp.pageName = PageID.LogIn()
         let dict: Store.DictType = [
+            Key.hidden() : false,
             Key.flag()   : false,
             Key.paused() : false,
             Key.slider() : 0.0,
@@ -103,11 +104,12 @@ extension SwiftDemo: RASceneListDelegate {
     }
     func getListAtTime(_ time: Double, width: Double, height: Double) -> RASceneList {
         bounds = CGRect(x: 0, y: 0, width: width, height: height)
-        let t = paused ? slider : time - floor(time)
         let list = RASceneList()
-        list.add(drawables[index].getSceneAtTime(t, bounds: bounds, state: self))
-        list.add(pastedScene ?? RAScene())
-        
+        if !hidden {
+            let t = paused ? slider : time - floor(time)
+            list.add(drawables[index].getSceneAtTime(t, bounds: bounds, state: self))
+            list.add(pastedScene ?? RAScene())
+        }
         appCtm = ctm.inverted()
         if let pageName = swiftApp.pageName {
             let pageCtm = CGAffineTransform.identity
@@ -140,6 +142,7 @@ extension SwiftDemo: SwiftApp.PageDelegate {
         case settings
         case debug
         
+        case hidden
         case flag
         case paused
         case slider
@@ -162,6 +165,9 @@ extension SwiftDemo: SwiftApp.PageDelegate {
     }
     var debug: Store.DictType? {
         swiftApp.store.getValue(key: Key.debug()) as? Store.DictType
+    }
+    var hidden: Bool {
+        settings?[Key.hidden()] as? Bool ?? false
     }
     var index: Int {
         (settings?[Key.index()] as? NSRange)?.location ?? 0
