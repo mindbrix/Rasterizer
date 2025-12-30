@@ -51,28 +51,33 @@ struct RasterizerCoreText {
     }
     
     static CGRect addFrameToScene(CTFrameRef frame, NSArray<NSValue *> *excludes, CGAffineTransform ctm, CGRect clip, Ra::SceneRef& scene, GlyphCache& cache) {
-        CGRect bounds = CGRectZero;
+        CGRect bounds = CGRectNull;
         CGRect rect = CGPathGetBoundingBox(CTFrameGetPath(frame));
         CFArrayRef lines = CTFrameGetLines(frame);
         CFIndex lineCount = CFArrayGetCount(lines);
         Ra::Vector<CGPoint> origins(lineCount);
         CTFrameGetLineOrigins(frame, CFRangeMake(0, 0), & origins[0]);
         for (int i = 0; i < lineCount; i++) {
-            CGAffineTransform m = CGAffineTransformTranslate(ctm,
-                rect.origin.x + origins[i].x,
-                rect.origin.y + origins[i].y);
+            CGFloat tx = rect.origin.x + origins[i].x;
+            CGFloat ty = rect.origin.y + origins[i].y;
+            CGAffineTransform m = CGAffineTransformTranslate(ctm, tx, ty);
             CTLineRef line = (CTLineRef)CFArrayGetValueAtIndex(lines, i);
-            bounds = CGRectUnion(bounds, addCTLineToScene(line, excludes, m, clip, scene, cache));
+            CGRect runBounds = addCTLineToScene(line, excludes, m, clip, scene, cache);
+            bounds = CGRectUnion(bounds, CGRectApplyAffineTransform(runBounds, CGAffineTransformMakeTranslation(tx, ty)));
         }
-        return bounds;
+        CGFloat dy = CGRectGetMaxY(rect) - CGRectGetMaxY(bounds);
+        return CGRectMake(bounds.origin.x, bounds.origin.y, bounds.size.width, bounds.size.height + dy);
     }
     
     static CGRect addCTLineToScene(CTLineRef line, NSArray<NSValue *> *excludes, CGAffineTransform ctm, CGRect clip, Ra::SceneRef& scene, GlyphCache& cache) {
         Ra::Bounds clipBounds = CGRectIsNull(clip) || CGRectIsEmpty(clip) || CGRectIsInfinite(clip) ? Ra::Bounds::huge() : RaCG::BoundsFromCGRect(clip);
-        CGRect bounds = CGRectZero;
+        CGRect bounds = CGRectNull;
         CFArrayRef glyphRuns = CTLineGetGlyphRuns(line);
         for (int i = 0; i < CFArrayGetCount(glyphRuns); i++) {
             CTRunRef run = (CTRunRef)CFArrayGetValueAtIndex(glyphRuns, i);
+            CGRect imageBounds = CTRunGetImageBounds(run, NULL, CFRangeMake(0, 0));
+            bounds = CGRectUnion(bounds, imageBounds);
+            
             BOOL exclude = false;
             NSUInteger location = CTRunGetStringRange(run).location;
             for (NSValue *value in excludes) {
@@ -97,33 +102,27 @@ struct RasterizerCoreText {
             CGColorRef cgBackgroundColor = GetCGColor(attributes, CFSTR("NSBackgroundColor"), kCTBackgroundColorAttributeName);
             
             if (cgBackgroundColor) {
-                CGRect imageBounds = CTRunGetImageBounds(run, NULL, CFRangeMake(0, 0));
                 Ra::Path bgPath;
                 bgPath->addBounds(RaCG::BoundsFromCGRect(imageBounds));
                 Ra::Color bgColor = RaCG::colorFromCG(cgBackgroundColor);
                 Ra::Transform m = RaCG::transformFromCG(ctm);
                 scene->addPath(bgPath, m, bgColor, 0, 0, & clipBounds);
             }
-            
             Ra::Color color = RaCG::colorFromCG(cgColor);
             for (int j = 0; j < count; j++) {
                 Ra::Transform m = RaCG::transformFromCG(CGAffineTransformTranslate(ctm, positions[j].x, positions[j].y));
                 auto key = hash + glyphs[j];
                 auto it = cache.find(key);
-                CGRect pathBounds = CGRectZero;
-                if (it != cache.end()) {
+                if (it != cache.end())
                     scene->addPath(it->second, m, color, 0, 0, & clipBounds);
-                    pathBounds = RaCG::CGRectFromBounds(it->second->bounds);
-                } else {
+                else {
                     Ra::Path path;
                     CGPathRef cgPath = CTFontCreatePathForGlyph(font, glyphs[j], NULL);
                     RaCG::writeCGPathToPath(cgPath, path);
                     CGPathRelease(cgPath);
                     cache.emplace(key, path);
                     scene->addPath(path, m, color, 0, 0, & clipBounds);
-                    pathBounds = RaCG::CGRectFromBounds(path->bounds);
                 }
-                bounds = CGRectUnion(bounds, CGRectApplyAffineTransform(pathBounds, CGAffineTransformTranslate(ctm, positions[j].x, positions[j].y)));
             }
         }
         return bounds;

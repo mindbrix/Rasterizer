@@ -57,7 +57,7 @@ class SwiftApp {
     }
     weak var pageDelegate: PageDelegate?
     var pageName: String?
-    var font = Font(name: "HelveticaNeue-Medium", size: 20)
+    var font = Font(name: "HelveticaNeue-Medium", size: 16)
     let store = Store()
     var observed: [String: Set<Store.KeyType>] = [:]
     var tappables: [Tappable] = []
@@ -154,8 +154,10 @@ class SwiftApp {
         frame.applyRuns({ range, bounds in
             self.tapMap[range] = bounds
         })
+        scene.strokeRect(bounds, width: -1, paint: RAPaint())
         let excludes = tappables.filter{ $0.exclude }
-        scene.add(frame, excludes: excludes.map{ NSValue(range: $0.range) }, ctm: .identity, clip: .zero)
+        let rect = scene.add(frame, excludes: excludes.map{ NSValue(range: $0.range) }, ctm: .identity, clip: .zero)
+        scene.strokeRect(rect, width: -1, paint: RAPaint())
         for exclude in excludes {
             if let b = tapMap[exclude.range], let dict = store.getValue(key: exclude.control.key) as? Store.DictType {
                 let isActive = (tapped?.range ?? NSRange()) == exclude.range
