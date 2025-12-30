@@ -102,7 +102,7 @@ class TestQuadratics: RADrawable {
         let height = bounds.height
         let dim = min(width, height)
         let stroke = (state.flag ? 1e-2 : 1e-1) * dim
-        let sine = sin(time * 2 * Double.pi)
+        let sine = cos(time * 2 * Double.pi)
         let color = RAPaint(gray: 0, alpha: 1)
         
         let path = RAPath()
