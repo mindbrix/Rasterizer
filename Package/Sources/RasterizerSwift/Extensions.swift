@@ -64,14 +64,15 @@ extension RAScene {
         let white = RAPaint(gray: 1, alpha: 1)
         let gray = RAPaint(gray: 0.66, alpha: 1)
         let corner = 0.5 * min(rect.width, rect.height)
-        addFill(RAPath(roundedRect: rect, cornerWidth: corner, cornerHeight: corner), ctm: .identity, color: flag ? paint : gray, evenOdd: false)
         let inset = fontSize / 12
         let innerRect = rect.insetBy(dx:inset, dy: inset)
         let radius = 0.5 * innerRect.height
         let cx = flag ? innerRect.maxX - radius : innerRect.minX + radius
         let b = CGRect(x: cx - radius, y: innerRect.midY - radius, width: 2 * radius, height: 2 * radius)
-        
-        addFill(RAPath(ellipse: b), ctm: .identity, color: white, evenOdd: false)
+        let roundedRect = RAPath(roundedRect: rect, cornerWidth: corner, cornerHeight: corner)
+        let ellipse = RAPath(ellipse: b)
+        addFill(roundedRect, ctm: .identity, color: flag ? paint : gray, evenOdd: false)
+        addFill(ellipse, ctm: .identity, color: white, evenOdd: false)
     }
     
     func addSlider(_ slider: Double, in rect: CGRect, paint: RAPaint, fontSize: Double) {
@@ -108,7 +109,6 @@ extension RAScene {
         rounded.close()
         rounded.move(to: rect.midX, y: rect.minY + corner)
         rounded.line(to: rect.midX, y: rect.maxY - corner)
-        addStroke(rounded, ctm: .identity, color: gray, width: width, capStyle: .capButt, joinStyle: .joinMiter)
         
         let glyphs = RAPath()
         glyphs.move(to: x0 - radius, y: rect.midY)
@@ -117,6 +117,8 @@ extension RAScene {
         glyphs.line(to: x1 + radius, y: rect.midY)
         glyphs.move(to: x1, y: rect.midY - radius)
         glyphs.line(to: x1, y: rect.midY + radius)
+        
+        addStroke(rounded, ctm: .identity, color: gray, width: width, capStyle: .capButt, joinStyle: .joinMiter)
         addStroke(glyphs, ctm: .identity, color: paint, width: width, capStyle: .capButt, joinStyle: .joinMiter)
     }
     

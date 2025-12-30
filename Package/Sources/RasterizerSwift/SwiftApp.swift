@@ -123,6 +123,8 @@ class SwiftApp {
         }
         var hasher = Hasher()
         hasher.combine(bounds)
+        hasher.combine(font.name)
+        hasher.combine(font.size)
         hasher.combine(pageName)
         hasher.combine(tapped?.range ?? NSRange())
         for key in (observed[pageName] ?? []).enumerated() {
