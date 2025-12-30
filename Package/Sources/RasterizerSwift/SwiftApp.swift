@@ -247,8 +247,7 @@ class SwiftApp {
                     } else if let value = value as? CustomStringConvertible {
                         placeholder = String(describing: value)
                     }
-                    placeholder = "\t" + placeholder + "\n"
-                    range = mutable.appendString(placeholder)
+                    range = mutable.appendString("\t" + placeholder + "\n")
                     tappables.append(Tappable(control: control, subKey: subKey, range: range, exclude: true))
                     mutable.addAttribute(.foregroundColor, value: Colors.gray, range: range)
                 }
@@ -263,16 +262,15 @@ class SwiftApp {
                     range = mutable.appendString("\t\(subKey):")
                     mutable.addAttribute(.foregroundColor, value: Colors.gray, range: range)
                     
-                    var placeholder = ""
+                    var label = ""
                      if let slider = value as? Double {
-                         placeholder = String(format: "%.2f", slider)
+                         label = String(format: "%.2f", slider)
                     } else if let range = value as? NSRange {
-                        placeholder = String(range.location)
+                        label = String(range.location)
                     } else if let value = value as? CustomStringConvertible {
-                        placeholder = String(describing: value)
+                        label = String(describing: value)
                     }
-                    placeholder = "\t" + placeholder + "\n"
-                    range = mutable.appendString(placeholder)
+                    range = mutable.appendString("\t" + label + "\n")
                     mutable.addAttribute(.foregroundColor, value: Colors.black, range: range)
                 }
             }
