@@ -51,27 +51,34 @@ struct Colors {
     static let gray = CGColor(gray: 0.66, alpha: 1)
 }
 
+struct PageEntry {
+    let tappables: [Tappable]
+    let tapMap: OrderedDictionary<NSRange, CGRect>
+    let hash: Int
+    let scene: RAScene
+}
+
 class SwiftApp {
     protocol PageDelegate: AnyObject {
         func controlsFor(_ pageName: String) -> [Control]?
     }
     weak var pageDelegate: PageDelegate?
-    var pageName: String?
     var font = Font(name: "HelveticaNeue-Medium", size: 16)
     let store = Store()
+    
+    var pageName: String?
     var observed: [String: Set<Store.KeyType>] = [:]
-    var tappables: [Tappable] = []
-    var showTapMap = false
-    var tapMap: OrderedDictionary<NSRange, CGRect> = [:]
+    var pageMap: [String: PageEntry] = [:]
+    
     var tapped: Tappable?
     var down: CGPoint = .zero
     var last: CGPoint = .zero
-    var lastHash: Int?
-    var lastScene: RAScene?
+    var showTapMap = false
     
     func mouseDown(_ bounds: CGRect, p: CGPoint) {
-        guard let element = tapMap.enumerated().reversed().filter({ $0.element.value.contains(p) }).first?.element,
-              let tappable = tappables.filter({ $0.range.contains(element.key.location) }).first
+        guard let pageName, let entry = pageMap[pageName],
+              let element = entry.tapMap.enumerated().reversed().filter({ $0.element.value.contains(p) }).first?.element,
+              let tappable = entry.tappables.filter({ $0.range.contains(element.key.location) }).first
         else {
             return
         }
@@ -134,25 +141,20 @@ class SwiftApp {
             }
         }
         let hash = hasher.finalize()
-        if hash == (lastHash ?? 0), let lastScene {
-            return lastScene
+        if let entry = pageMap[pageName], hash == entry.hash {
+            return entry.scene
         }
+        observed[pageName] = .init(controls.map{ $0.key })
         
-        observed.removeAll()
-        for control in controls {
-            let key = control.key
-            let set = observed[pageName] ?? []
-            observed[pageName] = set.union([key])
-        }
         let tuple = tappablesAndStringForControls(controls)
-        tappables = tuple.0
+        let tappables = tuple.0
         let frame = RAFrame(
             attributedString: tuple.1,
             in: bounds.withGutter()
         )
-        tapMap.removeAll()
+        var tapMap: OrderedDictionary<NSRange, CGRect> = [:]
         frame.applyRuns({ range, bounds in
-            self.tapMap[range] = bounds
+            tapMap[range] = bounds
         })
         scene.strokeRect(bounds, width: -1, paint: RAPaint())
         let excludes = tappables.filter{ $0.exclude }
@@ -178,8 +180,7 @@ class SwiftApp {
                 scene.strokeRect(b, width: -1, paint: RAPaint())
             }
         }
-        lastHash = hash
-        lastScene = scene
+        pageMap[pageName] = PageEntry(tappables: tappables, tapMap: tapMap, hash: hash, scene: scene)
         return scene
     }
     
