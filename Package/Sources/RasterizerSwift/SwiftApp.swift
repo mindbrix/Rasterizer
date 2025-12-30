@@ -52,10 +52,10 @@ struct Colors {
 }
 
 struct PageEntry {
-    let tappables: [Tappable]
-    let tapMap: OrderedDictionary<NSRange, CGRect>
     let hash: Int
     let scene: RAScene
+    let tappables: [Tappable]
+    let tapMap: OrderedDictionary<NSRange, CGRect>
 }
 
 class SwiftApp {
@@ -180,7 +180,7 @@ class SwiftApp {
                 scene.strokeRect(b, width: -1, paint: RAPaint())
             }
         }
-        pageMap[pageName] = PageEntry(tappables: tappables, tapMap: tapMap, hash: hash, scene: scene)
+        pageMap[pageName] = PageEntry(hash: hash, scene: scene, tappables: tappables, tapMap: tapMap)
         return scene
     }
     
