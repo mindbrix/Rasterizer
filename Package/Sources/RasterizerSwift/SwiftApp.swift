@@ -123,9 +123,9 @@ class SwiftApp {
         self.tapped = nil
     }
     
-    func createSceneIn(_ bounds: CGRect) -> RAScene {
+    func sceneFor(_ pageName: String, in bounds: CGRect) -> RAScene {
         let scene = RAScene()
-        guard let pageName, let pageDelegate, let controls = pageDelegate.controlsFor(pageName) else {
+        guard let pageDelegate, let controls = pageDelegate.controlsFor(pageName) else {
             return scene
         }
         var hasher = Hasher()

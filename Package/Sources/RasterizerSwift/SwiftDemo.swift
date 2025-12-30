@@ -51,7 +51,8 @@ class SwiftDemo: NSObject {
     ]
     
     var ctm = CGAffineTransform.identity
-    var mouseCtm = CGAffineTransform.identity
+    var pageCtms: [String: CGAffineTransform] = [:]
+    var appCtm = CGAffineTransform.identity
     var bounds = CGRect.zero
     var pastedScene: RAScene?
     
@@ -74,11 +75,11 @@ class SwiftDemo: NSObject {
             scene.addText(attributed, in: bounds, ctm: .identity, clip: .zero)
             pastedScene = scene
         case .mouseDown(let p, _):
-            swiftApp.mouseDown(bounds, p: p.applying(mouseCtm))
+            swiftApp.mouseDown(bounds, p: p.applying(mouseCtmFor(swiftApp.pageName)))
         case .mouseMove(let p, _):
-            swiftApp.mouseMoved(bounds, p: p.applying(mouseCtm))
+            swiftApp.mouseMoved(bounds, p: p.applying(mouseCtmFor(swiftApp.pageName)))
         case .mouseUp(let p, _):
-            swiftApp.mouseUp(bounds, p: p.applying(mouseCtm))
+            swiftApp.mouseUp(bounds, p: p.applying(mouseCtmFor(swiftApp.pageName)))
         case .magnify(let scale):
             ctm = ctm.concatAroundCenter(t: CGAffineTransform(scaleX: scale, y: scale), cx: bounds.midX, cy: bounds.midY)
         case .rotate(let angle):
@@ -101,15 +102,23 @@ extension SwiftDemo: RASceneListDelegate {
         let list = RASceneList()
         list.add(drawables[index].getSceneAtTime(t, bounds: bounds, state: self))
         list.add(pastedScene ?? RAScene())
-        let appCtm = ctm.inverted()
-        list.add(swiftApp.createSceneIn(bounds), ctm: appCtm, clip: .zero)
-        mouseCtm = ctm.concatenating(appCtm).inverted()
+        
+        appCtm = ctm.inverted()
+        if let pageName = swiftApp.pageName {
+            let pageCtm = CGAffineTransform(translationX: swiftApp.font.size, y: swiftApp.font.size)
+            pageCtms[pageName] = pageCtm
+            list.add(swiftApp.sceneFor(pageName, in: bounds), ctm: pageCtm.concatenating(appCtm), clip: .zero)
+        }
         list.ctm = ctm
         list.useClips = useClips;
         list.useCurves = useCurves
         list.showOpaques = showOpaques
         list.showOutlines = showOutlines
         return list
+    }
+    
+    func mouseCtmFor(_ page: String?) -> CGAffineTransform {
+        ctm.concatenating(appCtm.concatenating(pageCtms[page ?? ""] ?? .identity)).inverted()
     }
 }
 
