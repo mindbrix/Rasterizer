@@ -182,6 +182,9 @@ class SwiftApp {
         )
         var tapMap: OrderedDictionary<NSRange, CGRect> = [:]
         frame.applyRuns({ range, bounds in
+            guard !tappables.filter({ $0.range.contains(range.location) }).isEmpty else {
+                return
+            }
             tapMap[range] = bounds
         })
         let excludes = tappables.filter{ $0.exclude }
