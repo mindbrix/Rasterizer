@@ -20,7 +20,9 @@ class SwiftDemo: NSObject {
             Key.paused() : false,
             Key.slider() : 0.0,
             Key.rect(): false,
-            Key.index()  : NSRange(location: 0, length: drawables.count),
+            Key.index()  : NSRange(location: 0, length: drawables.count)
+        ]
+        let settings: Store.DictType = [
             Key.outlines(): false,
             Key.opaques() : true,
             Key.clips()    : true,
@@ -29,6 +31,9 @@ class SwiftDemo: NSObject {
         swiftApp.store.setValue(
             value: dict,
             key: Key.dict())
+        swiftApp.store.setValue(
+            value: settings,
+            key: Key.settings())
     }
     enum Event {
         case keyDown(character: Character, flags: NSEvent.ModifierFlags)
@@ -105,7 +110,7 @@ extension SwiftDemo: RASceneListDelegate {
         
         appCtm = ctm.inverted()
         if let pageName = swiftApp.pageName {
-            let pageCtm = CGAffineTransform(translationX: swiftApp.font.size, y: swiftApp.font.size)
+            let pageCtm = CGAffineTransform.identity
             pageCtms[pageName] = pageCtm
             list.add(swiftApp.sceneFor(pageName, in: bounds), ctm: pageCtm.concatenating(appCtm), clip: .zero)
         }
@@ -133,6 +138,8 @@ extension SwiftDemo: SwiftApp.PageDelegate {
     }
     enum Key: String, CaseIterable {
         case dict
+        case settings
+        
         case flag
         case paused
         case slider
@@ -153,6 +160,9 @@ extension SwiftDemo: SwiftApp.PageDelegate {
     var dict: Store.DictType? {
         swiftApp.store.getValue(key: Key.dict()) as? Store.DictType
     }
+    var settings: Store.DictType? {
+        swiftApp.store.getValue(key: Key.settings()) as? Store.DictType
+    }
     var index: Int {
         (dict?[Key.index()] as? NSRange)?.location ?? 0
     }
@@ -169,22 +179,23 @@ extension SwiftDemo: SwiftApp.PageDelegate {
         dict?[Key.rect()] as? Bool ?? false
     }
     var showOutlines: Bool {
-        dict?[Key.outlines()] as? Bool ?? false
+        settings?[Key.outlines()] as? Bool ?? false
     }
     var showOpaques: Bool {
-        dict?[Key.opaques()] as? Bool ?? false
+        settings?[Key.opaques()] as? Bool ?? false
     }
     var useClips: Bool {
-        dict?[Key.clips()] as? Bool ?? false
+        settings?[Key.clips()] as? Bool ?? false
     }
     var useCurves: Bool {
-        dict?[Key.curves()] as? Bool ?? false
+        settings?[Key.curves()] as? Bool ?? false
     }
     
     func controlsFor(_ pageName: String) -> [Control]? {
         switch PageID(rawValue: pageName) {
         case .LogIn: [
             Control(key: Key.dict(), closure: nil),
+            Control(key: Key.settings(), closure: nil),
             Control(key: Key.reset(), closure: { [weak self] _, _ in
                 self?.ctm = .identity
                 return nil
