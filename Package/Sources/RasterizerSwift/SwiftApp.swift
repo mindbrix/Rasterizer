@@ -25,24 +25,27 @@ class Store {
     var dict: DictType = [:]
 }
 
+extension Mirror {
+    static func stringFor(_ value: Any) -> String {
+        let mirror = Mirror(reflecting: value)
+        if mirror.children.isEmpty {
+            return String(describing: value) + "\n"
+        } else {
+            return mirror.children.reduce("", { result, child in
+                if let tuple = child.value as? (String, Any) {
+                    return result + "\t" + tuple.0 + "\t" + String(describing: tuple.1) + "\n"
+                }
+                return result + String(describing: child.value) + "\n"
+            })
+        }
+    }
+}
+
 extension Store.DictType {
     var string: String {
-        var string = "\n"
-        for (key, value) in self {
-            string = string + key + ":"
-            let mirror = Mirror(reflecting: value)
-            if mirror.children.isEmpty {
-                string = string + String(describing: value) + "\n"
-            } else {
-                string = string + mirror.children.reduce("", { result, child in
-                    if let tuple = child.value as? (String, Any) {
-                        return result + "\t" + tuple.0 + "\t" + String(describing: tuple.1) + "\n"
-                    }
-                    return result + String(describing: child.value) + "\n"
-                })
-            }
-        }
-        return string
+        self.reduce("\n", { result, elem in
+            result + elem.key + ":" + Mirror.stringFor(elem.value)
+        })
     }
 }
 
@@ -273,29 +276,34 @@ class SwiftApp {
                     mutable.addAttribute(.foregroundColor, value: Colors.gray, range: range)
                 }
             case .readonly:
-                guard let dict = store.getValue(key: control.key) as? Store.DictType else {
-                    continue
-                }
                 var range = mutable.appendString("\(control.key):\n")
                 mutable.addAttribute(.foregroundColor, value: Colors.gray, range: range)
                 
-                for (subKey, value) in dict {
-                    range = mutable.appendString("\t\(subKey):")
-                    mutable.addAttribute(.foregroundColor, value: Colors.gray, range: range)
-                    
-                    var label = ""
-                    if let slider = value as? Double {
-                         label = String(format: "%.2f", slider)
-                    } else if let range = value as? NSRange {
-                        label = String(range.location)
-                    } else if let value = value as? Store.DictType {
-                        label = value.string
-                    } else if let value = value as? CustomStringConvertible {
-                        label = String(describing: value)
-                    }
-                    range = mutable.appendString("\t" + label + "\n")
-                    mutable.addAttribute(.foregroundColor, value: Colors.black, range: range)
+                guard let value = store.getValue(key: control.key) else {
+                    continue
                 }
+                var label = ""
+                if let dict = value as? Store.DictType {
+                    for (subKey, value) in dict {
+                        range = mutable.appendString("\t\(subKey):")
+                        mutable.addAttribute(.foregroundColor, value: Colors.gray, range: range)
+                        if let slider = value as? Double {
+                            label = String(format: "%.2f", slider)
+                        } else if let range = value as? NSRange {
+                            label = String(range.location)
+                        } else if let value = value as? Store.DictType {
+                            label = value.string
+                        } else if let value = value as? CustomStringConvertible {
+                            label = String(describing: value)
+                        }
+                    }
+                } else if let convertible = value as? CustomStringConvertible {
+                    label = String(describing: convertible)
+                } else {
+                    label = Mirror.stringFor(value)
+                }
+                range = mutable.appendString("\t" + label + "\n")
+                mutable.addAttribute(.foregroundColor, value: Colors.black, range: range)
             }
         }
         let ctFont = CTFontCreateWithName(font.name as CFString, font.size, nil)
