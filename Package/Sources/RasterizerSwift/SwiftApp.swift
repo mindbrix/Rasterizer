@@ -25,22 +25,6 @@ class Store {
     var dict: DictType = [:]
 }
 
-extension Mirror {
-    static func stringFor(_ value: Any) -> String {
-        let mirror = Mirror(reflecting: value)
-        if mirror.children.isEmpty {
-            return String(describing: value) + "\n"
-        } else {
-            return mirror.children.reduce("", { result, child in
-                if let tuple = child.value as? (String, Any) {
-                    return result + "\t" + tuple.0 + "\t" + String(describing: tuple.1) + "\n"
-                }
-                return result + String(describing: child.value) + "\n"
-            })
-        }
-    }
-}
-
 struct Control {
     enum Mode {
         case button, mutable, readonly

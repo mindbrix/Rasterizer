@@ -58,6 +58,21 @@ extension NSMutableAttributedString {
         return range
     }
     
+    func appendMirror(_ mirror: Mirror, keyColor: CGColor, valueColor: CGColor, indent: Int = 0) -> NSRange {
+        let begin = length
+        
+        for child in mirror.children {
+            _ = appendString(String(repeating: "\t", count: indent))
+            addAttribute(.foregroundColor,
+                value: keyColor,
+                range: appendString((child.label ?? "") + ":\t"))
+            addAttribute(.foregroundColor,
+                         value: valueColor,
+                range: appendString(String(describing: child.value) + "\n"))
+        }
+        return NSRange(location: begin, length: length - begin)
+    }
+    
     func appendValue(_ value: Any, keyColor: CGColor, valueColor: CGColor, indent: Int = 0) -> NSRange {
         let begin = length
         if let dict = value as? Store.DictType {
@@ -89,7 +104,7 @@ extension NSMutableAttributedString {
         } else if let convertible = value as? CustomStringConvertible {
             _ = appendString(String(describing: convertible))
         } else {
-            _ = appendString(Mirror.stringFor(value))
+            _ = appendMirror(Mirror(reflecting: value), keyColor: keyColor, valueColor: valueColor, indent: indent)
         }
         return NSRange(location: begin, length: length - begin)
     }
