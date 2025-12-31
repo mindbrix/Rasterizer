@@ -17,7 +17,7 @@ class SwiftDemo: NSObject {
         swiftApp.pageName = PageID.LogIn()
         let settings: Store.DictType = [
             Key.flag()   : false,
-            Key.paused() : false,
+            Key.paused() : true,
             Key.slider() : 0.0,
             Key.rect(): false,
             Key.index()  : NSRange(location: 0, length: drawables.count)
@@ -208,16 +208,6 @@ extension SwiftDemo: SwiftApp.PageDelegate {
         case .LogIn: [
             Control(key: Key.settings(), mode: .mutable, closure: nil),
             Control(key: Key.debug(), mode: .mutable, closure: nil),
-            Control(key: Key.text(), mode: .readonly, closure: nil),
-            Control(key: Key.text(), mode: .button, closure: { [weak self] store, key in
-                let value = store.getValue(key: key)
-                if let _ = value as? Font {
-                    store.setValue(value: self?.swiftApp.store.getValue(key: Key.settings()), key: key)
-                } else {
-                    store.setValue(value: self?.swiftApp.font, key: key)
-                }
-                return nil
-            }),
             Control(key: Key.reset(), mode: .button, closure: { [weak self] _, _ in
                 self?.ctm = .identity
                 return nil
@@ -227,7 +217,17 @@ extension SwiftDemo: SwiftApp.PageDelegate {
                 print("\(tapcount)")
                 store.setValue(value: tapcount + 1, key: key)
                 return tapcount == 2 ? PageID.Home() : nil
-            })
+            }),
+            Control(key: Key.text(), mode: .button, closure: { [weak self] store, key in
+                let value = store.getValue(key: key)
+                if let _ = value as? Font {
+                    store.setValue(value: self?.swiftApp.store.getValue(key: Key.settings()), key: key)
+                } else {
+                    store.setValue(value: self?.swiftApp.font, key: key)
+                }
+                return nil
+            }),
+            Control(key: Key.text(), mode: .readonly, closure: nil),
         ]
         case .Home: [
             Control(key: Key.button(), mode: .button, closure: { store, key in

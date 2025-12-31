@@ -39,7 +39,7 @@ extension CGRect: @retroactive Hashable {
 }
 
 extension CGRect {
-    func withGutter() -> CGRect {
+    func withGutter(width: CGFloat) -> CGRect {
         let gutter = height
         return CGRect(
             x: minX, y: minY - gutter,
@@ -88,7 +88,7 @@ extension NSMutableAttributedString {
                 _ = appendString(String(repeating: "\t", count: indent))
                 addAttribute(.foregroundColor,
                     value: keyColor,
-                    range: appendString("\(subKey):"))
+                    range: appendString("\(subKey):\t"))
                 
                 if let value = value as? Store.DictType {
                     _ = appendString("\n")
