@@ -57,6 +57,36 @@ extension NSMutableAttributedString {
         append(string)
         return range
     }
+    
+    func appendValue(_ value: Any, keyColor: CGColor, valueColor: CGColor) -> NSRange {
+        let begin = length
+        if let dict = value as? Store.DictType {
+            for (subKey, value) in dict {
+                let range = appendString("\t\t\(subKey):")
+                addAttribute(.foregroundColor, value: keyColor, range: range)
+                let start = length
+                if let slider = value as? Double {
+                    _ = appendString(String(format: "%.2f", slider))
+                } else if let range = value as? NSRange {
+                    _ = appendString(String(range.location))
+                } else if let value = value as? Store.DictType {
+                    _ = appendValue(value, keyColor: keyColor, valueColor: valueColor)
+                } else if let value = value as? CustomStringConvertible {
+                    _ = appendString(String(describing: value))
+                }
+                addAttribute(.foregroundColor,
+                    value: Colors.black,
+                    range: NSRange(location: start, length: length - start))
+            }
+        } else if let convertible = value as? CustomStringConvertible {
+            _ = appendString(String(describing: convertible))
+        } else {
+            _ = appendString(Mirror.stringFor(value))
+        }
+        _ = appendString("\n")
+        
+        return NSRange(location: begin, length: length - begin)
+    }
 }
 
 extension RAScene {

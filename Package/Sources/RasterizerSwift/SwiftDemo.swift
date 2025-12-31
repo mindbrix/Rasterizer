@@ -15,7 +15,7 @@ class SwiftDemo: NSObject {
         super.init()
         swiftApp.pageDelegate = self
         swiftApp.pageName = PageID.LogIn()
-        let dict: Store.DictType = [
+        let settings: Store.DictType = [
             Key.hidden() : false,
             Key.flag()   : false,
             Key.paused() : false,
@@ -24,7 +24,7 @@ class SwiftDemo: NSObject {
             Key.index()  : NSRange(location: 0, length: drawables.count)
         ]
         swiftApp.store.setValue(
-            value: dict,
+            value: settings,
             key: Key.settings())
         
         let debug: Store.DictType = [

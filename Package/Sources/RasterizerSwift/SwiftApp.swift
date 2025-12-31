@@ -240,6 +240,23 @@ class SwiftApp {
     }
     
     func tappablesAndStringForControls(_ controls: [Control]) -> ([Tappable], NSAttributedString) {
+        let ctFont = CTFontCreateWithName(font.name as CFString, font.size, nil)
+        let mutableParagraphStyle = NSMutableParagraphStyle()
+        mutableParagraphStyle.alignment = .left
+        mutableParagraphStyle.lineBreakMode = .byWordWrapping
+        mutableParagraphStyle.tabStops = [
+            NSTextTab(type: .leftTabStopType, location: font.size),
+            NSTextTab(type: .rightTabStopType, location: 8 * font.size)
+        ]
+        let readonlyParagraphStyle = NSMutableParagraphStyle()
+        readonlyParagraphStyle.alignment = .left
+        readonlyParagraphStyle.lineBreakMode = .byWordWrapping
+        readonlyParagraphStyle.tabStops = [
+            NSTextTab(type: .leftTabStopType, location: font.size),
+            NSTextTab(type: .leftTabStopType, location: 2 * font.size),
+            NSTextTab(type: .leftTabStopType, location: 3 * font.size),
+            NSTextTab(type: .leftTabStopType, location: 4 * font.size)
+        ]
         var tappables: [Tappable] = []
         let mutable = NSMutableAttributedString()
         
@@ -250,17 +267,20 @@ class SwiftApp {
                 let isActive = (tapped?.range ?? NSRange()) == range
                 mutable.addAttribute(.foregroundColor, value: isActive ? Colors.red : Colors.blue, range: range)
                 tappables.append(Tappable(control: control, subKey: control.key, range: range, exclude: false))
-                continue
+                mutable.addAttribute(.paragraphStyle, value: mutableParagraphStyle, range: range)
             case .mutable:
                 guard let dict = store.getValue(key: control.key) as? Store.DictType else {
                     continue
                 }
-                var range = mutable.appendString("\(control.key):\n")
-                mutable.addAttribute(.foregroundColor, value: Colors.gray, range: range)
+                let length0 = mutable.length
+                mutable.addAttribute(.foregroundColor,
+                    value: Colors.gray,
+                    range: mutable.appendString("\(control.key):\n"))
                 
                 for (subKey, value) in dict {
-                    range = mutable.appendString("\t\(subKey):")
-                    mutable.addAttribute(.foregroundColor, value: Colors.black, range: range)
+                    mutable.addAttribute(.foregroundColor,
+                        value: Colors.black,
+                        range: mutable.appendString("\t\(subKey):"))
                     var placeholder = ""
                     if let _ = value as? Bool {
                         placeholder = "flag"
@@ -271,51 +291,24 @@ class SwiftApp {
                     } else if let value = value as? CustomStringConvertible {
                         placeholder = String(describing: value)
                     }
-                    range = mutable.appendString("\t" + placeholder + "\n")
+                    let range = mutable.appendString("\t" + placeholder + "\n")
                     tappables.append(Tappable(control: control, subKey: subKey, range: range, exclude: true))
                     mutable.addAttribute(.foregroundColor, value: Colors.gray, range: range)
+        
+                    mutable.addAttribute(.paragraphStyle, value: mutableParagraphStyle, range: NSRange(location: length0, length: mutable.length - length0))
                 }
             case .readonly:
-                var range = mutable.appendString("\(control.key):\n")
-                mutable.addAttribute(.foregroundColor, value: Colors.gray, range: range)
-                
-                guard let value = store.getValue(key: control.key) else {
-                    continue
+                mutable.addAttribute(.foregroundColor,
+                    value: Colors.gray,
+                    range: mutable.appendString("\(control.key):\n"))
+                if let value = store.getValue(key: control.key) {
+                    mutable.addAttribute(.paragraphStyle,
+                        value: readonlyParagraphStyle,
+                        range: mutable.appendValue(value, keyColor: Colors.gray, valueColor: Colors.black))
                 }
-                var label = ""
-                if let dict = value as? Store.DictType {
-                    for (subKey, value) in dict {
-                        range = mutable.appendString("\t\(subKey):")
-                        mutable.addAttribute(.foregroundColor, value: Colors.gray, range: range)
-                        if let slider = value as? Double {
-                            label = String(format: "%.2f", slider)
-                        } else if let range = value as? NSRange {
-                            label = String(range.location)
-                        } else if let value = value as? Store.DictType {
-                            label = value.string
-                        } else if let value = value as? CustomStringConvertible {
-                            label = String(describing: value)
-                        }
-                    }
-                } else if let convertible = value as? CustomStringConvertible {
-                    label = String(describing: convertible)
-                } else {
-                    label = Mirror.stringFor(value)
-                }
-                range = mutable.appendString("\t" + label + "\n")
-                mutable.addAttribute(.foregroundColor, value: Colors.black, range: range)
             }
         }
-        let ctFont = CTFontCreateWithName(font.name as CFString, font.size, nil)
         let range = NSRange(location: 0, length: mutable.length)
-        let paragraphStyle = NSMutableParagraphStyle()
-        paragraphStyle.alignment = .left
-        paragraphStyle.lineBreakMode = .byWordWrapping
-        paragraphStyle.tabStops = [
-            NSTextTab(type: .leftTabStopType, location: font.size),
-            NSTextTab(type: .rightTabStopType, location: 8 * font.size)
-        ]
-        mutable.addAttribute(.paragraphStyle, value: paragraphStyle, range: range)
         mutable.addAttribute(.font, value: ctFont, range: range)
         return (tappables, mutable)
     }
