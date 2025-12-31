@@ -87,7 +87,7 @@ class SwiftApp {
     var tapped: Tappable?
     var down: CGPoint = .zero
     var last: CGPoint = .zero
-    var showTapMap = true
+    var showTapMap = false
     
     func mouseDown(_ bounds: CGRect, p: CGPoint) {
         guard let pageName, let entry = pageMap[pageName],
