@@ -35,10 +35,6 @@ class SwiftDemo: NSObject {
         swiftApp.store.setValue(
             value: debug,
             key: Key.debug())
-        
-        swiftApp.store.setValue(
-            value: settings,
-            key: Key.text())
     }
     enum Event {
         case keyDown(character: Character, flags: NSEvent.ModifierFlags)
@@ -162,7 +158,6 @@ extension SwiftDemo: SwiftApp.PageDelegate {
         case outlines
         case reset = "reset ctm"
         case button
-        case text
         
         func callAsFunction() -> String {
             rawValue
@@ -218,16 +213,7 @@ extension SwiftDemo: SwiftApp.PageDelegate {
                 store.setValue(value: tapcount + 1, key: key)
                 return tapcount == 2 ? PageID.Home() : nil
             }),
-            Control(key: Key.text(), mode: .button, closure: { [weak self] store, key in
-                let value = store.getValue(key: key)
-                if let _ = value as? Font {
-                    store.setValue(value: self?.swiftApp.store.getValue(key: Key.settings()), key: key)
-                } else {
-                    store.setValue(value: self?.swiftApp.font, key: key)
-                }
-                return nil
-            }),
-            Control(key: Key.text(), mode: .readonly, closure: nil),
+            Control(key: Key.settings(), mode: .readonly, closure: nil),
         ]
         case .Home: [
             Control(key: Key.button(), mode: .button, closure: { store, key in
