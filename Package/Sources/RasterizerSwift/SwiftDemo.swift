@@ -212,7 +212,12 @@ extension SwiftDemo: SwiftApp.PageDelegate {
             Control(key: Key.debug(), mode: .mutable, closure: nil),
             Control(key: Key.text(), mode: .readonly, closure: nil),
             Control(key: Key.text(), mode: .button, closure: { [weak self] store, key in
-                store.setValue(value: self?.swiftApp.font, key: key)
+                let value = store.getValue(key: key)
+                if let _ = value as? Font {
+                    store.setValue(value: self?.swiftApp.store.dict, key: key)
+                } else {
+                    store.setValue(value: self?.swiftApp.font, key: key)
+                }
                 return nil
             }),
             Control(key: Key.reset(), mode: .button, closure: { [weak self] _, _ in
