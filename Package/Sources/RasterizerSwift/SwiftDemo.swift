@@ -38,7 +38,7 @@ class SwiftDemo: NSObject {
             key: Key.debug())
         
         swiftApp.store.setValue(
-            value: swiftApp.store.dict,
+            value: settings,
             key: Key.text())
     }
     enum Event {
@@ -214,7 +214,7 @@ extension SwiftDemo: SwiftApp.PageDelegate {
             Control(key: Key.text(), mode: .button, closure: { [weak self] store, key in
                 let value = store.getValue(key: key)
                 if let _ = value as? Font {
-                    store.setValue(value: self?.swiftApp.store.dict, key: key)
+                    store.setValue(value: self?.swiftApp.store.getValue(key: Key.settings()), key: key)
                 } else {
                     store.setValue(value: self?.swiftApp.font, key: key)
                 }

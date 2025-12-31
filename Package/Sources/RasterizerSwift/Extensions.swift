@@ -75,29 +75,26 @@ extension NSMutableAttributedString {
     
     func appendValue(_ value: Any, keyColor: CGColor, valueColor: CGColor, indent: Int = 0) -> NSRange {
         let begin = length
-        if let dict = value as? Store.DictType {
+        if let slider = value as? Double {
+            addAttribute(.foregroundColor,
+                value: valueColor,
+                range: appendString(String(format: "%.2f", slider)))
+        } else if let range = value as? NSRange {
+            addAttribute(.foregroundColor,
+                value: valueColor,
+                range: appendString(String(range.location)))
+        } else if let dict = value as? Store.DictType {
             for (subKey, value) in dict {
                 _ = appendString(String(repeating: "\t", count: indent))
                 addAttribute(.foregroundColor,
                     value: keyColor,
                     range: appendString("\(subKey):"))
-                if let slider = value as? Double {
-                    addAttribute(.foregroundColor,
-                        value: valueColor,
-                        range: appendString(String(format: "%.2f", slider)))
-                    _ = appendString("\n")
-                } else if let range = value as? NSRange {
-                    addAttribute(.foregroundColor,
-                        value: valueColor,
-                        range: appendString(String(range.location)))
-                    _ = appendString("\n")
-                } else if let value = value as? Store.DictType {
+                
+                if let value = value as? Store.DictType {
                     _ = appendString("\n")
                     _ = appendValue(value, keyColor: keyColor, valueColor: valueColor, indent: indent + 1)
-                } else if let value = value as? CustomStringConvertible {
-                    addAttribute(.foregroundColor,
-                        value: valueColor,
-                        range: appendString(String(describing: value)))
+                } else {
+                    _ = appendValue(value, keyColor: keyColor, valueColor: valueColor, indent: indent)
                     _ = appendString("\n")
                 }
             }
