@@ -60,6 +60,8 @@ typedef void (^CTRunApplyBlock)(NSRange range, CGRect bounds);
 typedef void (^CTLineApplyBlock)(CTLineRef _Nonnull, CGPoint origin);
 
 @interface RAFrame: NSObject
++ (double)lineHeightForFont:(nonnull NSString *)named size:(double)size;
+
 - (nonnull id)initWithAttributedString:(nonnull NSAttributedString *)attributedString inRect:(CGRect)rect;
 - (void)applyRuns:(nonnull CTRunApplyBlock)block;
 - (void)applyLines:(nonnull CTLineApplyBlock)block;

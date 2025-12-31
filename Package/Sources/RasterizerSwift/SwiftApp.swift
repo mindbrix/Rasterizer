@@ -87,7 +87,7 @@ class SwiftApp {
     var tapped: Tappable?
     var down: CGPoint = .zero
     var last: CGPoint = .zero
-    var showTapMap = false
+    var showTapMap = true
     
     func mouseDown(_ bounds: CGRect, p: CGPoint) {
         guard let pageName, let entry = pageMap[pageName],
@@ -205,6 +205,16 @@ class SwiftApp {
             }
         }
         if self.showTapMap {
+            let height = RAFrame.lineHeight(forFont: font.name, size: font.size)
+            var y = bounds.maxY
+            while y > bounds.minY {
+                let b = CGRect(x: bounds.minX, y: y - height, width: bounds.width, height: height)
+                scene.strokeRect(b, width: -1, paint: RAPaint())
+                
+                y = y - height
+            }
+           
+            
             scene.strokeRect(bounds, width: -1, paint: RAPaint())
             scene.strokeRect(rect, width: -1, paint: RAPaint())
             for b in tapMap.values {

@@ -24,7 +24,7 @@ class SwiftDemo: NSObject {
         ]
         swiftApp.store.setValue(
             value: settings,
-            key: Key.settings())
+            key: Key.Settings())
         
         let debug: Store.DictType = [
             Key.outlines(): false,
@@ -144,7 +144,7 @@ extension SwiftDemo: SwiftApp.PageDelegate {
         }
     }
     enum Key: String, CaseIterable {
-        case settings
+        case Settings
         case debug
         
         case flag
@@ -165,7 +165,7 @@ extension SwiftDemo: SwiftApp.PageDelegate {
     }
     
     var settings: Store.DictType? {
-        swiftApp.store.getValue(key: Key.settings()) as? Store.DictType
+        swiftApp.store.getValue(key: Key.Settings()) as? Store.DictType
     }
     var debug: Store.DictType? {
         swiftApp.store.getValue(key: Key.debug()) as? Store.DictType
@@ -201,7 +201,7 @@ extension SwiftDemo: SwiftApp.PageDelegate {
     func controlsFor(_ pageName: String) -> [Control]? {
         switch PageID(rawValue: pageName) {
         case .LogIn: [
-            Control(key: Key.settings(), mode: .mutable, closure: nil),
+            Control(key: Key.Settings(), mode: .mutable, closure: nil),
             Control(key: Key.debug(), mode: .mutable, closure: nil),
             Control(key: Key.reset(), mode: .button, closure: { [weak self] _, _ in
                 self?.ctm = .identity
@@ -213,7 +213,7 @@ extension SwiftDemo: SwiftApp.PageDelegate {
                 store.setValue(value: tapcount + 1, key: key)
                 return tapcount == 2 ? PageID.Home() : nil
             }),
-            Control(key: Key.settings(), mode: .readonly, closure: nil),
+            Control(key: Key.Settings(), mode: .readonly, closure: nil),
         ]
         case .Home: [
             Control(key: Key.button(), mode: .button, closure: { store, key in

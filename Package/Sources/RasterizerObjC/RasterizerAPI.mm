@@ -213,6 +213,10 @@
 
 
 @implementation RAFrame: NSObject
++ (double)lineHeightForFont:(nonnull NSString *)named size:(double)size {
+    return RaCT::lineHeightFor(named.UTF8String, size);
+}
+
 - (id)initWithAttributedString:(nonnull NSAttributedString *)attributedString inRect:(CGRect)rect {
     self = [super init];
     if (!self)

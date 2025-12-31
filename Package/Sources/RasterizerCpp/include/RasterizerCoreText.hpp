@@ -158,6 +158,17 @@ struct RasterizerCoreText {
         return attributes;
     }
     
+    static float lineHeightFor(const char *fontName, float size) {
+        CFStringRef cfFontName = CFStringCreateWithCString(kCFAllocatorDefault, fontName, kCFStringEncodingUTF8);
+        CTFontRef ctFont = CTFontCreateWithName(cfFontName, size, NULL);
+        CGFloat ascent = CTFontGetAscent(ctFont);
+        CGFloat descent = CTFontGetDescent(ctFont);
+        CGFloat leading = CTFontGetLeading(ctFont);
+        CFRelease(ctFont);
+        CFRelease(cfFontName);
+        return floor(ascent + 0.5) + floor(descent + 0.5) + floor(fmax(0, leading) + 0.5);
+    }
+    
     static float fontSizeForLineHeight(const char *fontName, float height) {
         CFStringRef cfFontName = CFStringCreateWithCString(kCFAllocatorDefault, fontName, kCFStringEncodingUTF8);
         CTFontRef ctFont = CTFontCreateWithName(cfFontName, height, NULL);
