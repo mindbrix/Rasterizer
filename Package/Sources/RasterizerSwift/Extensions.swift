@@ -39,6 +39,11 @@ extension CGRect: @retroactive Hashable {
 }
 
 extension CGRect {
+    func snappedTo(lineHeight: CGFloat, in b: CGRect) -> CGRect {
+        let ly = b.maxY - ceil((b.maxY - minY) / lineHeight) * lineHeight
+        let uy = b.maxY - floor((b.maxY - maxY) / lineHeight) * lineHeight
+        return CGRect(x: minX, y: ly, width: width, height: uy - ly)
+    }
     func withGutter(width: CGFloat) -> CGRect {
         let gutter = height
         return CGRect(

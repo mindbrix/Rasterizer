@@ -206,17 +206,8 @@ class SwiftApp {
         }
         if self.showTapMap {
             let height = RAFrame.lineHeight(forFont: font.name, size: font.size)
-            var y = bounds.maxY
-            while y > bounds.minY {
-                let b = CGRect(x: bounds.minX, y: y - height, width: bounds.width, height: height)
-                scene.strokeRect(b, width: -1, paint: RAPaint())
-                
-                y = y - height
-            }
-           
-            
             scene.strokeRect(bounds, width: -1, paint: RAPaint())
-            scene.strokeRect(rect, width: -1, paint: RAPaint())
+            scene.strokeRect(rect.snappedTo(lineHeight: height, in: bounds), width: -1, paint: RAPaint())
             for b in tapMap.values {
                 scene.strokeRect(b, width: -1, paint: RAPaint())
             }

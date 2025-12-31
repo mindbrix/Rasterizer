@@ -65,8 +65,7 @@ struct RasterizerCoreText {
             CGRect runBounds = addCTLineToScene(line, excludes, m, clip, scene, cache);
             bounds = CGRectUnion(bounds, CGRectApplyAffineTransform(runBounds, CGAffineTransformMakeTranslation(tx, ty)));
         }
-        CGFloat dy = CGRectGetMaxY(rect) - CGRectGetMaxY(bounds);
-        return CGRectMake(bounds.origin.x, bounds.origin.y, bounds.size.width, bounds.size.height + dy);
+        return bounds;
     }
     
     static CGRect addCTLineToScene(CTLineRef line, NSArray<NSValue *> *excludes, CGAffineTransform ctm, CGRect clip, Ra::SceneRef& scene, GlyphCache& cache) {

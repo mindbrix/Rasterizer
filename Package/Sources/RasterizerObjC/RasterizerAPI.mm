@@ -180,17 +180,23 @@
     _path->close();
 }
 - (void)addRect:(CGRect)rect {
-    _path->addBounds(RaCG::BoundsFromCGRect(rect));
+    if (CGRectGetWidth(rect) > 0 && CGRectGetHeight(rect) > 0) {
+        _path->addBounds(RaCG::BoundsFromCGRect(rect));
+    }
 }
 - (void)addEllipse:(CGRect)rect {
-    _path->addEllipse(RaCG::BoundsFromCGRect(rect));
+    if (CGRectGetWidth(rect) > 0 && CGRectGetHeight(rect) > 0) {
+        _path->addEllipse(RaCG::BoundsFromCGRect(rect));
+    }
 }
 - (void)addRoundedRect:(CGRect)rect
            cornerWidth:(double)cornerWidth
           cornerHeight:(double)cornerHeight {
-    CGPathRef cgPath = CGPathCreateWithRoundedRect(rect, cornerWidth, cornerHeight, NULL);
-    [self addCGPath:cgPath];
-    CGPathRelease(cgPath);
+    if (CGRectGetWidth(rect) > 0 && CGRectGetHeight(rect) > 0) {
+        CGPathRef cgPath = CGPathCreateWithRoundedRect(rect, cornerWidth, cornerHeight, NULL);
+        [self addCGPath:cgPath];
+        CGPathRelease(cgPath);
+    }
 }
 - (void)addCGPath:(CGPathRef)cgPath {
     RaCG::writeCGPathToPath(cgPath, _path);
