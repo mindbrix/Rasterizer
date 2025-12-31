@@ -170,7 +170,7 @@ struct RasterizerDemo {
         hud->addPath(bgPath, Ra::Transform(), bgColor, 0, 0);
         
         float lineHeight = text.height() / kHudItemCount, uy;
-        float fontSize = RaCT::fontSizeForLineHeight(fontName.addr, lineHeight);
+        float fontSize = lineHeight * lineHeight / RaCT::lineHeightFor(fontName.addr, lineHeight);
         
         for (size_t i = 0; i < kHudItemCount; i++) {
             HudItem& item = hudItems[i];

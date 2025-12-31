@@ -168,33 +168,18 @@ struct RasterizerCoreText {
         return floor(ascent + 0.5) + floor(descent + 0.5) + floor(fmax(0, leading) + 0.5);
     }
     
-    static float fontSizeForLineHeight(const char *fontName, float height) {
-        CFStringRef cfFontName = CFStringCreateWithCString(kCFAllocatorDefault, fontName, kCFStringEncodingUTF8);
-        CTFontRef ctFont = CTFontCreateWithName(cfFontName, height, NULL);
-        CGFloat ascent = CTFontGetAscent(ctFont);
-        CGFloat descent = CTFontGetDescent(ctFont);
-        CGFloat leading = floor(fmax(0, CTFontGetLeading(ctFont)) + 0.5);
-        CGFloat lineHeight = floor(ascent + 0.5) + floor(descent + 0.5) + leading;
-        CGFloat ascenderDelta = leading > 0 ? 0 : floor(0.2 * lineHeight + 0.5);
-        CGFloat defaultLineHeight = lineHeight + ascenderDelta;
-        CFRelease(ctFont);
-        CFRelease(cfFontName);
-        return height * height / defaultLineHeight;
-    }
-    
     static Ra::SceneRef writeGlyphGrid(const char *fontName, float lineHeight, Ra::Color color) {
         Ra::SceneRef scene;
+        float scale = lineHeight * lineHeight / lineHeightFor(fontName, lineHeight);
         CFStringRef cfFontName = CFStringCreateWithCString(kCFAllocatorDefault, fontName, kCFStringEncodingUTF8);
-        CTFontRef ctFont = CTFontCreateWithName(cfFontName, 1, NULL);
+        CTFontRef ctFont = CTFontCreateWithName(cfFontName, scale, NULL);
         CFIndex glyphCount = CTFontGetGlyphCount(ctFont);
-        float scale = fontSizeForLineHeight(fontName, lineHeight);
-        
         if (glyphCount) {
             for (int d = ceilf(sqrtf(glyphCount)), glyph = 0; glyph <glyphCount; glyph++) {
                 CGPathRef cgPath = CTFontCreatePathForGlyph(ctFont, glyph, NULL);
                 Ra::Path path;
                 RaCG::writeCGPathToPath(cgPath, path);
-                scene->addPath(path, Ra::Transform(scale, 0.f, 0.f, scale, scale * float(glyph % d), scale * float(glyph / d)), color, 0.f, 0);
+                scene->addPath(path, Ra::Transform(1, 0.f, 0.f, 1, lineHeight * float(glyph % d), lineHeight * float(glyph / d)), color, 0.f, 0);
                 CGPathRelease(cgPath);
             }
         }
