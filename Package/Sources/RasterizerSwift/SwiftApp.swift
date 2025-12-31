@@ -25,6 +25,27 @@ class Store {
     var dict: DictType = [:]
 }
 
+extension Store.DictType {
+    var string: String {
+        var string = "\n"
+        for (key, value) in self {
+            string = string + key + ":"
+            let mirror = Mirror(reflecting: value)
+            if mirror.children.isEmpty {
+                string = string + String(describing: value) + "\n"
+            } else {
+                string = string + mirror.children.reduce("", { result, child in
+                    if let tuple = child.value as? (String, Any) {
+                        return result + "\t" + tuple.0 + "\t" + String(describing: tuple.1) + "\n"
+                    }
+                    return result + String(describing: child.value) + "\n"
+                })
+            }
+        }
+        return string
+    }
+}
+
 struct Control {
     enum Mode {
         case button, mutable, readonly
@@ -241,7 +262,7 @@ class SwiftApp {
                     if let _ = value as? Bool {
                         placeholder = "flag"
                     } else if let _ = value as? Double {
-                        placeholder = "sligeeer"
+                        placeholder = "slydeer"
                     } else if let _ = value as? NSRange {
                         placeholder = "Rang"
                     } else if let value = value as? CustomStringConvertible {
@@ -263,10 +284,12 @@ class SwiftApp {
                     mutable.addAttribute(.foregroundColor, value: Colors.gray, range: range)
                     
                     var label = ""
-                     if let slider = value as? Double {
+                    if let slider = value as? Double {
                          label = String(format: "%.2f", slider)
                     } else if let range = value as? NSRange {
                         label = String(range.location)
+                    } else if let value = value as? Store.DictType {
+                        label = value.string
                     } else if let value = value as? CustomStringConvertible {
                         label = String(describing: value)
                     }
@@ -274,7 +297,6 @@ class SwiftApp {
                     mutable.addAttribute(.foregroundColor, value: Colors.black, range: range)
                 }
             }
-            
         }
         let ctFont = CTFontCreateWithName(font.name as CFString, font.size, nil)
         let range = NSRange(location: 0, length: mutable.length)

@@ -23,18 +23,23 @@ class SwiftDemo: NSObject {
             Key.rect(): false,
             Key.index()  : NSRange(location: 0, length: drawables.count)
         ]
-        let settings: Store.DictType = [
+        swiftApp.store.setValue(
+            value: dict,
+            key: Key.settings())
+        
+        let debug: Store.DictType = [
             Key.outlines(): false,
             Key.opaques() : true,
             Key.clips()    : true,
             Key.curves()   : true
         ]
         swiftApp.store.setValue(
-            value: dict,
-            key: Key.settings())
-        swiftApp.store.setValue(
-            value: settings,
+            value: debug,
             key: Key.debug())
+        
+        swiftApp.store.setValue(
+            value: swiftApp.store.dict,
+            key: Key.text())
     }
     enum Event {
         case keyDown(character: Character, flags: NSEvent.ModifierFlags)
@@ -156,6 +161,7 @@ extension SwiftDemo: SwiftApp.PageDelegate {
         case outlines
         case reset = "reset ctm"
         case button
+        case text
         
         func callAsFunction() -> String {
             rawValue
@@ -204,6 +210,7 @@ extension SwiftDemo: SwiftApp.PageDelegate {
         case .LogIn: [
             Control(key: Key.settings(), mode: .mutable, closure: nil),
             Control(key: Key.debug(), mode: .mutable, closure: nil),
+            Control(key: Key.text(), mode: .readonly, closure: nil),
             Control(key: Key.reset(), mode: .button, closure: { [weak self] _, _ in
                 self?.ctm = .identity
                 return nil
