@@ -41,14 +41,6 @@ extension Mirror {
     }
 }
 
-extension Store.DictType {
-    var string: String {
-        self.reduce("\n", { result, elem in
-            result + elem.key + ":" + Mirror.stringFor(elem.value)
-        })
-    }
-}
-
 struct Control {
     enum Mode {
         case button, mutable, readonly
