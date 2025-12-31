@@ -144,25 +144,6 @@ class SwiftApp {
         return pageHash != hashFor(pageName, in: bounds)
     }
     
-    func hashFor(_ pageName: String, in bounds: CGRect) -> Int {
-        guard let pageDelegate, let controls = pageDelegate.controlsFor(pageName) else {
-            return 0
-        }
-        var hasher = Hasher()
-        hasher.combine(controls)
-        hasher.combine(bounds)
-        hasher.combine(font.name)
-        hasher.combine(font.size)
-        hasher.combine(pageName)
-        hasher.combine(tapped?.range ?? NSRange())
-        for key in (observed[pageName] ?? []) {
-            hasher.combine(key)
-            if let object = store.getValue(key: key) as? CustomStringConvertible {
-                hasher.combine(String(describing: object))
-            }
-        }
-        return hasher.finalize()
-    }
     func sceneFor(_ pageName: String, in bounds: CGRect) -> RAScene {
         let scene = RAScene()
         guard let pageDelegate, let controls = pageDelegate.controlsFor(pageName) else {
@@ -256,8 +237,6 @@ class SwiftApp {
                         placeholder = "slydeer"
                     } else if let _ = value as? NSRange {
                         placeholder = "Rang"
-                    } else if let value = value as? CustomStringConvertible {
-                        placeholder = String(describing: value)
                     }
                     let range = mutable.appendString("\t" + placeholder + "\n")
                     tappables.append(Tappable(control: control, subKey: subKey, range: range, exclude: true))
@@ -279,5 +258,25 @@ class SwiftApp {
         let range = NSRange(location: 0, length: mutable.length)
         mutable.addAttribute(.font, value: ctFont, range: range)
         return (tappables, mutable)
+    }
+    
+    func hashFor(_ pageName: String, in bounds: CGRect) -> Int {
+        guard let pageDelegate, let controls = pageDelegate.controlsFor(pageName) else {
+            return 0
+        }
+        var hasher = Hasher()
+        hasher.combine(controls)
+        hasher.combine(bounds)
+        hasher.combine(font.name)
+        hasher.combine(font.size)
+        hasher.combine(pageName)
+        hasher.combine(tapped?.range ?? NSRange())
+        for key in (observed[pageName] ?? []) {
+            hasher.combine(key)
+            if let object = store.getValue(key: key) as? CustomStringConvertible {
+                hasher.combine(String(describing: object))
+            }
+        }
+        return hasher.finalize()
     }
 }
