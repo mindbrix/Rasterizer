@@ -103,7 +103,6 @@ class SwiftDemo: NSObject {
 extension SwiftDemo: RASceneListDelegate {
     func shouldRedraw(atTime time: Double, width: Double, height: Double) -> Bool {
         bounds = CGRect(x: 0, y: 0, width: width, height: height)
-        appCtm = ctm.inverted()
         let should = redraw || !paused || swiftApp.shouldRedraw(swiftApp.pageName ?? "", in: bounds)
         redraw = false
         return should
