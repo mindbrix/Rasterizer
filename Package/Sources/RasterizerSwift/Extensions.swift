@@ -70,10 +70,12 @@ extension NSMutableAttributedString {
                     addAttribute(.foregroundColor,
                         value: valueColor,
                         range: appendString(String(format: "%.2f", slider)))
+                    _ = appendString("\n")
                 } else if let range = value as? NSRange {
                     addAttribute(.foregroundColor,
                         value: valueColor,
                         range: appendString(String(range.location)))
+                    _ = appendString("\n")
                 } else if let value = value as? Store.DictType {
                     _ = appendString("\n")
                     _ = appendValue(value, keyColor: keyColor, valueColor: valueColor, indent: indent + 1)
@@ -81,15 +83,14 @@ extension NSMutableAttributedString {
                     addAttribute(.foregroundColor,
                         value: valueColor,
                         range: appendString(String(describing: value)))
+                    _ = appendString("\n")
                 }
-                _ = appendString("\n")
             }
         } else if let convertible = value as? CustomStringConvertible {
             _ = appendString(String(describing: convertible))
         } else {
             _ = appendString(Mirror.stringFor(value))
         }
-        
         return NSRange(location: begin, length: length - begin)
     }
 }

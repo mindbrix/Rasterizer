@@ -211,6 +211,10 @@ extension SwiftDemo: SwiftApp.PageDelegate {
             Control(key: Key.settings(), mode: .mutable, closure: nil),
             Control(key: Key.debug(), mode: .mutable, closure: nil),
             Control(key: Key.text(), mode: .readonly, closure: nil),
+            Control(key: Key.text(), mode: .button, closure: { [weak self] store, key in
+                store.setValue(value: self?.swiftApp.font, key: key)
+                return nil
+            }),
             Control(key: Key.reset(), mode: .button, closure: { [weak self] _, _ in
                 self?.ctm = .identity
                 return nil
