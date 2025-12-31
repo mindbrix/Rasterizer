@@ -304,7 +304,7 @@ class SwiftApp {
                 if let value = store.getValue(key: control.key) {
                     mutable.addAttribute(.paragraphStyle,
                         value: readonlyParagraphStyle,
-                        range: mutable.appendValue(value, keyColor: Colors.gray, valueColor: Colors.black))
+                        range: mutable.appendValue(value, keyColor: Colors.gray, valueColor: Colors.black, indent: 1))
                 }
             }
         }

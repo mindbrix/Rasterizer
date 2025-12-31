@@ -58,32 +58,37 @@ extension NSMutableAttributedString {
         return range
     }
     
-    func appendValue(_ value: Any, keyColor: CGColor, valueColor: CGColor) -> NSRange {
+    func appendValue(_ value: Any, keyColor: CGColor, valueColor: CGColor, indent: Int = 0) -> NSRange {
         let begin = length
         if let dict = value as? Store.DictType {
             for (subKey, value) in dict {
-                let range = appendString("\t\t\(subKey):")
-                addAttribute(.foregroundColor, value: keyColor, range: range)
-                let start = length
-                if let slider = value as? Double {
-                    _ = appendString(String(format: "%.2f", slider))
-                } else if let range = value as? NSRange {
-                    _ = appendString(String(range.location))
-                } else if let value = value as? Store.DictType {
-                    _ = appendValue(value, keyColor: keyColor, valueColor: valueColor)
-                } else if let value = value as? CustomStringConvertible {
-                    _ = appendString(String(describing: value))
-                }
+                _ = appendString(String(repeating: "\t", count: indent))
                 addAttribute(.foregroundColor,
-                    value: Colors.black,
-                    range: NSRange(location: start, length: length - start))
+                    value: keyColor,
+                    range: appendString("\(subKey):"))
+                if let slider = value as? Double {
+                    addAttribute(.foregroundColor,
+                        value: valueColor,
+                        range: appendString(String(format: "%.2f", slider)))
+                } else if let range = value as? NSRange {
+                    addAttribute(.foregroundColor,
+                        value: valueColor,
+                        range: appendString(String(range.location)))
+                } else if let value = value as? Store.DictType {
+                    _ = appendString("\n")
+                    _ = appendValue(value, keyColor: keyColor, valueColor: valueColor, indent: indent + 1)
+                } else if let value = value as? CustomStringConvertible {
+                    addAttribute(.foregroundColor,
+                        value: valueColor,
+                        range: appendString(String(describing: value)))
+                }
+                _ = appendString("\n")
             }
         } else if let convertible = value as? CustomStringConvertible {
             _ = appendString(String(describing: convertible))
         } else {
             _ = appendString(Mirror.stringFor(value))
         }
-        _ = appendString("\n")
         
         return NSRange(location: begin, length: length - begin)
     }
