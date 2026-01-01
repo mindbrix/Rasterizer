@@ -246,7 +246,7 @@ class SwiftApp {
                 }
             case .readonly:
                 if let value = store.getValue(key: control.key) {
-                    _ = mutable.appendKey(control.key, value: value, keyColor: Colors.gray, valueColor: Colors.black, indent: 2)
+                    _ = mutable.appendKey(control.key, value: value, keyColor: Colors.gray, valueColor: Colors.black, fontSize: font.size, indent: 0)
                 }
             }
         }
