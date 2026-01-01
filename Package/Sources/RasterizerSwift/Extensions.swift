@@ -112,6 +112,31 @@ extension NSMutableAttributedString {
     }
 }
 
+extension Hasher {
+    mutating func combineMirror(_ mirror: Mirror) {
+        for child in mirror.children {
+            combine(child.label ?? "")
+            combineValue(child.value)
+        }
+    }
+    mutating func combineValue(_ value: Any) {
+        if let slider = value as? Double {
+            combine(slider)
+        } else if let range = value as? NSRange {
+            combine(range)
+        } else if let dict = value as? Store.DictType {
+            for (subKey, value) in dict {
+                combine(subKey)
+                combineValue(value)
+            }
+        } else if let convertible = value as? CustomStringConvertible {
+            combine(String(describing: convertible))
+        } else {
+            combineMirror(Mirror(reflecting: value))
+        }
+    }
+}
+
 extension RAScene {
     func addFlag(_ flag: Bool, in rect: CGRect, paint: RAPaint, fontSize: Double) {
         let white = RAPaint(gray: 1, alpha: 1)

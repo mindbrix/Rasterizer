@@ -273,8 +273,8 @@ class SwiftApp {
         hasher.combine(tapped?.range ?? NSRange())
         for key in (observed[pageName] ?? []) {
             hasher.combine(key)
-            if let object = store.getValue(key: key) as? CustomStringConvertible {
-                hasher.combine(String(describing: object))
+            if let value = store.getValue(key: key) {
+                hasher.combineValue(value)
             }
         }
         return hasher.finalize()
