@@ -91,21 +91,11 @@ extension NSMutableAttributedString {
             addAttribute(.foregroundColor, value: valueColor, range: range)
             _ = appendString("\n")
         } else {
-            _ = appendMirror(Mirror(reflecting: value), keyColor: keyColor, valueColor: valueColor)
-        }
-        return NSRange(location: begin, length: length - begin)
-    }
-    
-    func appendMirror(_ mirror: Mirror, keyColor: CGColor, valueColor: CGColor, indent: Int = 0) -> NSRange {
-        let begin = length
-        for child in mirror.children {
-            _ = appendString(String(repeating: "\t", count: indent))
-            addAttribute(.foregroundColor,
-                value: keyColor,
-                range: appendString((child.label ?? "") + ":\t"))
-            addAttribute(.foregroundColor,
-                         value: valueColor,
-                range: appendString(String(describing: child.value) + "\n"))
+            _ = appendString("\n")
+            let mirror = Mirror(reflecting: value)
+            for child in mirror.children {
+                _ = appendKey(child.label ?? "", value: child.value, keyColor: keyColor, valueColor: valueColor, indent: indent + 1)
+            }
         }
         return NSRange(location: begin, length: length - begin)
     }
