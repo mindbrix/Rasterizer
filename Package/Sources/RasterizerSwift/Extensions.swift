@@ -44,7 +44,7 @@ extension CGRect {
         let uy = b.maxY - floor((b.maxY - maxY) / lineHeight) * lineHeight
         return CGRect(x: minX, y: ly, width: width, height: uy - ly)
     }
-    func withGutter(width: CGFloat) -> CGRect {
+    func withGutter() -> CGRect {
         let gutter = height
         return CGRect(
             x: minX, y: minY - gutter,

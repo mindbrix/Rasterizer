@@ -36,7 +36,7 @@ class SwiftDemo: NSObject {
             value: debug,
             key: Key.debug())
         swiftApp.store.setValue(
-            value: 0.0,
+            value: swiftApp.store.dict,
             key: Key.test())
     }
     enum Event {

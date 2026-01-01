@@ -159,7 +159,7 @@ class SwiftApp {
         let tappables = tuple.0
         let frame = RAFrame(
             attributedString: tuple.1,
-            in: bounds.withGutter(width: 8 * font.size)
+            in: bounds.withGutter()
         )
         var tapMap: OrderedDictionary<NSRange, CGRect> = [:]
         frame.applyRuns({ range, bounds in
