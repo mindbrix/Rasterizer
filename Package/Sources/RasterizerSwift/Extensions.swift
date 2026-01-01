@@ -65,6 +65,17 @@ extension NSMutableAttributedString {
         }
     }
     
+    func styleFor(_ indent: Int) -> NSParagraphStyle {
+        let style = NSMutableParagraphStyle()
+        style.alignment = .left
+        style.lineBreakMode = .byTruncatingTail
+        let size = 16.0
+        style.tabStops = [
+            NSTextTab(type: .leftTabStopType, location: CGFloat(indent + 0) * size),
+            NSTextTab(type: .rightTabStopType, location: CGFloat(indent + 7) * size)
+        ]
+        return style
+    }
     func appendString(_ string: String) -> NSRange {
         appendString(NSAttributedString(string: string))
     }
@@ -76,22 +87,29 @@ extension NSMutableAttributedString {
     }
     
     func appendKey(_ key: String, value: Any, keyColor: CGColor, valueColor: CGColor, indent: Int = 0) -> NSRange {
+        let style = styleFor(indent)
         let begin = length
-        _ = appendString(String(repeating: "\t", count: indent))
+        _ = appendString(String(repeating: "\t", count: min(1, indent)))
         addAttribute(.foregroundColor,
             value: keyColor,
             range: appendString("\(key):\t"))
         if let dict = value as? Store.DictType {
             _ = appendString("\n")
+            addAttribute(.paragraphStyle, value: style, range: NSRange(location: begin, length: length - begin))
+            
             for (subKey, value) in dict {
                 _ = appendKey(subKey, value: value, keyColor: keyColor, valueColor: valueColor, indent: indent + 1)
             }
         } else if let string = stringFor(value) {
             let range = appendString(string)
             addAttribute(.foregroundColor, value: valueColor, range: range)
+            
             _ = appendString("\n")
+            addAttribute(.paragraphStyle, value: style, range: NSRange(location: begin, length: length - begin))
         } else {
             _ = appendString("\n")
+            addAttribute(.paragraphStyle, value: style, range: NSRange(location: begin, length: length - begin))
+
             let mirror = Mirror(reflecting: value)
             for child in mirror.children {
                 _ = appendKey(child.label ?? "", value: child.value, keyColor: keyColor, valueColor: valueColor, indent: indent + 1)
