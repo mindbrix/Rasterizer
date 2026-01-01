@@ -49,7 +49,7 @@
 
 #pragma mark - SceneListDelegate
 
-- (BOOL)shouldRedrawAtTime:(double)time {
+- (BOOL)shouldRedrawAtTime:(double)time width:(double)width height:(double)height {
     return _demo.getShouldRedraw();
 }
 

@@ -212,8 +212,8 @@ struct Rasterizer {
         inline bool isNull() const {
             return lx == FLT_MAX && ly == FLT_MAX;
         }
-        inline bool isZero() const {
-            return lx == ux && ly == uy;
+        inline bool isValid() const {
+            return !isNull() && (ux - lx > 0.f || uy - ly > 0.f);
         }
         inline Bounds(const Transform quad) :
             lx(quad.tx + fminf(0.f, quad.a) + fminf(0.f, quad.c)),
@@ -264,23 +264,26 @@ struct Rasterizer {
             points.prealloc(2 * count), types.prealloc(count);
         }
         void addBounds(Bounds b) {
-            moveTo(b.lx, b.ly), lineTo(b.ux, b.ly), lineTo(b.ux, b.uy), lineTo(b.lx, b.uy), lineTo(b.lx, b.ly);
+            if (b.ux > b.lx && b.uy > b.ly)
+                moveTo(b.lx, b.ly), lineTo(b.ux, b.ly), lineTo(b.ux, b.uy), lineTo(b.lx, b.uy), lineTo(b.lx, b.ly);
         }
         void addEllipse(Bounds b) {
-            const float t = 0.5f - 2.f / 3.f * (M_SQRT2 - 1.f), s = 1.f - t, mx = 0.5f * (b.lx + b.ux), my = 0.5f * (b.ly + b.uy);
-            moveTo(b.ux, my);
-            cubicTo(b.ux, t * b.ly + s * b.uy, t * b.lx + s * b.ux, b.uy, mx, b.uy);
-            cubicTo(s * b.lx + t * b.ux, b.uy, b.lx, t * b.ly + s * b.uy, b.lx, my);
-            cubicTo(b.lx, s * b.ly + t * b.uy, s * b.lx + t * b.ux, b.ly, mx, b.ly);
-            cubicTo(t * b.lx + s * b.ux, b.ly, b.ux, s * b.ly + t * b.uy, b.ux, my);
+            if (b.ux > b.lx && b.uy > b.ly) {
+                const float t = 0.5f - 2.f / 3.f * (M_SQRT2 - 1.f), s = 1.f - t, mx = 0.5f * (b.lx + b.ux), my = 0.5f * (b.ly + b.uy);
+                moveTo(b.ux, my);
+                cubicTo(b.ux, t * b.ly + s * b.uy, t * b.lx + s * b.ux, b.uy, mx, b.uy);
+                cubicTo(s * b.lx + t * b.ux, b.uy, b.lx, t * b.ly + s * b.uy, b.lx, my);
+                cubicTo(b.lx, s * b.ly + t * b.uy, s * b.lx + t * b.ux, b.ly, mx, b.ly);
+                cubicTo(t * b.lx + s * b.ux, b.ly, b.ux, s * b.ly + t * b.uy, b.ux, my);
+            }
         }
         void moveTo(float x, float y) {
             validate();
             float *pts = points.alloc(2);  x0 = pts[0] = x, y0 = pts[1] = y, update(kMove, 1);
         }
         void lineTo(float x1, float y1) {
-            float ax = x1 - x0, ay = y1 - y0, dot = ax * ax + ay * ay;
-            if (dot == 0.f)
+            float ax = x1 - x0, ay = y1 - y0;
+            if (ax == 0.f && ay == 0.f)
                 return;
             float *pts = points.alloc(2);  x0 = pts[0] = x1, y0 = pts[1] = y1, update(kLine, 1);
         }
@@ -329,7 +332,7 @@ struct Rasterizer {
                 Bounds molecule;
                 for (size_t i = points.idx; i < points.end; i += 2)
                     molecule.extend(points.base[i], points.base[i + 1]);
-                if (!molecule.isZero()) {
+                if (molecule.isValid()) {
                     bounds.extend(molecule);
                     *(molecules.alloc(1)) = molecule;
                     for (size_t i = types.idx; i < types.end;) {
@@ -377,6 +380,10 @@ struct Rasterizer {
         Color(Color c0, Color c1, float t) {
             float s = 1.f - t;
             b = s * c0.b + t * c1.b, g = s * c0.g + t * c1.g, r = s * c0.r + t * c1.r, a = s * c0.a + t * c1.a;
+        }
+        Color premultiplied() const {
+            float alpha = a / 255.f;
+            return Color(b * alpha, g * alpha, r * alpha, a);
         }
         Component b, g, r, a;
     };
@@ -457,13 +464,13 @@ struct Rasterizer {
                     if (t >= *t0 && t <= *t1)
                         break;
                 t = fmaxf(0.f, fminf(1.f, (t - *t0) / (*t1 - *t0)));
-                dst[i] = Color(stops[loc], stops[loc + 1], t);
+                dst[i] = Color(stops[loc], stops[loc + 1], t).premultiplied();
             }
         }
         Type type = kColor;
         size_t refCount, xxhash = 0, w = 0, h = 0;
         Color color;
-        Vector<Color> colors, matched = colors;
+        Vector<Color> colors;
         Vector<float> locs;
         Transform ctm;
         Component minAlpha = 255, maxAlpha = 255;
@@ -548,17 +555,17 @@ struct Rasterizer {
         
         size_t refCount, count = 0, weight = 0, xxhash = 0, _xxhash = 0, fillcount = 0;
         RefVector<Path> paths;
-        Vector<uint32_t> p16bases;  uint32_t p16total = 0, stroketotal = 0;
+        Vector<uint32_t> p16bases;  uint32_t p16total = 0;
         RefVector<Path> clipPaths;
         Vector<uint32_t> clipIndices;
         Vector<Bounds> bnds, clips;
         Vector<Transform> ctms;
         RefVector<Paint> paints;
-        Vector<Color> colors, matchedColors = colors;
+        Vector<Color> colors;
         Vector<uint32_t> gradientIndices;
-        Vector<Color> gradients, matchedGradients = gradients;
+        Vector<Color> gradients;
         Vector<float> widths;
-        std::map<size_t, Entry> p16map, strokemap;
+        std::map<size_t, Entry> p16map;
         Vector<uint8_t> flags;
     };
     typedef Ref<Scene> SceneRef;
@@ -652,7 +659,8 @@ struct Rasterizer {
                 scenes.add(scene);
         
             size_t i, sizes[] = { sizeof(Color), sizeof(Transform), sizeof(Transform), sizeof(float), sizeof(Bounds), sizeof(Transform), sizeof(uint32_t) };
-            size_t count = sizeof(sizes) / sizeof(*sizes), base = 0, bases[count];
+            size_t count = sizeof(sizes) / sizeof(*sizes), base = 0;
+            Vector<size_t> bases(count);
             for (i = 0; i < count; i++)
                 bases[i] = base, base += (pathsCount + 1) * sizes[i];
             colors = bases[0], ctms = bases[1], clips = bases[2], widths = bases[3], bounds = bases[4], texCtms = bases[5], texIdxs = bases[6];
@@ -715,8 +723,8 @@ struct Rasterizer {
             uint16_t lx, i;
             inline bool operator< (const Index& other) const { return lx < other.lx; }
         };
-        Sample(float lx, float ux, float cover, size_t is): lx(lx), ux(ceilf(ux)), cover(int16_t(cover)), is(uint32_t(is)) {}
-        int16_t lx, ux, cover;  uint32_t is;
+        Sample(float lx, float ux, float cover, size_t is): lx(lx), ux(ceilf(ux)), cover(cover), is(uint32_t(is)) {}
+        int16_t lx, ux; float cover;  uint32_t is;
     };
     
     struct TexRef {
@@ -808,7 +816,7 @@ struct Rasterizer {
                         if (isGradient) {
                             texCtms[iz] = color->ctm.concat(m).invert();
                             size_t idx = scn->gradientIndices[is];
-                            texs.add(TexRef(iz, & scn->matchedGradients[idx]));
+                            texs.add(TexRef(iz, & scn->gradients[idx]));
                         } else if (isImage) {
                             texCtms[iz] = quad.invert();
                             new (blends.alloc(1)) Blend(iz | Instance::kIsImage | Instance::kNextImage);
@@ -818,7 +826,7 @@ struct Rasterizer {
                         if (list.params.showOutlines)
                             colors[iz] = uw == 0.f ? black : red;
                         else
-                            colors[iz] = scn->matchedColors[is];
+                            colors[iz] = scn->colors[is].premultiplied();
                         
                         ctms[iz] = m, widths[iz] = width, clips[iz] = invclip;
                         Geometry *g = scn->paths[is].ptr;
@@ -887,28 +895,29 @@ struct Rasterizer {
         Row<Sample::Index> indices;  RefVector<Row<Sample>> samples;  Row<uint32_t> segmentsIndices;
     };
     
-    static void radixSort(uint32_t *in, int n, uint32_t lower, uint32_t range, bool single, uint16_t *counts) {
+    static void radixSort(uint32_t *in, int size, uint32_t lower, uint32_t range, bool single, uint16_t *counts) {
         range = range < 4 ? 4 : range;
-        uint32_t tmp[n], mask = range - 1;
+        uint32_t mask = range - 1;
+        uint32_t *tmp = (uint32_t *)alloca(size * sizeof(uint32_t));
         memset(counts, 0, sizeof(uint16_t) * range);
-        for (int i = 0; i < n; i++)
+        for (int i = 0; i < size; i++)
             counts[(in[i] - lower) & mask]++;
         uint64_t *sums = (uint64_t *)counts, sum = 0, count;
         for (int i = 0; i < range / 4; i++) {
             count = sums[i], sum += count + (count << 16) + (count << 32) + (count << 48), sums[i] = sum;
             sum = sum & 0xFFFF000000000000, sum = sum | (sum >> 16) | (sum >> 32) | (sum >> 48);
         }
-        for (int i = n - 1; i >= 0; i--)
+        for (int i = size - 1; i >= 0; i--)
             tmp[--counts[(in[i] - lower) & mask]] = in[i];
         if (single)
-            memcpy(in, tmp, n * sizeof(uint32_t));
+            memcpy(in, tmp, size * sizeof(uint32_t));
         else {
             memset(counts, 0, sizeof(uint16_t) * 64);
-            for (int i = 0; i < n; i++)
+            for (int i = 0; i < size; i++)
                 counts[(in[i] >> 8) & 0x3F]++;
             for (uint16_t *src = counts, *dst = src + 1, i = 1; i < 64; i++)
                 *dst++ += *src++;
-            for (int i = n - 1; i >= 0; i--)
+            for (int i = size - 1; i >= 0; i--)
                 in[--counts[(tmp[i] >> 8) & 0x3F]] = tmp[i];
         }
     }
@@ -941,8 +950,8 @@ struct Rasterizer {
                 
                 ly = iy * kfh + clip.ly, ly = ly < clip.ly ? clip.ly : ly > clip.uy ? clip.uy : ly;
                 uy = (iy + 1) * kfh + clip.ly, uy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
-                for (h = uy - ly, wscale = 0.00003051850948f * kfh / h, cover = winding = 0.f, index = indices->base, lx = ux = index->lx, i = begin = 0; i < size; i++, index++) {
-                    if (index->lx >= ux && fabsf((winding - floorf(winding)) - 0.5f) > 0.499f) {
+                for (h = uy - ly, wscale = 1.f / h, cover = winding = 0.f, index = indices->base, lx = ux = index->lx, i = begin = 0; i < size; i++, index++) {
+                    if (index->lx >= ux && fabsf((winding - floorf(winding)) - 0.5f) > 0.49999f) {
                         if (lx != ux) {
                             Blend *inst = new (ctx.blends.alloc(1)) Blend(edgeIz);
                             ctx.allocator.alloc(lx, ly, ux, uy, ctx.blends.end - 1, & inst->quad.cell, type, (i - begin + 1) / 2);
@@ -1281,17 +1290,17 @@ struct Rasterizer {
             
             y0 -= clip.ly, y1 -= clip.ly;
             if ((uint32_t(y0) & kFatMask) == (uint32_t(y1) & kFatMask))
-                new (samples[int(y0 * krfh)].alloc(1)) Sample(fminf(x0, x1), fmaxf(x0, x1), (y1 - y0) * kCoverScale, si);
+                new (samples[int(y0 * krfh)].alloc(1)) Sample(fminf(x0, x1), fmaxf(x0, x1), y1 - y0, si);
             else {
-                float lx, ux, ly, uy, iy, m, c, ny, minx, maxx, scale;
+                float lx, ux, ly, uy, iy, m, c, ny, minx, maxx, sign = copysignf(1.f, y1 - y0);
                 lx = fminf(x0, x1), ux = fmaxf(x0, x1);
-                ly = fminf(y0, y1), uy = fmaxf(y0, y1), scale = copysignf(kCoverScale, y1 - y0);
+                ly = fminf(y0, y1), uy = fmaxf(y0, y1);
                 iy = floorf(ly * krfh), m = (x1 - x0) / (y1 - y0), c = x0 - m * y0, m *= kfh;
                 minx = (iy + float(m < 0.f)) * m + c;
                 maxx = (iy + float(m > 0.f)) * m + c;
                 for (ny = iy * kfh; ly < uy; ly = ny, minx += m, maxx += m, iy++) {
                     ny = fminf(uy, ny + kfh);
-                    new (samples[int(iy)].alloc(1)) Sample(fmaxf(lx, minx), fminf(ux, maxx), (ny - ly) * scale, si);
+                    new (samples[int(iy)].alloc(1)) Sample(fmaxf(lx, minx), fminf(ux, maxx), (ny - ly) * sign, si);
                 }
             }
         }
@@ -1304,12 +1313,12 @@ struct Rasterizer {
             
             y0 -= clip.ly, y1 -= clip.ly, y2 -= clip.ly;
             if ((uint32_t(y0) & kFatMask) == (uint32_t(y2) & kFatMask))
-                new (samples[int(y0 * krfh)].alloc(1)) Sample(fminf(x0, x2), fmaxf(x0, x2), (y2 - y0) * kCoverScale, si);
+                new (samples[int(y0 * krfh)].alloc(1)) Sample(fminf(x0, x2), fmaxf(x0, x2), y2 - y0, si);
             else {
                 float ay, by, ax, bx, ly, uy, lx, ux, d2a, ity, iy, t, ny, sign = copysignf(1.f, y2 - y0);
                 ax = x2 - x1, bx = x1 - x0, ax -= bx, bx *= 2.f;
                 ay = y2 - y1, by = y1 - y0, ay -= by, by *= 2.f;
-                d2a = 0.5f / ay, ity = -by * d2a, d2a *= sign, sign *= kCoverScale;
+                d2a = 0.5f / ay, ity = -by * d2a, d2a *= sign;
                 lx = y0 < y2 ? x0 : x2, ly = fminf(y0, y2), uy = fmaxf(y0, y2);
                 for (iy = floorf(ly * krfh), ny = iy * kfh; ly < uy; ly = ny, iy++, lx = ux) {
                     ny = fminf(uy, ny + kfh);
@@ -1325,7 +1334,10 @@ struct Rasterizer {
         static Path CreateDashedPath(Path path, float phase, float *pattern, size_t count) {
             if (pattern == nullptr || count < 2 || count % 2 == 1)
                 return path;
-            Dasher dasher(phase, pattern, count);
+            float length = 0.f;
+            for (size_t i = 0; i < count; i++)
+                length += pattern[i];
+            Dasher dasher(fmod(phase, length), pattern, count);
             applyPath(path.ptr, Transform(), Bounds(), true, false, dasher);
             return dasher.dashed;
         }
@@ -1378,9 +1390,9 @@ struct Rasterizer {
             if (x1 == FLT_MAX || fabsf(A) < 1e-3f)
                 return;
             if (t0 > 0.f && t0 < 1.f)
-                t0 = fmaxf(0.f, fminf(1.f, 0.5F * (-B + sqrtf(B * B - 4.f * A * -t0)) / A));
+                t0 = fmaxf(0.f, fminf(1.f, 0.5f * (-B + sqrtf(B * B - 4.f * A * -t0)) / A));
             if (t1 > 0.f && t1 < 1.f)
-                t1 = fmaxf(0.f, fminf(1.f, 0.5F * (-B + sqrtf(B * B - 4.f * A * -t1)) / A));
+                t1 = fmaxf(0.f, fminf(1.f, 0.5f * (-B + sqrtf(B * B - 4.f * A * -t1)) / A));
         }
         void writeDash() {
             if (x1 == FLT_MAX) {

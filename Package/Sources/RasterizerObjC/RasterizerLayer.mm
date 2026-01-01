@@ -92,7 +92,7 @@ struct TextureCache : MetalCache<id <MTLTexture>, const Ra::Paint &> {
         auto texture = [device newTextureWithDescriptor:desc];
         [texture replaceRegion:MTLRegionMake2D(0, 0, image.w, image.h)
                         mipmapLevel:0
-                          withBytes:& image.matched[0]
+                          withBytes:& image.colors[0]
                         bytesPerRow:image.w * sizeof(Ra::Color)];
         return texture;
     }
@@ -252,20 +252,23 @@ struct TextureCache : MetalCache<id <MTLTexture>, const Ra::Paint &> {
                                               options:MTLResourceStorageModeShared
                                           deallocator:nil];
     id <CAMetalDrawable> drawable = [self nextDrawable];
+    
     MTLTextureDescriptor* desc = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatDepth32Float_Stencil8
-                                                                                    width:self.drawableSize.width
-                                                                                   height:self.drawableSize.height
-                                                                                mipmapped:NO];
-    desc.storageMode = MTLStorageModePrivate;
-    desc.usage = MTLTextureUsageRenderTarget;
-    self.depthTexture = [self.device newTextureWithDescriptor:desc];
-    [self.depthTexture setLabel:@"depthTexture"];
+                                     width:self.drawableSize.width
+                                    height:self.drawableSize.height
+                                 mipmapped:NO];
     
-    desc.usage = MTLTextureUsageRenderTarget | MTLTextureUsageShaderRead;
-    desc.pixelFormat = MTLPixelFormatR32Float;
-    self.accumulationTexture = [self.device newTextureWithDescriptor:desc];
-    [self.accumulationTexture setLabel:@"accumulationTexture"];
-    
+    if (self.drawableSize.width != self.depthTexture.width || self.drawableSize.height != self.depthTexture.height) {
+        desc.storageMode = MTLStorageModePrivate;
+        desc.usage = MTLTextureUsageRenderTarget;
+        self.depthTexture = [self.device newTextureWithDescriptor:desc];
+        [self.depthTexture setLabel:@"depthTexture"];
+        
+        desc.usage = MTLTextureUsageRenderTarget | MTLTextureUsageShaderRead;
+        desc.pixelFormat = MTLPixelFormatR32Float;
+        self.accumulationTexture = [self.device newTextureWithDescriptor:desc];
+        [self.accumulationTexture setLabel:@"accumulationTexture"];
+    }
     desc.storageMode = MTLStorageModeShared;
     desc.usage = MTLTextureUsageShaderRead;
     desc.pixelFormat = MTLPixelFormatBGRA8Unorm;
@@ -277,7 +280,7 @@ struct TextureCache : MetalCache<id <MTLTexture>, const Ra::Paint &> {
                     mipmapLevel:0
                       withBytes:buffer->base + buffer->colors
                     bytesPerRow:w * sizeof(Ra::Color)];
-    if (th) {
+    if (buffer->texCount) {
         [colorTexture replaceRegion:MTLRegionMake2D(0, h, w, th)
                         mipmapLevel:0
                           withBytes:buffer->base + buffer->texStrips
@@ -464,6 +467,5 @@ struct TextureCache : MetalCache<id <MTLTexture>, const Ra::Paint &> {
     }];
     [commandBuffer presentDrawable:drawable];
     [commandBuffer commit];
-    self.accumulationTexture = nil, self.depthTexture = nil;
 }
 @end

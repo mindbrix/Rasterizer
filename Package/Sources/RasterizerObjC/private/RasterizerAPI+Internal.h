@@ -5,6 +5,7 @@
 //  Created by Nigel Barber on 04/09/2025.
 //  Copyright © 2025 @mindbrix. All rights reserved.
 //
+#import <CoreText/CoreText.h>
 #import "RasterizerAPI.h"
 #import "Rasterizer.hpp"
 
@@ -18,6 +19,10 @@
 @property(nonatomic) Ra::Path path;
 @end
 
+
+@interface RAFrame ()
+@property(nonatomic) CTFrameRef frame;
+@end
 
 @interface RAScene ()
 @property(nonatomic) Ra::SceneRef scene;

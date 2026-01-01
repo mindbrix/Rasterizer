@@ -8,7 +8,7 @@
 
 #import <Foundation/Foundation.h>
 #import <CoreGraphics/CoreGraphics.h>
-
+#import <CoreText/CoreText.h>
 
 @interface RAPaint: NSObject
 - (nonnull id)initWithGray:(double)gray alpha:(double)alpha;
@@ -36,6 +36,9 @@
 - (nonnull id)initWithCGPath:(nonnull CGPathRef)cgPath;
 - (nonnull id)initWithRect:(CGRect)rect;
 - (nonnull id)initWithEllipse:(CGRect)rect;
+- (nonnull id)initWithRoundedRect:(CGRect)rect
+                      cornerWidth:(double)cornerWidth
+                     cornerHeight:(double)cornerHeight;
 - (void)moveTo:(double)x y:(double)y;
 - (void)lineTo:(double)x y:(double)y;
 - (void)quadTo:(double)x1 y1:(double)y1 x2:(double)x2 y2:(double)y2;
@@ -44,8 +47,24 @@
 - (void)addCGPath:(nonnull CGPathRef)path;
 - (void)addRect:(CGRect)rect;
 - (void)addEllipse:(CGRect)rect;
+- (void)addRoundedRect:(CGRect)rect
+           cornerWidth:(double)cornerWidth
+          cornerHeight:(double)cornerHeight;
+
 - (nonnull RAPath *)dashedCopyWithPhase:(double)phase
                                 lengths:(nonnull NSArray<NSNumber *>*)lengths;
+@end
+
+
+typedef void (^CTRunApplyBlock)(NSRange range, CGRect bounds);
+typedef void (^CTLineApplyBlock)(CTLineRef _Nonnull, CGPoint origin);
+
+@interface RAFrame: NSObject
++ (double)lineHeightForFont:(nonnull NSString *)named size:(double)size;
+
+- (nonnull id)initWithAttributedString:(nonnull NSAttributedString *)attributedString inRect:(CGRect)rect;
+- (void)applyRuns:(nonnull CTRunApplyBlock)block;
+- (void)applyLines:(nonnull CTLineApplyBlock)block;
 @end
 
 
@@ -88,9 +107,10 @@ typedef NS_ENUM(NSUInteger, RAJoinStyle) {
              clip:(CGRect)clip
          clipPath:(nullable RAPath *)clipPath;
 
-- (CGRect)addTextLine:(nonnull NSAttributedString *)string
-                  ctm:(CGAffineTransform)ctm
-                 clip:(CGRect)clip;
+- (CGRect)addFrame:(nonnull RAFrame *)frame
+          excludes:(nonnull NSArray<NSValue *> *)excludes
+               ctm:(CGAffineTransform)ctm
+              clip:(CGRect)clip;
 
 - (CGRect)addText:(nonnull NSAttributedString *)string
            inRect:(CGRect)rect
@@ -111,11 +131,12 @@ typedef NS_ENUM(NSUInteger, RAJoinStyle) {
 @property(nonatomic) BOOL showOutlines;
 
 - (void)addList:(nonnull RASceneList *)list;
+- (void)addScene:(nonnull RAScene *)scene;
 - (void)addScene:(nonnull RAScene *)scene ctm:(CGAffineTransform)ctm clip:(CGRect)clip;
 @end
 
 
 @protocol RASceneListDelegate <NSObject>
-- (BOOL)shouldRedrawAtTime:(double)time;
+- (BOOL)shouldRedrawAtTime:(double)time width:(double)width height:(double)height;
 - (nonnull RASceneList *)getListAtTime:(double)time width:(double)width height:(double)height;
 @end

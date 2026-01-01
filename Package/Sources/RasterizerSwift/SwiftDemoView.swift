@@ -10,7 +10,7 @@ import Foundation
 import RasterizerObjC
 
 
-public class SwiftDemoView: RasterizerView {
+public class SwiftDemoView: RasterizerView, NSFontChanging {
     let demo = SwiftDemo()
     
     required init?(coder: NSCoder) {
@@ -21,9 +21,8 @@ public class SwiftDemoView: RasterizerView {
     override public var acceptsFirstResponder: Bool {
         true
     }
-    override public func becomeFirstResponder() -> Bool {
-        self.window?.acceptsMouseMovedEvents = true
-        return true
+    public func changeFont(_ sender: NSFontManager?) {
+        demo.selectedFont = NSFontManager.shared.convert(NSFont(name: "HelveticaNeue-Medium", size: 14)!)
     }
     override public func keyDown(with event: NSEvent) {
         guard let characters = event.characters?.first?.lowercased(), let character = characters.first else {
@@ -31,9 +30,17 @@ public class SwiftDemoView: RasterizerView {
         }
         demo.bounds = self.bounds
         if !demo.handleEvent(.keyDown(character: character, flags: event.modifierFlags)) {
-            if character == "0" {
+            switch character {
+            case "v":
+                if (event.modifierFlags.contains(.command)) {
+                    let objects = NSPasteboard.general.readObjects(forClasses: [NSAttributedString.self])
+                    if let attrString = objects?.first as? NSAttributedString {
+                        _ = demo.handleEvent(.paste(attributed: attrString))
+                    }
+                }
+            case "0":
                 useCG.toggle()
-            } else {
+            default:
                 super.keyDown(with: event)
             }
         }
@@ -42,13 +49,28 @@ public class SwiftDemoView: RasterizerView {
         guard let point = mousePoint(for: event) else {
             return
         }
-        _ = demo.handleEvent(.mouseMove(x: point.x, y: point.y, flags: event.modifierFlags))
+        _ = demo.handleEvent(.mouseMove(p: point, flags: event.modifierFlags))
+    }
+    override public func mouseDown(with event: NSEvent) {
+        guard let point = mousePoint(for: event) else {
+            return
+        }
+        _ = demo.handleEvent(.mouseDown(p: point, flags: event.modifierFlags))
+    }
+    override public func mouseDragged(with event: NSEvent) {
+        guard let point = mousePoint(for: event) else {
+            return
+        }
+        _ = demo.handleEvent(.mouseMove(p: point, flags: event.modifierFlags))
+    }
+    override public func mouseUp(with event: NSEvent) {
+        guard let point = mousePoint(for: event) else {
+            return
+        }
+        _ = demo.handleEvent(.mouseUp(p: point, flags: event.modifierFlags))
     }
     override public func magnify(with event: NSEvent) {
         _ = demo.handleEvent(.magnify(scale: 1.0 + event.magnification))
-    }
-    override public func mouseDragged(with event: NSEvent) {
-        _ = demo.handleEvent(.translate(tx: event.deltaX, ty: -event.deltaY))
     }
     override public func rotate(with event: NSEvent) {
         _ = demo.handleEvent(.rotate(angle: 0.1 * event.rotation))

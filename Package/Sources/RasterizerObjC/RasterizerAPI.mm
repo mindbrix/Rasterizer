@@ -1,5 +1,5 @@
 //
-//  RasterizerObjC.mm
+//  RasterizerAPI.mm
 //  Rasterizer
 //
 //  Created by Nigel Barber on 03/09/2025.
@@ -7,10 +7,12 @@
 //
 
 #import <Foundation/Foundation.h>
+#import <CoreText/CoreText.h>
 #import "RasterizerAPI+Internal.h"
 #import "RasterizerCG.hpp"
 #import "RasterizerSVG.hpp"
 #import "RasterizerCoreText.hpp"
+#import <map>
 
 
 #pragma mark - RAColor
@@ -97,18 +99,18 @@
     if (colors.count > 1 && colors.count == locations.count) {
         NSInteger count = colors.count;
         
-        Ra::Color stops[count];
-        float locs[count];
+        Ra::Vector<Ra::Color> stops(count);
+        Ra::Vector<float> locs(count);
         for (NSInteger i = 0; i < count; i++) {
             stops[i] = colors[i].paint.color;
             locs[i] = locations[i].floatValue;
         }
-        _paint = Ra::Paint(stops, locs, count, RaCG::transformFromCG(transform), isRadial);
+        _paint = Ra::Paint(& stops[0], & locs[0], count, RaCG::transformFromCG(transform), isRadial);
     }
     return self;
 }
 
-- (nonnull id)initWithCGImage:(nonnull CGImageRef)cgImage {
+- (id)initWithCGImage:(CGImageRef)cgImage {
     self = [super init];
     if (!self)
         return nil;
@@ -146,6 +148,18 @@
     return self;
 }
 
+- (nonnull id)initWithRoundedRect:(CGRect)rect
+                      cornerWidth:(double)cornerWidth
+                     cornerHeight:(double)cornerHeight {
+    self = [super init];
+    if (!self)
+        return nil;
+    CGPathRef cgPath = CGPathCreateWithRoundedRect(rect, cornerWidth, cornerHeight, NULL);
+    [self addCGPath:cgPath];
+    CGPathRelease(cgPath);
+    return self;
+}
+
 - (CGRect)bounds {
     return RaCG::CGRectFromBounds(_path->bounds);
 }
@@ -166,10 +180,23 @@
     _path->close();
 }
 - (void)addRect:(CGRect)rect {
-    _path->addBounds(RaCG::BoundsFromCGRect(rect));
+    if (CGRectGetWidth(rect) > 0 && CGRectGetHeight(rect) > 0) {
+        _path->addBounds(RaCG::BoundsFromCGRect(rect));
+    }
 }
 - (void)addEllipse:(CGRect)rect {
-    _path->addEllipse(RaCG::BoundsFromCGRect(rect));
+    if (CGRectGetWidth(rect) > 0 && CGRectGetHeight(rect) > 0) {
+        _path->addEllipse(RaCG::BoundsFromCGRect(rect));
+    }
+}
+- (void)addRoundedRect:(CGRect)rect
+           cornerWidth:(double)cornerWidth
+          cornerHeight:(double)cornerHeight {
+    if (CGRectGetWidth(rect) > 0 && CGRectGetHeight(rect) > 0) {
+        CGPathRef cgPath = CGPathCreateWithRoundedRect(rect, cornerWidth, cornerHeight, NULL);
+        [self addCGPath:cgPath];
+        CGPathRelease(cgPath);
+    }
 }
 - (void)addCGPath:(CGPathRef)cgPath {
     RaCG::writeCGPathToPath(cgPath, _path);
@@ -190,6 +217,57 @@
 
 @end
 
+
+@implementation RAFrame: NSObject
++ (double)lineHeightForFont:(nonnull NSString *)named size:(double)size {
+    return RaCT::lineHeightFor(named.UTF8String, size);
+}
+
+- (id)initWithAttributedString:(nonnull NSAttributedString *)attributedString inRect:(CGRect)rect {
+    self = [super init];
+    if (!self)
+        return nil;
+    CTFramesetterRef framesetter = CTFramesetterCreateWithAttributedString((__bridge CFAttributedStringRef)attributedString);
+    CGPathRef rectPath = CGPathCreateWithRect(rect, NULL);
+    _frame = CTFramesetterCreateFrame(framesetter, CFRangeMake(0, 0), rectPath, NULL);
+    CGPathRelease(rectPath);
+    CFRelease(framesetter);
+    return self;
+}
+
+- (void)applyRuns:(nonnull CTRunApplyBlock)block {
+    [self applyLines:^(CTLineRef _Nonnull ctLine, CGPoint origin) {
+        CFArrayRef glyphRuns = CTLineGetGlyphRuns(ctLine);
+        for (int run = 0; run < CFArrayGetCount(glyphRuns); run++) {
+            CTRunRef ctRun = (CTRunRef)CFArrayGetValueAtIndex(glyphRuns, run);
+            CGRect image = CTRunGetImageBounds(ctRun, NULL, CFRangeMake(0, 0));
+            if (image.size.width > 0 && image.size.height > 0) {
+                CFRange range = CTRunGetStringRange(ctRun);
+                block(
+                    NSMakeRange(range.location, range.length),
+                    CGRectApplyAffineTransform(image, CGAffineTransformMakeTranslation(origin.x, origin.y))
+                );
+            }
+        }
+    }];
+}
+- (void)applyLines:(nonnull CTLineApplyBlock)block {
+    CGRect rect = CGPathGetBoundingBox(CTFrameGetPath(_frame));
+    CFArrayRef lines = CTFrameGetLines(_frame);
+    CFIndex lineCount = CFArrayGetCount(lines);
+    Ra::Vector<CGPoint> origins(lineCount);
+    CTFrameGetLineOrigins(_frame, CFRangeMake(0, 0), & origins[0]);
+    for (int line = 0; line < lineCount; line++) {
+        block(
+            (CTLineRef)CFArrayGetValueAtIndex(lines, line),
+            CGPointMake(rect.origin.x + origins[line].x, rect.origin.y + origins[line].y)
+        );
+    }
+}
+- (void)dealloc {
+    CFRelease(_frame);
+}
+@end
 
 #pragma mark - RAScene
 
@@ -244,11 +322,17 @@
     _scene->addPath(p, m, color.paint, width, capFlags | joinFlags, & clipBounds);
 }
 
-- (CGRect)addTextLine:(NSAttributedString *)string ctm:(CGAffineTransform)ctm clip:(CGRect)clip {
-    return RaCT::addTextLineToScene((__bridge CFAttributedStringRef)string, ctm, clip, _scene);
+- (CGRect)addFrame:(RAFrame *)frame
+          excludes:(NSArray<NSValue *> *)excludes
+               ctm:(CGAffineTransform)ctm
+              clip:(CGRect)clip {
+    GlyphCache cache;
+    return RaCT::addFrameToScene(frame.frame, excludes, ctm, clip, _scene, cache);
 }
+
 - (CGRect)addText:(NSAttributedString *)string inRect:(CGRect)rect ctm:(CGAffineTransform)ctm clip:(CGRect)clip {
-    return RaCT::addTextToSceneInRect((__bridge CFAttributedStringRef)string, rect, ctm, clip, _scene);
+    GlyphCache cache;
+    return RaCT::addTextToSceneInRect((__bridge CFAttributedStringRef)string, rect, ctm, clip, _scene, cache);
 }
 - (CGAffineTransform)addSvgFromUrl:(NSURL *)url {
     return RaCG::CGFromTransform(RaSVG::addSvgToScene(url.path.UTF8String, _scene));
@@ -305,6 +389,10 @@
 
 - (void)addList:(RASceneList *)list {
     _list.addList(list.list);
+}
+
+- (void)addScene:(RAScene *)scene {
+    _list.addScene(scene.scene, Ra::Transform(), Ra::Bounds::huge());
 }
 
 - (void)addScene:(RAScene *)scene ctm:(CGAffineTransform)ctm clip:(CGRect)clip {
