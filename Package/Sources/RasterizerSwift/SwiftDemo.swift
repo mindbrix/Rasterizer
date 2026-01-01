@@ -35,6 +35,9 @@ class SwiftDemo: NSObject {
         swiftApp.store.setValue(
             value: debug,
             key: Key.debug())
+        swiftApp.store.setValue(
+            value: 0.0,
+            key: Key.test())
     }
     enum Event {
         case keyDown(character: Character, flags: NSEvent.ModifierFlags)
@@ -145,6 +148,7 @@ extension SwiftDemo: SwiftApp.PageDelegate {
     enum Key: String, CaseIterable {
         case Settings
         case debug
+        case test
         
         case flag
         case paused
@@ -212,6 +216,7 @@ extension SwiftDemo: SwiftApp.PageDelegate {
                 store.setValue(value: tapcount + 1, key: key)
                 return tapcount == 2 ? PageID.Home() : nil
             }),
+            Control(key: Key.test(), mode: .readonly, closure: nil),
             Control(key: Key.Settings(), mode: .readonly, closure: nil),
         ]
         case .Home: [

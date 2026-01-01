@@ -65,7 +65,6 @@ extension NSMutableAttributedString {
     
     func appendMirror(_ mirror: Mirror, keyColor: CGColor, valueColor: CGColor, indent: Int = 0) -> NSRange {
         let begin = length
-        
         for child in mirror.children {
             _ = appendString(String(repeating: "\t", count: indent))
             addAttribute(.foregroundColor,
@@ -80,15 +79,7 @@ extension NSMutableAttributedString {
     
     func appendValue(_ value: Any, keyColor: CGColor, valueColor: CGColor, indent: Int = 0) -> NSRange {
         let begin = length
-        if let slider = value as? Double {
-            addAttribute(.foregroundColor,
-                value: valueColor,
-                range: appendString(String(format: "%.2f", slider)))
-        } else if let range = value as? NSRange {
-            addAttribute(.foregroundColor,
-                value: valueColor,
-                range: appendString(String(range.location)))
-        } else if let dict = value as? Store.DictType {
+        if let dict = value as? Store.DictType {
             for (subKey, value) in dict {
                 _ = appendString(String(repeating: "\t", count: indent))
                 addAttribute(.foregroundColor,
@@ -100,11 +91,21 @@ extension NSMutableAttributedString {
                     _ = appendValue(value, keyColor: keyColor, valueColor: valueColor, indent: indent + 1)
                 } else {
                     _ = appendValue(value, keyColor: keyColor, valueColor: valueColor, indent: indent)
-                    _ = appendString("\n")
                 }
             }
+        } else if let slider = value as? Double {
+            addAttribute(.foregroundColor,
+                value: valueColor,
+                range: appendString(String(format: "%.2f", slider)))
+            _ = appendString("\n")
+        } else if let range = value as? NSRange {
+            addAttribute(.foregroundColor,
+                value: valueColor,
+                range: appendString(String(range.location)))
+            _ = appendString("\n")
         } else if let convertible = value as? CustomStringConvertible {
             _ = appendString(String(describing: convertible))
+            _ = appendString("\n")
         } else {
             _ = appendMirror(Mirror(reflecting: value), keyColor: keyColor, valueColor: valueColor, indent: indent)
         }
