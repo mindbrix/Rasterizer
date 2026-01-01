@@ -53,6 +53,18 @@ extension CGRect {
 }
 
 extension NSMutableAttributedString {
+    func stringFor(_ value: Any) -> String? {
+        if let slider = value as? Double {
+            String(format: "%.2f", slider)
+        } else if let range = value as? NSRange {
+            String(range.location)
+        } else if let convertible = value as? CustomStringConvertible {
+            String(describing: convertible)
+        } else {
+            nil
+        }
+    }
+    
     func appendString(_ string: String) -> NSRange {
         appendString(NSAttributedString(string: string))
     }
@@ -61,6 +73,27 @@ extension NSMutableAttributedString {
         let range = NSRange(location: length, length: string.length)
         append(string)
         return range
+    }
+    
+    func appendKey(_ key: String, value: Any, keyColor: CGColor, valueColor: CGColor, indent: Int = 0) -> NSRange {
+        let begin = length
+        _ = appendString(String(repeating: "\t", count: indent))
+        addAttribute(.foregroundColor,
+            value: keyColor,
+            range: appendString("\(key):\t"))
+        if let dict = value as? Store.DictType {
+            _ = appendString("\n")
+            for (subKey, value) in dict {
+                _ = appendKey(subKey, value: value, keyColor: keyColor, valueColor: valueColor, indent: indent + 1)
+            }
+        } else if let string = stringFor(value) {
+            let range = appendString(string)
+            addAttribute(.foregroundColor, value: valueColor, range: range)
+            _ = appendString("\n")
+        } else {
+            _ = appendMirror(Mirror(reflecting: value), keyColor: keyColor, valueColor: valueColor)
+        }
+        return NSRange(location: begin, length: length - begin)
     }
     
     func appendMirror(_ mirror: Mirror, keyColor: CGColor, valueColor: CGColor, indent: Int = 0) -> NSRange {
@@ -73,41 +106,6 @@ extension NSMutableAttributedString {
             addAttribute(.foregroundColor,
                          value: valueColor,
                 range: appendString(String(describing: child.value) + "\n"))
-        }
-        return NSRange(location: begin, length: length - begin)
-    }
-    
-    func appendKey(_ key: String, value: Any, keyColor: CGColor, valueColor: CGColor, indent: Int = 0) -> NSRange {
-        let begin = length
-        addAttribute(.foregroundColor,
-            value: keyColor,
-            range: appendString("\(key):\t"))
-        if let dict = value as? Store.DictType {
-            _ = appendString("\n")
-            for (subKey, value) in dict {
-                _ = appendKey(subKey, value: value, keyColor: keyColor, valueColor: valueColor, indent: indent + 1)
-            }
-        } else {
-            _ = appendValue(value, keyColor: keyColor, valueColor: valueColor, indent: indent + 1)
-            _ = appendString("\n")
-        }
-        return NSRange(location: begin, length: length - begin)
-    }
-    
-    func appendValue(_ value: Any, keyColor: CGColor, valueColor: CGColor, indent: Int = 0) -> NSRange {
-        let begin = length
-        if let slider = value as? Double {
-            addAttribute(.foregroundColor,
-                value: valueColor,
-                range: appendString(String(format: "%.2f", slider)))
-        } else if let range = value as? NSRange {
-            addAttribute(.foregroundColor,
-                value: valueColor,
-                range: appendString(String(range.location)))
-        } else if let convertible = value as? CustomStringConvertible {
-            _ = appendString(String(describing: convertible))
-        } else {
-            _ = appendMirror(Mirror(reflecting: value), keyColor: keyColor, valueColor: valueColor, indent: indent)
         }
         return NSRange(location: begin, length: length - begin)
     }

@@ -246,7 +246,7 @@ class SwiftApp {
                 }
             case .readonly:
                 if let value = store.getValue(key: control.key) {
-                    let range = mutable.appendKey(control.key, value: value, keyColor: Colors.gray, valueColor: Colors.black, indent: 1)
+                    let range = mutable.appendKey(control.key, value: value, keyColor: Colors.gray, valueColor: Colors.black)
                     mutable.addAttribute(.paragraphStyle, value: paragraphStyle, range: range)
                 }
             }
