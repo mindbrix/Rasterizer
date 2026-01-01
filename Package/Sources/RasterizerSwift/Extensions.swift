@@ -53,6 +53,18 @@ extension CGRect {
 }
 
 extension NSMutableAttributedString {
+    func placeholderFor(_ value: Any) -> String? {
+        if let _ = value as? Bool {
+            "flag"
+        } else if let _ = value as? Double {
+            "slydeer"
+        } else if let _ = value as? NSRange {
+           "Rang"
+        } else {
+            nil
+        }
+    }
+    
     func stringFor(_ value: Any) -> String? {
         if let slider = value as? Double {
             String(format: "%.2f", slider)

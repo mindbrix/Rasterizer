@@ -221,7 +221,7 @@ class SwiftApp {
                 guard let dict = store.getValue(key: control.key) as? Store.DictType else {
                     continue
                 }
-                let length0 = mutable.length
+                let begin = mutable.length
                 mutable.addAttribute(.foregroundColor,
                     value: Colors.gray,
                     range: mutable.appendString("\(control.key):\n"))
@@ -230,19 +230,12 @@ class SwiftApp {
                     mutable.addAttribute(.foregroundColor,
                         value: Colors.black,
                         range: mutable.appendString("\t\(subKey):"))
-                    var placeholder = ""
-                    if let _ = value as? Bool {
-                        placeholder = "flag"
-                    } else if let _ = value as? Double {
-                        placeholder = "slydeer"
-                    } else if let _ = value as? NSRange {
-                        placeholder = "Rang"
-                    }
+                    let placeholder = mutable.placeholderFor(value) ?? ""
                     let range = mutable.appendString("\t" + placeholder + "\n")
                     tappables.append(Tappable(control: control, subKey: subKey, range: range, exclude: true))
                     mutable.addAttribute(.foregroundColor, value: Colors.gray, range: range)
                     
-                    mutable.addAttribute(.paragraphStyle, value: paragraphStyle, range: NSRange(location: length0, length: mutable.length - length0))
+                    mutable.addAttribute(.paragraphStyle, value: paragraphStyle, range: NSRange(location: begin, length: mutable.length - begin))
                 }
             case .readonly:
                 if let value = store.getValue(key: control.key) {
