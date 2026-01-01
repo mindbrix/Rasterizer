@@ -158,21 +158,18 @@ struct RasterizerCoreText {
     }
     
     static float lineHeightFor(const char *fontName, float size) {
-        CFStringRef cfFontName = CFStringCreateWithCString(kCFAllocatorDefault, fontName, kCFStringEncodingUTF8);
-        CTFontRef ctFont = CTFontCreateWithName(cfFontName, size, NULL);
+        CTFontRef ctFont = createFont(fontName, size);
         CGFloat ascent = CTFontGetAscent(ctFont);
         CGFloat descent = CTFontGetDescent(ctFont);
         CGFloat leading = CTFontGetLeading(ctFont);
         CFRelease(ctFont);
-        CFRelease(cfFontName);
         return floor(ascent + 0.5) + floor(descent + 0.5) + floor(fmax(0, leading) + 0.5);
     }
     
     static Ra::SceneRef writeGlyphGrid(const char *fontName, float lineHeight, Ra::Color color) {
         Ra::SceneRef scene;
-        float scale = lineHeight * lineHeight / lineHeightFor(fontName, lineHeight);
-        CFStringRef cfFontName = CFStringCreateWithCString(kCFAllocatorDefault, fontName, kCFStringEncodingUTF8);
-        CTFontRef ctFont = CTFontCreateWithName(cfFontName, scale, NULL);
+        float fontSize = lineHeight * lineHeight / lineHeightFor(fontName, lineHeight);
+        CTFontRef ctFont = createFont(fontName, fontSize);
         CFIndex glyphCount = CTFontGetGlyphCount(ctFont);
         if (glyphCount) {
             for (int d = ceilf(sqrtf(glyphCount)), glyph = 0; glyph <glyphCount; glyph++) {
@@ -184,7 +181,6 @@ struct RasterizerCoreText {
             }
         }
         CFRelease(ctFont);
-        CFRelease(cfFontName);
         return scene;
     }
     
