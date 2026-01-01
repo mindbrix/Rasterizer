@@ -77,35 +77,35 @@ extension NSMutableAttributedString {
         return NSRange(location: begin, length: length - begin)
     }
     
+    func appendKey(_ key: String, value: Any, keyColor: CGColor, valueColor: CGColor, indent: Int = 0) -> NSRange {
+        let begin = length
+        addAttribute(.foregroundColor,
+            value: keyColor,
+            range: appendString("\(key):\t"))
+        if let dict = value as? Store.DictType {
+            _ = appendString("\n")
+            for (subKey, value) in dict {
+                _ = appendKey(subKey, value: value, keyColor: keyColor, valueColor: valueColor, indent: indent + 1)
+            }
+        } else {
+            _ = appendValue(value, keyColor: keyColor, valueColor: valueColor, indent: indent + 1)
+            _ = appendString("\n")
+        }
+        return NSRange(location: begin, length: length - begin)
+    }
+    
     func appendValue(_ value: Any, keyColor: CGColor, valueColor: CGColor, indent: Int = 0) -> NSRange {
         let begin = length
-        if let dict = value as? Store.DictType {
-            for (subKey, value) in dict {
-                _ = appendString(String(repeating: "\t", count: indent))
-                addAttribute(.foregroundColor,
-                    value: keyColor,
-                    range: appendString("\(subKey):\t"))
-                
-                if let value = value as? Store.DictType {
-                    _ = appendString("\n")
-                    _ = appendValue(value, keyColor: keyColor, valueColor: valueColor, indent: indent + 1)
-                } else {
-                    _ = appendValue(value, keyColor: keyColor, valueColor: valueColor, indent: indent)
-                }
-            }
-        } else if let slider = value as? Double {
+        if let slider = value as? Double {
             addAttribute(.foregroundColor,
                 value: valueColor,
                 range: appendString(String(format: "%.2f", slider)))
-            _ = appendString("\n")
         } else if let range = value as? NSRange {
             addAttribute(.foregroundColor,
                 value: valueColor,
                 range: appendString(String(range.location)))
-            _ = appendString("\n")
         } else if let convertible = value as? CustomStringConvertible {
             _ = appendString(String(describing: convertible))
-            _ = appendString("\n")
         } else {
             _ = appendMirror(Mirror(reflecting: value), keyColor: keyColor, valueColor: valueColor, indent: indent)
         }

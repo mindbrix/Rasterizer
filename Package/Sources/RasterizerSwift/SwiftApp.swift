@@ -245,13 +245,9 @@ class SwiftApp {
                     mutable.addAttribute(.paragraphStyle, value: paragraphStyle, range: NSRange(location: length0, length: mutable.length - length0))
                 }
             case .readonly:
-                mutable.addAttribute(.foregroundColor,
-                    value: Colors.gray,
-                    range: mutable.appendString("\(control.key):\n"))
                 if let value = store.getValue(key: control.key) {
-                    mutable.addAttribute(.paragraphStyle,
-                        value: paragraphStyle,
-                        range: mutable.appendValue(value, keyColor: Colors.gray, valueColor: Colors.black, indent: 1))
+                    let range = mutable.appendKey(control.key, value: value, keyColor: Colors.gray, valueColor: Colors.black, indent: 1)
+                    mutable.addAttribute(.paragraphStyle, value: paragraphStyle, range: range)
                 }
             }
         }
