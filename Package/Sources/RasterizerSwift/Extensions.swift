@@ -121,9 +121,11 @@ extension NSMutableAttributedString {
             _ = appendString("\n")
             addAttribute(.paragraphStyle, value: style, range: NSRange(location: begin, length: length - begin))
 
-            let mirror = Mirror(reflecting: value)
-            for child in mirror.children {
-                _ = appendKey(child.label ?? "", value: child.value, keyColor: keyColor, valueColor: valueColor, fontSize: fontSize, indent: indent + 1)
+            if indent < 10 {
+                let mirror = Mirror(reflecting: value)
+                for child in mirror.children {
+                    _ = appendKey(child.label ?? "", value: child.value, keyColor: keyColor, valueColor: valueColor, fontSize: fontSize, indent: indent + 1)
+                }
             }
         }
         return NSRange(location: begin, length: length - begin)
@@ -131,24 +133,26 @@ extension NSMutableAttributedString {
 }
 
 extension Hasher {
-    mutating func combineMirror(_ mirror: Mirror) {
+    mutating func combineMirror(_ mirror: Mirror, level: Int = 0) {
         for child in mirror.children {
             combine(child.label ?? "")
-            combineValue(child.value)
+            combineValue(child.value, level: level)
         }
     }
-    mutating func combineValue(_ value: Any) {
+    mutating func combineValue(_ value: Any, level: Int = 0) {
         if let dict = value as? Store.DictType {
             for (subKey, value) in dict {
                 combine(subKey)
-                combineValue(value)
+                combineValue(value, level: level + 1)
             }
         } else if let hashable = value as? any Hashable {
             combine(hashable)
         } else if let convertible = value as? CustomStringConvertible {
             combine(String(describing: convertible))
         } else {
-            combineMirror(Mirror(reflecting: value))
+            if level < 10 {
+                combineMirror(Mirror(reflecting: value), level: level + 1)
+            }
         }
     }
 }
