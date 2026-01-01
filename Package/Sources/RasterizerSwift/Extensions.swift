@@ -120,15 +120,13 @@ extension Hasher {
         }
     }
     mutating func combineValue(_ value: Any) {
-        if let slider = value as? Double {
-            combine(slider)
-        } else if let range = value as? NSRange {
-            combine(range)
-        } else if let dict = value as? Store.DictType {
+        if let dict = value as? Store.DictType {
             for (subKey, value) in dict {
                 combine(subKey)
                 combineValue(value)
             }
+        } else if let hashable = value as? any Hashable {
+            combine(hashable)
         } else if let convertible = value as? CustomStringConvertible {
             combine(String(describing: convertible))
         } else {
