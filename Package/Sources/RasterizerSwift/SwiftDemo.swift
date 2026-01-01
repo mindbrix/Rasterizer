@@ -217,7 +217,6 @@ extension SwiftDemo: SwiftApp.PageDelegate {
                 return tapcount == 2 ? PageID.Home() : nil
             }),
             Control(key: Key.test(), mode: .readonly, closure: nil),
-            Control(key: Key.Settings(), mode: .readonly, closure: nil),
         ]
         case .Home: [
             Control(key: Key.button(), mode: .button, closure: { store, key in
