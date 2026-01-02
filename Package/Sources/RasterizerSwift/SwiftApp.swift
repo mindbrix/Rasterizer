@@ -155,10 +155,9 @@ class SwiftApp {
         }
         observed[pageName] = .init(controls.map{ $0.key })
         
-        let tuple = tappablesAndStringForControls(controls)
-        let tappables = tuple.0
+        var tappables: [Tappable] = []
         let frame = RAFrame(
-            attributedString: tuple.1,
+            attributedString: stringForControls(controls, tappables: &tappables),
             in: bounds.withGutter()
         )
         var tapMap: OrderedDictionary<NSRange, CGRect> = [:]
@@ -197,7 +196,7 @@ class SwiftApp {
         return scene
     }
     
-    func tappablesAndStringForControls(_ controls: [Control]) -> ([Tappable], NSAttributedString) {
+    func stringForControls(_ controls: [Control], tappables: inout [Tappable]) -> NSAttributedString {
         let ctFont = CTFontCreateWithName(font.name as CFString, font.size, nil)
         let paragraphStyle = NSMutableParagraphStyle()
         paragraphStyle.alignment = .left
@@ -206,7 +205,6 @@ class SwiftApp {
             NSTextTab(type: .leftTabStopType, location: font.size),
             NSTextTab(type: .rightTabStopType, location: 8 * font.size)
         ]
-        var tappables: [Tappable] = []
         let mutable = NSMutableAttributedString()
         
         for control in controls {
@@ -236,7 +234,7 @@ class SwiftApp {
         }
         let range = NSRange(location: 0, length: mutable.length)
         mutable.addAttribute(.font, value: ctFont, range: range)
-        return (tappables, mutable)
+        return mutable
     }
     
     func hashFor(_ pageName: String, in bounds: CGRect) -> Int {
