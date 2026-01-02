@@ -25,6 +25,20 @@ class Store {
     var dict: DictType = [:]
 }
 
+extension Store.DictType {
+    func getValue(keys: [Store.KeyType]) -> Store.ValueType? {
+        if keys.isEmpty {
+            return nil
+        } else if keys.count == 1 {
+            return self[keys[0]]
+        } else if let dict = self[keys[0]] as? Store.DictType {
+            return dict.getValue(keys: Array(keys[1..<keys.count]))
+        } else {
+            return nil
+        }
+    }
+}
+
 struct Control {
     enum Mode {
         case button, mutable, readonly

@@ -38,6 +38,9 @@ class SwiftDemo: NSObject {
         swiftApp.store.setValue(
             value: swiftApp.store.dict,
             key: Key.test())
+        
+        let testFlag = swiftApp.store.dict.getValue(keys: [Key.test(), Key.Settings(), Key.flag()])
+        let a = 0
     }
     enum Event {
         case keyDown(character: Character, flags: NSEvent.ModifierFlags)
@@ -204,8 +207,8 @@ extension SwiftDemo: SwiftApp.PageDelegate {
     func controlsFor(_ pageName: String) -> [Control]? {
         switch PageID(rawValue: pageName) {
         case .LogIn: [
-            Control(key: Key.Settings(), mode: .mutable, closure: nil),
-            Control(key: Key.debug(), mode: .mutable, closure: nil),
+            Control(key: Key.Settings(), mode: .readonly, closure: nil),
+            Control(key: Key.debug(), mode: .readonly, closure: nil),
             Control(key: Key.reset(), mode: .button, closure: { [weak self] _, _ in
                 self?.ctm = .identity
                 return nil
@@ -216,7 +219,7 @@ extension SwiftDemo: SwiftApp.PageDelegate {
                 store.setValue(value: tapcount + 1, key: key)
                 return tapcount == 2 ? PageID.Home() : nil
             }),
-            Control(key: Key.test(), mode: .readonly, closure: nil),
+            Control(key: Key.test(), mode: .mutable, closure: nil),
         ]
         case .Home: [
             Control(key: Key.button(), mode: .button, closure: { store, key in
