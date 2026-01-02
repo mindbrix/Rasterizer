@@ -162,6 +162,17 @@ extension Hasher {
 }
 
 extension RAScene {
+    func addControl(_ value: Any, in b: CGRect, paint: RAPaint, fontSize: Double) {
+        if let flag = value as? Bool {
+            addFlag(flag, in: b, paint: paint, fontSize: fontSize)
+        } else if let slider = value as? Double {
+            addSlider(slider, in: b, paint: paint, fontSize: fontSize)
+        } else if let _ = value as? NSRange {
+            addStepper(in: b, paint: paint, fontSize: fontSize)
+        } else {
+            fillRect(b, paint: paint)
+        }
+    }
     func addFlag(_ flag: Bool, in rect: CGRect, paint: RAPaint, fontSize: Double) {
         let white = RAPaint(gray: 1, alpha: 1)
         let gray = RAPaint(gray: 0.66, alpha: 1)

@@ -170,18 +170,12 @@ class SwiftApp {
         let excludes = tappables.filter{ $0.exclude }
         let rect = scene.add(frame, excludes: excludes.map{ NSValue(range: $0.range) }, ctm: .identity, clip: .zero)
         for exclude in excludes {
-            if let b = tapMap[exclude.range], let dict = store.getValue(key: exclude.control.key) as? Store.DictType {
+            if let b = tapMap[exclude.range],
+                    let dict = store.getValue(key: exclude.control.key) as? Store.DictType,
+                    let value = dict[exclude.subKey] {
                 let isActive = (tapped?.range ?? NSRange()) == exclude.range
-                
-                if let flag = dict[exclude.subKey] as? Bool {
-                    scene.addFlag(flag, in: b, paint: RAPaint(cgColor: isActive ? Colors.red : Colors.blue), fontSize: font.size)
-                } else if let slider = dict[exclude.subKey] as? Double {
-                    scene.addSlider(slider, in: b, paint: RAPaint(cgColor: isActive ? Colors.red : Colors.blue), fontSize: font.size)
-                } else if let _ = dict[exclude.subKey] as? NSRange {
-                    scene.addStepper(in: b, paint: RAPaint(cgColor: isActive ? Colors.red : Colors.blue), fontSize: font.size)
-                } else {
-                    scene.fillRect(b, paint: RAPaint(cgColor: Colors.red))
-                }
+                let paint = RAPaint(cgColor: isActive ? Colors.red : Colors.blue)
+                scene.addControl(value, in: b, paint: paint, fontSize: font.size)
             }
         }
         if self.showTapMap {
@@ -198,10 +192,10 @@ class SwiftApp {
     
     func stringForControls(_ controls: [Control], tappables: inout [Tappable]) -> NSAttributedString {
         let ctFont = CTFontCreateWithName(font.name as CFString, font.size, nil)
-        let paragraphStyle = NSMutableParagraphStyle()
-        paragraphStyle.alignment = .left
-        paragraphStyle.lineBreakMode = .byTruncatingTail
-        paragraphStyle.tabStops = [
+        let style = NSMutableParagraphStyle()
+        style.alignment = .left
+        style.lineBreakMode = .byTruncatingTail
+        style.tabStops = [
             NSTextTab(type: .leftTabStopType, location: font.size),
             NSTextTab(type: .rightTabStopType, location: 8 * font.size)
         ]
@@ -214,7 +208,7 @@ class SwiftApp {
                 let isActive = (tapped?.range ?? NSRange()) == range
                 mutable.addAttribute(.foregroundColor, value: isActive ? Colors.red : Colors.blue, range: range)
                 tappables.append(Tappable(control: control, subKey: control.key, range: range, exclude: false))
-                mutable.addAttribute(.paragraphStyle, value: paragraphStyle, range: range)
+                mutable.addAttribute(.paragraphStyle, value: style, range: range)
             case .mutable:
                 if let dict = store.getValue(key: control.key) as? Store.DictType  {
                     var taps: [(String, NSRange)]? = []
