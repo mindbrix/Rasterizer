@@ -242,11 +242,11 @@ class SwiftApp {
             return 0
         }
         var hasher = Hasher()
-        hasher.combine(controls)
+        hasher.combine(pageName)
         hasher.combine(bounds)
+        hasher.combine(controls)
         hasher.combine(font.name)
         hasher.combine(font.size)
-        hasher.combine(pageName)
         hasher.combine(tapped?.range ?? NSRange())
         for key in (observed[pageName] ?? []) {
             hasher.combine(key)
