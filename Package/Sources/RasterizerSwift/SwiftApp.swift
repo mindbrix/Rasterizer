@@ -167,7 +167,6 @@ class SwiftApp {
     }
     
     func stringFor(_ controls: [Control], tappables: inout [Tappable]) -> NSAttributedString {
-        let ctFont = CTFontCreateWithName(font.name as CFString, font.size, nil)
         let style = NSMutableParagraphStyle()
         style.alignment = .left
         style.lineBreakMode = .byTruncatingTail
@@ -202,6 +201,7 @@ class SwiftApp {
                 }
             }
         }
+        let ctFont = CTFontCreateWithName(font.name as CFString, font.size, nil)
         let range = NSRange(location: 0, length: mutable.length)
         mutable.addAttribute(.font, value: ctFont, range: range)
         return mutable
