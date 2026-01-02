@@ -22,19 +22,9 @@ extension CGAffineTransform {
     }
 }
 
-
 extension CGPoint {
     init(center: CGPoint, r: Double, theta: Double) {
         self = CGPoint(x: center.x + r * cos(theta), y: center.y + r * sin(theta))
-    }
-}
-
-extension CGRect: @retroactive Hashable {
-    public func hash(into hasher: inout Hasher) {
-        hasher.combine(minX)
-        hasher.combine(minY)
-        hasher.combine(width)
-        hasher.combine(height)
     }
 }
 
@@ -133,6 +123,25 @@ extension NSMutableAttributedString {
             }
         }
         return NSRange(location: begin, length: length - begin)
+    }
+}
+
+extension Control: Hashable {
+    static func == (lhs: Control, rhs: Control) -> Bool {
+        lhs.hashValue == rhs.hashValue
+    }
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(key)
+        hasher.combine(mode)
+    }
+}
+
+extension CGRect: @retroactive Hashable {
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(minX)
+        hasher.combine(minY)
+        hasher.combine(width)
+        hasher.combine(height)
     }
 }
 
