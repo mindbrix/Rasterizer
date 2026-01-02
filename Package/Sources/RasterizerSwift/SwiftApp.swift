@@ -218,28 +218,19 @@ class SwiftApp {
                 tappables.append(Tappable(control: control, subKey: control.key, range: range, exclude: false))
                 mutable.addAttribute(.paragraphStyle, value: paragraphStyle, range: range)
             case .mutable:
-                guard let dict = store.getValue(key: control.key) as? Store.DictType else {
-                    continue
-                }
-                let begin = mutable.length
-                mutable.addAttribute(.foregroundColor,
-                    value: Colors.gray,
-                    range: mutable.appendString("\(control.key):\n"))
-                
-                for (subKey, value) in dict {
-                    mutable.addAttribute(.foregroundColor,
-                        value: Colors.black,
-                        range: mutable.appendString("\t\(subKey):"))
-                    let placeholder = mutable.placeholderFor(value) ?? ""
-                    let range = mutable.appendString("\t" + placeholder + "\n")
-                    tappables.append(Tappable(control: control, subKey: subKey, range: range, exclude: true))
-                    mutable.addAttribute(.foregroundColor, value: Colors.gray, range: range)
-                    
-                    mutable.addAttribute(.paragraphStyle, value: paragraphStyle, range: NSRange(location: begin, length: mutable.length - begin))
+                if let dict = store.getValue(key: control.key) as? Store.DictType  {
+                    var taps: [(String, NSRange)]? = []
+                    _ = mutable.appendKey(control.key, value: dict, taps: &taps, keyColor: Colors.black, valueColor: Colors.gray, fontSize: font.size, indent: 0)
+                    if let taps {
+                        tappables = tappables + taps.map({
+                            Tappable(control: control, subKey: $0.0, range: $0.1, exclude: true)
+                        })
+                    }
                 }
             case .readonly:
                 if let value = store.getValue(key: control.key) {
-                    _ = mutable.appendKey(control.key, value: value, keyColor: Colors.gray, valueColor: Colors.black, fontSize: font.size, indent: 0)
+                    var taps: [(String, NSRange)]? = nil
+                    _ = mutable.appendKey(control.key, value: value, taps: &taps, keyColor: Colors.gray, valueColor: Colors.black, fontSize: font.size, indent: 0)
                 }
             }
         }

@@ -97,7 +97,8 @@ extension NSMutableAttributedString {
         return range
     }
     
-    func appendKey(_ key: String, value: Any, keyColor: CGColor, valueColor: CGColor, fontSize: Double, indent: Int = 0) -> NSRange {
+    func appendKey(_ key: String, value: Any, taps: inout [(String, NSRange)]?, keyColor: CGColor, valueColor: CGColor, fontSize: Double, indent: Int = 0) -> NSRange {
+        let mutable = taps != nil
         let style = styleFor(indent, fontSize: fontSize)
         let begin = length
         _ = appendString(String(repeating: "\t", count: min(1, indent)))
@@ -109,12 +110,15 @@ extension NSMutableAttributedString {
             addAttribute(.paragraphStyle, value: style, range: NSRange(location: begin, length: length - begin))
             
             for (subKey, value) in dict {
-                _ = appendKey(subKey, value: value, keyColor: keyColor, valueColor: valueColor, fontSize: fontSize, indent: indent + 1)
+                _ = appendKey(subKey, value: value, taps: &taps, keyColor: keyColor, valueColor: valueColor, fontSize: fontSize, indent: indent + 1)
             }
-        } else if let string = stringFor(value) {
+        } else if let string = mutable ? placeholderFor(value) : stringFor(value) {
             let range = appendString(string)
             addAttribute(.foregroundColor, value: valueColor, range: range)
             
+            if mutable {
+                taps?.append((key, range))
+            }
             _ = appendString("\n")
             addAttribute(.paragraphStyle, value: style, range: NSRange(location: begin, length: length - begin))
         } else {
@@ -124,7 +128,7 @@ extension NSMutableAttributedString {
             if indent < 10 {
                 let mirror = Mirror(reflecting: value)
                 for child in mirror.children {
-                    _ = appendKey(child.label ?? "", value: child.value, keyColor: keyColor, valueColor: valueColor, fontSize: fontSize, indent: indent + 1)
+                    _ = appendKey(child.label ?? "", value: child.value, taps: &taps, keyColor: keyColor, valueColor: valueColor, fontSize: fontSize, indent: indent + 1)
                 }
             }
         }
