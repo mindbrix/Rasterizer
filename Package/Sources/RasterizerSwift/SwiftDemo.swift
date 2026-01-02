@@ -217,7 +217,7 @@ extension SwiftDemo: SwiftApp.PageDelegate {
                 store.setValue(value: tapcount + 1, key: key)
                 return tapcount == 2 ? PageID.Home() : nil
             }),
-            Control(key: Key.test(), mode: .mutable, closure: nil),
+            Control(key: Key.test(), mode: .readonly, closure: nil),
         ]
         case .Home: [
             Control(key: Key.button(), mode: .button, closure: { store, key in

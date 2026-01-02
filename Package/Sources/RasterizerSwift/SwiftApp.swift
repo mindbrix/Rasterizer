@@ -133,7 +133,7 @@ class SwiftApp {
         
         var tappables: [Tappable] = []
         let frame = RAFrame(
-            attributedString: stringForControls(controls, tappables: &tappables),
+            attributedString: stringFor(controls, tappables: &tappables),
             in: bounds.withGutter()
         )
         var tapMap: OrderedDictionary<NSRange, CGRect> = [:]
@@ -166,7 +166,7 @@ class SwiftApp {
         return scene
     }
     
-    func stringForControls(_ controls: [Control], tappables: inout [Tappable]) -> NSAttributedString {
+    func stringFor(_ controls: [Control], tappables: inout [Tappable]) -> NSAttributedString {
         let ctFont = CTFontCreateWithName(font.name as CFString, font.size, nil)
         let style = NSMutableParagraphStyle()
         style.alignment = .left
