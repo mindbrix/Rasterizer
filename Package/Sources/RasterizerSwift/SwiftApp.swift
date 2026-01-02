@@ -167,23 +167,15 @@ class SwiftApp {
     }
     
     func stringFor(_ controls: [Control], tappables: inout [Tappable]) -> NSAttributedString {
-        let style = NSMutableParagraphStyle()
-        style.alignment = .left
-        style.lineBreakMode = .byTruncatingTail
-        style.tabStops = [
-            NSTextTab(type: .leftTabStopType, location: font.size),
-            NSTextTab(type: .rightTabStopType, location: 8 * font.size)
-        ]
         let mutable = NSMutableAttributedString()
-        
         for control in controls {
             switch control.mode {
             case .button:
                 let range = mutable.appendString("\t\t\(control.key)\n")
                 let isActive = (tapped?.range ?? NSRange()) == range
                 mutable.addAttribute(.foregroundColor, value: isActive ? Colors.red : Colors.blue, range: range)
+                mutable.addAttribute(.paragraphStyle, value: mutable.styleFor(1, fontSize: font.size), range: range)
                 tappables.append(Tappable(control: control, subKey: control.key, range: range, exclude: false))
-                mutable.addAttribute(.paragraphStyle, value: style, range: range)
             case .mutable:
                 if let dict = store.getValue(key: control.key) as? Store.DictType  {
                     var taps: [(String, NSRange)]? = []
