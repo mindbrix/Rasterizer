@@ -119,7 +119,7 @@ extension NSMutableAttributedString {
                 _ = appendKey(subKey, value: value, taps: &taps, keyColor: keyColor, valueColor: valueColor, fontSize: fontSize, indent: indent + 1)
             }
         } else if let string = mutable ? placeholderFor(value) : stringFor(value) {
-            if let _ = value as? NSRange {
+            if mutable, let _ = value as? NSRange {
                 _ = appendString((stringFor(value) ?? "") + " ")
             }
             let range = appendString(string)
