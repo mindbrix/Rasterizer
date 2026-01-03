@@ -169,7 +169,7 @@ class SwiftApp {
     func stringFor(_ controls: [Control], tappables: inout [Tappable]) -> NSAttributedString {
         let mutable = NSMutableAttributedString()
         let ctFont = CTFontCreateWithName(font.name as CFString, font.size, nil)
-        let tabSize = (ctFont.isMonospace ? 1.5 : 1) * font.size
+        let tabSize = (ctFont.isMonospace ? 1.33 : 1) * font.size
         for control in controls {
             switch control.mode {
             case .button:

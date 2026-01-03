@@ -219,7 +219,7 @@ extension RAScene {
     func addSlider(_ slider: Double, in rect: CGRect, paint: RAPaint, fontSize: Double) {
         let gray = RAPaint(gray: 0.66, alpha: 1)
         let b = rect.insetBy(dx: fontSize / 4, dy: 0)
-        addSliderTrack(in: b, paint: gray, fontSize: fontSize)
+        addSliderTrack(in: rect, paint: gray, fontSize: fontSize)
         addSliderThumb(slider, in: b, paint: paint, fontSize: fontSize)
     }
     func addSliderThumb(_ slider: Double, in rect: CGRect, paint: RAPaint, fontSize: Double) {
