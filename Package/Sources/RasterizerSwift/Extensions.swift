@@ -29,6 +29,16 @@ extension CGPoint {
 }
 
 extension CGRect {
+    func perimeter() -> CGFloat {
+        2 * (width + height)
+    }
+    
+    func ellipsePerimeter() -> CGFloat {
+        let a = 0.5 * width
+        let b = 0.5 * height
+        return Double.pi * (3 * (a + b) - sqrt((3 * a + b) * (a + 3 * b)))
+    }
+    
     func snappedTo(lineHeight: CGFloat, in b: CGRect) -> CGRect {
         let ly = b.maxY - ceil((b.maxY - minY) / lineHeight) * lineHeight
         let uy = b.maxY - floor((b.maxY - maxY) / lineHeight) * lineHeight
