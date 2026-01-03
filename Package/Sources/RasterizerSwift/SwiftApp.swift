@@ -168,6 +168,8 @@ class SwiftApp {
     
     func stringFor(_ controls: [Control], tappables: inout [Tappable]) -> NSAttributedString {
         let mutable = NSMutableAttributedString()
+        let ctFont = CTFontCreateWithName(font.name as CFString, font.size, nil)
+        let tabSize = (ctFont.isMonospace ? 1.5 : 1) * font.size
         for control in controls {
             switch control.mode {
             case .button:
@@ -175,7 +177,7 @@ class SwiftApp {
                     let range = mutable.appendString("\t\t\(control.key)\n")
                     let isActive = (tapped?.range ?? NSRange()) == range
                     mutable.addAttribute(.foregroundColor, value: !enabled ? Colors.gray : isActive ? Colors.red : Colors.blue, range: range)
-                    mutable.addAttribute(.paragraphStyle, value: mutable.styleFor(1, fontSize: font.size), range: range)
+                    mutable.addAttribute(.paragraphStyle, value: mutable.styleFor(1, tabSize: tabSize), range: range)
                     if enabled {
                         tappables.append(Tappable(control: control, subKey: control.key, range: range, exclude: false))
                     }
@@ -183,7 +185,7 @@ class SwiftApp {
             case .mutable:
                 if let dict = store.getValue(key: control.key) as? Store.DictType  {
                     var taps: [(String, NSRange)]? = []
-                    _ = mutable.appendKey(control.key, value: dict, taps: &taps, keyColor: Colors.black, valueColor: Colors.gray, fontSize: font.size, indent: 0)
+                    _ = mutable.appendKey(control.key, value: dict, taps: &taps, keyColor: Colors.black, valueColor: Colors.gray, fontSize: tabSize, indent: 0)
                     if let taps {
                         tappables = tappables + taps.map({
                             Tappable(control: control, subKey: $0.0, range: $0.1, exclude: true)
@@ -193,11 +195,10 @@ class SwiftApp {
             case .readonly:
                 if let value = store.getValue(key: control.key) {
                     var taps: [(String, NSRange)]? = nil
-                    _ = mutable.appendKey(control.key, value: value, taps: &taps, keyColor: Colors.gray, valueColor: Colors.black, fontSize: font.size, indent: 0)
+                    _ = mutable.appendKey(control.key, value: value, taps: &taps, keyColor: Colors.gray, valueColor: Colors.black, fontSize: tabSize, indent: 0)
                 }
             }
         }
-        let ctFont = CTFontCreateWithName(font.name as CFString, font.size, nil)
         let range = NSRange(location: 0, length: mutable.length)
         mutable.addAttribute(.font, value: ctFont, range: range)
         return mutable

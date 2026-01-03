@@ -36,7 +36,7 @@ extension CGRect {
     func ellipsePerimeter() -> CGFloat {
         let a = 0.5 * width
         let b = 0.5 * height
-        return Double.pi * (3 * (a + b) - sqrt((3 * a + b) * (a + 3 * b)))
+        return CGFloat.pi * (3 * (a + b) - sqrt((3 * a + b) * (a + 3 * b)))
     }
     
     func snappedTo(lineHeight: CGFloat, in b: CGRect) -> CGRect {
@@ -49,6 +49,12 @@ extension CGRect {
         return CGRect(
             x: minX, y: minY - gutter,
             width: width, height: height + gutter)
+    }
+}
+
+extension CTFont {
+    var isMonospace: Bool {
+        CTFontGetSymbolicTraits(self).contains(.monoSpaceTrait)
     }
 }
 
@@ -77,13 +83,13 @@ extension NSMutableAttributedString {
         }
     }
     
-    func styleFor(_ indent: Int, fontSize: Double) -> NSParagraphStyle {
+    func styleFor(_ indent: Int, tabSize: Double) -> NSParagraphStyle {
         let style = NSMutableParagraphStyle()
         style.alignment = .left
         style.lineBreakMode = .byTruncatingTail
         style.tabStops = [
-            NSTextTab(type: .leftTabStopType, location: CGFloat(indent + 0) * fontSize),
-            NSTextTab(type: .rightTabStopType, location: CGFloat(indent + 7) * fontSize)
+            NSTextTab(type: .leftTabStopType, location: CGFloat(indent + 0) * tabSize),
+            NSTextTab(type: .rightTabStopType, location: CGFloat(indent + 7) * tabSize)
         ]
         return style
     }
@@ -99,7 +105,7 @@ extension NSMutableAttributedString {
     
     func appendKey(_ key: String, value: Any, taps: inout [(String, NSRange)]?, keyColor: CGColor, valueColor: CGColor, fontSize: Double, indent: Int = 0) -> NSRange {
         let mutable = taps != nil
-        let style = styleFor(indent, fontSize: fontSize)
+        let style = styleFor(indent, tabSize: fontSize)
         let begin = length
         _ = appendString(String(repeating: "\t", count: min(1, indent)))
         addAttribute(.foregroundColor,
