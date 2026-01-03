@@ -38,6 +38,12 @@ class SwiftDemo: NSObject {
         swiftApp.store.setValue(
             value: swiftApp.store.dict,
             key: Key.test())
+        swiftApp.store.setValue(
+            value: true,
+            key: Key.button())
+        swiftApp.store.setValue(
+            value: true,
+            key: Key.reset())
     }
     
     enum Event {
@@ -162,6 +168,7 @@ extension SwiftDemo: SwiftApp.PageDelegate {
         case outlines
         case reset = "reset ctm"
         case button
+        case tapcount
         
         func callAsFunction() -> String {
             rawValue
@@ -211,17 +218,17 @@ extension SwiftDemo: SwiftApp.PageDelegate {
                 self?.ctm = .identity
                 return nil
             }),
-            Control(key: Key.button(), mode: .button, closure: { store, key in
-                let tapcount = store.getValue(key: key) as? Int ?? 0
+            Control(key: Key.button(), mode: .button, closure: { store, _ in
+                let tapcount = store.getValue(key: Key.tapcount()) as? Int ?? 0
                 print("\(tapcount)")
-                store.setValue(value: tapcount + 1, key: key)
+                store.setValue(value: tapcount + 1, key: Key.tapcount())
                 return tapcount == 2 ? PageID.Home() : nil
             }),
             Control(key: Key.test(), mode: .readonly, closure: nil),
         ]
         case .Home: [
-            Control(key: Key.button(), mode: .button, closure: { store, key in
-                store.setValue(value: 0, key: key)
+            Control(key: Key.button(), mode: .button, closure: { store, _ in
+                store.setValue(value: 0, key: Key.tapcount())
                 return PageID.LogIn()
             })]
         default:

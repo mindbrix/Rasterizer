@@ -171,11 +171,15 @@ class SwiftApp {
         for control in controls {
             switch control.mode {
             case .button:
-                let range = mutable.appendString("\t\t\(control.key)\n")
-                let isActive = (tapped?.range ?? NSRange()) == range
-                mutable.addAttribute(.foregroundColor, value: isActive ? Colors.red : Colors.blue, range: range)
-                mutable.addAttribute(.paragraphStyle, value: mutable.styleFor(1, fontSize: font.size), range: range)
-                tappables.append(Tappable(control: control, subKey: control.key, range: range, exclude: false))
+                if let enabled = store.getValue(key: control.key) as? Bool {
+                    let range = mutable.appendString("\t\t\(control.key)\n")
+                    let isActive = (tapped?.range ?? NSRange()) == range
+                    mutable.addAttribute(.foregroundColor, value: !enabled ? Colors.gray : isActive ? Colors.red : Colors.blue, range: range)
+                    mutable.addAttribute(.paragraphStyle, value: mutable.styleFor(1, fontSize: font.size), range: range)
+                    if enabled {
+                        tappables.append(Tappable(control: control, subKey: control.key, range: range, exclude: false))
+                    }
+                }
             case .mutable:
                 if let dict = store.getValue(key: control.key) as? Store.DictType  {
                     var taps: [(String, NSRange)]? = []
