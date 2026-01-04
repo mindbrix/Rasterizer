@@ -87,7 +87,7 @@ class SwiftApp {
            let slider = value as? Double {
             let dt = (p.x - last.x) / tapped.bounds.width
             dict[tapped.subKey] = max(0.0, min(1.0, slider + dt))
-            store.setValue(value: dict, key: key)
+            store.setValue(key: key, value: dict)
         }
         last = p
     }
@@ -105,7 +105,7 @@ class SwiftApp {
                 let location = max(0, min(range.length - 1, range.location + delta))
                 dict[tapped.subKey] = NSRange(location: location, length: range.length)
             }
-            store.setValue(value: dict, key: key)
+            store.setValue(key: key, value: dict)
         }
         if let name = tapped.control.closure?(self.store, key) {
             pageName = name

@@ -19,31 +19,25 @@ class SwiftDemo: NSObject {
             Key.flag()   : false,
             Key.paused() : true,
             Key.slider() : 0.0,
-            Key.rect(): false,
+            Key.rect()   : false,
             Key.index()  : NSRange(location: 0, length: drawables.count)
-        ]
-        swiftApp.store.setValue(
-            value: settings,
-            key: Key.Settings())
-        
+        ]        
         let debug: Store.DictType = [
             Key.outlines(): false,
             Key.opaques() : true,
-            Key.clips()    : true,
-            Key.curves()   : true
+            Key.clips()   : true,
+            Key.curves()  : true
         ]
+        swiftApp.store.merge([
+            Key.Settings(): settings,
+            Key.debug():    debug,
+            Key.button():   true,
+            Key.reset():    true
+        ])
         swiftApp.store.setValue(
-            value: debug,
-            key: Key.debug())
-        swiftApp.store.setValue(
-            value: swiftApp.store.dict,
-            key: Key.test())
-        swiftApp.store.setValue(
-            value: true,
-            key: Key.button())
-        swiftApp.store.setValue(
-            value: true,
-            key: Key.reset())
+            key: Key.test(),
+            value: swiftApp.store.dict
+        )
     }
     
     enum Event {
@@ -221,14 +215,14 @@ extension SwiftDemo: SwiftApp.PageDelegate {
             Control(key: Key.button(), mode: .button, closure: { store, _ in
                 let tapcount = store.getValue(key: Key.tapcount()) as? Int ?? 0
                 print("\(tapcount)")
-                store.setValue(value: tapcount + 1, key: Key.tapcount())
+                store.setValue(key: Key.tapcount(), value: tapcount + 1)
                 return tapcount == 2 ? PageID.Home() : nil
             }),
             Control(key: Key.test(), mode: .readonly, closure: nil),
         ]
         case .Home: [
             Control(key: Key.button(), mode: .button, closure: { store, _ in
-                store.setValue(value: 0, key: Key.tapcount())
+                store.setValue(key: Key.tapcount(), value: 0)
                 return PageID.LogIn()
             })]
         default:

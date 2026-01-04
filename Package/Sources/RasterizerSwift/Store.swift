@@ -17,8 +17,13 @@ class Store {
     func getValue(key: KeyType) -> ValueType? {
         dict[key]
     }
-    func setValue(value: ValueType?, key: KeyType) {
+    func setValue(key: KeyType, value: ValueType?) {
         dict[key] = value
+    }
+    func merge(_ other: DictType) {
+        for (key, value) in other {
+            dict[key] = value
+        }
     }
     var dict: DictType = [:]
 }
