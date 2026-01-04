@@ -20,12 +20,15 @@ class Store {
     func setValue(key: KeyType, value: ValueType?) {
         dict[key] = value
     }
+    var dict: DictType = [:]
+}
+
+extension Store {
     func merge(_ other: DictType) {
         for (key, value) in other {
-            dict[key] = value
+            setValue(key: key, value: value)
         }
     }
-    var dict: DictType = [:]
 }
 
 extension Store.DictType {
