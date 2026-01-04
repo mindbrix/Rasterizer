@@ -112,7 +112,6 @@ extension SwiftDemo: RASceneListDelegate {
         return should
     }
     func getListAtTime(_ time: Double, width: Double, height: Double) -> RASceneList {
-        bounds = CGRect(x: 0, y: 0, width: width, height: height)
         let list = RASceneList()
         let t = paused ? slider : time - floor(time)
         list.add(drawables[index].getSceneAtTime(t, bounds: bounds, state: self))

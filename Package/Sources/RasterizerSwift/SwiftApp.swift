@@ -126,7 +126,7 @@ class SwiftApp {
             return scene
         }
         let hash = hashFor(pageName, in: bounds)
-        if let entry = pageMap[pageName], hash == entry.hash {
+        if let entry = pageMap[pageName], entry.hash == hash  {
             return entry.scene
         }
         observed[pageName] = .init(controls.map{ $0.key })
