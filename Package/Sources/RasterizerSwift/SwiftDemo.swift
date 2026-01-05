@@ -57,7 +57,8 @@ class SwiftDemo: NSObject {
         TestCubics(),
         TestGradients(),
         TestDasher(),
-        TestImage()
+        TestImage(),
+        TestDispatch()
     ]
     
     var ctm = CGAffineTransform.identity

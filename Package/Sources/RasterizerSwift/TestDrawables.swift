@@ -6,12 +6,37 @@
 //
 
 import Foundation
-import RasterizerObjC
+@preconcurrency import RasterizerObjC
 
 protocol RADrawable {
     func getSceneAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RAScene
 }
 
+
+class TestDispatch: RADrawable {
+    func getSceneAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RAScene {
+        let count = 8
+        let size = 100.0
+        let b = CGRect(x: 0, y: 0, width: size, height: size)
+        
+        var scenes: [RAScene] = []
+        for _ in 0..<count {
+            scenes.append(RAScene())
+        }
+        DispatchQueue.concurrentPerform(iterations: count, execute: { [scenes] i in
+            let path = RAPath(rect: b)
+            let color = RAPaint()
+            let scene = scenes[i]
+            
+            scene.addFill(path, ctm: CGAffineTransform(translationX: CGFloat(i) * size, y: 0), color: color, evenOdd: false)
+        })
+//        let scene = RAScene()
+//        for _ in 0..<count {
+//            scene.a
+//        }
+        return scenes[1]
+    }
+}
 
 class TestImage: RADrawable {
     func getSceneAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RAScene {
