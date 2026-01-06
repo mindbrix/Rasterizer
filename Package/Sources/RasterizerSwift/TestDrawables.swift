@@ -12,14 +12,18 @@ protocol RADrawable {
     func getSceneAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RAScene
 }
 
+struct RAState {
+    let flag, useRect: Bool
+    let time: Double
+}
 
 class TestDispatch: RADrawable {
-    static func writeScene(_ scene: RAScene, range: NSRange, b: CGRect) {
+    static func writeScene(_ scene: RAScene, range: NSRange, b: CGRect, state: RAState) {
         let size = b.width
-        let path = RAPath(rect: b)
+        let path = TestCubics.getPathAtTime(bounds: b, state: state)
         let color = RAPaint()
         
-        scene.addFill(path, ctm: CGAffineTransform(translationX: CGFloat(range.location) * size, y: 0), color: color, evenOdd: false)
+        scene.addFill(path, ctm: CGAffineTransform(translationX: CGFloat(range.location) * size, y: 0), color: color, evenOdd: true)
     }
     func getSceneAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RAScene {
         let count = 8
@@ -30,8 +34,9 @@ class TestDispatch: RADrawable {
         for _ in 0..<count {
             scenes.append(RAScene())
         }
+        let raState = RAState(flag: state.flag, useRect: state.useRect, time: time)
         DispatchQueue.concurrentPerform(iterations: count, execute: { [scenes] i in
-            Self.writeScene(scenes[i], range: NSRange(location: i, length: count), b: b)
+            Self.writeScene(scenes[i], range: NSRange(location: i, length: count), b: b, state: raState)
         })
         return scenes[1]
     }
@@ -132,7 +137,7 @@ class TestQuadratics: RADrawable {
 }
 
 class TestCubics: RADrawable {
-    func getPathAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RAPath {
+    static func getPathAtTime(bounds: CGRect, state: RAState) -> RAPath {
         let count = state.flag ? 72 : 36
         let dim = min(bounds.width, bounds.height)
         let radius = 0.25 * dim
@@ -140,7 +145,7 @@ class TestCubics: RADrawable {
         let path = RAPath()
         for i in 0 ..< count {
             let ti = Double(i) / Double(count)
-            let ts = 2 * time / Double(count) + ti
+            let ts = 2 * state.time / Double(count) + ti
             let t = ts - floor(ts)
             let origin = CGPoint(center: center, r: radius, theta: (i % 2 == 0 ? 1 : -1) * t * 2 * Double.pi)
             if state.useRect {
@@ -152,7 +157,7 @@ class TestCubics: RADrawable {
         return path
     }
     func getSceneAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RAScene {
-        let path = getPathAtTime(time, bounds: bounds, state: state)
+        let path = Self.getPathAtTime(bounds: bounds, state: RAState(flag: state.flag, useRect: state.useRect, time: time))
         
         let scene = RAScene()
         scene.addFill(path, ctm: .identity, color: RAPaint(gray: 0, alpha: 1), evenOdd: true)
