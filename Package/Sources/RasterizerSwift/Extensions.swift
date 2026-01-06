@@ -29,6 +29,17 @@ extension CGPoint {
 }
 
 extension CGRect {
+    func boundsInRange(_ range: NSRange) -> CGRect {
+        let grid = ceil(sqrt(CGFloat(range.length)))
+        let col = range.location % Int(grid)
+        let row = range.location / Int(grid)
+        let size = min(width, height) / grid
+        return CGRect(
+            origin: .init(
+                x: CGFloat(col) * size,
+                y: CGFloat(row) * size),
+            size: CGSize(width: size, height: size))
+    }
     func perimeter() -> CGFloat {
         2 * (width + height)
     }
@@ -272,4 +283,11 @@ extension RAScene {
         path.close()
         addStroke(path, ctm: .identity, color: paint, width: width, capStyle: .capButt, joinStyle: .joinMiter)
     }
+    
+    func createList() -> RASceneList {
+        let list = RASceneList()
+        list.add(self)
+        return list
+    }
 }
+

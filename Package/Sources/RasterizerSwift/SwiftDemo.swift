@@ -116,7 +116,7 @@ extension SwiftDemo: RASceneListDelegate {
         bounds = CGRect(x: 0, y: 0, width: width, height: height)
         let list = RASceneList()
         let t = paused ? slider : time - floor(time)
-        list.add(drawables[index].getSceneAtTime(t, bounds: bounds, state: self))
+        list.add(drawables[index].getListAtTime(t, bounds: bounds, state: self))
         list.add(pastedScene ?? RAScene())
         
         appCtm = ctm.inverted()
