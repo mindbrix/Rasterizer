@@ -116,7 +116,7 @@ typedef NS_ENUM(NSUInteger, RAJoinStyle) {
            inRect:(CGRect)rect
               ctm:(CGAffineTransform)ctm
              clip:(CGRect)clip;
-
+- (void)addScene:(nonnull RAScene *)scene;
 - (CGAffineTransform)addSvgFromUrl:(nonnull NSURL *)url;
 @end
 

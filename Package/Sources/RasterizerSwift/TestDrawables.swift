@@ -26,7 +26,7 @@ class TestDispatch: RADrawable {
         scene.addFill(path, ctm: .identity, color: color, evenOdd: true)
     }
     func getListAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RASceneList {
-        let count = 9
+        let count = 100
         
         var scenes: [RAScene] = []
         for _ in 0..<count {
@@ -36,11 +36,11 @@ class TestDispatch: RADrawable {
         DispatchQueue.concurrentPerform(iterations: count, execute: { [scenes] i in
             Self.writeScene(scenes[i], range: NSRange(location: i, length: count), bounds: bounds, state: raState)
         })
-        let list = RASceneList()
-        for scene in scenes {
-            list.add(scene)
+        let scene = RAScene()
+        for scn in scenes {
+            scene.add(scn)
         }
-        return list
+        return scene.createList()
     }
 }
 

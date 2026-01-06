@@ -334,6 +334,9 @@
     GlyphCache cache;
     return RaCT::addTextToSceneInRect((__bridge CFAttributedStringRef)string, rect, ctm, clip, _scene, cache);
 }
+- (void)addScene:(RAScene *)scene {
+    _scene->appendScene(*(scene.scene).ptr);
+}
 - (CGAffineTransform)addSvgFromUrl:(NSURL *)url {
     return RaCG::CGFromTransform(RaSVG::addSvgToScene(url.path.UTF8String, _scene));
 }
