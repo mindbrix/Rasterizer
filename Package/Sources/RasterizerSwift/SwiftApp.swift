@@ -57,7 +57,7 @@ class SwiftApp {
     let store = Store()
     
     var pageName: String?
-    var observed: [String: Set<Store.KeyType>] = [:]
+    var observed: [String: OrderedSet<Store.KeyType>] = [:]
     var pageMap: [String: PageEntry] = [:]
     
     var tapped: Tappable?
