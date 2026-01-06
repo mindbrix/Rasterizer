@@ -1023,11 +1023,6 @@ struct Rasterizer {
         }
         virtual void EndSubpath(float x0, float y0, float x1, float y1, bool closed) {}
         
-        void p16init(Geometry *g) {
-            float s = kMoleculesRange / fmaxf(g->bounds.ux - g->bounds.lx, g->bounds.uy - g->bounds.ly);
-            m = Transform(s, 0.f, 0.f, s, s * -g->bounds.lx, s * -g->bounds.ly);
-            cubicScale = -kCubicPrecision * (kMoleculesRange / kMoleculesHeight);
-        }
         Transform m;
         float quadraticScale = 1.f, cubicScale = kCubicPrecision;
     };
@@ -1442,7 +1437,9 @@ struct Rasterizer {
         static const uint8_t isMoveTo = 0x80;
         
         void writeGeometry(Geometry *g) {
-            p16init(g);
+            float s = kMoleculesRange / fmaxf(g->bounds.ux - g->bounds.lx, g->bounds.uy - g->bounds.ly);
+            m = Transform(s, 0.f, 0.f, s, s * -g->bounds.lx, s * -g->bounds.ly);
+            cubicScale = -kCubicPrecision * (kMoleculesRange / kMoleculesHeight);
             
             p16s = & g->p16s, p16cnts = & g->p16cnts, atoms = & g->atoms;
             size_t count = g->points.end / 2;
