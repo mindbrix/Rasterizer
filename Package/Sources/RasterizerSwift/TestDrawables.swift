@@ -14,12 +14,12 @@ protocol RADrawable {
 
 
 class TestDispatch: RADrawable {
-    static func writeScene(_ scene: RAScene, i: Int, b: CGRect) {
+    static func writeScene(_ scene: RAScene, range: NSRange, b: CGRect) {
         let size = b.width
         let path = RAPath(rect: b)
         let color = RAPaint()
         
-        scene.addFill(path, ctm: CGAffineTransform(translationX: CGFloat(i) * size, y: 0), color: color, evenOdd: false)
+        scene.addFill(path, ctm: CGAffineTransform(translationX: CGFloat(range.location) * size, y: 0), color: color, evenOdd: false)
     }
     func getSceneAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RAScene {
         let count = 8
@@ -31,7 +31,7 @@ class TestDispatch: RADrawable {
             scenes.append(RAScene())
         }
         DispatchQueue.concurrentPerform(iterations: count, execute: { [scenes] i in
-            Self.writeScene(scenes[i], i: i, b: b)
+            Self.writeScene(scenes[i], range: NSRange(location: i, length: count), b: b)
         })
         return scenes[1]
     }
