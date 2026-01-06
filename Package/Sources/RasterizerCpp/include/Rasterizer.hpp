@@ -498,7 +498,6 @@ struct Rasterizer {
                     paths.add(path);
                     p16bases.add(0);
                 } else {
-                    fillcount++;
                     auto it = p16map.find(key);
                     if (it == p16map.end()) {
                         paths.add(path);
@@ -558,7 +557,7 @@ struct Rasterizer {
             return xxhash;
         }
         
-        size_t refCount, count = 0, weight = 0, xxhash = 0, _xxhash = 0, fillcount = 0;
+        size_t refCount, count = 0, weight = 0, xxhash = 0, _xxhash = 0;
         RefVector<Path> paths;
         Vector<uint32_t> p16bases;  uint32_t p16total = 0;
         RefVector<Path> clipPaths;
