@@ -41,11 +41,6 @@ class TestDispatch: RADrawable {
             list.add(scn)
         }
         return list
-//        let scene = RAScene()
-//        for scn in scenes {
-//            scene.add(scn)
-//        }
-//        return scene.createList()
     }
 }
 
