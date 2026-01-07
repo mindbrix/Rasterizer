@@ -36,11 +36,16 @@ class TestDispatch: RADrawable {
         DispatchQueue.concurrentPerform(iterations: count, execute: { [scenes] i in
             Self.writeScene(scenes[i], range: NSRange(location: i, length: count), bounds: bounds, state: raState)
         })
-        let scene = RAScene()
+        let list = RASceneList()
         for scn in scenes {
-            scene.add(scn)
+            list.add(scn)
         }
-        return scene.createList()
+        return list
+//        let scene = RAScene()
+//        for scn in scenes {
+//            scene.add(scn)
+//        }
+//        return scene.createList()
     }
 }
 
