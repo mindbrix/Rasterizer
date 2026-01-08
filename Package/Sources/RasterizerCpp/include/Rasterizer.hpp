@@ -1631,22 +1631,20 @@ struct Rasterizer {
         size_t i, j, count, size, ip, iz, ic, end, instbegin, passsize, stencilBegin = 0;
         {
             auto p16s = (Point16 *)(buffer.base + buffer.p16s);
-            size_t p16paths = 0;
+            size_t p16paths = 0, p16total = 0, m0 = 0, m1 = 0, i0, i1, c0, c1;
             for (auto& scene: list.scenes)
                 p16paths += scene->p16entries.end();
-            size_t i0 = index * p16paths / contextCount;
-            size_t i1 = (index + 1) * p16paths / contextCount;
-            size_t p16total = 0, m0 = 0, m1 = 0;
+            i0 = index * p16paths / contextCount;
+            i1 = (index + 1) * p16paths / contextCount;
             for (auto& scene: list.scenes) {
                 m1 = m0 + scene->p16entries.end();
-                size_t c0 = m0 < i0 ? i0 : m0 > i1 ? i1 : m0;
-                size_t c1 = m1 < i0 ? i0 : m1 > i1 ? i1 : m1;
-                for (size_t e = 0; e < scene->p16entries.end(); e++, m0++)
-                    if (m0 >= c0 && m0 < c1) {
-                        auto& entry = scene->p16entries[e];
-                        memcpy(p16s + p16total + entry.idx, entry.path->p16s.base, entry.path->p16s.end * sizeof(Point16));
-                    }
-                p16total += scene->p16total;
+                c0 = m0 < i0 ? i0 : m0 > i1 ? i1 : m0;
+                c1 = m1 < i0 ? i0 : m1 > i1 ? i1 : m1;
+                for (; c0 < c1; c0++) {
+                    auto& entry = scene->p16entries[c0 - m0];
+                    memcpy(p16s + p16total + entry.idx, entry.path->p16s.base, entry.path->p16s.end * sizeof(Point16));
+                }
+                m0 = m1, p16total += scene->p16total;
             }
         }
         if (ctx->segments.end || ctx->stencils.end) {
