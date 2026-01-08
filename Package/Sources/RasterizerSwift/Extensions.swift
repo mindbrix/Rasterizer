@@ -22,23 +22,34 @@ extension CGAffineTransform {
     }
 }
 
-
 extension CGPoint {
     init(center: CGPoint, r: Double, theta: Double) {
         self = CGPoint(x: center.x + r * cos(theta), y: center.y + r * sin(theta))
     }
 }
 
-extension CGRect: @retroactive Hashable {
-    public func hash(into hasher: inout Hasher) {
-        hasher.combine(minX)
-        hasher.combine(minY)
-        hasher.combine(width)
-        hasher.combine(height)
-    }
-}
-
 extension CGRect {
+    func boundsInRange(_ range: NSRange) -> CGRect {
+        let grid = ceil(sqrt(CGFloat(range.length)))
+        let col = range.location % Int(grid)
+        let row = range.location / Int(grid)
+        let size = min(width, height) / grid
+        return CGRect(
+            origin: .init(
+                x: CGFloat(col) * size,
+                y: CGFloat(row) * size),
+            size: CGSize(width: size, height: size))
+    }
+    func perimeter() -> CGFloat {
+        2 * (width + height)
+    }
+    
+    func ellipsePerimeter() -> CGFloat {
+        let a = 0.5 * width
+        let b = 0.5 * height
+        return CGFloat.pi * (3 * (a + b) - sqrt((3 * a + b) * (a + 3 * b)))
+    }
+    
     func snappedTo(lineHeight: CGFloat, in b: CGRect) -> CGRect {
         let ly = b.maxY - ceil((b.maxY - minY) / lineHeight) * lineHeight
         let uy = b.maxY - floor((b.maxY - maxY) / lineHeight) * lineHeight
@@ -49,6 +60,12 @@ extension CGRect {
         return CGRect(
             x: minX, y: minY - gutter,
             width: width, height: height + gutter)
+    }
+}
+
+extension CTFont {
+    var isMonospace: Bool {
+        CTFontGetSymbolicTraits(self).contains(.monoSpaceTrait)
     }
 }
 
@@ -77,13 +94,13 @@ extension NSMutableAttributedString {
         }
     }
     
-    func styleFor(_ indent: Int, fontSize: Double) -> NSParagraphStyle {
+    func styleFor(_ indent: Int, tabSize: Double) -> NSParagraphStyle {
         let style = NSMutableParagraphStyle()
         style.alignment = .left
         style.lineBreakMode = .byTruncatingTail
         style.tabStops = [
-            NSTextTab(type: .leftTabStopType, location: CGFloat(indent + 0) * fontSize),
-            NSTextTab(type: .rightTabStopType, location: CGFloat(indent + 7) * fontSize)
+            NSTextTab(type: .leftTabStopType, location: CGFloat(indent + 0) * tabSize),
+            NSTextTab(type: .rightTabStopType, location: CGFloat(indent + 7) * tabSize)
         ]
         return style
     }
@@ -97,8 +114,9 @@ extension NSMutableAttributedString {
         return range
     }
     
-    func appendKey(_ key: String, value: Any, keyColor: CGColor, valueColor: CGColor, fontSize: Double, indent: Int = 0) -> NSRange {
-        let style = styleFor(indent, fontSize: fontSize)
+    func appendKey(_ key: String, value: Any, taps: inout [(String, NSRange)]?, keyColor: CGColor, valueColor: CGColor, fontSize: Double, indent: Int = 0) -> NSRange {
+        let mutable = taps != nil
+        let style = styleFor(indent, tabSize: fontSize)
         let begin = length
         _ = appendString(String(repeating: "\t", count: min(1, indent)))
         addAttribute(.foregroundColor,
@@ -109,12 +127,18 @@ extension NSMutableAttributedString {
             addAttribute(.paragraphStyle, value: style, range: NSRange(location: begin, length: length - begin))
             
             for (subKey, value) in dict {
-                _ = appendKey(subKey, value: value, keyColor: keyColor, valueColor: valueColor, fontSize: fontSize, indent: indent + 1)
+                _ = appendKey(subKey, value: value, taps: &taps, keyColor: keyColor, valueColor: valueColor, fontSize: fontSize, indent: indent + 1)
             }
-        } else if let string = stringFor(value) {
+        } else if let string = mutable ? placeholderFor(value) : stringFor(value) {
+            if mutable, let _ = value as? NSRange {
+                _ = appendString((stringFor(value) ?? "") + " ")
+            }
             let range = appendString(string)
             addAttribute(.foregroundColor, value: valueColor, range: range)
             
+            if mutable {
+                taps?.append((key, range))
+            }
             _ = appendString("\n")
             addAttribute(.paragraphStyle, value: style, range: NSRange(location: begin, length: length - begin))
         } else {
@@ -124,11 +148,30 @@ extension NSMutableAttributedString {
             if indent < 10 {
                 let mirror = Mirror(reflecting: value)
                 for child in mirror.children {
-                    _ = appendKey(child.label ?? "", value: child.value, keyColor: keyColor, valueColor: valueColor, fontSize: fontSize, indent: indent + 1)
+                    _ = appendKey(child.label ?? "", value: child.value, taps: &taps, keyColor: keyColor, valueColor: valueColor, fontSize: fontSize, indent: indent + 1)
                 }
             }
         }
         return NSRange(location: begin, length: length - begin)
+    }
+}
+
+extension Control: Hashable {
+    static func == (lhs: Control, rhs: Control) -> Bool {
+        lhs.hashValue == rhs.hashValue
+    }
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(key)
+        hasher.combine(mode)
+    }
+}
+
+extension CGRect: @retroactive Hashable {
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(minX)
+        hasher.combine(minY)
+        hasher.combine(width)
+        hasher.combine(height)
     }
 }
 
@@ -158,6 +201,17 @@ extension Hasher {
 }
 
 extension RAScene {
+    func addControl(_ value: Any, in b: CGRect, paint: RAPaint, fontSize: Double) {
+        if let flag = value as? Bool {
+            addFlag(flag, in: b, paint: paint, fontSize: fontSize)
+        } else if let slider = value as? Double {
+            addSlider(slider, in: b, paint: paint, fontSize: fontSize)
+        } else if let _ = value as? NSRange {
+            addStepper(in: b, paint: paint, fontSize: fontSize)
+        } else {
+            fillRect(b, paint: paint)
+        }
+    }
     func addFlag(_ flag: Bool, in rect: CGRect, paint: RAPaint, fontSize: Double) {
         let white = RAPaint(gray: 1, alpha: 1)
         let gray = RAPaint(gray: 0.66, alpha: 1)
@@ -176,7 +230,7 @@ extension RAScene {
     func addSlider(_ slider: Double, in rect: CGRect, paint: RAPaint, fontSize: Double) {
         let gray = RAPaint(gray: 0.66, alpha: 1)
         let b = rect.insetBy(dx: fontSize / 4, dy: 0)
-        addSliderTrack(in: b, paint: gray, fontSize: fontSize)
+        addSliderTrack(in: rect, paint: gray, fontSize: fontSize)
         addSliderThumb(slider, in: b, paint: paint, fontSize: fontSize)
     }
     func addSliderThumb(_ slider: Double, in rect: CGRect, paint: RAPaint, fontSize: Double) {
@@ -229,4 +283,11 @@ extension RAScene {
         path.close()
         addStroke(path, ctm: .identity, color: paint, width: width, capStyle: .capButt, joinStyle: .joinMiter)
     }
+    
+    func createList() -> RASceneList {
+        let list = RASceneList()
+        list.add(self)
+        return list
+    }
 }
+

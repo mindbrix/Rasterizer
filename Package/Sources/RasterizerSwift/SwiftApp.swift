@@ -11,20 +11,6 @@ import CoreText
 import RasterizerObjC
 
 
-class Store {
-    typealias KeyType = String
-    typealias ValueType = Any
-    typealias DictType = OrderedDictionary<KeyType, ValueType>
-    
-    func getValue(key: KeyType) -> ValueType? {
-        dict[key]
-    }
-    func setValue(value: ValueType?, key: KeyType) {
-        dict[key] = value
-    }
-    var dict: DictType = [:]
-}
-
 struct Control {
     enum Mode {
         case button, mutable, readonly
@@ -33,16 +19,6 @@ struct Control {
     let key: Store.KeyType
     let mode: Mode
     let closure: Closure?
-}
-
-extension Control: Hashable {
-    static func == (lhs: Control, rhs: Control) -> Bool {
-        lhs.hashValue == rhs.hashValue
-    }
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(key)
-        hasher.combine(mode)
-    }
 }
 
 struct Font {
@@ -81,7 +57,7 @@ class SwiftApp {
     let store = Store()
     
     var pageName: String?
-    var observed: [String: Set<Store.KeyType>] = [:]
+    var observed: [String: OrderedSet<Store.KeyType>] = [:]
     var pageMap: [String: PageEntry] = [:]
     
     var tapped: Tappable?
@@ -111,7 +87,7 @@ class SwiftApp {
            let slider = value as? Double {
             let dt = (p.x - last.x) / tapped.bounds.width
             dict[tapped.subKey] = max(0.0, min(1.0, slider + dt))
-            store.setValue(value: dict, key: key)
+            store.setValue(key: key, value: dict)
         }
         last = p
     }
@@ -129,7 +105,7 @@ class SwiftApp {
                 let location = max(0, min(range.length - 1, range.location + delta))
                 dict[tapped.subKey] = NSRange(location: location, length: range.length)
             }
-            store.setValue(value: dict, key: key)
+            store.setValue(key: key, value: dict)
         }
         if let name = tapped.control.closure?(self.store, key) {
             pageName = name
@@ -150,15 +126,14 @@ class SwiftApp {
             return scene
         }
         let hash = hashFor(pageName, in: bounds)
-        if let entry = pageMap[pageName], hash == entry.hash {
+        if let entry = pageMap[pageName], entry.hash == hash  {
             return entry.scene
         }
         observed[pageName] = .init(controls.map{ $0.key })
         
-        let tuple = tappablesAndStringForControls(controls)
-        let tappables = tuple.0
+        var tappables: [Tappable] = []
         let frame = RAFrame(
-            attributedString: tuple.1,
+            attributedString: stringFor(controls, tappables: &tappables),
             in: bounds.withGutter()
         )
         var tapMap: OrderedDictionary<NSRange, CGRect> = [:]
@@ -171,18 +146,12 @@ class SwiftApp {
         let excludes = tappables.filter{ $0.exclude }
         let rect = scene.add(frame, excludes: excludes.map{ NSValue(range: $0.range) }, ctm: .identity, clip: .zero)
         for exclude in excludes {
-            if let b = tapMap[exclude.range], let dict = store.getValue(key: exclude.control.key) as? Store.DictType {
+            if let b = tapMap[exclude.range],
+                    let dict = store.getValue(key: exclude.control.key) as? Store.DictType,
+                    let value = dict[exclude.subKey] {
                 let isActive = (tapped?.range ?? NSRange()) == exclude.range
-                
-                if let flag = dict[exclude.subKey] as? Bool {
-                    scene.addFlag(flag, in: b, paint: RAPaint(cgColor: isActive ? Colors.red : Colors.blue), fontSize: font.size)
-                } else if let slider = dict[exclude.subKey] as? Double {
-                    scene.addSlider(slider, in: b, paint: RAPaint(cgColor: isActive ? Colors.red : Colors.blue), fontSize: font.size)
-                } else if let _ = dict[exclude.subKey] as? NSRange {
-                    scene.addStepper(in: b, paint: RAPaint(cgColor: isActive ? Colors.red : Colors.blue), fontSize: font.size)
-                } else {
-                    scene.fillRect(b, paint: RAPaint(cgColor: Colors.red))
-                }
+                let paint = RAPaint(cgColor: isActive ? Colors.red : Colors.blue)
+                scene.addControl(value, in: b, paint: paint, fontSize: font.size)
             }
         }
         if self.showTapMap {
@@ -197,55 +166,42 @@ class SwiftApp {
         return scene
     }
     
-    func tappablesAndStringForControls(_ controls: [Control]) -> ([Tappable], NSAttributedString) {
-        let ctFont = CTFontCreateWithName(font.name as CFString, font.size, nil)
-        let paragraphStyle = NSMutableParagraphStyle()
-        paragraphStyle.alignment = .left
-        paragraphStyle.lineBreakMode = .byTruncatingTail
-        paragraphStyle.tabStops = [
-            NSTextTab(type: .leftTabStopType, location: font.size),
-            NSTextTab(type: .rightTabStopType, location: 8 * font.size)
-        ]
-        var tappables: [Tappable] = []
+    func stringFor(_ controls: [Control], tappables: inout [Tappable]) -> NSAttributedString {
         let mutable = NSMutableAttributedString()
-        
+        let ctFont = CTFontCreateWithName(font.name as CFString, font.size, nil)
+        let tabSize = (ctFont.isMonospace ? 1.33 : 1) * font.size
         for control in controls {
             switch control.mode {
             case .button:
-                let range = mutable.appendString("\t\t\(control.key)\n")
-                let isActive = (tapped?.range ?? NSRange()) == range
-                mutable.addAttribute(.foregroundColor, value: isActive ? Colors.red : Colors.blue, range: range)
-                tappables.append(Tappable(control: control, subKey: control.key, range: range, exclude: false))
-                mutable.addAttribute(.paragraphStyle, value: paragraphStyle, range: range)
-            case .mutable:
-                guard let dict = store.getValue(key: control.key) as? Store.DictType else {
-                    continue
+                if let enabled = store.getValue(key: control.key) as? Bool {
+                    let range = mutable.appendString("\t\t\(control.key)\n")
+                    let isActive = (tapped?.range ?? NSRange()) == range
+                    mutable.addAttribute(.foregroundColor, value: !enabled ? Colors.gray : isActive ? Colors.red : Colors.blue, range: range)
+                    mutable.addAttribute(.paragraphStyle, value: mutable.styleFor(1, tabSize: tabSize), range: range)
+                    if enabled {
+                        tappables.append(Tappable(control: control, subKey: control.key, range: range, exclude: false))
+                    }
                 }
-                let begin = mutable.length
-                mutable.addAttribute(.foregroundColor,
-                    value: Colors.gray,
-                    range: mutable.appendString("\(control.key):\n"))
-                
-                for (subKey, value) in dict {
-                    mutable.addAttribute(.foregroundColor,
-                        value: Colors.black,
-                        range: mutable.appendString("\t\(subKey):"))
-                    let placeholder = mutable.placeholderFor(value) ?? ""
-                    let range = mutable.appendString("\t" + placeholder + "\n")
-                    tappables.append(Tappable(control: control, subKey: subKey, range: range, exclude: true))
-                    mutable.addAttribute(.foregroundColor, value: Colors.gray, range: range)
-                    
-                    mutable.addAttribute(.paragraphStyle, value: paragraphStyle, range: NSRange(location: begin, length: mutable.length - begin))
+            case .mutable:
+                if let dict = store.getValue(key: control.key) as? Store.DictType  {
+                    var taps: [(String, NSRange)]? = []
+                    _ = mutable.appendKey(control.key, value: dict, taps: &taps, keyColor: Colors.black, valueColor: Colors.gray, fontSize: tabSize, indent: 0)
+                    if let taps {
+                        tappables = tappables + taps.map({
+                            Tappable(control: control, subKey: $0.0, range: $0.1, exclude: true)
+                        })
+                    }
                 }
             case .readonly:
                 if let value = store.getValue(key: control.key) {
-                    _ = mutable.appendKey(control.key, value: value, keyColor: Colors.gray, valueColor: Colors.black, fontSize: font.size, indent: 0)
+                    var taps: [(String, NSRange)]? = nil
+                    _ = mutable.appendKey(control.key, value: value, taps: &taps, keyColor: Colors.gray, valueColor: Colors.black, fontSize: tabSize, indent: 0)
                 }
             }
         }
         let range = NSRange(location: 0, length: mutable.length)
         mutable.addAttribute(.font, value: ctFont, range: range)
-        return (tappables, mutable)
+        return mutable
     }
     
     func hashFor(_ pageName: String, in bounds: CGRect) -> Int {
@@ -253,11 +209,11 @@ class SwiftApp {
             return 0
         }
         var hasher = Hasher()
-        hasher.combine(controls)
+        hasher.combine(pageName)
         hasher.combine(bounds)
+        hasher.combine(controls)
         hasher.combine(font.name)
         hasher.combine(font.size)
-        hasher.combine(pageName)
         hasher.combine(tapped?.range ?? NSRange())
         for key in (observed[pageName] ?? []) {
             hasher.combine(key)

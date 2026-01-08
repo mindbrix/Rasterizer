@@ -6,15 +6,46 @@
 //
 
 import Foundation
-import RasterizerObjC
+@preconcurrency import RasterizerObjC
 
 protocol RADrawable {
-    func getSceneAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RAScene
+    func getListAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RASceneList
 }
 
+struct RAState {
+    let flag, useRect: Bool
+    let time: Double
+}
+
+class TestDispatch: RADrawable {
+    static func writeScene(_ scene: RAScene, range: NSRange, bounds: CGRect, state: RAState) {
+        let b = bounds.boundsInRange(range)
+        let path = TestCubics.getPathAtTime(bounds: b, state: state)
+        let color = RAPaint()
+        
+        scene.addFill(path, ctm: .identity, color: color, evenOdd: true)
+    }
+    func getListAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RASceneList {
+        let count = 100
+        
+        var scenes: [RAScene] = []
+        for _ in 0..<count {
+            scenes.append(RAScene())
+        }
+        let raState = RAState(flag: state.flag, useRect: state.useRect, time: time)
+        DispatchQueue.concurrentPerform(iterations: count, execute: { [scenes] i in
+            Self.writeScene(scenes[i], range: NSRange(location: i, length: count), bounds: bounds, state: raState)
+        })
+        let list = RASceneList()
+        for scn in scenes {
+            list.add(scn)
+        }
+        return list
+    }
+}
 
 class TestImage: RADrawable {
-    func getSceneAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RAScene {
+    func getListAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RASceneList {
         let scene = RAScene()
         if let image = NSImage(systemSymbolName: "airplane", accessibilityDescription: nil),
            let imageRef = image.cgImage(forProposedRect: nil, context: nil, hints: nil) {
@@ -23,42 +54,33 @@ class TestImage: RADrawable {
             let path = RAPath(rect: rect)
             scene.addFill(path, ctm: .identity, color: color, evenOdd: false)
         }
-        return scene
+        return scene.createList()
     }
 }
 class TestDasher: RADrawable {
-    func ellipsePerimeter(a: Double, b: Double) -> Double {
-        .pi * (3 * (a + b) - sqrt((3 * a + b) * (a + 3 * b)))
-    }
-    func getSceneAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RAScene {
+    func getListAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RASceneList {
         let width = 10.0
         let b = bounds.insetBy(dx: 0.5 * width, dy: 0.5 * width)
         if b.width == 0 || b.height == 0 {
-            return RAScene()
+            return RASceneList()
         }
-        let path = RAPath()
-        if state.useRect {
-            path.add(b)
-        } else {
-            path.addEllipse(b)
-        }
-        
-        let perimeter = state.useRect ? 2 * (bounds.width + bounds.height) : ellipsePerimeter(a: 0.5 * b.width, b: 0.5 * b.height)
+        let path = state.useRect ? RAPath(rect: b) : RAPath(ellipse: b)
+        let perimeter = state.useRect ? b.perimeter() : b.ellipsePerimeter()
         let capStyle: RACapStyle = state.flag ? .capRound : .capButt
         let length = perimeter / 60
         let capLen = capStyle == .capRound ? width : 1
         let l0 = max(0, 0.666 * length - capLen)
         let lengths = [l0 as NSNumber, length - l0 as NSNumber]
-        let dashed = path.dashedCopy(withPhase: 1e3 + time * length, lengths: lengths)
+        let dashed = path.dashedCopy(withPhase: time * length, lengths: lengths)
         
         let scene = RAScene()
         scene.addStroke(dashed,
-                        ctm: .identity,
-                        color: RAPaint(),
-                        width: width,
-                        capStyle: capStyle,
-                        joinStyle: .joinRound)
-        return scene
+            ctm: .identity,
+            color: RAPaint(),
+            width: width,
+            capStyle: capStyle,
+            joinStyle: .joinRound)
+        return scene.createList()
     }
 }
 class TestGradients: RADrawable {
@@ -80,7 +102,7 @@ class TestGradients: RADrawable {
         }
     }
     
-    func getSceneAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RAScene {
+    func getListAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RASceneList {
         let inset = 40.0
         let b = bounds.insetBy(dx: inset, dy: inset)
         let gradient = Self.gradientForBounds(bounds, isRadial: !state.useRect)
@@ -92,12 +114,12 @@ class TestGradients: RADrawable {
         scene.addFill(rect, ctm: .identity, color: gradient, evenOdd: false, clip: .zero, clipPath: RAPath(rect: b))
         scene.addFill(ellipse, ctm: .identity, color: RAPaint(gray: 1, alpha: 1), evenOdd: false, clip: .zero, clipPath: RAPath(ellipse: b))
         
-        return scene
+        return scene.createList()
     }
 }
 
 class TestQuadratics: RADrawable {
-    func getSceneAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RAScene {
+    func getListAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RASceneList {
         let width = bounds.width
         let height = bounds.height
         let dim = min(width, height)
@@ -112,12 +134,12 @@ class TestQuadratics: RADrawable {
         let scene = RAScene()
         
         scene.addStroke(path, ctm: .identity, color: color, width: stroke, capStyle: .capButt, joinStyle: .joinMiter)
-        return scene
+        return scene.createList()
     }
 }
 
 class TestCubics: RADrawable {
-    func getPathAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RAPath {
+    static func getPathAtTime(bounds: CGRect, state: RAState) -> RAPath {
         let count = state.flag ? 72 : 36
         let dim = min(bounds.width, bounds.height)
         let radius = 0.25 * dim
@@ -125,7 +147,7 @@ class TestCubics: RADrawable {
         let path = RAPath()
         for i in 0 ..< count {
             let ti = Double(i) / Double(count)
-            let ts = 2 * time / Double(count) + ti
+            let ts = 2 * state.time / Double(count) + ti
             let t = ts - floor(ts)
             let origin = CGPoint(center: center, r: radius, theta: (i % 2 == 0 ? 1 : -1) * t * 2 * Double.pi)
             if state.useRect {
@@ -136,12 +158,12 @@ class TestCubics: RADrawable {
         }
         return path
     }
-    func getSceneAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RAScene {
-        let path = getPathAtTime(time, bounds: bounds, state: state)
+    func getListAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RASceneList {
+        let path = Self.getPathAtTime(bounds: bounds, state: RAState(flag: state.flag, useRect: state.useRect, time: time))
         
         let scene = RAScene()
         scene.addFill(path, ctm: .identity, color: RAPaint(gray: 0, alpha: 1), evenOdd: true)
-        return scene
+        return scene.createList()
     }
 }
 
@@ -149,7 +171,7 @@ class Test0: RADrawable {
     let unitRectPath = RAPath(rect: CGRect(x: 0, y: 0, width: 1, height: 1))
     let unitEllipsePath = RAPath(ellipse: CGRect(x: 0, y: 0, width: 1, height: 1))
     
-    func getSceneAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RAScene {
+    func getListAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RASceneList {
         let ts = 0.1 * time
         let dim = min(bounds.width, bounds.height)
         let unitRect = CGRect(x: 0, y: 0, width: 1, height: 1)
@@ -181,6 +203,6 @@ class Test0: RADrawable {
             let path = state.useRect ? unitRectPath : unitEllipsePath
             scene.addFill(path, ctm: ctm, color: gradient, evenOdd: false)
         }
-        return scene
+        return scene.createList()
     }
 }

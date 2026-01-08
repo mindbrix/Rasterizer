@@ -19,26 +19,27 @@ class SwiftDemo: NSObject {
             Key.flag()   : false,
             Key.paused() : true,
             Key.slider() : 0.0,
-            Key.rect(): false,
+            Key.rect()   : false,
             Key.index()  : NSRange(location: 0, length: drawables.count)
-        ]
-        swiftApp.store.setValue(
-            value: settings,
-            key: Key.Settings())
-        
+        ]        
         let debug: Store.DictType = [
             Key.outlines(): false,
             Key.opaques() : true,
-            Key.clips()    : true,
-            Key.curves()   : true
+            Key.clips()   : true,
+            Key.curves()  : true
         ]
+        swiftApp.store.merge([
+            Key.Settings(): settings,
+            Key.debug():    debug,
+            Key.button():   true,
+            Key.reset():    true
+        ])
         swiftApp.store.setValue(
-            value: debug,
-            key: Key.debug())
-        swiftApp.store.setValue(
-            value: swiftApp.store.dict,
-            key: Key.test())
+            key: Key.test(),
+            value: swiftApp.store.dict
+        )
     }
+    
     enum Event {
         case keyDown(character: Character, flags: NSEvent.ModifierFlags)
         case paste(attributed: NSAttributedString)
@@ -56,7 +57,8 @@ class SwiftDemo: NSObject {
         TestCubics(),
         TestGradients(),
         TestDasher(),
-        TestImage()
+        TestImage(),
+        TestDispatch()
     ]
     
     var ctm = CGAffineTransform.identity
@@ -114,7 +116,7 @@ extension SwiftDemo: RASceneListDelegate {
         bounds = CGRect(x: 0, y: 0, width: width, height: height)
         let list = RASceneList()
         let t = paused ? slider : time - floor(time)
-        list.add(drawables[index].getSceneAtTime(t, bounds: bounds, state: self))
+        list.add(drawables[index].getListAtTime(t, bounds: bounds, state: self))
         list.add(pastedScene ?? RAScene())
         
         appCtm = ctm.inverted()
@@ -161,6 +163,7 @@ extension SwiftDemo: SwiftApp.PageDelegate {
         case outlines
         case reset = "reset ctm"
         case button
+        case tapcount
         
         func callAsFunction() -> String {
             rawValue
@@ -210,17 +213,17 @@ extension SwiftDemo: SwiftApp.PageDelegate {
                 self?.ctm = .identity
                 return nil
             }),
-            Control(key: Key.button(), mode: .button, closure: { store, key in
-                let tapcount = store.getValue(key: key) as? Int ?? 0
+            Control(key: Key.button(), mode: .button, closure: { store, _ in
+                let tapcount = store.getValue(key: Key.tapcount()) as? Int ?? 0
                 print("\(tapcount)")
-                store.setValue(value: tapcount + 1, key: key)
+                store.setValue(key: Key.tapcount(), value: tapcount + 1)
                 return tapcount == 2 ? PageID.Home() : nil
             }),
             Control(key: Key.test(), mode: .readonly, closure: nil),
         ]
         case .Home: [
-            Control(key: Key.button(), mode: .button, closure: { store, key in
-                store.setValue(value: 0, key: key)
+            Control(key: Key.button(), mode: .button, closure: { store, _ in
+                store.setValue(key: Key.tapcount(), value: 0)
                 return PageID.LogIn()
             })]
         default:

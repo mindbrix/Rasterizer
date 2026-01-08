@@ -36,7 +36,7 @@ struct RasterizerRenderer {
         size_t begins[kContextCount], *pbegins = begins, size;
         size = Ra::resizeBuffer(list, contexts, kContextCount, pbegins, *buffer);
         dispatch_apply(kContextCount, DISPATCH_APPLY_AUTO, ^(size_t i) {
-            Ra::writeContextToBuffer(list, contexts + i, pbegins[i], *buffer);
+            Ra::writeContextToBuffer(list, contexts + i, pbegins[i], i, kContextCount, *buffer);
         });
         for (int i = 0; i < kContextCount; i++)
             for (int j = 0; j < contexts[i].entries.end(); j++)

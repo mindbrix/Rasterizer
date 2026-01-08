@@ -212,8 +212,11 @@ struct Rasterizer {
         inline bool isNull() const {
             return lx == FLT_MAX && ly == FLT_MAX;
         }
-        inline bool isValid() const {
-            return !isNull() && (ux - lx > 0.f || uy - ly > 0.f);
+        inline bool isRect() const {
+            return ux > lx && uy > ly;
+        }
+        inline bool isZero() const {
+            return lx == ux && ly == uy;
         }
         inline Bounds(const Transform quad) :
             lx(quad.tx + fminf(0.f, quad.a) + fminf(0.f, quad.c)),
@@ -231,6 +234,8 @@ struct Rasterizer {
             };
         }
         inline Transform fitTransform(const Bounds b) const {
+            if (isNull() || !isRect() || b.isNull() || !b.isRect())
+                return Transform();
             float w = width(), h = height(), bw = b.width(), bh = b.height(), s = fminf(w / bw, h / bh);
             return {
                 s, 0.f,
@@ -332,7 +337,7 @@ struct Rasterizer {
                 Bounds molecule;
                 for (size_t i = points.idx; i < points.end; i += 2)
                     molecule.extend(points.base[i], points.base[i + 1]);
-                if (molecule.isValid()) {
+                if (!molecule.isNull() && !molecule.isZero()) {
                     bounds.extend(molecule);
                     *(molecules.alloc(1)) = molecule;
                     for (size_t i = types.idx; i < types.end;) {
@@ -493,12 +498,12 @@ struct Rasterizer {
                     paths.add(path);
                     p16bases.add(0);
                 } else {
-                    fillcount++;
                     auto it = p16map.find(key);
                     if (it == p16map.end()) {
                         paths.add(path);
                         p16bases.add(uint32_t(p16total));
                         p16map.emplace(key, Entry(path, p16total));
+                        p16entries.add(Entry(path, p16total));
                         
                         if (kMoleculesHeight && g->p16s.end == 0)
                             P16Writer().writeGeometry(g);
@@ -553,7 +558,7 @@ struct Rasterizer {
             return xxhash;
         }
         
-        size_t refCount, count = 0, weight = 0, xxhash = 0, _xxhash = 0, fillcount = 0;
+        size_t refCount, count = 0, weight = 0, xxhash = 0, _xxhash = 0;
         RefVector<Path> paths;
         Vector<uint32_t> p16bases;  uint32_t p16total = 0;
         RefVector<Path> clipPaths;
@@ -566,6 +571,7 @@ struct Rasterizer {
         Vector<Color> gradients;
         Vector<float> widths;
         std::map<size_t, Entry> p16map;
+        RefVector<Entry> p16entries;
         Vector<uint8_t> flags;
     };
     typedef Ref<Scene> SceneRef;
@@ -642,7 +648,7 @@ struct Rasterizer {
         uint16_t i0, ux;
     };
     struct Buffer {
-        enum Type { kQuadEdges, kFastEdges, kFastMolecules, kQuadMolecules, kOpaques, kInstances, kSegmentsBase, kInstancesBase, kStencils, kDisableClip, kEnableClip, kNextImage, kDisableImage, kNextScene };
+        enum Type { kQuadEdges, kFastEdges, kFastMolecules, kQuadMolecules, kOpaques, kInstances, kSegmentsBase, kInstancesBase, kStencils, kDisableClip, kEnableClip, kNextImage, kDisableImage };
         struct Entry {
             Entry(Type type, size_t begin, size_t end) : type(type), begin(begin), end(end) {}
             Type type;  size_t begin, end;
@@ -685,7 +691,7 @@ struct Rasterizer {
         RefVector<Paint> images;
         RefVector<SceneRef> scenes;
         Params params;
-        size_t colors, ctms, clips, widths, bounds, texCtms, texIdxs, texStrips;
+        size_t colors, ctms, clips, widths, bounds, texCtms, texIdxs, texStrips, p16s;
         size_t idxs, pathsCount, texCount, headerSize, size = 0, allocation = 0;
     };
     struct Allocator {
@@ -694,7 +700,6 @@ struct Rasterizer {
             Pass(size_t idx) : idx(idx) {}
             size_t count() const { return counts[0] + counts[1] + counts[2] + counts[3]; }
             size_t idx, counts[4] = { 0, 0, 0, 0 };
-            bool isSceneStart = false;
         };
         void empty(Bounds device) {
             full = device, sheet = Bounds(0.f, 0.f, 0.f, 0.f), bzero(strips, sizeof(strips)), passes.empty();
@@ -751,20 +756,15 @@ struct Rasterizer {
             bool clipActive = false;
             
             Color black(0, 0, 0, 255), red(0, 0, 255, 255);
-            size_t lz, uz, i, clz, cuz, iz, is, cnt; uint32_t lastIdx = ~0, lastClipIdx = ~0;
+            size_t lz, uz, i, clz, cuz, iz, is, cnt; uint32_t lastIdx = ~0, lastClipIdx = ~0, p16total = 0;
             uint8_t flags;
             float det, width, uw, softclipMargin = 0.5f;
-            for (lz = uz = i = 0; i < list.scenes.size(); i++, lz = uz) {
+            for (lz = uz = i = 0; i < list.scenes.size(); p16total += list.scenes[i]->p16total, i++, lz = uz ) {
                 const Scene *scn = list.scenes[i].ptr;
                 uz = lz + scn->count, clz = lz < slz ? slz : lz > suz ? suz : lz, cuz = uz < slz ? slz : uz > suz ? suz : uz;
                 Transform ctm = list.ctms[i].concat(view), clipquad, m, quad, invclip;
                 Bounds dev, clip, *bnds, clipBounds = device, sceneclip = list.clips[i], lastClip;
-                
-                if (clz - lz == 0 && clz != cuz) {
-                    allocator.refill(blends.end);
-                    allocator.passes.back().isSceneStart = true;
-                }
-                
+                                
                 for (is = clz - lz, iz = clz; iz < cuz; iz++, is++) {
                     flags = scn->flags[is];
                     if (list.params.useClips) {
@@ -852,7 +852,8 @@ struct Rasterizer {
                             bounds[iz] = *bnds;
                             bool fast = !buffer->params.useCurves || g->maxCurve * det < 16.f;
                             Blend *inst = new (blends.alloc(1)) Blend(iz | colorFlags | Instance::kMolecule | bool(flags & Scene::kFillEvenOdd) * Instance::kEvenOdd | fast * Instance::kFastEdges);
-                            inst->g = g, inst->quad.cover = 0, inst->quad.base = int(scn->p16bases[is]);
+                            inst->g = g, inst->quad.cover = 0;
+                            inst->quad.base = int(p16total + scn->p16bases[is]);
                             inst->quad.molsbase = int(g->p16s.idx / 2);
                             cnt = fast ? g->p16s.idx / kFastSegments : g->atoms.end;
                             int type = fast ? Allocator::kFastMolecules : Allocator::kQuadMolecules;
@@ -1018,11 +1019,6 @@ struct Rasterizer {
         }
         virtual void EndSubpath(float x0, float y0, float x1, float y1, bool closed) {}
         
-        void p16init(Geometry *g) {
-            float s = kMoleculesRange / fmaxf(g->bounds.ux - g->bounds.lx, g->bounds.uy - g->bounds.ly);
-            m = Transform(s, 0.f, 0.f, s, s * -g->bounds.lx, s * -g->bounds.ly);
-            cubicScale = -kCubicPrecision * (kMoleculesRange / kMoleculesHeight);
-        }
         Transform m;
         float quadraticScale = 1.f, cubicScale = kCubicPrecision;
     };
@@ -1437,7 +1433,9 @@ struct Rasterizer {
         static const uint8_t isMoveTo = 0x80;
         
         void writeGeometry(Geometry *g) {
-            p16init(g);
+            float s = kMoleculesRange / fmaxf(g->bounds.ux - g->bounds.lx, g->bounds.uy - g->bounds.ly);
+            m = Transform(s, 0.f, 0.f, s, s * -g->bounds.lx, s * -g->bounds.ly);
+            cubicScale = -kCubicPrecision * (kMoleculesRange / kMoleculesHeight);
             
             p16s = & g->p16s, p16cnts = & g->p16cnts, atoms = & g->atoms;
             size_t count = g->points.end / 2;
@@ -1597,7 +1595,10 @@ struct Rasterizer {
             sz += contexts[i].texs.end();
         buffer.texCount = sz;
         size += sz * kColorTextureWidth * sizeof(Color);
-                
+          
+        for (auto& scene: list.scenes)
+            size += scene->p16total * sizeof(Point16);
+        
         Context *ctx = contexts;   Allocator::Pass *pass;
         for (ctx = contexts, i = 0; i < count; i++, ctx++) {
             for (j = 0; j < ctx->images.end(); j++)
@@ -1623,10 +1624,29 @@ struct Rasterizer {
                 texIdxs[ref.iz] = texIdx++;
                 memcpy(buffer.base + end, ref.strip, sz), end += sz;
             }
+        buffer.p16s = end;
         return size;
     }
-    static void writeContextToBuffer(const SceneList& list, Context *ctx, size_t begin, Buffer& buffer) {
+    static void writeContextToBuffer(const SceneList& list, Context *ctx, size_t begin, size_t index, size_t contextCount, Buffer& buffer) {
         size_t i, j, count, size, ip, iz, ic, end, instbegin, passsize, stencilBegin = 0;
+        {
+            auto p16s = (Point16 *)(buffer.base + buffer.p16s);
+            size_t p16paths = 0, p16total = 0, m0 = 0, m1 = 0, i0, i1, c0, c1;
+            for (auto& scene: list.scenes)
+                p16paths += scene->p16entries.end();
+            i0 = index * p16paths / contextCount;
+            i1 = (index + 1) * p16paths / contextCount;
+            for (auto& scene: list.scenes) {
+                m1 = m0 + scene->p16entries.end();
+                c0 = m0 < i0 ? i0 : m0 > i1 ? i1 : m0;
+                c1 = m1 < i0 ? i0 : m1 > i1 ? i1 : m1;
+                for (; c0 < c1; c0++) {
+                    auto& entry = scene->p16entries[c0 - m0];
+                    memcpy(p16s + p16total + entry.idx, entry.path->p16s.base, entry.path->p16s.end * sizeof(Point16));
+                }
+                m0 = m1, p16total += scene->p16total;
+            }
+        }
         if (ctx->segments.end || ctx->stencils.end) {
             size = ctx->segments.end * sizeof(Segment), end = begin + size;
             ctx->entries.add(Buffer::Entry(Buffer::kSegmentsBase, begin, end));
@@ -1641,8 +1661,6 @@ struct Rasterizer {
         Edge *quadEdge = nullptr, *fastEdge = nullptr, *fastMolecule = nullptr, *fastMolecule0 = nullptr, *quadMolecule = nullptr, *quadMolecule0 = nullptr;
         for (count = ctx->allocator.passes.end, ip = 0; ip < count; ip++) {
             Allocator::Pass *pass = ctx->allocator.passes.base + ip;
-            if (pass->isSceneStart)
-                ctx->entries.add(Buffer::Entry(Buffer::kNextScene, 0, 0));
             passsize = (ip + 1 < count ? (pass + 1)->idx : ctx->blends.end) - pass->idx;
             instbegin = begin + pass->count() * sizeof(Edge);
             if (pass->count()) {

@@ -67,17 +67,6 @@ struct MetalCache {
 };
 
 #pragma clang diagnostic ignored "-Wextra"
-struct GeometryCache : MetalCache<id <MTLBuffer>, const Ra::Scene &> {
-    __strong id <MTLBuffer> createPayload(const Ra::Scene & scene, id <MTLDevice> device) override {
-        size_t length = (1 + scene.p16total) * sizeof(Ra::Point16);
-        id <MTLBuffer> buffer = [device newBufferWithLength:length
-                                                    options:MTLResourceStorageModeShared];
-        auto dst = (Ra::Point16 *)buffer.contents;
-        for (auto& entry: scene.p16map)
-            memcpy(dst + entry.second.idx, entry.second.path->p16s.base, entry.second.path->p16s.end * sizeof(*dst));
-        return buffer;
-    }
-};
 
 struct TextureCache : MetalCache<id <MTLTexture>, const Ra::Paint &> {
     __strong id <MTLTexture> createPayload(const Ra::Paint & image, id <MTLDevice> device) override {
@@ -103,7 +92,6 @@ struct TextureCache : MetalCache<id <MTLTexture>, const Ra::Paint &> {
 {
     Ra::Buffer _buffer0, _buffer1;
     TextureCache _textureCache;
-    GeometryCache _geometryCache;
 }
 
 @property (nonatomic) dispatch_semaphore_t inflight_semaphore;
@@ -329,9 +317,8 @@ struct TextureCache : MetalCache<id <MTLTexture>, const Ra::Paint &> {
     uint32_t reverse, pathsCount = uint32_t(buffer->pathsCount), texCount = uint32_t(th);
     float width = drawable.texture.width, height = drawable.texture.height;
     
-    NSUInteger imgIndex = 0, sceneIndex = 0;
+    NSUInteger imgIndex = 0;
     id <MTLTexture> imageTexture = nil;
-    id <MTLBuffer> p16buffer = nil;
     
     for (size_t segbase = 0, instbase = 0, i = 0; i < buffer->entries.end; i++) {
         Ra::Buffer::Entry& entry = buffer->entries.base[i];
@@ -354,10 +341,6 @@ struct TextureCache : MetalCache<id <MTLTexture>, const Ra::Paint &> {
             case Ra::Buffer::kNextImage:
                 imageTexture = _textureCache.entryFor(buffer->images[imgIndex++], self.device);
                 useImage = true;
-                break;
-            case Ra::Buffer::kNextScene:
-                assert(sceneIndex < buffer->scenes.end());
-                p16buffer = _geometryCache.entryFor(*buffer->scenes[sceneIndex++].ptr, self.device);
                 break;
             case Ra::Buffer::kStencils:
                 [commandEncoder endEncoding];
@@ -413,13 +396,12 @@ struct TextureCache : MetalCache<id <MTLTexture>, const Ra::Paint &> {
                 else
                     [commandEncoder setRenderPipelineState:_quadMoleculesPipelineState];
                 if (entry.end - entry.begin) {
-                    assert(p16buffer != nil);
                     [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
                     [commandEncoder setVertexBuffer:mtlBuffer offset:segbase atIndex:2];
                     [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->ctms atIndex:4];
                     [commandEncoder setVertexBuffer:mtlBuffer offset:instbase atIndex:5];
                     [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->bounds atIndex:7];
-                    [commandEncoder setVertexBuffer:p16buffer offset:0 atIndex:8];
+                    [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->p16s atIndex:8];
                     [commandEncoder setVertexBytes:& width length:sizeof(width) atIndex:10];
                     [commandEncoder setVertexBytes:& height length:sizeof(height) atIndex:11];
                     [commandEncoder setVertexBytes:& buffer->params length:sizeof(Ra::Params) atIndex:14];
