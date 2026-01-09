@@ -393,14 +393,16 @@ struct RasterizerPDF {
     
     static bool pathIsRect(Ra::Path p) {
         p->validate();
-        float *pts = p->points.base, ax, ay, bx, by, t0, t1;
-        if (p->types.end != 6 || p->counts[Ra::Geometry::kLine] != 4 || pts[0] != pts[10] || pts[1] != pts[11])
+        float *pts = p->points.base;
+        size_t last = p->types.end - 1;
+        if (!(last == 4 || last == 5) || p->counts[Ra::Geometry::kLine] != 4 || pts[0] != pts[last * 2] || pts[1] != pts[last * 2 + 1])
             return false;
+        float ax, ay, bx, by;  bool rect0, rect1;
         ax = pts[2] - pts[0], ay = pts[3] - pts[1], bx = pts[4] - pts[2], by = pts[5] - pts[3];
-        t0 = (ax * bx + ay * by) / (ax * ax + ay * ay);
+        rect0 = (ax == 0.f && by == 0.f) || (ay == 0.f && bx == 0.f);
         ax = pts[6] - pts[4], ay = pts[7] - pts[5], bx = pts[8] - pts[6], by = pts[9] - pts[7];
-        t1 = (ax * bx + ay * by) / (ax * ax + ay * ay);
-        return fabsf(t0) < 1e-3f && fabsf(t1) < 1e-3f;
+        rect1 = (ax == 0.f && by == 0.f) || (ay == 0.f && bx == 0.f);
+        return rect0 && rect1;
     }
 };
 
