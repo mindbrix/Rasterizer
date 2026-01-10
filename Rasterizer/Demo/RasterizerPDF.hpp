@@ -221,7 +221,7 @@ struct RasterizerPDF {
     static void writePathToScene(FPDF_PAGEOBJECT pageObject, Ra::Transform ctm, Ra::Bounds* clipBounds, std::vector<Ra::Path>& clipPaths, Ra::SceneRef& scene) {
         int fillmode;
         FPDF_BOOL stroke;
-        Ra::Path *clipPath = clipPaths.size() == 0 || pathIsRect(clipPaths[0]) ? nullptr : & clipPaths[0];
+        Ra::Path *clipPath = clipPaths.size() == 0 || clipPaths[0]->isRect() ? nullptr : & clipPaths[0];
         
         if (FPDFPath_GetDrawMode(pageObject, & fillmode, & stroke)) {
             Ra::Path path = PathWriter().createPathFromObject(pageObject);
@@ -247,9 +247,9 @@ struct RasterizerPDF {
                 }
             } else {
                 FPDFPageObj_GetFillColor(pageObject, & R, & G, & B, & A);
-                if (pathIsRect(path))
+                if (path->isRect())
                     for (auto clip : clipPaths)
-                        if (!pathIsRect(clip))
+                        if (!clip->isRect())
                             path = clip, clipPath = nullptr;
                 flags |= fillmode == FPDF_FILLMODE_ALTERNATE ? Ra::Scene::kFillEvenOdd : 0;
             }
@@ -390,22 +390,6 @@ struct RasterizerPDF {
                 p->close();
         }
     };
-    
-    static bool pathIsRect(Ra::Path p) {
-        p->validate();
-        const float *pts = p->points.base;
-        size_t last = p->types.end - 1;
-        if (!(last == 4 || last == 5) || p->counts[Ra::Geometry::kLine] != 4 || pts[0] != pts[last * 2] || pts[1] != pts[last * 2 + 1])
-            return false;
-        bool ax, ay, bx, by, rect0, rect1;
-        ax = pts[2] == pts[0], ay = pts[3] == pts[1];
-        bx = pts[4] == pts[2], by = pts[5] == pts[3];
-        rect0 = (ax && by) || (ay && bx);
-        ax = pts[6] == pts[4], ay = pts[7] == pts[5];
-        bx = pts[8] == pts[6], by = pts[9] == pts[7];
-        rect1 = (ax && by) || (ay && bx);
-        return rect0 && rect1;
-    }
 };
 
 typedef RasterizerPDF RaPDF;

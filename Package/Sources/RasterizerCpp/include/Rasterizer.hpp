@@ -354,6 +354,21 @@ struct Rasterizer {
             validate();
             return types.end > 1 && *types.base == Geometry::kMove && (bounds.lx != bounds.ux || bounds.ly != bounds.uy);
         }
+        bool isRect() {
+            validate();
+            const float *pts = points.base;
+            size_t last = types.end - 1;
+            if (!(last == 4 || last == 5) || counts[kLine] != 4 || pts[0] != pts[last * 2] || pts[1] != pts[last * 2 + 1])
+                return false;
+            bool ax, ay, bx, by, rect0, rect1;
+            ax = pts[2] == pts[0], ay = pts[3] == pts[1];
+            bx = pts[4] == pts[2], by = pts[5] == pts[3];
+            rect0 = (ax && by) || (ay && bx);
+            ax = pts[6] == pts[4], ay = pts[7] == pts[5];
+            bx = pts[8] == pts[6], by = pts[9] == pts[7];
+            rect1 = (ax && by) || (ay && bx);
+            return rect0 && rect1;
+        }
         size_t upperBound(float det) const {
             size_t cubics = 0;
             if (cubicSums != 0) {
