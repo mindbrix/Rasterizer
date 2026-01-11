@@ -30,15 +30,12 @@ extension CGPoint {
 
 extension CGRect {
     func boundsInRange(_ range: NSRange) -> CGRect {
-        let grid = ceil(sqrt(CGFloat(range.length)))
-        let col = range.location % Int(grid)
-        let row = Int(grid) - 1 - range.location / Int(grid)
-        let size = min(width, height) / grid
-        return CGRect(
-            origin: .init(
-                x: CGFloat(col) * size,
-                y: CGFloat(row) * size),
-            size: CGSize(width: size, height: size))
+        let grid = Int(ceil(sqrt(CGFloat(range.length))))
+        let col = range.location % grid
+        let row = grid - 1 - range.location / grid
+        let w = Int(width) / grid
+        let h = Int(height) / grid
+        return CGRect(x: col * w, y: row * h, width: w, height: h)
     }
     func perimeter() -> CGFloat {
         2 * (width + height)
