@@ -108,7 +108,13 @@ class SwiftDemo: NSObject {
 extension SwiftDemo: RASceneListDelegate {
     func shouldRedraw(atTime time: Double, width: Double, height: Double) -> Bool {
         bounds = CGRect(x: 0, y: 0, width: width, height: height)
-        let should = redraw || !paused || swiftApp.shouldRedraw(swiftApp.pageName ?? "", in: bounds)
+        
+        let pageCount = PageID.allCases.count
+        for (i, name) in PageID.allCases.enumerated() {
+            let b = bounds.boundsInRange(NSRange(location: i, length: pageCount))
+            redraw = redraw || swiftApp.shouldRedraw(name(), in: b)
+        }
+        let should = redraw || !paused
         redraw = false
         return should
     }
@@ -120,10 +126,12 @@ extension SwiftDemo: RASceneListDelegate {
         list.add(pastedScene ?? RAScene())
         
         appCtm = ctm.inverted()
-        if let pageName = swiftApp.pageName {
+        let pageCount = PageID.allCases.count
+        for (i, name) in PageID.allCases.enumerated() {
             let pageCtm = CGAffineTransform.identity
-            pageCtms[pageName] = pageCtm
-            list.add(swiftApp.sceneFor(pageName, in: bounds), ctm: pageCtm.concatenating(appCtm), clip: .zero)
+            pageCtms[name()] = pageCtm
+            let b = bounds.boundsInRange(NSRange(location: i, length: pageCount))
+            list.add(swiftApp.sceneFor(name(), in: b), ctm: pageCtm.concatenating(appCtm), clip: .zero)
         }
         list.ctm = ctm
         list.useClips = useClips;

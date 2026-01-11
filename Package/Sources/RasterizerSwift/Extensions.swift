@@ -32,7 +32,7 @@ extension CGRect {
     func boundsInRange(_ range: NSRange) -> CGRect {
         let grid = ceil(sqrt(CGFloat(range.length)))
         let col = range.location % Int(grid)
-        let row = range.location / Int(grid)
+        let row = Int(grid) - 1 - range.location / Int(grid)
         let size = min(width, height) / grid
         return CGRect(
             origin: .init(
