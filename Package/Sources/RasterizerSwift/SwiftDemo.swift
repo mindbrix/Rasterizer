@@ -150,6 +150,7 @@ extension SwiftDemo: SwiftApp.PageDelegate {
     enum PageID: String, CaseIterable {
         case LogIn
         case Home
+        case Text
         
         func callAsFunction() -> String {
             rawValue
@@ -227,13 +228,15 @@ extension SwiftDemo: SwiftApp.PageDelegate {
                 store.setValue(key: Key.tapcount(), value: tapcount + 1)
                 return tapcount == 2 ? PageID.Home() : nil
             }),
-            Control(key: Key.test(), mode: .readonly, closure: nil),
         ]
         case .Home: [
             Control(key: Key.button(), mode: .button, closure: { store, _ in
                 store.setValue(key: Key.tapcount(), value: 0)
                 return PageID.LogIn()
             })]
+        case .Text: [
+            Control(key: Key.test(), mode: .readonly, closure: nil)
+        ]
         default:
             nil
         }
