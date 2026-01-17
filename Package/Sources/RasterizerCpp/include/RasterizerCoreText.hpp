@@ -17,7 +17,11 @@
 //  misrepresented as being the original software.
 //  3. This notice may not be removed or altered from any source distribution.
 //
+
+#if TARGET_OS_OSX
 #import <Cocoa/Cocoa.h>
+#endif
+
 #import <CoreText/CoreText.h>
 #import "Rasterizer.hpp"
 #import "RasterizerCG.hpp"
@@ -136,9 +140,11 @@ struct RasterizerCoreText {
             return NULL;
         if (CFGetTypeID(value) == CGColorGetTypeID())
             return (CGColorRef)value;
+#if TARGET_OS_OSX
         NSColor *nsColor = (__bridge NSColor *)value;
         if ([nsColor isKindOfClass: [NSColor class]])
              return nsColor.CGColor;
+#endif
         return NULL;
     }
     
