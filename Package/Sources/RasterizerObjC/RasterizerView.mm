@@ -26,26 +26,27 @@
 
 @interface RasterizerView () <CALayerDelegate, LayerDelegate>
 
+#if TARGET_OS_OSX
 @property(nonatomic) CVDisplayLinkRef displayLink;
+#elif TARGET_OS_IPHONE
+@property(nonatomic) CADisplayLink *displayLink;
+#endif
+
 @property(nonatomic) dispatch_semaphore_t inflight_semaphore;
 @property(nonatomic) RasterizerRenderer renderer;
+- (void)handleTimerTick:(id)sender;
 - (void)timerFired:(double)time;
 
 @end
 
+#if TARGET_OS_OSX
 static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink, const CVTimeStamp *now, const CVTimeStamp *outputTime,
 CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     RasterizerView *view = (__bridge RasterizerView *)displayLinkContext;
-    @autoreleasepool {
-        if (dispatch_semaphore_wait(view.inflight_semaphore, DISPATCH_TIME_NOW) == 0)
-            dispatch_async(dispatch_get_main_queue(), ^{
-                [view timerFired:[NSDate date].timeIntervalSinceReferenceDate];
-                dispatch_semaphore_signal(view.inflight_semaphore);
-            });
-    }
+    [view handleTimerTick: nil];
     return kCVReturnSuccess;
 }
-
+#endif
 
 @implementation RasterizerView
 
@@ -64,18 +65,41 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 }
 
 
-#pragma mark - CVDisplayLink
+#pragma mark - Timer
 
 - (void)startTimer {
     _inflight_semaphore = dispatch_semaphore_create(1);
+#if TARGET_OS_OSX
     CVReturn cvReturn = CVDisplayLinkCreateWithCGDisplay(CGMainDisplayID(), &_displayLink);
     cvReturn = CVDisplayLinkSetOutputCallback(_displayLink, &OnDisplayLinkFrame, (__bridge void *)self);
     CVDisplayLinkStart(_displayLink);
+#elif TARGET_OS_IPHONE
+    if ([CADisplayLink class]) {
+        _displayLink = [CADisplayLink displayLinkWithTarget:self selector:@selector(handleTimerTick:)];
+        [_displayLink addToRunLoop:[NSRunLoop currentRunLoop] forMode:NSRunLoopCommonModes];
+    }
+#endif
 }
 
 - (void)stopTimer {
+#if TARGET_OS_OSX
     if (_displayLink)
         CVDisplayLinkStop(_displayLink), CVDisplayLinkRelease(_displayLink), _displayLink = nil;
+#elif TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR
+    [_displayLink setPaused:YES];
+    [_displayLink invalidate];
+    _displayLink = nil;
+#endif
+}
+
+- (void)handleTimerTick:(id)sender {
+    @autoreleasepool {
+        if (dispatch_semaphore_wait(_inflight_semaphore, DISPATCH_TIME_NOW) == 0)
+            dispatch_async(dispatch_get_main_queue(), ^{
+                [self timerFired:CACurrentMediaTime()];
+                dispatch_semaphore_signal(_inflight_semaphore);
+            });
+    }
 }
 
 - (void)timerFired:(double)time {
@@ -118,23 +142,26 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 
 - (void)setUseCG:(bool)useCG {
     _useCG = useCG;
-    
+#if TARGET_OS_OSX
     [self setWantsLayer:YES];
     CGFloat scale = self.layer.contentsScale ?: [self convertSizeToBacking:NSMakeSize(1.f, 1.f)].width;
+#endif
     if (self.useCG) {
-        [self setLayer:[CALayer layer]];
+        self.layer = [CALayer layer];
         self.layer.contentsFormat = kCAContentsFormatRGBA8Uint;
         self.layer.delegate = self;
         self.layer.magnificationFilter = kCAFilterNearest;
     } else {
-        [self setLayer:[RasterizerLayer layer]];
+        self.layer = [RasterizerLayer layer];
         ((RasterizerLayer *)self.layer).layerDelegate = self;
         CGColorSpaceRef rgb = CGColorSpaceCreateDeviceRGB();
         ((RasterizerLayer *)self.layer).colorspace = rgb;
         CGColorSpaceRelease(rgb);
     }
     _renderer.reset();
+#if TARGET_OS_OSX
     self.layer.contentsScale = scale;
+#endif
     self.layer.bounds = self.bounds;
     self.layer.opaque = YES;
     self.layer.needsDisplayOnBoundsChange = YES;
