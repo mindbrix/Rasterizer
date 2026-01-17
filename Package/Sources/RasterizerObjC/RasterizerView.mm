@@ -50,10 +50,22 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 
 @implementation RasterizerView
 
+#if TARGET_OS_IPHONE
++ (Class)layerClass {
+    return [RasterizerLayer class];
+}
+#endif
+
 - (nullable instancetype)initWithCoder:(NSCoder *)decoder {
     self = [super initWithCoder:decoder];
     if (! self)
         return nil;
+#if TARGET_OS_IPHONE
+    ((RasterizerLayer *)self.layer).layerDelegate = self;
+    CGColorSpaceRef rgb = CGColorSpaceCreateDeviceRGB();
+    ((RasterizerLayer *)self.layer).colorspace = rgb;
+    CGColorSpaceRelease(rgb);
+#endif
     self.useCG = false;
     [self startTimer];
     return self;
@@ -145,7 +157,6 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 #if TARGET_OS_OSX
     [self setWantsLayer:YES];
     CGFloat scale = self.layer.contentsScale ?: [self convertSizeToBacking:NSMakeSize(1.f, 1.f)].width;
-#endif
     if (self.useCG) {
         self.layer = [CALayer layer];
         self.layer.contentsFormat = kCAContentsFormatRGBA8Uint;
@@ -159,7 +170,6 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
         CGColorSpaceRelease(rgb);
     }
     _renderer.reset();
-#if TARGET_OS_OSX
     self.layer.contentsScale = scale;
 #endif
     self.layer.bounds = self.bounds;
@@ -168,6 +178,5 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     self.layer.actions = @{ @"onOrderIn": [NSNull null], @"onOrderOut": [NSNull null], @"sublayers": [NSNull null], @"contents": [NSNull null], @"backgroundColor": [NSNull null], @"bounds": [NSNull null] };
     [self.layer setNeedsDisplay];
 }
-
 
 @end
