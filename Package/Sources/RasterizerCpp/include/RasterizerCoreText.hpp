@@ -20,6 +20,8 @@
 
 #if TARGET_OS_OSX
 #import <Cocoa/Cocoa.h>
+#elif TARGET_OS_IPHONE
+#import <UIKit/UIKit.h>
 #endif
 
 #import <CoreText/CoreText.h>
@@ -144,6 +146,10 @@ struct RasterizerCoreText {
         NSColor *nsColor = (__bridge NSColor *)value;
         if ([nsColor isKindOfClass: [NSColor class]])
              return nsColor.CGColor;
+#elif TARGET_OS_IPHONE
+        UIColor *uiColor = (__bridge UIColor *)value;
+        if ([uiColor isKindOfClass: [UIColor class]])
+             return uiColor.CGColor;
 #endif
         return NULL;
     }
