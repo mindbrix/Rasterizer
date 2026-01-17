@@ -21,12 +21,11 @@
 #import "RasterizerLayer.h"
 #import <Metal/Metal.h>
 #import <map>
-#import <time.h>
 
 template<typename T, typename S, int kExpiryAge = 10>
 struct MetalCache {
     struct Entry {
-        Entry(T payload) : payload(payload), timestamp(getTime()) {}
+        Entry(T payload) : payload(payload), timestamp(CACurrentMediaTime()) {}
         
         T payload;
         double timestamp;
@@ -43,24 +42,19 @@ struct MetalCache {
             map.emplace(key, Entry(payload));
             return payload;
         } else {
-            it->second.timestamp = getTime();
+            it->second.timestamp = CACurrentMediaTime();
             return it->second.payload;
         }
     }
     
     void flush() {
-        double now = getTime();
+        double now = CACurrentMediaTime();
         std::vector<size_t> expired;
         for (const auto& entry: map)
             if (now - entry.second.timestamp > kExpiryAge)
                 expired.emplace_back(entry.first);
         for (auto key: expired)
             map.erase(key);
-    }
-    
-    static inline double getTime() {
-        struct timeval tv;  gettimeofday(& tv, NULL);
-        return tv.tv_sec + tv.tv_usec * 1e-6;
     }
     
     std::map<size_t, Entry> map;
