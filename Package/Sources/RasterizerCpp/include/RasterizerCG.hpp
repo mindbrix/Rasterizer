@@ -24,8 +24,12 @@
 
 struct RasterizerCG {
     static void renderListToBitmap(const Ra::SceneList& list, float scale, float w, float h, CGContextRef ctx) {
-        memset_pattern4(CGBitmapContextGetData(ctx), & list.params.clearColor.b, CGBitmapContextGetBytesPerRow(ctx) * CGBitmapContextGetHeight(ctx));
-        
+        CGContextSaveGState(ctx);
+        const auto color = list.params.clearColor;
+        CGContextSetRGBFillColor(ctx, color.r / 255.0, color.g / 255.0, color.b / 255.0, color.a / 255.0);
+        CGContextFillRect(ctx, CGRectMake(0, 0, w, h));
+        CGContextRestoreGState(ctx);
+
         if (!list.params.useCurves)
             CGContextSetFlatness(ctx, 20 * scale);
         renderList(list, Ra::Bounds(0, 0, w, h), ctx);
