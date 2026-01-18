@@ -45,14 +45,15 @@ class TestDispatch: RADrawable {
 }
 
 class TestImage: RADrawable {
+    func getCGImage() -> CGImage? {
+        let image = NSImage(systemSymbolName: "airplane", accessibilityDescription: nil)
+        return image?.cgImage(forProposedRect: nil, context: nil, hints: nil)
+    }
     func getListAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RASceneList {
         let scene = RAScene()
-        if let image = NSImage(systemSymbolName: "airplane", accessibilityDescription: nil),
-           let imageRef = image.cgImage(forProposedRect: nil, context: nil, hints: nil) {
-            let color = RAPaint(cgImage: imageRef)
-            let rect = CGRect(x: 0, y: 0, width: image.size.width, height: image.size.height)
-            let path = RAPath(rect: rect)
-            scene.addFill(path, ctm: .identity, color: color, evenOdd: false)
+        if let cgImage = getCGImage() {
+            let image = RAPaint(cgImage: cgImage)
+            scene.addImage(image, ctm: .identity)
         }
         return RASceneList(scene: scene)
     }

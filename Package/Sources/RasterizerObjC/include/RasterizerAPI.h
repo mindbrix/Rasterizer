@@ -91,6 +91,9 @@ typedef NS_ENUM(NSUInteger, RAJoinStyle) {
          capStyle:(RACapStyle)capStyle
         joinStyle:(RAJoinStyle)joinStyle;
 
+- (void)addImage:(nonnull RAPaint *)image
+             ctm:(CGAffineTransform)ctm;
+
 - (void)addFill:(nonnull RAPath *)path
             ctm:(CGAffineTransform)ctm
            color:(nonnull RAPaint *)color
