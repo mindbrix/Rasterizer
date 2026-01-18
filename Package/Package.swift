@@ -8,7 +8,7 @@ let package = Package(
     platforms: [
         .macOS(.v12),
         .iOS(.v13)
-        ],
+    ],
     products: [
         // Products define the executables and libraries a package produces, making them visible to other packages.
         .library(
@@ -39,11 +39,7 @@ let package = Package(
             cxxSettings: [
                 .headerSearchPath("private"),
             ],
-            linkerSettings: [
-                // Frameworks
-                .linkedFramework("Accelerate"),
-                // Libraries
-            ]
+            linkerSettings: []
         ),
         .testTarget(
             name: "RasterizerSwiftTests",
