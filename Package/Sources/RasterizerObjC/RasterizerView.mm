@@ -59,15 +59,27 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     self = [super initWithCoder:decoder];
     if (! self)
         return nil;
+    [self rasterizerInit];
+    return self;
+}
+
+- (instancetype)initWithFrame:(CGRect)frame {
+    self = [super initWithFrame:frame];
+    [self rasterizerInit];
+    return self;
+}
+
+- (void)rasterizerInit {
 #if TARGET_OS_IPHONE
-    ((RasterizerLayer *)self.layer).layerDelegate = self;
-    CGColorSpaceRef rgb = CGColorSpaceCreateDeviceRGB();
-    ((RasterizerLayer *)self.layer).colorspace = rgb;
-    CGColorSpaceRelease(rgb);
+    if ([self.layer isKindOfClass:[RasterizerLayer class]]) {
+        ((RasterizerLayer *)self.layer).layerDelegate = self;
+        CGColorSpaceRef rgb = CGColorSpaceCreateDeviceRGB();
+        ((RasterizerLayer *)self.layer).colorspace = rgb;
+        CGColorSpaceRelease(rgb);
+    }
 #endif
     self.useCG = false;
     [self startTimer];
-    return self;
 }
 
 - (void)removeFromSuperview {
