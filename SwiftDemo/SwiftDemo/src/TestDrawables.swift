@@ -46,8 +46,12 @@ class TestDispatch: RADrawable {
 
 class TestImage: RADrawable {
     func getCGImage() -> CGImage? {
+#if os(macOS)
         let image = NSImage(systemSymbolName: "airplane", accessibilityDescription: nil)
         return image?.cgImage(forProposedRect: nil, context: nil, hints: nil)
+#elseif os(iOS)
+        return UIImage(systemName:"airplane")?.cgImage
+#endif
     }
     func getListAtTime(_ time: Double, bounds: CGRect, state: SwiftDemo) -> RASceneList {
         let scene = RAScene()
