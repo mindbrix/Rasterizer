@@ -258,17 +258,18 @@ struct TextureCache : MetalCache<id <MTLTexture>, const Ra::Paint &> {
     desc.width = w;
     desc.height = h + th;
     id <MTLTexture> colorTexture = [self.device newTextureWithDescriptor:desc];
-    [colorTexture replaceRegion:MTLRegionMake2D(0, 0, w, h)
-                    mipmapLevel:0
-                      withBytes:buffer->base + buffer->colors
-                    bytesPerRow:w * sizeof(Ra::Color)];
-    if (buffer->texCount) {
-        [colorTexture replaceRegion:MTLRegionMake2D(0, h, w, th)
+    if (buffer->base) {
+        [colorTexture replaceRegion:MTLRegionMake2D(0, 0, w, h)
                         mipmapLevel:0
-                          withBytes:buffer->base + buffer->texStrips
+                          withBytes:buffer->base + buffer->colors
                         bytesPerRow:w * sizeof(Ra::Color)];
+        if (buffer->texCount) {
+            [colorTexture replaceRegion:MTLRegionMake2D(0, h, w, th)
+                            mipmapLevel:0
+                              withBytes:buffer->base + buffer->texStrips
+                            bytesPerRow:w * sizeof(Ra::Color)];
+        }
     }
-    
     id <MTLCommandBuffer> commandBuffer = [self.commandQueue commandBuffer];
     
     MTLRenderPassDescriptor *drawableDescriptor = [MTLRenderPassDescriptor renderPassDescriptor];
