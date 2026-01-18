@@ -26,8 +26,6 @@
 #elif TARGET_OS_IPHONE
 #import <UIKit/UIKit.h>
 @interface RasterizerView : UIView
-#else
-@interface RasterizerView : NSObject
 #endif
 @property(weak) id <RASceneListDelegate> listDelegate;
 @property(nonatomic) bool useCG;
