@@ -54,7 +54,7 @@ class TestImage: RADrawable {
             let path = RAPath(rect: rect)
             scene.addFill(path, ctm: .identity, color: color, evenOdd: false)
         }
-        return scene.createList()
+        return RASceneList(scene: scene)
     }
 }
 class TestDasher: RADrawable {
@@ -80,7 +80,7 @@ class TestDasher: RADrawable {
             width: width,
             capStyle: capStyle,
             joinStyle: .joinRound)
-        return scene.createList()
+        return RASceneList(scene: scene)
     }
 }
 class TestGradients: RADrawable {
@@ -114,7 +114,7 @@ class TestGradients: RADrawable {
         scene.addFill(rect, ctm: .identity, color: gradient, evenOdd: false, clip: .zero, clipPath: RAPath(rect: b))
         scene.addFill(ellipse, ctm: .identity, color: RAPaint(gray: 1, alpha: 1), evenOdd: false, clip: .zero, clipPath: RAPath(ellipse: b))
         
-        return scene.createList()
+        return RASceneList(scene: scene)
     }
 }
 
@@ -132,9 +132,8 @@ class TestQuadratics: RADrawable {
         path.quad(to: 0.5 * dim + sine * dim, y1: dim, x2: dim, y2: 0)
         
         let scene = RAScene()
-        
         scene.addStroke(path, ctm: .identity, color: color, width: stroke, capStyle: .capButt, joinStyle: .joinMiter)
-        return scene.createList()
+        return RASceneList(scene: scene)
     }
 }
 
@@ -163,7 +162,7 @@ class TestCubics: RADrawable {
         
         let scene = RAScene()
         scene.addFill(path, ctm: .identity, color: RAPaint(gray: 0, alpha: 1), evenOdd: true)
-        return scene.createList()
+        return RASceneList(scene: scene)
     }
 }
 
@@ -203,6 +202,6 @@ class Test0: RADrawable {
             let path = state.useRect ? unitRectPath : unitEllipsePath
             scene.addFill(path, ctm: ctm, color: gradient, evenOdd: false)
         }
-        return scene.createList()
+        return RASceneList(scene: scene)
     }
 }

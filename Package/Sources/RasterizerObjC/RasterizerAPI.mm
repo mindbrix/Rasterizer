@@ -345,6 +345,14 @@
 
 @implementation RASceneList: NSObject
 
+- (id)initWithScene:(RAScene *)scene {
+    self = [super init];
+    if (!self)
+        return nil;
+    [self addScene:scene];
+    return self;
+}
+
 - (CGRect)bounds {
     return RaCG::CGRectFromBounds(_list.bounds());
 }

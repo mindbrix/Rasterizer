@@ -280,11 +280,5 @@ extension RAScene {
         path.close()
         addStroke(path, ctm: .identity, color: paint, width: width, capStyle: .capButt, joinStyle: .joinMiter)
     }
-    
-    func createList() -> RASceneList {
-        let list = RASceneList()
-        list.add(self)
-        return list
-    }
 }
 

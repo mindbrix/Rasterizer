@@ -129,6 +129,7 @@ typedef NS_ENUM(NSUInteger, RAJoinStyle) {
 @property(nonatomic) BOOL showOpaques;
 @property(nonatomic) BOOL showOutlines;
 
+- (nonnull id)initWithScene:(nonnull RAScene *)scene;
 - (void)addList:(nonnull RASceneList *)list;
 - (void)addScene:(nonnull RAScene *)scene;
 - (void)addScene:(nonnull RAScene *)scene ctm:(CGAffineTransform)ctm clip:(CGRect)clip;
