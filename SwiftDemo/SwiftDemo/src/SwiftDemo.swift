@@ -41,11 +41,10 @@ class SwiftDemo: NSObject {
     }
     
     enum Event {
-        case keyDown(character: Character, flags: NSEvent.ModifierFlags)
         case paste(attributed: NSAttributedString)
-        case mouseDown(p: CGPoint, flags: NSEvent.ModifierFlags)
-        case mouseMove(p: CGPoint, flags: NSEvent.ModifierFlags)
-        case mouseUp(p: CGPoint, flags: NSEvent.ModifierFlags)
+        case mouseDown(p: CGPoint)
+        case mouseMove(p: CGPoint)
+        case mouseUp(p: CGPoint)
         case magnify(scale: Double)
         case rotate(angle: Float)
         case translate(tx: Double, ty: Double)
@@ -80,17 +79,15 @@ class SwiftDemo: NSObject {
 
     func handleEvent(_ event: Event) -> Bool {
         switch event {
-        case .keyDown(_, _):
-            return false
         case .paste(let attributed):
             let scene = RAScene()
             scene.addText(attributed, in: bounds, ctm: .identity, clip: .zero)
             pastedScene = scene
-        case .mouseDown(let p, _):
+        case .mouseDown(let p):
             swiftApp.mouseDown(bounds, p: p.applying(mouseCtmFor(swiftApp.pageName)))
-        case .mouseMove(let p, _):
+        case .mouseMove(let p):
             swiftApp.mouseMoved(bounds, p: p.applying(mouseCtmFor(swiftApp.pageName)))
-        case .mouseUp(let p, _):
+        case .mouseUp(let p):
             swiftApp.mouseUp(bounds, p: p.applying(mouseCtmFor(swiftApp.pageName)))
         case .magnify(let scale):
             ctm = ctm.concatAroundCenter(t: CGAffineTransform(scaleX: scale, y: scale), cx: bounds.midX, cy: bounds.midY)
