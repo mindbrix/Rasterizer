@@ -35,7 +35,6 @@
 @property(nonatomic) dispatch_semaphore_t inflight_semaphore;
 @property(nonatomic) RasterizerRenderer renderer;
 - (void)handleTimerTick:(id)sender;
-- (void)timerFired:(double)time;
 
 @end
 
@@ -108,20 +107,16 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     @autoreleasepool {
         if (dispatch_semaphore_wait(_inflight_semaphore, DISPATCH_TIME_NOW) == 0)
             dispatch_async(dispatch_get_main_queue(), ^{
-                [self timerFired:CACurrentMediaTime()];
+                if ([self.listDelegate respondsToSelector:@selector(shouldRedrawAtTime:width:height:)]) {
+                    float w = self.bounds.size.width, h = self.bounds.size.height;
+                    if ([self.listDelegate shouldRedrawAtTime:CACurrentMediaTime()
+                                                        width:w
+                                                       height:h]) {
+                        [self.layer setNeedsDisplay];
+                    }
+                }
                 dispatch_semaphore_signal(_inflight_semaphore);
             });
-    }
-}
-
-- (void)timerFired:(double)time {
-    if ([self.listDelegate respondsToSelector:@selector(shouldRedrawAtTime:width:height:)]) {
-        float w = self.bounds.size.width, h = self.bounds.size.height;
-        if ([self.listDelegate shouldRedrawAtTime:time
-                                            width:w
-                                           height:h]) {
-            [self.layer setNeedsDisplay];
-        }
     }
 }
 
@@ -130,7 +125,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 - (void)writeBuffer:(Ra::Buffer *)buffer forLayer:(CALayer *)layer {
     if ([self.listDelegate respondsToSelector:@selector(getListAtTime:width:height:)]) {
         float scale = self.layer.contentsScale, w = self.bounds.size.width, h = self.bounds.size.height;
-        RASceneList *list = [self.listDelegate getListAtTime:NSDate.timeIntervalSinceReferenceDate
+        RASceneList *list = [self.listDelegate getListAtTime:CACurrentMediaTime()
                                                        width:w
                                                       height:h];
         _renderer.renderList(list.list, scale, w, h, buffer);
@@ -142,7 +137,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 - (void)drawLayer:(CALayer *)layer inContext:(CGContextRef)ctx {
     if ([self.listDelegate respondsToSelector:@selector(getListAtTime:width:height:)]) {
         float scale = self.layer.contentsScale, w = self.bounds.size.width, h = self.bounds.size.height;
-        RASceneList *list = [self.listDelegate getListAtTime:NSDate.timeIntervalSinceReferenceDate
+        RASceneList *list = [self.listDelegate getListAtTime:CACurrentMediaTime()
                                                        width:w
                                                       height:h];
         RaCG::renderListToBitmap(list.list, scale, w, h, ctx);
