@@ -7,6 +7,7 @@
 
 import UIKit
 import RasterizerObjC
+import RasterizerSwift
 
 class ViewController: UIViewController, RASceneListDelegate {
     func shouldRedraw(atTime time: Double, width: Double, height: Double) -> Bool {
@@ -14,11 +15,7 @@ class ViewController: UIViewController, RASceneListDelegate {
     }
     
     func getListAtTime(_ time: Double, width: Double, height: Double) -> RASceneList {
-        let red = RAPaint(red: 1, green: 0, blue: 0, alpha: 1)
-        let b = CGRect(x: 0, y: 0, width: width, height: height)
-        let scene = RAScene()
-        scene.addFill(RAPath(ellipse: b), ctm: .identity, color: red, evenOdd: false)
-        return RASceneList(scene: scene)
+        CounterRotatingCircles(time, width: width, height: height)
     }
 
     override func viewDidLoad() {

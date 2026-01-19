@@ -17,6 +17,9 @@ let package = Package(
         .library(
             name: "RasterizerObjC",
             targets: ["RasterizerObjC"]),
+        .library(
+            name: "RasterizerSwift",
+            targets: ["RasterizerSwift"]),
     ],
     dependencies: [],
     targets: [
@@ -40,6 +43,11 @@ let package = Package(
                 .headerSearchPath("private"),
             ],
             linkerSettings: []
+        ),
+        .target(
+            name: "RasterizerSwift",
+            dependencies: ["RasterizerObjC"],
+            path: "Sources/RasterizerSwift"
         ),
         .testTarget(
             name: "RasterizerSwiftTests",
