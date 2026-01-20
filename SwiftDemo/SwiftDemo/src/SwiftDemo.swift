@@ -8,6 +8,7 @@
 
 import Foundation
 import RasterizerObjC
+import RasterizerSwift
 
 
 class SwiftDemo: NSObject {
