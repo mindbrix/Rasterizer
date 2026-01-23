@@ -10,8 +10,11 @@ import RasterizerObjC
 import RasterizerSwift
 
 class ViewController: UIViewController {
+    static let useSvg = true
+    
     var ctm = CGAffineTransform.identity
     var down = CGAffineTransform.identity
+    var svgList: RASceneList?
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -22,6 +25,15 @@ class ViewController: UIViewController {
             view.addGestureRecognizer(UIPanGestureRecognizer(target: self, action: #selector(wasPanned)))
             view.addGestureRecognizer(UIPinchGestureRecognizer(target: self, action: #selector(wasPinched)))
             view.addGestureRecognizer(UIRotationGestureRecognizer(target: self, action: #selector(wasRotated)))
+        }
+        
+        if Self.useSvg,
+            let url = Bundle.main.url(forResource: "Anime_Girl", withExtension: "svg") {
+            let scene = RAScene()
+            let ctm = scene.addSvg(from: url)
+            let list = RASceneList()
+            list.add(scene, ctm: ctm, clip: .zero)
+            svgList = list
         }
     }
     
@@ -74,7 +86,7 @@ extension ViewController: RASceneListDelegate {
     }
     
     func getListAtTime(_ time: Double, width: Double, height: Double) -> RASceneList {
-        let list = CounterRotatingCircles(time, width: width, height: height)
+        let list = svgList ?? CounterRotatingCircles(time, width: width, height: height)
         list.ctm = ctm
         return list
     }
