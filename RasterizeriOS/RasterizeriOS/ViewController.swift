@@ -12,7 +12,12 @@ import RasterizerSwift
 class ViewController: UIViewController {
     static let useSvg = true
     
-    var ctm = CGAffineTransform.identity
+    var redraw = false
+    var ctm = CGAffineTransform.identity {
+        didSet {
+            redraw = true
+        }
+    }
     var down = CGAffineTransform.identity
     var svgList: RASceneList?
     
@@ -82,7 +87,9 @@ class ViewController: UIViewController {
 
 extension ViewController: RASceneListDelegate {
     func shouldRedraw(atTime time: Double, width: Double, height: Double) -> Bool {
-        true
+        let should = redraw || svgList == nil
+        redraw = false
+        return should
     }
     
     func getListAtTime(_ time: Double, width: Double, height: Double) -> RASceneList {
