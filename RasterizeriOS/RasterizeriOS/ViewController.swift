@@ -22,25 +22,35 @@ class ViewController: UIViewController {
     var svgList: RASceneList?
     
     override func viewDidLoad() {
-        super.viewDidLoad()
-        
-        if let view = self.view as? RasterizerView {
-            view.listDelegate = self
-            view.isUserInteractionEnabled = true
-            view.addGestureRecognizer(UIPanGestureRecognizer(target: self, action: #selector(onGesture)))
-            view.addGestureRecognizer(UIPinchGestureRecognizer(target: self, action: #selector(onGesture)))
-            view.addGestureRecognizer(UIRotationGestureRecognizer(target: self, action: #selector(onGesture)))
+            super.viewDidLoad()
+            
+            if let view = self.view as? RasterizerView {
+                view.listDelegate = self
+                view.isUserInteractionEnabled = true
+                view.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(onTap)))
+                view.addGestureRecognizer(UIPanGestureRecognizer(target: self, action: #selector(onGesture)))
+                view.addGestureRecognizer(UIPinchGestureRecognizer(target: self, action: #selector(onGesture)))
+                view.addGestureRecognizer(UIRotationGestureRecognizer(target: self, action: #selector(onGesture)))
+            }
+            svgList = makeSvgList()
         }
         
-        if Self.useSvg,
-            let url = Bundle.main.url(forResource: "Anime_Girl", withExtension: "svg") {
+        func makeSvgList() -> RASceneList? {
+            guard Self.useSvg,
+                let url = Bundle.main.url(forResource: "Anime_Girl", withExtension: "svg") else {
+                return nil
+            }
             let scene = RAScene()
             let ctm = scene.addSvg(from: url)
             let list = RASceneList()
             list.add(scene, ctm: ctm, clip: .zero)
-            svgList = list
+            return list
         }
-    }
+            
+        @objc func onTap(_ recognizer: UITapGestureRecognizer) {
+            svgList = svgList == nil ? makeSvgList() : nil
+            ctm = .identity
+        }
         
     @objc func onGesture(_ recognizer: UIGestureRecognizer) {
         switch recognizer.state {
