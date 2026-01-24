@@ -23,20 +23,21 @@ class ViewController: UIViewController {
         var svgList: RASceneList?
         var svgIndex = 0
         
-        override func viewDidLoad() {
-            super.viewDidLoad()
-            
-            if let view = self.view as? RasterizerView {
-                view.listDelegate = self
-                view.isUserInteractionEnabled = true
-                view.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(onTap)))
-                view.addGestureRecognizer(UIPanGestureRecognizer(target: self, action: #selector(onGesture)))
-                view.addGestureRecognizer(UIPinchGestureRecognizer(target: self, action: #selector(onGesture)))
-                view.addGestureRecognizer(UIRotationGestureRecognizer(target: self, action: #selector(onGesture)))
-            }
-            svgList = makeSvgList()
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        
+        if let view = self.view as? RasterizerView {
+            view.listDelegate = self
+            view.isUserInteractionEnabled = true
+            view.addGestureRecognizer(UILongPressGestureRecognizer(target: self, action: #selector(onLongPress)))
+            view.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(onTap)))
+            view.addGestureRecognizer(UIPanGestureRecognizer(target: self, action: #selector(onGesture)))
+            view.addGestureRecognizer(UIPinchGestureRecognizer(target: self, action: #selector(onGesture)))
+            view.addGestureRecognizer(UIRotationGestureRecognizer(target: self, action: #selector(onGesture)))
         }
-            
+        svgList = makeSvgList()
+    }
+                
     func makeSvgList() -> RASceneList? {
         guard Self.useSvg,
               let url = Bundle.main.url(forResource: Self.svgNames[svgIndex], withExtension: "svg") else {
@@ -47,6 +48,11 @@ class ViewController: UIViewController {
         let list = RASceneList()
         list.add(scene, ctm: ctm, clip: .zero)
         return list
+    }
+
+    @objc func onLongPress(_ recognizer: UILongPressGestureRecognizer) {
+        svgList = nil
+        ctm = .identity
     }
         
     @objc func onTap(_ recognizer: UITapGestureRecognizer) {
