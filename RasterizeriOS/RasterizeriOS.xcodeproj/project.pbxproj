@@ -13,11 +13,13 @@
 		E958C8292F1D637D00E9B14F /* RasterizerCpp in Frameworks */ = {isa = PBXBuildFile; productRef = E958C8282F1D637D00E9B14F /* RasterizerCpp */; };
 		E958C82B2F1D637D00E9B14F /* RasterizerObjC in Frameworks */ = {isa = PBXBuildFile; productRef = E958C82A2F1D637D00E9B14F /* RasterizerObjC */; };
 		E9D87C4C2F24244100539C38 /* Anime_Girl.svg in Resources */ = {isa = PBXBuildFile; fileRef = E9D87C4B2F24244100539C38 /* Anime_Girl.svg */; };
+		E9D87C4E2F2511EF00539C38 /* AntigenicShift_HiRes.svg in Resources */ = {isa = PBXBuildFile; fileRef = E9D87C4D2F2511EF00539C38 /* AntigenicShift_HiRes.svg */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		E958C7FF2F1D62DC00E9B14F /* RasterizeriOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = RasterizeriOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E9D87C4B2F24244100539C38 /* Anime_Girl.svg */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = Anime_Girl.svg; sourceTree = "<group>"; };
+		E9D87C4D2F2511EF00539C38 /* AntigenicShift_HiRes.svg */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = AntigenicShift_HiRes.svg; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -60,6 +62,7 @@
 		E958C7F62F1D62DC00E9B14F = {
 			isa = PBXGroup;
 			children = (
+				E9D87C4D2F2511EF00539C38 /* AntigenicShift_HiRes.svg */,
 				E9D87C4B2F24244100539C38 /* Anime_Girl.svg */,
 				E958C8012F1D62DC00E9B14F /* RasterizeriOS */,
 				E958C8002F1D62DC00E9B14F /* Products */,
@@ -146,6 +149,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E9D87C4E2F2511EF00539C38 /* AntigenicShift_HiRes.svg in Resources */,
 				E9D87C4C2F24244100539C38 /* Anime_Girl.svg in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

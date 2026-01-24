@@ -11,17 +11,19 @@ import RasterizerSwift
 
 class ViewController: UIViewController {
     static let useSvg = true
-    
-    var redraw = false
-    var ctm = CGAffineTransform.identity {
-        didSet {
-            redraw = true
+        static let svgNames = ["Anime_Girl", "AntigenicShift_HiRes"]
+        
+        var redraw = false
+        var ctm = CGAffineTransform.identity {
+            didSet {
+                redraw = true
+            }
         }
-    }
-    var down = CGAffineTransform.identity
-    var svgList: RASceneList?
-    
-    override func viewDidLoad() {
+        var down = CGAffineTransform.identity
+        var svgList: RASceneList?
+        var svgIndex = 0
+        
+        override func viewDidLoad() {
             super.viewDidLoad()
             
             if let view = self.view as? RasterizerView {
@@ -34,23 +36,24 @@ class ViewController: UIViewController {
             }
             svgList = makeSvgList()
         }
-        
-        func makeSvgList() -> RASceneList? {
-            guard Self.useSvg,
-                let url = Bundle.main.url(forResource: "Anime_Girl", withExtension: "svg") else {
-                return nil
-            }
-            let scene = RAScene()
-            let ctm = scene.addSvg(from: url)
-            let list = RASceneList()
-            list.add(scene, ctm: ctm, clip: .zero)
-            return list
-        }
             
-        @objc func onTap(_ recognizer: UITapGestureRecognizer) {
-            svgList = svgList == nil ? makeSvgList() : nil
-            ctm = .identity
+    func makeSvgList() -> RASceneList? {
+        guard Self.useSvg,
+              let url = Bundle.main.url(forResource: Self.svgNames[svgIndex], withExtension: "svg") else {
+            return nil
         }
+        let scene = RAScene()
+        let ctm = scene.addSvg(from: url)
+        let list = RASceneList()
+        list.add(scene, ctm: ctm, clip: .zero)
+        return list
+    }
+        
+    @objc func onTap(_ recognizer: UITapGestureRecognizer) {
+        svgIndex = (svgIndex + 1) % Self.svgNames.count
+        svgList = makeSvgList()
+        ctm = .identity
+    }
         
     @objc func onGesture(_ recognizer: UIGestureRecognizer) {
         switch recognizer.state {
