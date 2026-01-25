@@ -77,6 +77,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
         ((RasterizerLayer *)self.layer).colorspace = rgb;
         CGColorSpaceRelease(rgb);
     }
+    self.layer.contentsScale = UIScreen.mainScreen.scale;
 #endif
     self.useCG = false;
     [self startTimer];
