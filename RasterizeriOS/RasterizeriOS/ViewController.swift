@@ -22,7 +22,7 @@ class ViewController: UIViewController {
     var svgList: RASceneList? {
         didSet {
             if let svgList {
-                ctm = self.view.bounds.fitTransform(b: svgList.bounds)
+                ctm = view.bounds.fitTransform(b: svgList.bounds)
             } else {
                 ctm = .identity
             }
@@ -74,10 +74,8 @@ class ViewController: UIViewController {
         case .began:
             down = ctm
         case .changed:
-            let cx = self.view.bounds.midX
-            let cy = self.view.bounds.midY
-            
-            if let t = (recognizer as? UIPanGestureRecognizer)?.translation(in: self.view) {
+            let cx = view.bounds.midX, cy = view.bounds.midY
+            if let t = (recognizer as? UIPanGestureRecognizer)?.translation(in: view) {
                 ctm = .init(a: down.a, b: down.b, c: down.c, d: down.d, tx: down.tx + t.x, ty: down.ty - t.y)
             } else if let s = (recognizer as? UIPinchGestureRecognizer)?.scale {
                 ctm = down.concatAroundCenter(t: CGAffineTransform(scaleX: s, y: s), cx: cx, cy: cy)
