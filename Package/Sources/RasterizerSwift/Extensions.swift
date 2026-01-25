@@ -27,6 +27,20 @@ extension CGPoint {
     }
 }
 
+extension CGRect {
+    public func fitTransform(b: CGRect) -> CGAffineTransform {
+        guard !isNull && !isEmpty && !isInfinite else {
+            return .identity
+        }
+        let w = width, h = height, bw = b.width, bh = b.height, s = min(w / bw, h / bh)
+        return CGAffineTransform(
+            a: s, b: 0,
+            c: 0, d: s,
+            tx: minX + 0.5 * (w - s * bw) - s * b.minX,
+            ty: minY + 0.5 * (h - s * bh) - s * b.minY)
+    }
+}
+
 public func CounterRotatingCircles(_ time: Double, width: Double, height: Double) -> RASceneList {
     let scene = RAScene()
     let count = 60

@@ -10,19 +10,25 @@ import RasterizerObjC
 import RasterizerSwift
 
 class ViewController: UIViewController {
-    static let useSvg = true
-        static let svgNames = ["Anime_Girl", "AntigenicShift_HiRes"]
-        
-        var redraw = false
-        var ctm = CGAffineTransform.identity {
-            didSet {
-                redraw = true
+    var ctm = CGAffineTransform.identity {
+        didSet {
+            redraw = true
+        }
+    }
+    var down = CGAffineTransform.identity
+    var redraw = false
+    var svgIndex = 0
+    let svgNames = ["Anime_Girl", "AntigenicShift_HiRes"]
+    var svgList: RASceneList? {
+        didSet {
+            if let svgList {
+                ctm = self.view.bounds.fitTransform(b: svgList.bounds)
+            } else {
+                ctm = .identity
             }
         }
-        var down = CGAffineTransform.identity
-        var svgList: RASceneList?
-        var svgIndex = 0
-        
+    }
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         
@@ -39,8 +45,7 @@ class ViewController: UIViewController {
     }
                 
     func makeSvgList() -> RASceneList? {
-        guard Self.useSvg,
-              let url = Bundle.main.url(forResource: Self.svgNames[svgIndex], withExtension: "svg") else {
+        guard let url = Bundle.main.url(forResource: svgNames[svgIndex], withExtension: "svg") else {
             return nil
         }
         let scene = RAScene()
@@ -52,13 +57,11 @@ class ViewController: UIViewController {
 
     @objc func onLongPress(_ recognizer: UILongPressGestureRecognizer) {
         svgList = nil
-        ctm = .identity
     }
         
     @objc func onTap(_ recognizer: UITapGestureRecognizer) {
-        svgIndex = (svgIndex + 1) % Self.svgNames.count
+        svgIndex = (svgIndex + 1) % svgNames.count
         svgList = makeSvgList()
-        ctm = .identity
     }
         
     @objc func onGesture(_ recognizer: UIGestureRecognizer) {
