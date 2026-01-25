@@ -176,6 +176,7 @@
 				DEVELOPMENT_TEAM = WUZW9LMF53;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = RasterizeriOS/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Rasterizer;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
 				INFOPLIST_KEY_UIMainStoryboardFile = Main;
@@ -204,6 +205,7 @@
 				DEVELOPMENT_TEAM = WUZW9LMF53;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = RasterizeriOS/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Rasterizer;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
 				INFOPLIST_KEY_UIMainStoryboardFile = Main;
