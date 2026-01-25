@@ -18,7 +18,7 @@ class ViewController: UIViewController {
     var down = CGAffineTransform.identity
     var redraw = false
     var svgIndex = 0
-    let svgNames = ["Anime_Girl", "AntigenicShift_HiRes"]
+    let svgNames = ["Anime_Girl", "AntigenicShift_HiRes", "contour", "hawaii", "Manchester_Union_Democrat_office_1877", "PToT_hi-res_source_nobackground", "reschart", "tiger"]
     var svgList: RASceneList? {
         didSet {
             if let svgList {
