@@ -70,15 +70,6 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 }
 
 - (void)rasterizerInit {
-#if TARGET_OS_IPHONE
-    if ([self.layer isKindOfClass:[RasterizerLayer class]]) {
-        ((RasterizerLayer *)self.layer).layerDelegate = self;
-        CGColorSpaceRef rgb = CGColorSpaceCreateDeviceRGB();
-        ((RasterizerLayer *)self.layer).colorspace = rgb;
-        CGColorSpaceRelease(rgb);
-    }
-    self.layer.contentsScale = UIScreen.mainScreen.scale;
-#endif
     self.useCG = false;
     [self startTimer];
 }
@@ -162,7 +153,15 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 
 - (void)setUseCG:(bool)useCG {
     _useCG = useCG;
-#if TARGET_OS_OSX
+#if TARGET_OS_IPHONE
+    if ([self.layer isKindOfClass:[RasterizerLayer class]]) {
+        ((RasterizerLayer *)self.layer).layerDelegate = self;
+        CGColorSpaceRef rgb = CGColorSpaceCreateDeviceRGB();
+        ((RasterizerLayer *)self.layer).colorspace = rgb;
+        CGColorSpaceRelease(rgb);
+    }
+    self.layer.contentsScale = UIScreen.mainScreen.scale;
+#elif TARGET_OS_OSX
     [self setWantsLayer:YES];
     CGFloat scale = self.layer.contentsScale ?: [self convertSizeToBacking:NSMakeSize(1.f, 1.f)].width;
     if (self.useCG) {
