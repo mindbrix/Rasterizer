@@ -43,6 +43,11 @@ class ViewController: UIViewController {
         }
         svgList = makeSvgList()
     }
+    
+    override func didRotate(from fromInterfaceOrientation: UIInterfaceOrientation) {
+        let list = svgList
+        svgList = list
+    }
                 
     func makeSvgList() -> RASceneList? {
         guard let url = Bundle.main.url(forResource: svgNames[svgIndex], withExtension: "svg") else {
