@@ -12,26 +12,10 @@
 		E936C40F2F1EC66B00FB5BFA /* RasterizerSwift in Frameworks */ = {isa = PBXBuildFile; productRef = E936C40E2F1EC66B00FB5BFA /* RasterizerSwift */; };
 		E958C8292F1D637D00E9B14F /* RasterizerCpp in Frameworks */ = {isa = PBXBuildFile; productRef = E958C8282F1D637D00E9B14F /* RasterizerCpp */; };
 		E958C82B2F1D637D00E9B14F /* RasterizerObjC in Frameworks */ = {isa = PBXBuildFile; productRef = E958C82A2F1D637D00E9B14F /* RasterizerObjC */; };
-		E9D87C4C2F24244100539C38 /* Anime_Girl.svg in Resources */ = {isa = PBXBuildFile; fileRef = E9D87C4B2F24244100539C38 /* Anime_Girl.svg */; };
-		E9D87C4E2F2511EF00539C38 /* AntigenicShift_HiRes.svg in Resources */ = {isa = PBXBuildFile; fileRef = E9D87C4D2F2511EF00539C38 /* AntigenicShift_HiRes.svg */; };
-		E9D87C552F261D0200539C38 /* Manchester_Union_Democrat_office_1877.svg in Resources */ = {isa = PBXBuildFile; fileRef = E9D87C512F261D0200539C38 /* Manchester_Union_Democrat_office_1877.svg */; };
-		E9D87C562F261D0200539C38 /* reschart.svg in Resources */ = {isa = PBXBuildFile; fileRef = E9D87C532F261D0200539C38 /* reschart.svg */; };
-		E9D87C572F261D0200539C38 /* tiger.svg in Resources */ = {isa = PBXBuildFile; fileRef = E9D87C542F261D0200539C38 /* tiger.svg */; };
-		E9D87C582F261D0200539C38 /* contour.svg in Resources */ = {isa = PBXBuildFile; fileRef = E9D87C4F2F261D0200539C38 /* contour.svg */; };
-		E9D87C592F261D0200539C38 /* PToT_hi-res_source_nobackground.svg in Resources */ = {isa = PBXBuildFile; fileRef = E9D87C522F261D0200539C38 /* PToT_hi-res_source_nobackground.svg */; };
-		E9D87C5A2F261D0200539C38 /* hawaii.svg in Resources */ = {isa = PBXBuildFile; fileRef = E9D87C502F261D0200539C38 /* hawaii.svg */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		E958C7FF2F1D62DC00E9B14F /* RasterizeriOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = RasterizeriOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		E9D87C4B2F24244100539C38 /* Anime_Girl.svg */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = Anime_Girl.svg; sourceTree = "<group>"; };
-		E9D87C4D2F2511EF00539C38 /* AntigenicShift_HiRes.svg */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = AntigenicShift_HiRes.svg; sourceTree = "<group>"; };
-		E9D87C4F2F261D0200539C38 /* contour.svg */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = contour.svg; sourceTree = "<group>"; };
-		E9D87C502F261D0200539C38 /* hawaii.svg */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = hawaii.svg; sourceTree = "<group>"; };
-		E9D87C512F261D0200539C38 /* Manchester_Union_Democrat_office_1877.svg */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = Manchester_Union_Democrat_office_1877.svg; sourceTree = "<group>"; };
-		E9D87C522F261D0200539C38 /* PToT_hi-res_source_nobackground.svg */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = "PToT_hi-res_source_nobackground.svg"; sourceTree = "<group>"; };
-		E9D87C532F261D0200539C38 /* reschart.svg */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = reschart.svg; sourceTree = "<group>"; };
-		E9D87C542F261D0200539C38 /* tiger.svg */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = tiger.svg; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -51,6 +35,11 @@
 				E958C8112F1D62DD00E9B14F /* Exceptions for "RasterizeriOS" folder in "RasterizeriOS" target */,
 			);
 			path = RasterizeriOS;
+			sourceTree = "<group>";
+		};
+		E9D87C5B2F261E1800539C38 /* SVG */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = SVG;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -74,14 +63,7 @@
 		E958C7F62F1D62DC00E9B14F = {
 			isa = PBXGroup;
 			children = (
-				E9D87C4F2F261D0200539C38 /* contour.svg */,
-				E9D87C502F261D0200539C38 /* hawaii.svg */,
-				E9D87C512F261D0200539C38 /* Manchester_Union_Democrat_office_1877.svg */,
-				E9D87C522F261D0200539C38 /* PToT_hi-res_source_nobackground.svg */,
-				E9D87C532F261D0200539C38 /* reschart.svg */,
-				E9D87C542F261D0200539C38 /* tiger.svg */,
-				E9D87C4D2F2511EF00539C38 /* AntigenicShift_HiRes.svg */,
-				E9D87C4B2F24244100539C38 /* Anime_Girl.svg */,
+				E9D87C5B2F261E1800539C38 /* SVG */,
 				E958C8012F1D62DC00E9B14F /* RasterizeriOS */,
 				E958C8002F1D62DC00E9B14F /* Products */,
 			);
@@ -112,6 +94,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				E958C8012F1D62DC00E9B14F /* RasterizeriOS */,
+				E9D87C5B2F261E1800539C38 /* SVG */,
 			);
 			name = RasterizeriOS;
 			packageProductDependencies = (
@@ -167,14 +150,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				E9D87C552F261D0200539C38 /* Manchester_Union_Democrat_office_1877.svg in Resources */,
-				E9D87C562F261D0200539C38 /* reschart.svg in Resources */,
-				E9D87C572F261D0200539C38 /* tiger.svg in Resources */,
-				E9D87C582F261D0200539C38 /* contour.svg in Resources */,
-				E9D87C592F261D0200539C38 /* PToT_hi-res_source_nobackground.svg in Resources */,
-				E9D87C5A2F261D0200539C38 /* hawaii.svg in Resources */,
-				E9D87C4E2F2511EF00539C38 /* AntigenicShift_HiRes.svg in Resources */,
-				E9D87C4C2F24244100539C38 /* Anime_Girl.svg in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
