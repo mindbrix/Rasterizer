@@ -284,13 +284,13 @@ struct Rasterizer {
         }
         void moveTo(float x, float y) {
             validate();
-            float *pts = points.alloc(2);  x0 = pts[0] = x, y0 = pts[1] = y, update(kMove, 1);
+            float *pts = points.alloc(2);  x0 = pts[0] = x, y0 = pts[1] = y, *types.alloc(1) = kMove;
         }
         void lineTo(float x1, float y1) {
             float ax = x1 - x0, ay = y1 - y0;
             if (ax == 0.f && ay == 0.f)
                 return;
-            float *pts = points.alloc(2);  x0 = pts[0] = x1, y0 = pts[1] = y1, update(kLine, 1);
+            float *pts = points.alloc(2);  x0 = pts[0] = x1, y0 = pts[1] = y1, *types.alloc(1) = kLine;
         }
         void quadTo(float x1, float y1, float x2, float y2) {
             float ax, bx, ay, by, dot, t, err = 1e-2f;
@@ -301,7 +301,7 @@ struct Rasterizer {
             if (t < err) {
                 lineTo(x2, y2);
             } else {
-                float *pts = points.alloc(4);  pts[0] = x1, pts[1] = y1, x0 = pts[2] = x2, y0 = pts[3] = y2, update(kQuadratic, 2);
+                float *pts = points.alloc(4);  pts[0] = x1, pts[1] = y1, x0 = pts[2] = x2, y0 = pts[3] = y2, memset(types.alloc(2), kQuadratic, 2);
                 ax = x2 + x0 - x1 - x1, ay = y2 + y0 - y1 - y1, maxCurve = fmaxf(maxCurve, ax * ax + ay * ay);
             }
         }
@@ -318,7 +318,7 @@ struct Rasterizer {
                 if (dot < 1e-4f)
                     quadTo((3.f * (x1 + x2) - x0 - x3) * 0.25f, (3.f * (y1 + y2) - y0 - y3) * 0.25f, x3, y3);
                 else {
-                    float *pts = points.alloc(6);  pts[0] = x1, pts[1] = y1, pts[2] = x2, pts[3] = y2, pts[4] = x3, pts[5] = y3, update(kCubic, 3);
+                    float *pts = points.alloc(6);  pts[0] = x1, pts[1] = y1, pts[2] = x2, pts[3] = y2, pts[4] = x3, pts[5] = y3, memset(types.alloc(3), kCubic, 3);
                     bx -= 3.f * (x1 - x0), by -= 3.f * (y1 - y0), dot += bx * bx + by * by, x0 = x3, y0 = y3;
                     s = ceilf(sqrtf(sqrtf(dot)));
                     cubicSums += s, maxCurve = fmaxf(maxCurve, dot / s);
@@ -326,12 +326,9 @@ struct Rasterizer {
             }
         }
         void close() {
-            float *pts = points.alloc(2);  pts[0] = x0, pts[1] = y0, update(kClose, 1);
+            float *pts = points.alloc(2);  pts[0] = x0, pts[1] = y0, *types.alloc(1) = kClose;
         }
         
-        inline void update(Type type, size_t size) {
-            memset(types.alloc(size), type, size);
-        }
         void validate() {
             if (points.idx != points.end) {
                 Bounds molecule;
@@ -356,6 +353,21 @@ struct Rasterizer {
         bool isValid() {
             validate();
             return types.end > 1 && *types.base == Geometry::kMove && (bounds.lx != bounds.ux || bounds.ly != bounds.uy);
+        }
+        bool isRect() {
+            validate();
+            const float *pts = points.base;
+            size_t last = types.end - 1;
+            if (!(last == 4 || last == 5) || counts[kLine] != 4 || pts[0] != pts[last * 2] || pts[1] != pts[last * 2 + 1])
+                return false;
+            bool ax, ay, bx, by, rect0, rect1;
+            ax = pts[2] == pts[0], ay = pts[3] == pts[1];
+            bx = pts[4] == pts[2], by = pts[5] == pts[3];
+            rect0 = (ax && by) || (ay && bx);
+            ax = pts[6] == pts[4], ay = pts[7] == pts[5];
+            bx = pts[8] == pts[6], by = pts[9] == pts[7];
+            rect1 = (ax && by) || (ay && bx);
+            return rect0 && rect1;
         }
         size_t upperBound(float det) const {
             size_t cubics = 0;

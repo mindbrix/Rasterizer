@@ -2,292 +2,59 @@
 //  Extensions.swift
 //  RasterizerSwift
 //
-//  Created by Nigel Barber on 13/12/2025.
+//  Created by Nigel Barber on 19/01/2026.
 //
 
-import CoreGraphics
+import Foundation
 import RasterizerObjC
 
-
 extension CGAffineTransform {
-    init(center: CGPoint, rotation: Double, scale: CGSize, translation: CGVector) {
+    public init(center: CGPoint, rotation: Double, scale: CGSize, translation: CGVector) {
         self = CGAffineTransform(translationX: -center.x, y: -center.y)
             .concatenating(CGAffineTransform(scaleX: scale.width, y: scale.height))
             .concatenating(CGAffineTransform(rotationAngle: rotation))
             .concatenating(CGAffineTransform(translationX: center.x + translation.dx, y: center.y + translation.dy))
     }
     
-    func concatAroundCenter(t: CGAffineTransform, cx: Double, cy: Double) -> CGAffineTransform {
+    public func concatAroundCenter(t: CGAffineTransform, cx: Double, cy: Double) -> CGAffineTransform {
         CGAffineTransform(a, b, c, d, tx - cx, ty - cy).concatenating(CGAffineTransform(t.a, t.b, t.c, t.d, t.tx + cx, t.ty + cy))
     }
 }
 
 extension CGPoint {
-    init(center: CGPoint, r: Double, theta: Double) {
+    public init(center: CGPoint, r: Double, theta: Double) {
         self = CGPoint(x: center.x + r * cos(theta), y: center.y + r * sin(theta))
     }
 }
 
 extension CGRect {
-    func boundsInRange(_ range: NSRange) -> CGRect {
-        let grid = ceil(sqrt(CGFloat(range.length)))
-        let col = range.location % Int(grid)
-        let row = range.location / Int(grid)
-        let size = min(width, height) / grid
-        return CGRect(
-            origin: .init(
-                x: CGFloat(col) * size,
-                y: CGFloat(row) * size),
-            size: CGSize(width: size, height: size))
-    }
-    func perimeter() -> CGFloat {
-        2 * (width + height)
-    }
-    
-    func ellipsePerimeter() -> CGFloat {
-        let a = 0.5 * width
-        let b = 0.5 * height
-        return CGFloat.pi * (3 * (a + b) - sqrt((3 * a + b) * (a + 3 * b)))
-    }
-    
-    func snappedTo(lineHeight: CGFloat, in b: CGRect) -> CGRect {
-        let ly = b.maxY - ceil((b.maxY - minY) / lineHeight) * lineHeight
-        let uy = b.maxY - floor((b.maxY - maxY) / lineHeight) * lineHeight
-        return CGRect(x: minX, y: ly, width: width, height: uy - ly)
-    }
-    func withGutter() -> CGRect {
-        let gutter = height
-        return CGRect(
-            x: minX, y: minY - gutter,
-            width: width, height: height + gutter)
-    }
-}
-
-extension CTFont {
-    var isMonospace: Bool {
-        CTFontGetSymbolicTraits(self).contains(.monoSpaceTrait)
-    }
-}
-
-extension NSMutableAttributedString {
-    func placeholderFor(_ value: Any) -> String? {
-        if let _ = value as? Bool {
-            "flag"
-        } else if let _ = value as? Double {
-            "slydeer"
-        } else if let _ = value as? NSRange {
-           "Rang"
-        } else {
-            nil
+    public func fitTransform(b: CGRect) -> CGAffineTransform {
+        guard !isNull && !isEmpty && !isInfinite else {
+            return .identity
         }
-    }
-    
-    func stringFor(_ value: Any) -> String? {
-        if let slider = value as? Double {
-            String(format: "%.2f", slider)
-        } else if let range = value as? NSRange {
-            String(range.location)
-        } else if let convertible = value as? CustomStringConvertible {
-            String(describing: convertible)
-        } else {
-            nil
-        }
-    }
-    
-    func styleFor(_ indent: Int, tabSize: Double) -> NSParagraphStyle {
-        let style = NSMutableParagraphStyle()
-        style.alignment = .left
-        style.lineBreakMode = .byTruncatingTail
-        style.tabStops = [
-            NSTextTab(type: .leftTabStopType, location: CGFloat(indent + 0) * tabSize),
-            NSTextTab(type: .rightTabStopType, location: CGFloat(indent + 7) * tabSize)
-        ]
-        return style
-    }
-    func appendString(_ string: String) -> NSRange {
-        appendString(NSAttributedString(string: string))
-    }
-    
-    func appendString(_ string: NSAttributedString) -> NSRange {
-        let range = NSRange(location: length, length: string.length)
-        append(string)
-        return range
-    }
-    
-    func appendKey(_ key: String, value: Any, taps: inout [(String, NSRange)]?, keyColor: CGColor, valueColor: CGColor, fontSize: Double, indent: Int = 0) -> NSRange {
-        let mutable = taps != nil
-        let style = styleFor(indent, tabSize: fontSize)
-        let begin = length
-        _ = appendString(String(repeating: "\t", count: min(1, indent)))
-        addAttribute(.foregroundColor,
-            value: keyColor,
-            range: appendString("\(key):\t"))
-        if let dict = value as? Store.DictType {
-            _ = appendString("\n")
-            addAttribute(.paragraphStyle, value: style, range: NSRange(location: begin, length: length - begin))
-            
-            for (subKey, value) in dict {
-                _ = appendKey(subKey, value: value, taps: &taps, keyColor: keyColor, valueColor: valueColor, fontSize: fontSize, indent: indent + 1)
-            }
-        } else if let string = mutable ? placeholderFor(value) : stringFor(value) {
-            if mutable, let _ = value as? NSRange {
-                _ = appendString((stringFor(value) ?? "") + " ")
-            }
-            let range = appendString(string)
-            addAttribute(.foregroundColor, value: valueColor, range: range)
-            
-            if mutable {
-                taps?.append((key, range))
-            }
-            _ = appendString("\n")
-            addAttribute(.paragraphStyle, value: style, range: NSRange(location: begin, length: length - begin))
-        } else {
-            _ = appendString("\n")
-            addAttribute(.paragraphStyle, value: style, range: NSRange(location: begin, length: length - begin))
-
-            if indent < 10 {
-                let mirror = Mirror(reflecting: value)
-                for child in mirror.children {
-                    _ = appendKey(child.label ?? "", value: child.value, taps: &taps, keyColor: keyColor, valueColor: valueColor, fontSize: fontSize, indent: indent + 1)
-                }
-            }
-        }
-        return NSRange(location: begin, length: length - begin)
+        let w = width, h = height, bw = b.width, bh = b.height, s = min(w / bw, h / bh)
+        return CGAffineTransform(
+            a: s, b: 0,
+            c: 0, d: s,
+            tx: minX + 0.5 * (w - s * bw) - s * b.minX,
+            ty: minY + 0.5 * (h - s * bh) - s * b.minY)
     }
 }
 
-extension Control: Hashable {
-    static func == (lhs: Control, rhs: Control) -> Bool {
-        lhs.hashValue == rhs.hashValue
+public func CounterRotatingCircles(_ time: Double, width: Double, height: Double) -> RASceneList {
+    let scene = RAScene()
+    let count = 60
+    let dim = min(width, height)
+    let radius = 0.25 * dim
+    let center = CGPoint(x: 0.5 * width, y: 0.5 * height)
+    let path = RAPath()
+    for i in 0 ..< count {
+        let ti = Double(i) / Double(count)
+        let ts = 2 * time / Double(count) + ti
+        let t = ts - floor(ts)
+        let origin = CGPoint(center: center, r: radius, theta: (i % 2 == 0 ? 1 : -1) * t * 2 * Double.pi)
+        path.addEllipse(CGRect(x: origin.x - radius, y: origin.y - radius, width: 2 * radius, height: 2 * radius))
     }
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(key)
-        hasher.combine(mode)
-    }
+    scene.addFill(path, ctm: .identity, color: RAPaint(), evenOdd: true)
+    return RASceneList(scene: scene)
 }
-
-extension CGRect: @retroactive Hashable {
-    public func hash(into hasher: inout Hasher) {
-        hasher.combine(minX)
-        hasher.combine(minY)
-        hasher.combine(width)
-        hasher.combine(height)
-    }
-}
-
-extension Hasher {
-    mutating func combineMirror(_ mirror: Mirror, level: Int = 0) {
-        for child in mirror.children {
-            combine(child.label ?? "")
-            combineValue(child.value, level: level)
-        }
-    }
-    mutating func combineValue(_ value: Any, level: Int = 0) {
-        if let dict = value as? Store.DictType {
-            for (subKey, value) in dict {
-                combine(subKey)
-                combineValue(value, level: level + 1)
-            }
-        } else if let hashable = value as? any Hashable {
-            combine(hashable)
-        } else if let convertible = value as? CustomStringConvertible {
-            combine(String(describing: convertible))
-        } else {
-            if level < 10 {
-                combineMirror(Mirror(reflecting: value), level: level + 1)
-            }
-        }
-    }
-}
-
-extension RAScene {
-    func addControl(_ value: Any, in b: CGRect, paint: RAPaint, fontSize: Double) {
-        if let flag = value as? Bool {
-            addFlag(flag, in: b, paint: paint, fontSize: fontSize)
-        } else if let slider = value as? Double {
-            addSlider(slider, in: b, paint: paint, fontSize: fontSize)
-        } else if let _ = value as? NSRange {
-            addStepper(in: b, paint: paint, fontSize: fontSize)
-        } else {
-            fillRect(b, paint: paint)
-        }
-    }
-    func addFlag(_ flag: Bool, in rect: CGRect, paint: RAPaint, fontSize: Double) {
-        let white = RAPaint(gray: 1, alpha: 1)
-        let gray = RAPaint(gray: 0.66, alpha: 1)
-        let corner = 0.5 * min(rect.width, rect.height)
-        let inset = fontSize / 12
-        let innerRect = rect.insetBy(dx:inset, dy: inset)
-        let radius = 0.5 * innerRect.height
-        let cx = flag ? innerRect.maxX - radius : innerRect.minX + radius
-        let b = CGRect(x: cx - radius, y: innerRect.midY - radius, width: 2 * radius, height: 2 * radius)
-        let roundedRect = RAPath(roundedRect: rect, cornerWidth: corner, cornerHeight: corner)
-        let ellipse = RAPath(ellipse: b)
-        addFill(roundedRect, ctm: .identity, color: flag ? paint : gray, evenOdd: false)
-        addFill(ellipse, ctm: .identity, color: white, evenOdd: false)
-    }
-    
-    func addSlider(_ slider: Double, in rect: CGRect, paint: RAPaint, fontSize: Double) {
-        let gray = RAPaint(gray: 0.66, alpha: 1)
-        let b = rect.insetBy(dx: fontSize / 4, dy: 0)
-        addSliderTrack(in: rect, paint: gray, fontSize: fontSize)
-        addSliderThumb(slider, in: b, paint: paint, fontSize: fontSize)
-    }
-    func addSliderThumb(_ slider: Double, in rect: CGRect, paint: RAPaint, fontSize: Double) {
-        let height = fontSize / 2
-        let radius = 0.5 * height
-        let b = CGRect(x: rect.minX - radius + slider * rect.width, y: rect.midY - radius, width: height, height: height)
-        addFill(RAPath(ellipse: b), ctm: .identity, color: paint, evenOdd: false)
-    }
-    func addSliderTrack(in rect: CGRect, paint: RAPaint, fontSize: Double) {
-        let height = fontSize / 12
-        let corner = 0.5 * height
-        let b = CGRect(x: rect.minX, y: rect.midY - corner, width: rect.width, height: height)
-        let rounded = RAPath(roundedRect: b, cornerWidth: corner, cornerHeight: corner)
-        addFill(rounded, ctm: .identity, color: paint, evenOdd: false)
-    }
-    
-    func addStepper(in rect: CGRect, paint: RAPaint, fontSize: Double) {
-        let gray = RAPaint(gray: 0.66, alpha: 1)
-        let corner = fontSize / 6
-        let width = fontSize / 16
-        let inset = 0.5 * width
-        let dimension = min(0.5 * rect.width, rect.height)
-        let radius =  max(0.0, 0.5 * dimension - fontSize / 4)
-        let x0 = 0.5 * (rect.minX + rect.midX)
-        let x1 = 0.5 * (rect.midX + rect.maxX)
-        
-        let rounded = RAPath(roundedRect: rect.insetBy(dx: inset, dy: inset), cornerWidth: corner, cornerHeight: corner)
-        rounded.close()
-        rounded.move(to: rect.midX, y: rect.minY + corner)
-        rounded.line(to: rect.midX, y: rect.maxY - corner)
-        
-        let glyphs = RAPath()
-        glyphs.move(to: x0 - radius, y: rect.midY)
-        glyphs.line(to: x0 + radius, y: rect.midY)
-        glyphs.move(to: x1 - radius, y: rect.midY)
-        glyphs.line(to: x1 + radius, y: rect.midY)
-        glyphs.move(to: x1, y: rect.midY - radius)
-        glyphs.line(to: x1, y: rect.midY + radius)
-        
-        addStroke(rounded, ctm: .identity, color: gray, width: width, capStyle: .capButt, joinStyle: .joinMiter)
-        addStroke(glyphs, ctm: .identity, color: paint, width: width, capStyle: .capButt, joinStyle: .joinMiter)
-    }
-    
-    func fillRect(_ rect: CGRect, paint: RAPaint) {
-        addFill(RAPath(rect: rect), ctm: .identity, color: paint, evenOdd: false)
-    }
-    
-    func strokeRect(_ rect: CGRect, width: Double, paint: RAPaint) {
-        let path = RAPath(rect: rect)
-        path.close()
-        addStroke(path, ctm: .identity, color: paint, width: width, capStyle: .capButt, joinStyle: .joinMiter)
-    }
-    
-    func createList() -> RASceneList {
-        let list = RASceneList()
-        list.add(self)
-        return list
-    }
-}
-

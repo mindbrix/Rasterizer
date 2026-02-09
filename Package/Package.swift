@@ -6,8 +6,9 @@ import PackageDescription
 let package = Package(
     name: "RasterizerSwift",
     platforms: [
-        .macOS(.v12)
-        ],
+        .macOS(.v12),
+        .iOS(.v13)
+    ],
     products: [
         // Products define the executables and libraries a package produces, making them visible to other packages.
         .library(
@@ -20,12 +21,7 @@ let package = Package(
             name: "RasterizerSwift",
             targets: ["RasterizerSwift"]),
     ],
-    dependencies: [
-        .package(
-          url: "https://github.com/apple/swift-collections.git",
-          .upToNextMinor(from: "1.3.0") // or `.upToNextMajor
-        )
-      ],
+    dependencies: [],
     targets: [
         // Targets are the basic building blocks of a package, defining a module or a test suite.
         // Targets can depend on other targets in this package and products from dependencies.
@@ -46,17 +42,11 @@ let package = Package(
             cxxSettings: [
                 .headerSearchPath("private"),
             ],
-            linkerSettings: [
-                // Frameworks
-                .linkedFramework("Accelerate"),
-                // Libraries
-            ]
+            linkerSettings: []
         ),
         .target(
             name: "RasterizerSwift",
-            dependencies: [
-                "RasterizerObjC",
-                .product(name: "Collections", package: "swift-collections")],
+            dependencies: ["RasterizerObjC"],
             path: "Sources/RasterizerSwift"
         ),
         .testTarget(

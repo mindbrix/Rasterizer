@@ -21,12 +21,11 @@
 #import "RasterizerLayer.h"
 #import <Metal/Metal.h>
 #import <map>
-#import <time.h>
 
 template<typename T, typename S, int kExpiryAge = 10>
 struct MetalCache {
     struct Entry {
-        Entry(T payload) : payload(payload), timestamp(getTime()) {}
+        Entry(T payload) : payload(payload), timestamp(CACurrentMediaTime()) {}
         
         T payload;
         double timestamp;
@@ -43,24 +42,19 @@ struct MetalCache {
             map.emplace(key, Entry(payload));
             return payload;
         } else {
-            it->second.timestamp = getTime();
+            it->second.timestamp = CACurrentMediaTime();
             return it->second.payload;
         }
     }
     
     void flush() {
-        double now = getTime();
+        double now = CACurrentMediaTime();
         std::vector<size_t> expired;
         for (const auto& entry: map)
             if (now - entry.second.timestamp > kExpiryAge)
                 expired.emplace_back(entry.first);
         for (auto key: expired)
             map.erase(key);
-    }
-    
-    static inline double getTime() {
-        struct timeval tv;  gettimeofday(& tv, NULL);
-        return tv.tv_sec + tv.tv_usec * 1e-6;
     }
     
     std::map<size_t, Entry> map;
@@ -264,17 +258,18 @@ struct TextureCache : MetalCache<id <MTLTexture>, const Ra::Paint &> {
     desc.width = w;
     desc.height = h + th;
     id <MTLTexture> colorTexture = [self.device newTextureWithDescriptor:desc];
-    [colorTexture replaceRegion:MTLRegionMake2D(0, 0, w, h)
-                    mipmapLevel:0
-                      withBytes:buffer->base + buffer->colors
-                    bytesPerRow:w * sizeof(Ra::Color)];
-    if (buffer->texCount) {
-        [colorTexture replaceRegion:MTLRegionMake2D(0, h, w, th)
+    if (buffer->base) {
+        [colorTexture replaceRegion:MTLRegionMake2D(0, 0, w, h)
                         mipmapLevel:0
-                          withBytes:buffer->base + buffer->texStrips
+                          withBytes:buffer->base + buffer->colors
                         bytesPerRow:w * sizeof(Ra::Color)];
+        if (buffer->texCount) {
+            [colorTexture replaceRegion:MTLRegionMake2D(0, h, w, th)
+                            mipmapLevel:0
+                              withBytes:buffer->base + buffer->texStrips
+                            bytesPerRow:w * sizeof(Ra::Color)];
+        }
     }
-    
     id <MTLCommandBuffer> commandBuffer = [self.commandQueue commandBuffer];
     
     MTLRenderPassDescriptor *drawableDescriptor = [MTLRenderPassDescriptor renderPassDescriptor];

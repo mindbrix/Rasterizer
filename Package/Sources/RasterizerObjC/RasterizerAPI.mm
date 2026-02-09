@@ -293,6 +293,13 @@
     [self addStroke:path ctm:ctm color:color width:width capStyle:capStyle joinStyle:joinStyle clip:CGRectZero clipPath:nil];
 }
 
+- (void)addImage:(nonnull RAPaint *)image
+             ctm:(CGAffineTransform)ctm {
+    CGRect rect = CGRectMake(0, 0, image.paint.w, image.paint.h);
+    RAPath *path = [[RAPath alloc] initWithRect:rect];
+    [self addFill:path ctm:ctm color:image evenOdd:false];
+}
+
 - (void)addFill:(RAPath *)path
             ctm:(CGAffineTransform)ctm
            color:(RAPaint *)color
@@ -344,6 +351,14 @@
 #pragma mark - RASceneList
 
 @implementation RASceneList: NSObject
+
+- (id)initWithScene:(RAScene *)scene {
+    self = [super init];
+    if (!self)
+        return nil;
+    [self addScene:scene];
+    return self;
+}
 
 - (CGRect)bounds {
     return RaCG::CGRectFromBounds(_list.bounds());

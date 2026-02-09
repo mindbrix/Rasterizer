@@ -46,6 +46,16 @@ struct PageEntry {
     let scene: RAScene
     let tappables: [Tappable]
     let tapMap: OrderedDictionary<NSRange, CGRect>
+    
+    func tappable(at p: CGPoint) -> Tappable? {
+        guard let element = tapMap.enumerated().reversed().first(where: { $0.element.value.contains(p) })?.element,
+              var tappable = tappables.first(where: { $0.range.contains(element.key.location) })
+        else {
+            return nil
+        }
+        tappable.bounds = element.value
+        return tappable
+    }
 }
 
 class SwiftApp {
@@ -66,16 +76,12 @@ class SwiftApp {
     var showTapMap = false
     
     func mouseDown(_ bounds: CGRect, p: CGPoint) {
-        guard let pageName, let entry = pageMap[pageName],
-              let element = entry.tapMap.enumerated().reversed().filter({ $0.element.value.contains(p) }).first?.element,
-              let tappable = entry.tappables.filter({ $0.range.contains(element.key.location) }).first
-        else {
+        guard let tappable = pageMap.enumerated().first(where: { $0.element.value.tappable(at: p) != nil })?.element.value.tappable(at: p) else {
             return
         }
         down = p
         last = p
         tapped = tappable
-        tapped?.bounds = element.value
     }
     func mouseMoved(_ bounds: CGRect, p: CGPoint) {
         guard let tapped else {

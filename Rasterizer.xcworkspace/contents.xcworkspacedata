@@ -10,4 +10,7 @@
    <FileRef
       location = "group:SwiftDemo/SwiftDemo.xcodeproj">
    </FileRef>
+   <FileRef
+      location = "group:RasterizeriOS/RasterizeriOS.xcodeproj">
+   </FileRef>
 </Workspace>
