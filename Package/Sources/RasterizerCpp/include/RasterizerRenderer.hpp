@@ -21,24 +21,29 @@
 
 
 struct RasterizerRenderer {
+    RasterizerRenderer() {
+        size_t count = sysconf(_SC_NPROCESSORS_ONLN);
+        contexts.resize(count < 1 ? 1 : count);
+    }
     
     void renderList(const Ra::SceneList& list, float scale, float w, float h, Ra::Buffer *buffer) {
+        size_t contextCount = contexts.size();
         buffer->prepare(list);
         
         Ra::Bounds device(0.f, 0.f, ceilf(scale * w), ceilf(scale * h));
         Ra::Transform view = list.ctm.concat(Ra::Transform(scale, 0.f, 0.f, scale, 0.f, 0.f));
         
-        size_t divisions[kContextCount + 1], *pdivs = divisions;
-        writeBalancedWeightDivisions(list, pdivs);
-        dispatch_apply(kContextCount, DISPATCH_APPLY_AUTO, ^(size_t i) {
-            contexts[i].drawList(list, device, view, pdivs[i], pdivs[i + 1], buffer);
+        auto divisions = (size_t *)alloca((contextCount + 1) * sizeof(size_t));
+        writeBalancedWeightDivisions(list, divisions);
+        dispatch_apply(contextCount, DISPATCH_APPLY_AUTO, ^(size_t i) {
+            contexts[i].drawList(list, device, view, divisions[i], divisions[i + 1], buffer);
         });
-        size_t begins[kContextCount], *pbegins = begins, size;
-        size = Ra::resizeBuffer(list, contexts, kContextCount, pbegins, *buffer);
-        dispatch_apply(kContextCount, DISPATCH_APPLY_AUTO, ^(size_t i) {
-            Ra::writeContextToBuffer(list, contexts + i, pbegins[i], i, kContextCount, *buffer);
+        auto begins = (size_t *)alloca(contextCount * sizeof(size_t));
+        size_t size = Ra::resizeBuffer(list, & contexts[0], contextCount, begins, *buffer);
+        dispatch_apply(contextCount, DISPATCH_APPLY_AUTO, ^(size_t i) {
+            Ra::writeContextToBuffer(list, & contexts[0] + i, begins[i], i, contextCount, *buffer);
         });
-        for (int i = 0; i < kContextCount; i++)
+        for (int i = 0; i < contextCount; i++)
             for (int j = 0; j < contexts[i].entries.end(); j++)
                 *(buffer->entries.alloc(1)) = contexts[i].entries[j];
         size_t end = buffer->entries.end == 0 ? 0 : buffer->entries.back().end;
@@ -49,16 +54,17 @@ struct RasterizerRenderer {
     }
     
     void writeBalancedWeightDivisions(const Ra::SceneList& list, size_t *divisions) {
+        size_t contextCount = contexts.size();
         size_t total = 0, count, si, i, iz, target;
         for (int j = 0; j < list.scenes.size(); j++)
             total += list.scenes[j]->weight;
         if (total == 0)
-            memset(divisions, 0, (kContextCount + 1) * sizeof(*divisions));
+            memset(divisions, 0, (contextCount + 1) * sizeof(*divisions));
         else {
-            divisions[0] = 0, divisions[kContextCount] = list.pathsCount;
+            divisions[0] = 0, divisions[contextCount] = list.pathsCount;
             auto scene = & list.scenes[0];
-            for (count = si = iz = 0, i = 1; i < kContextCount; i++) {
-                for (target = total * i / kContextCount; count < target; iz++, si++) {
+            for (count = si = iz = 0, i = 1; i < contextCount; i++) {
+                for (target = total * i / contextCount; count < target; iz++, si++) {
                     if (si == (scene->ptr)->count)
                         scene++, si = 0;
                     count += (scene->ptr)->paths[si]->types.end;
@@ -72,6 +78,5 @@ struct RasterizerRenderer {
             ctx.reset();
     }
     
-    static const int kContextCount = 8;
-    Ra::Context contexts[kContextCount];
+    std::vector<Ra::Context> contexts;
  };
