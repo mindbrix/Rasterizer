@@ -524,7 +524,6 @@ struct Rasterizer {
                         if (kMoleculesHeight && g->p16s.end == 0)
                             P16Writer().writeGeometry(g);
                         p16total += g->p16s.end;
-                        xxhash = XXH64(& key, sizeof(key), xxhash);
                     } else {
                         paths.add(it->second.path);
                         p16bases.add(it->second.idx);
@@ -570,11 +569,8 @@ struct Rasterizer {
             }
             return b;
         }
-        inline size_t hash() const {
-            return xxhash;
-        }
         
-        size_t refCount, count = 0, weight = 0, xxhash = 0, _xxhash = 0;
+        size_t refCount, count = 0, weight = 0;
         RefVector<Path> paths;
         Vector<uint32_t> p16bases;  uint32_t p16total = 0;
         RefVector<Path> clipPaths;
