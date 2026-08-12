@@ -25,11 +25,19 @@ struct RasterizerSVG {
     static const bool kWriteOneBigPath = false;
     
     static Ra::Transform addSvgToScene(const char *filename, Ra::SceneRef& scene) {
-        struct NSVGimage *image = nsvgParseFromFile(filename, nullptr, 0);
-        addSvgImageToScene(image, scene);
-        Ra::Transform ctm = Ra::Transform(1, 0, 0, -1, 0, image->height);
-        nsvgDelete(image);
-        return ctm;
+//        struct NSVGimage *image = nsvgParseFromFile(filename, nullptr, 0);
+//        addSvgImageToScene(image, scene);
+//        Ra::Transform ctm = Ra::Transform(1, 0, 0, -1, 0, image->height);
+//        nsvgDelete(image);
+        
+        
+        auto demo = Ra::Node::Demo();
+        demo->addToScene(scene);
+        Ra::Path p = nullptr;
+        
+        p = Ra::Path();
+        
+        return Ra::Transform();
     }
     
     static void addSvgImageToScene(NSVGimage *image, Ra::SceneRef& scene) {
