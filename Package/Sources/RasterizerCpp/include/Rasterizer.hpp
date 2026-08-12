@@ -499,6 +499,24 @@ struct Rasterizer {
     
     struct Scene {
         enum Flags { kFillEvenOdd = 1 << 1, kRoundCap = 1 << 2, kSquareCap = 1 << 3, kRoundJoin = 1 << 4 };
+        
+        struct Draw {
+            Draw(const Path& path, const Transform& ctm, const Paint& paint, float width, uint8_t flags, Bounds *clipBounds = nullptr, Path *clipPath = nullptr)
+            : path(path), ctm(ctm), paint(paint), color(paint.color), width(width), flags(flags),
+              bounds(path->bounds), clip(clipBounds ? *clipBounds : Bounds::huge()), clipPath(clipPath ? *clipPath : nullptr) {}
+            
+            Path path;
+            Transform ctm;
+            Paint paint;
+            Color color;
+            float width = 0.f;
+            uint8_t flags = 0;
+            Bounds bounds, clip;
+            Path clipPath = nullptr;
+        };
+        
+        RefVector<Draw> draws;
+        
         struct Entry {
             Entry(const Path& path, size_t idx) : path(path), idx(uint32_t(idx)) {}
             Path path;  uint32_t idx;
@@ -506,6 +524,8 @@ struct Rasterizer {
         
         void addPath(const Path& path, const Transform& ctm, const Paint& paint, float width, uint8_t flag, Bounds *clipBounds = nullptr, Path *clipPath = nullptr) {
             if (path->isValid() && paint.isValid()) {
+                new (draws.memory->alloc(1)) Draw(path, ctm, paint, width, flag, clipBounds, clipPath);
+                
                 Geometry *g = path.ptr;
                 count++, weight += g->types.end;
             
