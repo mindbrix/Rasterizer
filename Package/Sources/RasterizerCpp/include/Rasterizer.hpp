@@ -31,11 +31,13 @@ struct Rasterizer {
             ptr = new T(), ptr->refCount = 1;
         }
         ~Ref() {
-            if (--(ptr->refCount) == 0)
+            if (ptr && --(ptr->refCount) == 0)
                 delete ptr;
         }
-        Ref(const T& src) {
-            ptr = new T(), *ptr = src, ptr->refCount = 1;
+        Ref(T* src) {
+            ptr = src;
+            if (ptr)
+                ptr->refCount = 1;
         }
         Ref(const Ref& other) {
             *this = other;
@@ -44,7 +46,9 @@ struct Rasterizer {
             if (this != & other) {
                 if (ptr)
                     this->~Ref();
-                ptr = other.ptr, ptr->refCount++;
+                ptr = other.ptr;
+                if (ptr)
+                    ptr->refCount++;
             }
             return *this;
         }
