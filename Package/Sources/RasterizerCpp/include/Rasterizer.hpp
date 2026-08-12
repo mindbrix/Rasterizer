@@ -616,6 +616,46 @@ struct Rasterizer {
         Transform ctm;  Params params;
         size_t pathsCount = 0;  std::vector<SceneRef> scenes;  std::vector<Transform> ctms;  std::vector<Bounds> clips;
     };
+    
+    struct Node {
+        static Ref<Node> Demo() {
+            Ref<Node> demo;
+            Bounds bounds(0, 0, 100, 100);
+            Path path;
+            path->addBounds(bounds);
+            path->close();
+            Node *node = new Node(path);
+            demo->addChild(node);
+            return demo;
+        }
+        
+        Node() {}
+        
+        Node(Path& p) {
+            path = p;
+        }
+        void addChild(Node* node) {
+            children.emplace_back(node);
+        }
+        void addToScene(SceneRef& scene, Transform m = Transform()) {
+            if (!visible)
+                return;
+            if (path->isValid()) {
+                scene->addPath(path, m.concat(ctm), Paint(0, 0, 0, 255), 0, 0);
+            } else {
+                for (auto ref : children) {
+                    ref->addToScene(scene, m.concat(ctm));
+                }
+            }
+        }
+        size_t refCount;
+        bool visible = true;
+        Path path;
+        Transform ctm;
+        std::vector<Ref<Node>> children;
+    };
+    
+    
     struct Segment {
         inline Segment(float x0, float y0, float x1, float y1, bool curve) : ix0((*((uint32_t *)& x0) & ~1) | curve), y0(y0), x1(x1), y1(y1) {}
         union { float x0; uint32_t ix0; };  float y0, x1, y1;
