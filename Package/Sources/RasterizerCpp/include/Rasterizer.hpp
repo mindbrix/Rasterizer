@@ -521,6 +521,76 @@ struct Rasterizer {
             Entry(const Path& path, size_t idx) : path(path), idx(uint32_t(idx)) {}
             Path path;  uint32_t idx;
         };
+        struct Index {
+            Index(size_t hash, size_t i) : hash(hash), i(i)  {}
+            inline bool operator< (const Index& other) const { return hash < other.hash; }
+            size_t hash, i;
+        };
+        struct _Entry {
+            _Entry(Geometry *g, size_t idx) : g(g), idx(uint32_t(idx)) {}
+            Geometry *g;  uint32_t idx;
+        };
+        void prepare() {
+            Vector<uint32_t> _p16bases(draws.end());  uint32_t _p16total = 0;//, __p16total = 0;
+//            std::map<size_t, Entry> _p16map;
+//            Row<Entry> __p16entries;
+            
+            Row<Index> indices;
+            indices.prealloc(draws.end());
+//            Vector<uint32_t> __p16bases(draws.end());
+            Row<_Entry> _p16entries;
+            
+    
+            for (size_t i = 0; i < draws.end(); i++) {
+                const Draw& draw = draws[i];
+                if (draw.width == 0)
+                    new (indices.alloc(1)) Index(draw.path->hash(), i);
+            }
+            std::sort(indices.base, indices.base + indices.end);
+            
+            for (size_t lastHash = 0, i = 0; i < indices.end; i++) {
+                const Index& index = *(indices.base + i);
+                if (i == 0 || index.hash != lastHash) {
+                    lastHash = index.hash;
+                    
+                    const Draw& draw = draws[index.i];
+                    Geometry *g = draw.path.ptr;
+                    new (_p16entries.alloc(1)) _Entry(g, _p16total);
+//                    new (__p16entries.alloc(1)) Entry(draw.path, _p16total);
+                    
+                    if (kMoleculesHeight && g->p16s.end == 0)
+                        P16Writer().writeGeometry(g);
+                    _p16total += g->p16s.end;
+                }
+                _p16bases[index.i] = _p16total;
+            }
+            
+            
+//            for (size_t i = 0; i < draws.end(); i++) {
+//                const Draw& draw = draws[i];
+//                
+//                if (draw.width != 0) {
+//                    _p16bases.add(0);
+//                } else {
+//                    Geometry *g = draw.path.ptr;
+//                    size_t key = g->hash();
+//                    
+//                    auto it = _p16map.find(key);
+//                    if (it == _p16map.end()) {
+//                        _p16bases.add(uint32_t(_p16total));
+//                        _p16map.emplace(key, Entry(draw.path, _p16total));
+//                        _p16entries.add(Entry(draw.path, _p16total));
+//                        
+//                        if (kMoleculesHeight && g->p16s.end == 0)
+//                            P16Writer().writeGeometry(g);
+//                        _p16total += g->p16s.end;
+//                    } else {
+//                        _p16bases.add(it->second.idx);
+//                    }
+//                }
+//            }
+            _p16total = _p16total;
+        }
         
         void addPath(const Path& path, const Transform& ctm, const Paint& paint, float width, uint8_t flag, Bounds *clipBounds = nullptr, Path *clipPath = nullptr) {
             if (path->isValid() && paint.isValid()) {
@@ -592,19 +662,21 @@ struct Rasterizer {
         
         size_t refCount, count = 0, weight = 0;
         RefVector<Path> paths;
-        Vector<uint32_t> p16bases;  uint32_t p16total = 0;
-        RefVector<Path> clipPaths;
-        Vector<uint32_t> clipIndices;
-        Vector<Bounds> bnds, clips;
         Vector<Transform> ctms;
         RefVector<Paint> paints;
         Vector<Color> colors;
-        Vector<uint32_t> gradientIndices;
-        Vector<Color> gradients;
         Vector<float> widths;
+        Vector<uint8_t> flags;
+        Vector<Bounds> bnds, clips;
+        
+        Vector<Color> gradients;
+        Vector<uint32_t> gradientIndices;
+        RefVector<Path> clipPaths;
+        Vector<uint32_t> clipIndices;
+        
+        Vector<uint32_t> p16bases;  uint32_t p16total = 0;
         std::map<size_t, Entry> p16map;
         RefVector<Entry> p16entries;
-        Vector<uint8_t> flags;
     };
     typedef Ref<Scene> SceneRef;
     
@@ -628,6 +700,10 @@ struct Rasterizer {
             if (scene->weight)
                 pathsCount += scene->count, scenes.emplace_back(scene), ctms.emplace_back(ctm), clips.emplace_back(clip);
             return *this;
+        }
+        void prepare() const {
+            for (auto scene : scenes)
+                scene->prepare();
         }
         Transform ctm;  Params params;
         size_t pathsCount = 0;  std::vector<SceneRef> scenes;  std::vector<Transform> ctms;  std::vector<Bounds> clips;

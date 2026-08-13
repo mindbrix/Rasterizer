@@ -28,6 +28,7 @@ struct RasterizerRenderer {
     
     void renderList(const Ra::SceneList& list, float scale, float w, float h, Ra::Buffer *buffer) {
         size_t contextCount = contexts.size();
+        list.prepare();
         buffer->prepare(list);
         
         Ra::Bounds device(0.f, 0.f, ceilf(scale * w), ceilf(scale * h));
