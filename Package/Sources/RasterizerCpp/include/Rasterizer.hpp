@@ -424,6 +424,7 @@ struct Rasterizer {
             colors.add(stops, count);
             locs.add(locations, count);
             ctm = transform;
+            writeGradientStrip(strip.memory->alloc(kColorTextureWidth), kColorTextureWidth);
         }
         Paint(Color *buffer, size_t width, size_t height, size_t bpr) {
             if (buffer == nullptr || width == 0 || height == 0 || bpr == 0)
@@ -494,6 +495,7 @@ struct Rasterizer {
         Vector<Color> colors;
         Vector<float> locs;
         Transform ctm;
+        Vector<Color> strip;
         Component minAlpha = 255, maxAlpha = 255;
     };
     
@@ -547,16 +549,7 @@ struct Rasterizer {
                     }
                 }
                 
-                if (paint.isGradient()) {
-                    gradientIndices.add(uint32_t(gradients.end()));
-                    Color strip[kColorTextureWidth];
-                    paint.writeGradientStrip(strip, kColorTextureWidth);
-                    gradients.add(strip, kColorTextureWidth);
-                } else {
-                    gradientIndices.add(~0);
-                }
                 paints.add(paint), colors.add(paint.color);
-                
                 bnds.add(g->bounds), ctms.add(ctm), widths.add(width), flags.add(flag);
                 clips.add(clipBounds ? *clipBounds : Bounds::huge());
                 
@@ -604,8 +597,6 @@ struct Rasterizer {
         Vector<uint8_t> flags;
         Vector<Bounds> bnds, clips;
         
-        Vector<Color> gradients;
-        Vector<uint32_t> gradientIndices;
         RefVector<Path> clipPaths;
         Vector<uint32_t> clipIndices;
         
@@ -855,8 +846,7 @@ struct Rasterizer {
                         size_t colorFlags = isImage ? Instance::kIsImage : (isGradient * Instance::kIsGradient | isRadial * Instance::kIsRadial);
                         if (isGradient) {
                             texCtms[iz] = color->ctm.concat(m).invert();
-                            size_t idx = scn->gradientIndices[is];
-                            texs.add(TexRef(iz, & scn->gradients[idx]));
+                            texs.add(TexRef(iz, & color->strip[0]));
                         } else if (isImage) {
                             texCtms[iz] = quad.invert();
                             new (blends.alloc(1)) Blend(iz | Instance::kIsImage | Instance::kNextImage);
