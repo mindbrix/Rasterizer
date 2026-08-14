@@ -521,53 +521,23 @@ struct Rasterizer {
             Entry(const Path& path, size_t idx) : path(path), idx(uint32_t(idx)) {}
             Path path;  uint32_t idx;
         };
-        struct Index {
-            Index(size_t hash, size_t i) : hash(hash), i(i)  {}
-            inline bool operator< (const Index& other) const { return hash < other.hash; }
-            size_t hash, i;
-        };
-        struct _Entry {
-            _Entry(Geometry *g, size_t idx) : g(g), idx(uint32_t(idx)) {}
-            Geometry *g;  uint32_t idx;
-        };
         void prepare() {
-            Vector<uint32_t> _p16bases;
-            Row<Index> indices;
-            indices.prealloc(draws.end());
-            RefVector<Entry> _p16entries;
-//            Row<_Entry> _p16entries;
+            uint32_t total = 0;
+            Row<uint32_t> p16bases;
+            uint32_t *base = p16bases.alloc(draws.end());
             
             for (size_t i = 0; i < draws.end(); i++) {
                 const Draw& draw = draws[i];
-                if (draw.width == 0)
-                    new (indices.alloc(1)) Index(draw.path->hash(), i);
-            }
-            std::sort(indices.base, indices.base + indices.end);
-            
-            _p16bases.memory->alloc(draws.end());
-            size_t _p16total = 0, p16count = 0, lastHash = 0;
-            for (size_t i = 0; i < indices.end; i++) {
-                const Index& index = *(indices.base + i);
+                Geometry *g = draw.path.ptr;
                 
-                if (i == 0 || index.hash != lastHash) {
-                    lastHash = index.hash;
-                    _p16total += p16count;
-                    
-                    const Draw& draw = draws[index.i];
-                    Geometry *g = draw.path.ptr;
-                    new (_p16entries.memory->alloc(1)) Entry(draw.path, _p16total);
-//                    new (_p16entries.alloc(1)) _Entry(g, _p16total);
-                    
+                base[i] = total;
+                if (draw.width == 0) {
                     if (kMoleculesHeight && g->p16s.end == 0)
                         P16Writer().writeGeometry(g);
-                    p16count = g->p16s.end;
+                    total += g->p16s.end;
                 }
-                _p16bases[index.i] = uint32_t(_p16total);
             }
-            _p16total += p16count;
-            p16total = uint32_t(_p16total);
-            p16bases = _p16bases;
-            p16entries = _p16entries;
+            total = total;
         }
         
         void addPath(const Path& path, const Transform& ctm, const Paint& paint, float width, uint8_t flag, Bounds *clipBounds = nullptr, Path *clipPath = nullptr) {
@@ -733,6 +703,31 @@ struct Rasterizer {
     struct Edge {
         uint32_t ic;  enum Flags { ue0 = 0xF << 28, ue1 = 0xF << 24, kMask = ~(ue0 | ue1) };
         uint16_t i0, ux;
+    };
+    struct Cache {
+        struct Index {
+            Index(size_t hash, size_t i, size_t size) : hash(hash), i(uint32_t(i)), size(uint32_t(size))  {}
+            inline bool operator< (const Index& other) const { return hash < other.hash; }
+            size_t hash;
+            uint32_t i, size;
+        };
+        
+        size_t addGeometry(Geometry *g) {
+            size_t size = g->p16s.end * sizeof(Point16);
+            size_t i = alloc(size);
+            new (indices.alloc(1)) Index(g->hash(), i, size);
+            return i;
+        }
+        size_t alloc(size_t size) {
+            return 0;
+        }
+        ~Cache() {
+            if (base)
+                free(base);
+        }
+        
+        uint8_t *base = nullptr;
+        Row<Index> indices;
     };
     struct Buffer {
         enum Type { kQuadEdges, kFastEdges, kFastMolecules, kQuadMolecules, kOpaques, kInstances, kSegmentsBase, kInstancesBase, kStencils, kDisableClip, kEnableClip, kNextImage, kDisableImage };
