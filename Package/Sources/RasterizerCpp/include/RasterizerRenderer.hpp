@@ -57,7 +57,7 @@ struct RasterizerRenderer {
         size_t contextCount = contexts.size();
         size_t total = 0, count, si, i, iz, target;
         for (int j = 0; j < list.scenes.size(); j++)
-            total += list.scenes[j]->weight;
+            total += list.scenes[j]->weight();
         if (total == 0)
             memset(divisions, 0, (contextCount + 1) * sizeof(*divisions));
         else {
@@ -65,7 +65,7 @@ struct RasterizerRenderer {
             auto scene = & list.scenes[0];
             for (count = si = iz = 0, i = 1; i < contextCount; i++) {
                 for (target = total * i / contextCount; count < target; iz++, si++) {
-                    if (si == (scene->ptr)->count)
+                    if (si == (scene->ptr)->count())
                         scene++, si = 0;
                     count += (scene->ptr)->paths[si]->types.end;
                 }

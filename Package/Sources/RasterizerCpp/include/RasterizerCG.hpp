@@ -48,7 +48,7 @@ struct RasterizerCG {
             CGContextSaveGState(ctx);
             
             const Ra::Scene& scn = * list.scenes[j].ptr;
-            for (size_t i = 0; i < scn.count; i++) {
+            for (size_t i = 0; i < scn.count(); i++) {
                 bool newClip = memcmp(& scn.clips[i], & lastClip, sizeof(Ra::Bounds)) != 0;
                 if (newClip) {
                     lastClip = scn.clips[i];

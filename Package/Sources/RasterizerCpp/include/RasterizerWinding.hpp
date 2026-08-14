@@ -33,7 +33,7 @@ struct RasterizerWinding {
                 Ra::Scene& scene = *list.scenes[li].ptr;
                 Ra::Transform ctm = list.ctms[li].concat(list.ctm);
                 Ra::Bounds sceneclip = list.clips[li];
-                for (int si = int(scene.count) - 1; si >= 0; si--) {
+                for (int si = int(scene.count()) - 1; si >= 0; si--) {
                     Ra::Transform inv = sceneclip.intersect(scene.clips[si]).quad(ctm).invert();
                     float ux = inv.a * px + inv.c * py + inv.tx, uy = inv.b * px + inv.d * py + inv.ty;
                     bool inBounds = fmaxf(fabsf(ux - 0.5f), fabsf(uy - 0.5f)) <= 0.5f;

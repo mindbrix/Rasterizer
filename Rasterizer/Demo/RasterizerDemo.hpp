@@ -257,7 +257,7 @@ struct RasterizerDemo {
         }
         if (showHud) {
             Ra::Bounds hudBounds = Ra::Bounds(0, 0, kHudWidth, kHudHeight);
-            if (hud->weight == 0)
+            if (hud->count() == 0)
                 hud = getHUD(hudBounds);
             Ra::Transform m = Ra::Transform(1, 0, 0, 1, kHudInset, bounds.uy - kHudInset - kHudHeight).concat(ctm.invert());
             draw.addScene(hud, m, hudBounds);

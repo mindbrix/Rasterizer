@@ -526,8 +526,6 @@ struct Rasterizer {
                 new (draws.memory->alloc(1)) Draw(path, ctm, paint, width, flag, clipBounds, clipPath);
                 
                 Geometry *g = path.ptr;
-                count++, weight += g->types.end;
-            
                 size_t key = g->hash();
                 if (width != 0) {
                     paths.add(path);
@@ -577,19 +575,27 @@ struct Rasterizer {
             }
         }
         void appendScene(const Scene& scene) {
-            for (int i = 0; i < scene.count; i++)
+            for (int i = 0; i < scene.count(); i++)
                 addPath(scene.paths[i], scene.ctms[i], scene.colors[i], scene.widths[i], scene.flags[i]);
         }
         Bounds bounds() const {
             Bounds b;
-            for (int i = 0; i < count; i++) {
+            for (int i = 0; i < count(); i++) {
                 float inset = -0.5f * widths[i];
                 b.extend(Bounds(bnds[i].inset(inset, inset).quad(ctms[i])).intersect(clips[i]));
             }
             return b;
         }
-        
-        size_t refCount, count = 0, weight = 0;
+        size_t count() const {
+            return draws.end();
+        }
+        size_t weight() const {
+            size_t total = 0;
+            for (int i = 0; i < count(); i++)
+                total += draws[i].path->types.end;
+            return total;
+        }
+        size_t refCount;
         RefVector<Path> paths;
         Vector<Transform> ctms;
         RefVector<Paint> paints;
@@ -626,8 +632,8 @@ struct Rasterizer {
             return *this;
         }
         SceneList& addScene(SceneRef scene, Transform ctm = Transform(), Bounds clip = Bounds::huge()) {
-            if (scene->weight)
-                pathsCount += scene->count, scenes.emplace_back(scene), ctms.emplace_back(ctm), clips.emplace_back(clip);
+            if (scene->count())
+                pathsCount += scene->count(), scenes.emplace_back(scene), ctms.emplace_back(ctm), clips.emplace_back(clip);
             return *this;
         }
         Transform ctm;  Params params;
@@ -795,7 +801,7 @@ struct Rasterizer {
             float det, width, uw, softclipMargin = 0.5f;
             for (lz = uz = i = 0; i < list.scenes.size(); p16total += list.scenes[i]->p16total, i++, lz = uz ) {
                 const Scene *scn = list.scenes[i].ptr;
-                uz = lz + scn->count, clz = lz < slz ? slz : lz > suz ? suz : lz, cuz = uz < slz ? slz : uz > suz ? suz : uz;
+                uz = lz + scn->count(), clz = lz < slz ? slz : lz > suz ? suz : lz, cuz = uz < slz ? slz : uz > suz ? suz : uz;
                 Transform ctm = list.ctms[i].concat(view), clipquad, m, quad, invclip;
                 Bounds dev, clip, *bnds, clipBounds = device, sceneclip = list.clips[i], lastClip;
                                 

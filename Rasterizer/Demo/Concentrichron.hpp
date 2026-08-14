@@ -138,7 +138,7 @@ struct Concentrichron {
     
     static void layoutGlyphsOnArc(Ra::SceneRef& glyphs, float cx, float cy, float r, float theta, Ra::SceneRef& scene) {
         Ra::Path path;  Ra::Transform m, ctm;  Ra::Bounds b;  float lx = 0.f, bx, by, rot, px, py, sine, cosine;
-        for (int i = 0; i < glyphs->count; i++) {
+        for (int i = 0; i < glyphs->count(); i++) {
             path = glyphs->paths[i], m = glyphs->ctms[i], b = Ra::Bounds(path->bounds.quad(m));
             lx = i == 0 ? b.lx : lx;
             bx = 0.5f * (b.lx + b.ux), by = m.ty, rot = theta - (bx - lx) / r;
