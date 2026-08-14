@@ -531,16 +531,12 @@ struct Rasterizer {
             Geometry *g;  uint32_t idx;
         };
         void prepare() {
-            Vector<uint32_t> _p16bases(draws.end());  uint32_t _p16total = 0;//, __p16total = 0;
-//            std::map<size_t, Entry> _p16map;
-//            Row<Entry> __p16entries;
-            
+            Vector<uint32_t> _p16bases;
             Row<Index> indices;
             indices.prealloc(draws.end());
-//            Vector<uint32_t> __p16bases(draws.end());
-            Row<_Entry> _p16entries;
+            RefVector<Entry> _p16entries;
+//            Row<_Entry> _p16entries;
             
-    
             for (size_t i = 0; i < draws.end(); i++) {
                 const Draw& draw = draws[i];
                 if (draw.width == 0)
@@ -548,48 +544,30 @@ struct Rasterizer {
             }
             std::sort(indices.base, indices.base + indices.end);
             
-            for (size_t lastHash = 0, i = 0; i < indices.end; i++) {
+            _p16bases.memory->alloc(draws.end());
+            size_t _p16total = 0, p16count = 0, lastHash = 0;
+            for (size_t i = 0; i < indices.end; i++) {
                 const Index& index = *(indices.base + i);
+                
                 if (i == 0 || index.hash != lastHash) {
                     lastHash = index.hash;
+                    _p16total += p16count;
                     
                     const Draw& draw = draws[index.i];
                     Geometry *g = draw.path.ptr;
-                    new (_p16entries.alloc(1)) _Entry(g, _p16total);
-//                    new (__p16entries.alloc(1)) Entry(draw.path, _p16total);
+                    new (_p16entries.memory->alloc(1)) Entry(draw.path, _p16total);
+//                    new (_p16entries.alloc(1)) _Entry(g, _p16total);
                     
                     if (kMoleculesHeight && g->p16s.end == 0)
                         P16Writer().writeGeometry(g);
-                    _p16total += g->p16s.end;
+                    p16count = g->p16s.end;
                 }
-                _p16bases[index.i] = _p16total;
+                _p16bases[index.i] = uint32_t(_p16total);
             }
-            
-            
-//            for (size_t i = 0; i < draws.end(); i++) {
-//                const Draw& draw = draws[i];
-//                
-//                if (draw.width != 0) {
-//                    _p16bases.add(0);
-//                } else {
-//                    Geometry *g = draw.path.ptr;
-//                    size_t key = g->hash();
-//                    
-//                    auto it = _p16map.find(key);
-//                    if (it == _p16map.end()) {
-//                        _p16bases.add(uint32_t(_p16total));
-//                        _p16map.emplace(key, Entry(draw.path, _p16total));
-//                        _p16entries.add(Entry(draw.path, _p16total));
-//                        
-//                        if (kMoleculesHeight && g->p16s.end == 0)
-//                            P16Writer().writeGeometry(g);
-//                        _p16total += g->p16s.end;
-//                    } else {
-//                        _p16bases.add(it->second.idx);
-//                    }
-//                }
-//            }
-            _p16total = _p16total;
+            _p16total += p16count;
+            p16total = uint32_t(_p16total);
+            p16bases = _p16bases;
+            p16entries = _p16entries;
         }
         
         void addPath(const Path& path, const Transform& ctm, const Paint& paint, float width, uint8_t flag, Bounds *clipBounds = nullptr, Path *clipPath = nullptr) {
