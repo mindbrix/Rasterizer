@@ -521,25 +521,6 @@ struct Rasterizer {
             Entry(const Path& path, size_t idx) : path(path), idx(uint32_t(idx)) {}
             Path path;  uint32_t idx;
         };
-        void prepare() {
-            uint32_t total = 0;
-            Row<uint32_t> p16bases;
-            uint32_t *base = p16bases.alloc(draws.end());
-            
-            for (size_t i = 0; i < draws.end(); i++) {
-                const Draw& draw = draws[i];
-                Geometry *g = draw.path.ptr;
-                
-                base[i] = total;
-                if (draw.width == 0) {
-                    if (kMoleculesHeight && g->p16s.end == 0)
-                        P16Writer().writeGeometry(g);
-                    total += g->p16s.end;
-                }
-            }
-            total = total;
-        }
-        
         void addPath(const Path& path, const Transform& ctm, const Paint& paint, float width, uint8_t flag, Bounds *clipBounds = nullptr, Path *clipPath = nullptr) {
             if (path->isValid() && paint.isValid()) {
                 new (draws.memory->alloc(1)) Draw(path, ctm, paint, width, flag, clipBounds, clipPath);
@@ -649,10 +630,6 @@ struct Rasterizer {
                 pathsCount += scene->count, scenes.emplace_back(scene), ctms.emplace_back(ctm), clips.emplace_back(clip);
             return *this;
         }
-        void prepare() const {
-            for (auto scene : scenes)
-                scene->prepare();
-        }
         Transform ctm;  Params params;
         size_t pathsCount = 0;  std::vector<SceneRef> scenes;  std::vector<Transform> ctms;  std::vector<Bounds> clips;
     };
@@ -703,31 +680,6 @@ struct Rasterizer {
     struct Edge {
         uint32_t ic;  enum Flags { ue0 = 0xF << 28, ue1 = 0xF << 24, kMask = ~(ue0 | ue1) };
         uint16_t i0, ux;
-    };
-    struct Cache {
-        struct Index {
-            Index(size_t hash, size_t i, size_t size) : hash(hash), i(uint32_t(i)), size(uint32_t(size))  {}
-            inline bool operator< (const Index& other) const { return hash < other.hash; }
-            size_t hash;
-            uint32_t i, size;
-        };
-        
-        size_t addGeometry(Geometry *g) {
-            size_t size = g->p16s.end * sizeof(Point16);
-            size_t i = alloc(size);
-            new (indices.alloc(1)) Index(g->hash(), i, size);
-            return i;
-        }
-        size_t alloc(size_t size) {
-            return 0;
-        }
-        ~Cache() {
-            if (base)
-                free(base);
-        }
-        
-        uint8_t *base = nullptr;
-        Row<Index> indices;
     };
     struct Buffer {
         enum Type { kQuadEdges, kFastEdges, kFastMolecules, kQuadMolecules, kOpaques, kInstances, kSegmentsBase, kInstancesBase, kStencils, kDisableClip, kEnableClip, kNextImage, kDisableImage };
