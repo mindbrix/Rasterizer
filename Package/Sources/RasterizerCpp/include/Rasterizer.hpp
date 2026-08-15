@@ -530,8 +530,8 @@ struct Rasterizer {
                 return;
             needPrepare = false;
             
-            Row<Index> indices;
-            indices.prealloc(count());
+            Row<Index> indices;  indices.prealloc(count());
+            
             for (size_t i = 0; i < count(); i++) {
                 const Draw& draw = draws[i];
                 if (draw.width == 0)
@@ -540,23 +540,22 @@ struct Rasterizer {
             Index *index0 = indices.base, *index1 = indices.base + indices.end;
             std::sort(index0, index1);
             
-            p16bases.empty();
+            p16bases.empty(), p16entries.empty();
             uint32_t *bases = p16bases.alloc(count());
-            p16entries.resize(0);
             
             size_t lastHash = 0, count = 0, total = 0, srcIndex = 0;
             for (Index *index = index0; index < index1; index++) {
                 if (index == index0 || lastHash != index->hash) {
                     lastHash = index->hash;
-                    total += count;
                     srcIndex = index->i;
-                    
+                    total += count;
+
                     Geometry *g = draws[index->i].path.ptr;
+                    new (p16entries.alloc(1)) Entry(g, total);
+                    
                     if (kMoleculesHeight && g->p16s.end == 0)
                         P16Writer().writeGeometry(g);
                     count = g->p16s.end;
-                    
-                    p16entries.add(Entry(g, total));
                 }
                 bases[index->i] = uint32_t(total);
                 if (srcIndex != index->i)
@@ -599,8 +598,7 @@ struct Rasterizer {
         size_t refCount;
         RefVector<Draw> draws;
         bool needPrepare = false;
-        Row<uint32_t> p16bases;  uint32_t p16total = 0;
-        Vector<Entry> p16entries;
+        Row<uint32_t> p16bases;  Row<Entry> p16entries;  uint32_t p16total = 0;
     };
     typedef Ref<Scene> SceneRef;
     
@@ -1657,15 +1655,15 @@ struct Rasterizer {
             auto p16s = (Point16 *)(buffer.base + buffer.p16s);
             size_t p16paths = 0, p16total = 0, m0 = 0, m1 = 0, i0, i1, c0, c1;
             for (auto& scene: list.scenes)
-                p16paths += scene->p16entries.end();
+                p16paths += scene->p16entries.end;
             i0 = index * p16paths / contextCount;
             i1 = (index + 1) * p16paths / contextCount;
             for (auto& scene: list.scenes) {
-                m1 = m0 + scene->p16entries.end();
+                m1 = m0 + scene->p16entries.end;
                 c0 = m0 < i0 ? i0 : m0 > i1 ? i1 : m0;
                 c1 = m1 < i0 ? i0 : m1 > i1 ? i1 : m1;
                 for (; c0 < c1; c0++) {
-                    auto& entry = scene->p16entries[c0 - m0];
+                    auto& entry = scene->p16entries.base[c0 - m0];
                     memcpy(p16s + p16total + entry.idx, entry.g->p16s.base, entry.g->p16s.end * sizeof(Point16));
                 }
                 m0 = m1, p16total += scene->p16total;
