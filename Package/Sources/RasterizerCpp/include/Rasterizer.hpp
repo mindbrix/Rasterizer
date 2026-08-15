@@ -499,24 +499,23 @@ struct Rasterizer {
         Component minAlpha = 255, maxAlpha = 255;
     };
     
+    struct Draw {
+        Draw(const Path& path, const Transform& ctm, const Paint& paint, float width, uint8_t flags, Bounds *clipBounds = nullptr, Path *clipPath = nullptr)
+        : path(path), ctm(ctm), paint(paint), color(paint.color), width(width), flags(flags),
+          bounds(path->bounds), clip(clipBounds ? *clipBounds : Bounds::huge()), clipPath(clipPath ? *clipPath : nullptr) {}
+        
+        Path path;
+        Transform ctm;
+        Paint paint;
+        Color color;
+        float width = 0.f;
+        uint8_t flags = 0;
+        Bounds bounds, clip;
+        Path clipPath = nullptr;
+    };
     struct Scene {
         enum Flags { kFillEvenOdd = 1 << 1, kRoundCap = 1 << 2, kSquareCap = 1 << 3, kRoundJoin = 1 << 4 };
-        
-        struct Draw {
-            Draw(const Path& path, const Transform& ctm, const Paint& paint, float width, uint8_t flags, Bounds *clipBounds = nullptr, Path *clipPath = nullptr)
-            : path(path), ctm(ctm), paint(paint), color(paint.color), width(width), flags(flags),
-              bounds(path->bounds), clip(clipBounds ? *clipBounds : Bounds::huge()), clipPath(clipPath ? *clipPath : nullptr) {}
-            
-            Path path;
-            Transform ctm;
-            Paint paint;
-            Color color;
-            float width = 0.f;
-            uint8_t flags = 0;
-            Bounds bounds, clip;
-            Path clipPath = nullptr;
-        };
-        
+
         RefVector<Draw> draws;
         
         struct Entry {
@@ -561,8 +560,9 @@ struct Rasterizer {
         Bounds bounds() const {
             Bounds b;
             for (int i = 0; i < count(); i++) {
-                float inset = -0.5f * widths[i];
-                b.extend(Bounds(bnds[i].inset(inset, inset).quad(ctms[i])).intersect(clips[i]));
+                const Draw& draw = draws[i];
+                float inset = -0.5f * draw.width;
+                b.extend(Bounds(draw.bounds.inset(inset, inset).quad(draw.ctm)).intersect(draw.clip));
             }
             return b;
         }
@@ -782,7 +782,7 @@ struct Rasterizer {
                 Bounds dev, clip, *bnds, clipBounds = device, sceneclip = list.clips[i], lastClip;
                                 
                 for (is = clz - lz, iz = clz; iz < cuz; iz++, is++) {
-                    Scene::Draw& draw = scn->draws[is];
+                    Draw& draw = scn->draws[is];
                     flags = draw.flags;
                     
                     if (list.params.useClips) {

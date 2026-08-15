@@ -29,21 +29,22 @@ struct RasterizerWinding {
     
     static IndexPair indicesForPoint(Ra::SceneList& list, Ra::Bounds bounds, float px, float py) {
         if (px >= bounds.lx && px < bounds.ux && py >= bounds.ly && py < bounds.uy)
-            for (int li = int(list.scenes.size()) - 1; li >= 0; li--) {
-                Ra::Scene& scene = *list.scenes[li].ptr;
-                Ra::Transform ctm = list.ctms[li].concat(list.ctm);
-                Ra::Bounds sceneclip = list.clips[li];
-                for (int si = int(scene.count()) - 1; si >= 0; si--) {
-                    Ra::Transform inv = sceneclip.intersect(scene.clips[si]).quad(ctm).invert();
+            for (int il = int(list.scenes.size()) - 1; il >= 0; il--) {
+                Ra::Scene& scene = *list.scenes[il].ptr;
+                Ra::Transform ctm = list.ctms[il].concat(list.ctm);
+                Ra::Bounds sceneclip = list.clips[il];
+                for (int is = int(scene.count()) - 1; is >= 0; is--) {
+                    Ra::Draw& draw = scene.draws[is];
+                    Ra::Transform inv = sceneclip.intersect(draw.clip).quad(ctm).invert();
                     float ux = inv.a * px + inv.c * py + inv.tx, uy = inv.b * px + inv.d * py + inv.ty;
                     bool inBounds = fmaxf(fabsf(ux - 0.5f), fabsf(uy - 0.5f)) <= 0.5f;
                     if (inBounds) {
-                        int winding = pointWinding(scene.paths[si].ptr, scene.bnds[si], scene.ctms[si].concat(ctm), px, py, scene.widths[si], scene.flags[si]);
-                        bool evenOdd = scene.flags[si] & Ra::Scene::kFillEvenOdd;
+                        int winding = pointWinding(draw.path.ptr, draw.bounds, draw.ctm.concat(ctm), px, py, draw.width, draw.flags);
+                        bool evenOdd = scene.flags[is] & Ra::Scene::kFillEvenOdd;
                         int mask = evenOdd ? 1 : ~0;
                         bool inside = winding & mask;
                         if (inside)
-                            return IndexPair(li, si);
+                            return IndexPair(il, is);
                     }
                 }
             }
