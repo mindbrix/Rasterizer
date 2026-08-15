@@ -40,7 +40,7 @@ struct RasterizerWinding {
                     bool inBounds = fmaxf(fabsf(ux - 0.5f), fabsf(uy - 0.5f)) <= 0.5f;
                     if (inBounds) {
                         int winding = pointWinding(draw.path.ptr, draw.bounds, draw.ctm.concat(ctm), px, py, draw.width, draw.flags);
-                        bool evenOdd = scene.flags[is] & Ra::Scene::kFillEvenOdd;
+                        bool evenOdd = draw.flags & Ra::Scene::kFillEvenOdd;
                         int mask = evenOdd ? 1 : ~0;
                         bool inside = winding & mask;
                         if (inside)

@@ -245,13 +245,16 @@ struct RasterizerDemo {
             if (indices.i0 != INT_MAX) {
                 size_t i0 = indices.i0, i1 = indices.i1;
                 const Ra::SceneRef& scene = list.scenes[i0];
-                const Ra::Path& path = scene->paths[i1];
-                const Ra::Transform& ctm = scene->ctms[i1];
-                const float width = scene->widths[i1];
-                auto flags = scene->flags[i1];
+                
+                const Ra::Draw& _draw = scene->draws[i1];
+                
+//                const Ra::Path& path = scene->paths[i1];
+//                const Ra::Transform& ctm = scene->ctms[i1];
+//                const float width = scene->widths[i1];
+//                auto flags = scene->flags[i1];
                 Ra::Color red(0, 0, 255, 64);
                 Ra::SceneRef mouseScene;
-                mouseScene->addPath(path, ctm, red, width, flags);
+                mouseScene->addPath(_draw.path, _draw.ctm, red, _draw.width, _draw.flags);
                 draw.addScene(mouseScene, list.ctms[i0], list.clips[i0]);
             }
         }

@@ -547,15 +547,11 @@ struct Rasterizer {
                         p16bases.add(it->second.idx);
                     }
                 }
-                
-                paints.add(paint), colors.add(paint.color);
-                bnds.add(g->bounds), ctms.add(ctm), widths.add(width), flags.add(flag);
-                clips.add(clipBounds ? *clipBounds : Bounds::huge());
             }
         }
         void appendScene(const Scene& scene) {
             for (int i = 0; i < scene.count(); i++)
-                addPath(scene.paths[i], scene.ctms[i], scene.colors[i], scene.widths[i], scene.flags[i]);
+                ;//addPath(scene.paths[i], scene.ctms[i], scene.colors[i], scene.widths[i], scene.flags[i]);
         }
         Bounds bounds() const {
             Bounds b;
@@ -577,12 +573,6 @@ struct Rasterizer {
         }
         size_t refCount;
         RefVector<Path> paths;
-        Vector<Transform> ctms;
-        RefVector<Paint> paints;
-        Vector<Color> colors;
-        Vector<float> widths;
-        Vector<uint8_t> flags;
-        Vector<Bounds> bnds, clips;
         
         Vector<uint32_t> p16bases;  uint32_t p16total = 0;
         std::map<size_t, Entry> p16map;

@@ -80,7 +80,7 @@ struct RasterizerCG {
                         else
                             CGContextSetRGBStrokeColor(ctx, 0, 0, 0, 1);
                         CGContextStrokePath(ctx);
-                    } else if (scn.widths[i]) {
+                    } else if (draw.width) {
                         CGContextSetLineWidth(ctx, draw.width < 0.f ? (CGFloat)-109.05473e+14 : draw.width);
                         bool square = draw.flags & Ra::Scene::kSquareCap;
                         bool round = draw.flags & Ra::Scene::kRoundCap;
