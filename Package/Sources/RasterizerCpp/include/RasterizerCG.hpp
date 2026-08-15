@@ -63,8 +63,8 @@ struct RasterizerCG {
                 
                 if (!list.params.useClips || isVisible(g->bounds, t.concat(ctm), clip, bounds, scn.widths[i])) {
                     CGContextSaveGState(ctx);
-                    if (list.params.useClips && ~scn.clipIndices[i]) {
-                        writePathToCGContext(scn.clipPaths[scn.clipIndices[i]].ptr, ctx);
+                    if (list.params.useClips && scn.draws[i].clipPath.ptr) {
+                        writePathToCGContext(scn.draws[i].clipPath.ptr, ctx);
                         CGContextEOClip(ctx);
                     }
                     CGContextConcatCTM(ctx, CGFromTransform(t));

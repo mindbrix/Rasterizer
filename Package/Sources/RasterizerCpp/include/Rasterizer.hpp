@@ -552,19 +552,6 @@ struct Rasterizer {
                 paints.add(paint), colors.add(paint.color);
                 bnds.add(g->bounds), ctms.add(ctm), widths.add(width), flags.add(flag);
                 clips.add(clipBounds ? *clipBounds : Bounds::huge());
-                
-                if (clipPath && (*clipPath)->isValid()) {
-                    size_t idx = 0;
-                    if (clipPaths.end() == 0)
-                        clipPaths.add(*clipPath);
-                    else {
-                        if (clipPaths.back()->hash() != (*clipPath)->hash())
-                            clipPaths.add(*clipPath);
-                        idx = clipPaths.end() - 1;
-                    }
-                    clipIndices.add(uint32_t(idx));
-                } else
-                    clipIndices.add(~0);
             }
         }
         void appendScene(const Scene& scene) {
@@ -596,9 +583,6 @@ struct Rasterizer {
         Vector<float> widths;
         Vector<uint8_t> flags;
         Vector<Bounds> bnds, clips;
-        
-        RefVector<Path> clipPaths;
-        Vector<uint32_t> clipIndices;
         
         Vector<uint32_t> p16bases;  uint32_t p16total = 0;
         std::map<size_t, Entry> p16map;
@@ -787,7 +771,8 @@ struct Rasterizer {
             bool clipActive = false;
             
             Color black(0, 0, 0, 255), red(0, 0, 255, 255);
-            size_t lz, uz, i, clz, cuz, iz, is, cnt; uint32_t lastIdx = ~0, lastClipIdx = ~0, p16total = 0;
+            size_t lz, uz, i, clz, cuz, iz, is, cnt; uint32_t p16total = 0;
+            Geometry *lastClipPath = nullptr, *currentClipPath = nullptr;
             uint8_t flags;
             float det, width, uw, softclipMargin = 0.5f;
             for (lz = uz = i = 0; i < list.scenes.size(); p16total += list.scenes[i]->p16total, i++, lz = uz ) {
@@ -807,19 +792,19 @@ struct Rasterizer {
                             invclip = clipquad.invert();
                             clipBounds = Bounds(clipquad).integral().intersect(device);
                         }
-                        uint32_t idx = scn->clipIndices[is];
-                        if (idx != lastIdx) {
-                            lastIdx = idx;
+                        const Scene::Draw& draw = scn->draws[is];
+                        Geometry *clipPath = draw.clipPath.ptr;
+                        if (lastClipPath != clipPath) {
+                            lastClipPath = clipPath;
                             Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kStencil);
                             inst->data.count = 0, inst->g = nullptr;
-                            if (~idx) {
-                                if (idx != lastClipIdx) {
-                                    lastClipIdx = idx;
+                            if (clipPath) {
+                                if (currentClipPath != clipPath) {
+                                    currentClipPath = clipPath;
                                     size_t i0, i1;
-                                    const Path& clip = scn->clipPaths[idx];
                                     i0 = stencils.end;
-                                    Stenciler stenciler(clip, device, ctm, & stencils);
-                                    applyPath(clip.ptr, ctm, device, true, true, stenciler);
+                                    Stenciler stenciler(clipPath, device, ctm, & stencils);
+                                    applyPath(clipPath, ctm, device, true, true, stenciler);
                                     i1 = stencils.end;
                                     inst->data.idx = int(i0), inst->data.count = int(i1 - i0);
                                 } else
@@ -867,7 +852,7 @@ struct Rasterizer {
                             uint32_t i0 = uint32_t(outlines.idx), i1;
                             Outliner outliner;
                             outliner.iz = inst->iz, outliner.outlines = & outlines;
-                            if (width > 4.f && isOpaque && ~lastIdx == 0) {
+                            if (width > 4.f && isOpaque && lastClipPath == nullptr) {
                                 bool softunclipped = true;
                                 if (clipActive) {
                                     Bounds soft = quad.concat(invclip);
@@ -899,7 +884,7 @@ struct Rasterizer {
                                 Bounds soft = quad.concat(invclip);
                                 softunclipped = fmaxf(fmaxf(fabsf(soft.lx - 0.5f), fabsf(soft.ux - 0.5f)), fmaxf(fabsf(soft.ly - 0.5f), fabsf(soft.uy - 0.5f))) < softclipMargin;
                             }
-                            writeSegmentInstances(clip, flags & Scene::kFillEvenOdd, iz, isOpaque && softunclipped && ~lastIdx == 0, fast, colorFlags, *this);
+                            writeSegmentInstances(clip, flags & Scene::kFillEvenOdd, iz, isOpaque && softunclipped && lastClipPath == nullptr, fast, colorFlags, *this);
                             segments.idx = segments.end = idxr.dst - segments.base;
                         }
                         if (isImage)
@@ -1570,16 +1555,7 @@ struct Rasterizer {
     };
     
     struct Stenciler: GeometryWriter {
-        static Row<Opaque> CreateStencils(const Path& path, Bounds device, Transform m = Transform()) {
-            Row<Opaque> stencils;
-            if (!path->isValid())
-                return stencils;
-            Stenciler stenciler(path, device, m, & stencils);
-            applyPath(path.ptr, m, device, true, true, stenciler);
-            return stencils;
-        }
-        
-        Stenciler(const Path& path, Bounds device, Transform m, Row<Opaque> *stencils) : device(device), molecule(path->molecules.base), m(m), stencils(stencils) {}
+        Stenciler(const Geometry *g, Bounds device, Transform m, Row<Opaque> *stencils) : device(device), molecule(g->molecules.base), m(m), stencils(stencils) {}
         
         void writeSegment(float x0, float y0, float x1, float y1) {
             Opaque *stencil = stencils->alloc(1);
