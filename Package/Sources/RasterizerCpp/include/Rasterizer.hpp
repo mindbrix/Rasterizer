@@ -540,9 +540,9 @@ struct Rasterizer {
             Index *index0 = indices.base, *index1 = indices.base + indices.end;
             std::sort(index0, index1);
             
-            Row<uint32_t> _p16bases;
-            uint32_t *bases = _p16bases.alloc(count());
-            RefVector<Entry> _p16entries;
+            p16bases.empty();
+            uint32_t *bases = p16bases.alloc(count());
+            p16entries.resize(0);
             
             size_t lastHash = 0, count = 0, total = 0, srcIndex = 0;
             for (Index *index = index0; index < index1; index++) {
@@ -556,46 +556,20 @@ struct Rasterizer {
                         P16Writer().writeGeometry(g);
                     count = g->p16s.end;
                     
-                    _p16entries.add(Entry(draws[index->i].path, total));
+                    p16entries.add(Entry(draws[index->i].path, total));
                 }
                 bases[index->i] = uint32_t(total);
                 if (srcIndex != index->i)
                     draws[index->i].path = draws[srcIndex].path;
             }
             total += count;
-//            assert(total == p16total);
-//            assert(_p16entries.end() == p16entries.end());
             p16total = uint32_t(total);
-            p16bases.resize(0);
-            p16bases.add(_p16bases.base, _p16bases.end);
-            p16entries = _p16entries;
         }
         
         void addPath(const Path& path, const Transform& ctm, const Paint& paint, float width, uint8_t flag, Bounds *clipBounds = nullptr, Path *clipPath = nullptr) {
             if (path->isValid() && paint.isValid()) {
                 new (draws.memory->alloc(1)) Draw(path, ctm, paint, width, flag, clipBounds, clipPath);
                 needPrepare = true;
-//                Geometry *g = path.ptr;
-//                size_t key = g->hash();
-//                if (width != 0) {
-//                    paths.add(path);
-//                    p16bases.add(0);
-//                } else {
-//                    auto it = p16map.find(key);
-//                    if (it == p16map.end()) {
-//                        paths.add(path);
-//                        p16bases.add(uint32_t(p16total));
-//                        p16map.emplace(key, Entry(path, p16total));
-//                        p16entries.add(Entry(path, p16total));
-//                        
-//                        if (kMoleculesHeight && g->p16s.end == 0)
-//                            P16Writer().writeGeometry(g);
-//                        p16total += g->p16s.end;
-//                    } else {
-//                        paths.add(it->second.path);
-//                        p16bases.add(it->second.idx);
-//                    }
-//                }
             }
         }
         void appendScene(const Scene& scene) {
@@ -623,13 +597,9 @@ struct Rasterizer {
             return total;
         }
         size_t refCount;
-        bool needPrepare = false;
-        
         RefVector<Draw> draws;
-//        RefVector<Path> paths;
-        
-        Vector<uint32_t> p16bases;  uint32_t p16total = 0;
-        std::map<size_t, Entry> p16map;
+        bool needPrepare = false;
+        Row<uint32_t> p16bases;  uint32_t p16total = 0;
         RefVector<Entry> p16entries;
     };
     typedef Ref<Scene> SceneRef;
@@ -915,7 +885,7 @@ struct Rasterizer {
                             bool fast = !buffer->params.useCurves || g->maxCurve * det < 16.f;
                             Blend *inst = new (blends.alloc(1)) Blend(iz | colorFlags | Instance::kMolecule | bool(flags & Scene::kFillEvenOdd) * Instance::kEvenOdd | fast * Instance::kFastEdges);
                             inst->g = g, inst->quad.cover = 0;
-                            inst->quad.base = int(p16total + scn->p16bases[is]);
+                            inst->quad.base = int(p16total + scn->p16bases.base[is]);
                             inst->quad.molsbase = int(g->p16s.idx / 2);
                             cnt = fast ? g->p16s.idx / kFastSegments : g->atoms.end;
                             int type = fast ? Allocator::kFastMolecules : Allocator::kQuadMolecules;
