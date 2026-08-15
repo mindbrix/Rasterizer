@@ -517,8 +517,8 @@ struct Rasterizer {
         enum Flags { kFillEvenOdd = 1 << 1, kRoundCap = 1 << 2, kSquareCap = 1 << 3, kRoundJoin = 1 << 4 };
 
         struct Entry {
-            Entry(const Path& path, size_t idx) : path(path), idx(uint32_t(idx)) {}
-            Path path;  uint32_t idx;
+            Entry(const Geometry *g, size_t idx) : g(g), idx(idx) {}
+            const Geometry *g;  size_t idx;
         };
         struct Index {
             Index(size_t hash, size_t i) : hash(hash), i(i)  {}
@@ -556,7 +556,7 @@ struct Rasterizer {
                         P16Writer().writeGeometry(g);
                     count = g->p16s.end;
                     
-                    p16entries.add(Entry(draws[index->i].path, total));
+                    p16entries.add(Entry(g, total));
                 }
                 bases[index->i] = uint32_t(total);
                 if (srcIndex != index->i)
@@ -600,7 +600,7 @@ struct Rasterizer {
         RefVector<Draw> draws;
         bool needPrepare = false;
         Row<uint32_t> p16bases;  uint32_t p16total = 0;
-        RefVector<Entry> p16entries;
+        Vector<Entry> p16entries;
     };
     typedef Ref<Scene> SceneRef;
     
@@ -1666,7 +1666,7 @@ struct Rasterizer {
                 c1 = m1 < i0 ? i0 : m1 > i1 ? i1 : m1;
                 for (; c0 < c1; c0++) {
                     auto& entry = scene->p16entries[c0 - m0];
-                    memcpy(p16s + p16total + entry.idx, entry.path->p16s.base, entry.path->p16s.end * sizeof(Point16));
+                    memcpy(p16s + p16total + entry.idx, entry.g->p16s.base, entry.g->p16s.end * sizeof(Point16));
                 }
                 m0 = m1, p16total += scene->p16total;
             }
