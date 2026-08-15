@@ -739,10 +739,12 @@ struct Rasterizer {
     
     struct TexRef {
         TexRef(size_t iz, Color *strip) : iz(uint32_t(iz)), strip(strip) {}
-        uint32_t iz;
-        Color *strip;
+        uint32_t iz;  Color *strip;
     };
-    
+    struct P16Ref {
+        P16Ref(size_t iz, Geometry *g) : iz(uint32_t(iz)), g(g) {}
+        uint32_t iz;  Geometry *g;
+    };
     struct Context {
         void drawList(const SceneList& list, Bounds device, Transform view, size_t slz, size_t suz, Buffer *buffer) {
             empty(), allocator.empty(device), allocator.refill(0);
@@ -855,6 +857,9 @@ struct Rasterizer {
                             i1 = uint32_t(outlines.idx);
                             inst->data.idx = i0, inst->data.count = i1 - i0;
                         } else if (clipWidth * clipHeight / g->types.end < kMoleculesPixelsPerEdge) {
+                            p16s.add(P16Ref(iz, g));
+                            p16Total += g->p16s.end;
+                            
                             bounds[iz] = *bnds;
                             bool fast = !buffer->params.useCurves || g->maxCurve * det < 16.f;
                             Blend *inst = new (blends.alloc(1)) Blend(iz | colorFlags | Instance::kMolecule | bool(flags & Scene::kFillEvenOdd) * Instance::kEvenOdd | fast * Instance::kFastEdges);
@@ -885,18 +890,19 @@ struct Rasterizer {
             }
         }
         void empty() {
-            texTotal = 0, blends.empty(), opaques.empty(), stencils.empty(), outlines.empty(), segments.empty(), segmentsIndices.empty(), indices.empty(), texs.resize(0), images.resize(0);
+            p16Total = 0, texTotal = 0, blends.empty(), opaques.empty(), stencils.empty(), outlines.empty(), segments.empty(), segmentsIndices.empty(), indices.empty(), p16s.resize(0), texs.resize(0), images.resize(0);
             for (int i = 0; i < samples.end(); i++)
                 samples[i].empty();
             entries = Vector<Buffer::Entry>();
         }
-        void reset() { blends.reset(), opaques.reset(), stencils.reset(), outlines.reset(), segments.reset(), segmentsIndices.reset(), indices.reset(), entries = Vector<Buffer::Entry>(), texs.resize(0), images.resize(0);
+        void reset() {
+            blends.reset(), opaques.reset(), stencils.reset(), outlines.reset(), segments.reset(), segmentsIndices.reset(), indices.reset(), entries = Vector<Buffer::Entry>(), p16s.resize(0), texs.resize(0), images.resize(0);
             samples.resize(0);
         }
         
-        size_t texTotal;
+        size_t p16Total, texTotal;
         Allocator allocator;  Vector<Buffer::Entry> entries;
-        Vector<TexRef> texs;
+        Vector<P16Ref> p16s;  Vector<TexRef> texs;
         Vector<Paint *> images;
         Row<Opaque> opaques, stencils;  Row<Blend> blends;  Row<Instance> outlines;  Row<Segment> segments;
         Row<Sample::Index> indices;  RefVector<Row<Sample>> samples;  Row<uint32_t> segmentsIndices;
