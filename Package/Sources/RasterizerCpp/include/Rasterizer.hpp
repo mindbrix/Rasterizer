@@ -566,7 +566,7 @@ struct Rasterizer {
         }
         
         void addPath(const Path& path, const Transform& ctm, const Paint& paint, float width, uint8_t flag, Bounds *clipBounds = nullptr, Path *clipPath = nullptr) {
-            if (path->isValid() && paint.isValid()) {
+            if (path->isValid() && paint.isValid() && (clipPath == nullptr || (*clipPath)->isValid())) {
                 new (draws.memory->alloc(1)) Draw(path, ctm, paint, width, flag, clipBounds, clipPath);
                 needPrepare = true;
             }
