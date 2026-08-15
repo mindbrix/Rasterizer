@@ -782,17 +782,18 @@ struct Rasterizer {
                 Bounds dev, clip, *bnds, clipBounds = device, sceneclip = list.clips[i], lastClip;
                                 
                 for (is = clz - lz, iz = clz; iz < cuz; iz++, is++) {
-                    flags = scn->flags[is];
+                    Scene::Draw& draw = scn->draws[is];
+                    flags = draw.flags;
+                    
                     if (list.params.useClips) {
-                        if (memcmp(& scn->clips[is], & lastClip, sizeof(Bounds)) != 0) {
-                            lastClip = scn->clips[is];
+                        if (memcmp(& draw.clip, & lastClip, sizeof(Bounds)) != 0) {
+                            lastClip = draw.clip;
                             clipActive = !lastClip.isHuge() || !sceneclip.isHuge();
                             clipquad = clipActive ? sceneclip.intersect(lastClip).quad(ctm) : Transform(1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f);
                             softclipMargin = 0.5f + 1e-1f / fmaxf(1.f, clipquad.scale());
                             invclip = clipquad.invert();
                             clipBounds = Bounds(clipquad).integral().intersect(device);
                         }
-                        const Scene::Draw& draw = scn->draws[is];
                         Geometry *clipPath = draw.clipPath.ptr;
                         if (lastClipPath != clipPath) {
                             lastClipPath = clipPath;
@@ -814,16 +815,16 @@ struct Rasterizer {
                             }
                         }
                     }
-                    m = scn->ctms[is].concat(ctm), det = fabsf(m.a * m.d - m.b * m.c);
-                    uw = scn->widths[is];
+                    m = draw.ctm.concat(ctm), det = fabsf(m.a * m.d - m.b * m.c);
+                    uw = draw.width;
                     width = list.params.showOutlines ? 1.f : uw * (uw > 0.f ? sqrtf(det) : -1.f);
-                    bnds = & scn->bnds[is], quad = bnds->quad(m), dev = Bounds(quad).inset(-width, -width);
+                    bnds = & draw.bounds, quad = bnds->quad(m), dev = Bounds(quad).inset(-width, -width);
                     clip = dev.integral().intersect(clipBounds);
                     
                     if (clip.lx < clip.ux && clip.ly < clip.uy) {
                         bool unclipped = clip.contains(dev);
                         float clipWidth = clip.width(), clipHeight = clip.height();
-                        Paint *color = & scn->paints[is];
+                        Paint *color = & draw.paint;
                         bool isOpaque = color->isOpaque();
                         bool isGradient = list.params.showOutlines ? false : color->isGradient();
                         bool isRadial = isGradient && color->type == Paint::kRadial;
@@ -841,7 +842,7 @@ struct Rasterizer {
                         if (list.params.showOutlines)
                             colors[iz] = uw == 0.f ? black : red;
                         else
-                            colors[iz] = scn->colors[is].premultiplied();
+                            colors[iz] = draw.color.premultiplied();
                         
                         ctms[iz] = m, widths[iz] = width, clips[iz] = invclip;
                         Geometry *g = scn->paths[is].ptr;
