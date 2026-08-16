@@ -502,14 +502,14 @@ struct Rasterizer {
     struct Draw {
         Draw(const Path& path, const Transform& ctm, const Paint& paint, float width, uint8_t flags, Bounds *clipBounds = nullptr, Path *clipPath = nullptr)
         : path(path), ctm(ctm), paint(paint), width(width), flags(flags),
-          bounds(path->bounds), clip(clipBounds ? *clipBounds : Bounds::huge()), clipPath(clipPath ? *clipPath : nullptr) {}
+          clip(clipBounds ? *clipBounds : Bounds::huge()), clipPath(clipPath ? *clipPath : nullptr) {}
         
         Path path;
         Transform ctm;
         Paint paint;
         float width = 0.f;
         uint8_t flags = 0;
-        Bounds bounds, clip;
+        Bounds clip;
         Path clipPath = nullptr;
     };
     struct Scene {
@@ -530,9 +530,12 @@ struct Rasterizer {
             needPrepare = false;
             
             Row<Index> indices;  indices.prealloc(count());
+            bnds.empty();
+            Bounds *bs = bnds.alloc(count());
             
             for (size_t i = 0; i < count(); i++) {
                 const Draw& draw = draws[i];
+                *bs++ = draw.path->bounds;
                 if (draw.width == 0)
                     new (indices.alloc(1)) Index(draw.path->hash(), i);
             }
@@ -581,7 +584,7 @@ struct Rasterizer {
             for (int i = 0; i < count(); i++) {
                 const Draw& draw = draws[i];
                 float inset = -0.5f * draw.width;
-                b.extend(Bounds(draw.bounds.inset(inset, inset).quad(draw.ctm)).intersect(draw.clip));
+                b.extend(Bounds(draw.path->bounds.inset(inset, inset).quad(draw.ctm)).intersect(draw.clip));
             }
             return b;
         }
@@ -597,7 +600,7 @@ struct Rasterizer {
         size_t refCount;
         RefVector<Draw> draws;
         bool needPrepare = false;
-        Row<uint32_t> p16bases;  Row<Entry> p16entries;  uint32_t p16total = 0;
+        Row<Bounds> bnds;  Row<uint32_t> p16bases;  Row<Entry> p16entries;  uint32_t p16total = 0;
     };
     typedef Ref<Scene> SceneRef;
     
@@ -831,7 +834,7 @@ struct Rasterizer {
                     m = draw.ctm.concat(ctm), det = fabsf(m.a * m.d - m.b * m.c);
                     uw = draw.width;
                     width = list.params.showOutlines ? 1.f : uw * (uw > 0.f ? sqrtf(det) : -1.f);
-                    bnds = & draw.bounds, quad = bnds->quad(m), dev = Bounds(quad).inset(-width, -width);
+                    bnds = scn->bnds.base + is, quad = bnds->quad(m), dev = Bounds(quad).inset(-width, -width);
                     clip = dev.integral().intersect(clipBounds);
                     
                     if (clip.lx < clip.ux && clip.ly < clip.uy) {
