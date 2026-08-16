@@ -504,13 +504,10 @@ struct Rasterizer {
         : path(path), ctm(ctm), paint(paint), width(width), flags(flags),
           clip(clipBounds ? *clipBounds : Bounds::huge()), clipPath(clipPath ? *clipPath : nullptr) {}
         
-        Path path;
-        Transform ctm;
-        Paint paint;
-        float width = 0.f;
-        uint8_t flags = 0;
-        Bounds clip;
-        Path clipPath = nullptr;
+        Bounds bounds() const {
+            return Bounds(path->bounds.inset(-0.5f * width, -0.5f * width).quad(ctm)).intersect(clip);
+        }
+        Path path;  Transform ctm;  Paint paint;  float width = 0.f;  uint8_t flags = 0;  Bounds clip;  Path clipPath = nullptr;
     };
     struct Scene {
         enum Flags { kFillEvenOdd = 1 << 1, kRoundCap = 1 << 2, kSquareCap = 1 << 3, kRoundJoin = 1 << 4 };
@@ -574,18 +571,15 @@ struct Rasterizer {
             }
         }
         void appendScene(const Scene& scene) {
-            for (int i = 0; i < scene.count(); i++) {
+            for (int i = 0; i < draws.end(); i++) {
                 const Draw& draw = draws[i];
                 addPath(draw.path, draw.ctm, draw.paint, draw.width, draw.flags);
             }
         }
         Bounds bounds() const {
             Bounds b;
-            for (int i = 0; i < count(); i++) {
-                const Draw& draw = draws[i];
-                float inset = -0.5f * draw.width;
-                b.extend(Bounds(draw.path->bounds.inset(inset, inset).quad(draw.ctm)).intersect(draw.clip));
-            }
+            for (int i = 0; i < draws.end(); i++)
+                b.extend(draws[i].bounds());
             return b;
         }
         size_t count() const {
@@ -593,7 +587,7 @@ struct Rasterizer {
         }
         size_t weight() const {
             size_t total = 0;
-            for (int i = 0; i < count(); i++)
+            for (int i = 0; i < draws.end(); i++)
                 total += draws[i].path->types.end;
             return total;
         }
