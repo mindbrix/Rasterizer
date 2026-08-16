@@ -60,16 +60,15 @@ struct RasterizerCG {
                     if (list.params.useClips)
                         CGContextClipToRect(ctx, CGRectFromBounds(lastClip));
                 }
-                Ra::Geometry *g = draw.path.ptr;
-                Ra::Transform t = draw.ctm;
+                const Ra::Geometry *g = draw.path.ptr;
                 
-                if (!list.params.useClips || isVisible(g->bounds, t.concat(ctm), clip, bounds, draw.width)) {
+                if (!list.params.useClips || isVisible(g->bounds, draw.ctm.concat(ctm), clip, bounds, draw.width)) {
                     CGContextSaveGState(ctx);
                     if (list.params.useClips && draw.clipPath.ptr) {
                         writePathToCGContext(draw.clipPath.ptr, ctx);
                         CGContextEOClip(ctx);
                     }
-                    CGContextConcatCTM(ctx, CGFromTransform(t));
+                    CGContextConcatCTM(ctx, CGFromTransform(draw.ctm));
                     writePathToCGContext(g, ctx);
                     const auto& paint = draw.paint;
                     const auto color = paint.color;
@@ -269,7 +268,7 @@ struct RasterizerCG {
         });
     }
     
-    static void writePathToCGContext(Ra::Geometry *g, CGContextRef ctx) {
+    static void writePathToCGContext(const Ra::Geometry *g, CGContextRef ctx) {
         for (size_t index = 0; index < g->types.end; ) {
             float *p = g->points.base + index * 2;
             switch (*(g->types.base + index)) {
