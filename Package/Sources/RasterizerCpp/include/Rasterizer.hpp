@@ -504,7 +504,7 @@ struct Rasterizer {
         : path(path), ctm(ctm), paint(paint), width(width), flags(flags),
           clip(clipBounds ? *clipBounds : Bounds::huge()), clipPath(clipPath ? *clipPath : nullptr) {}
         
-        Bounds bounds() const {
+        inline Bounds bounds() const {
             return Bounds(path->bounds.inset(-0.5f * width, -0.5f * width).quad(ctm)).intersect(clip);
         }
         Path path;  Transform ctm;  Paint paint;  float width = 0.f;  uint8_t flags = 0;  Bounds clip;  Path clipPath = nullptr;
@@ -527,11 +527,15 @@ struct Rasterizer {
                 needPrepare = true;
             }
         }
+        void addDraws(const Draw *src, size_t count) {
+            if (src == nullptr || count == 0)
+                return;
+            for (size_t i = 0; i < count; i++)
+                draws.add(src[i]);
+            needPrepare = true;
+        }
         void addScene(const Scene& scene) {
-            for (int i = 0; i < draws.end(); i++) {
-                const Draw& draw = draws[i];
-                addPath(draw.path, draw.ctm, draw.paint, draw.width, draw.flags);
-            }
+            addDraws(& scene.draws[0], scene.draws.end());
         }
         Bounds bounds() const {
             Bounds b;
