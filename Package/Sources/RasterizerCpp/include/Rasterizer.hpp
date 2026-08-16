@@ -521,6 +521,33 @@ struct Rasterizer {
             inline bool operator< (const Index& other) const  { return hash < other.hash; }
             size_t hash, i;
         };
+        void addPath(const Path& path, const Transform& ctm, const Paint& paint, float width, uint8_t flag, Bounds *clipBounds = nullptr, Path *clipPath = nullptr) {
+            if (path->isValid() && paint.isValid() && (clipPath == nullptr || (*clipPath)->isValid())) {
+                new (draws.memory->alloc(1)) Draw(path, ctm, paint, width, flag, clipBounds, clipPath);
+                needPrepare = true;
+            }
+        }
+        void addScene(const Scene& scene) {
+            for (int i = 0; i < draws.end(); i++) {
+                const Draw& draw = draws[i];
+                addPath(draw.path, draw.ctm, draw.paint, draw.width, draw.flags);
+            }
+        }
+        Bounds bounds() const {
+            Bounds b;
+            for (int i = 0; i < draws.end(); i++)
+                b.extend(draws[i].bounds());
+            return b;
+        }
+        size_t count() const {
+            return draws.end();
+        }
+        size_t weight() const {
+            size_t total = 0;
+            for (int i = 0; i < draws.end(); i++)
+                total += draws[i].path->types.end;
+            return total;
+        }
         void prepare() {
             if (!needPrepare)
                 return;
@@ -562,34 +589,6 @@ struct Rasterizer {
             }
             total += count;
             p16total = uint32_t(total);
-        }
-        
-        void addPath(const Path& path, const Transform& ctm, const Paint& paint, float width, uint8_t flag, Bounds *clipBounds = nullptr, Path *clipPath = nullptr) {
-            if (path->isValid() && paint.isValid() && (clipPath == nullptr || (*clipPath)->isValid())) {
-                new (draws.memory->alloc(1)) Draw(path, ctm, paint, width, flag, clipBounds, clipPath);
-                needPrepare = true;
-            }
-        }
-        void appendScene(const Scene& scene) {
-            for (int i = 0; i < draws.end(); i++) {
-                const Draw& draw = draws[i];
-                addPath(draw.path, draw.ctm, draw.paint, draw.width, draw.flags);
-            }
-        }
-        Bounds bounds() const {
-            Bounds b;
-            for (int i = 0; i < draws.end(); i++)
-                b.extend(draws[i].bounds());
-            return b;
-        }
-        size_t count() const {
-            return draws.end();
-        }
-        size_t weight() const {
-            size_t total = 0;
-            for (int i = 0; i < draws.end(); i++)
-                total += draws[i].path->types.end;
-            return total;
         }
         size_t refCount;
         RefVector<Draw> draws;
