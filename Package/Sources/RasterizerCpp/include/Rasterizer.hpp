@@ -501,13 +501,12 @@ struct Rasterizer {
     
     struct Draw {
         Draw(const Path& path, const Transform& ctm, const Paint& paint, float width, uint8_t flags, Bounds *clipBounds = nullptr, Path *clipPath = nullptr)
-        : path(path), ctm(ctm), paint(paint), color(paint.color), width(width), flags(flags),
+        : path(path), ctm(ctm), paint(paint), width(width), flags(flags),
           bounds(path->bounds), clip(clipBounds ? *clipBounds : Bounds::huge()), clipPath(clipPath ? *clipPath : nullptr) {}
         
         Path path;
         Transform ctm;
         Paint paint;
-        Color color;
         float width = 0.f;
         uint8_t flags = 0;
         Bounds bounds, clip;
@@ -856,7 +855,7 @@ struct Rasterizer {
                         if (list.params.showOutlines)
                             colors[iz] = uw == 0.f ? black : red;
                         else
-                            colors[iz] = draw.color.premultiplied();
+                            colors[iz] = draw.paint.color.premultiplied();
                         
                         ctms[iz] = m, widths[iz] = width, clips[iz] = invclip;
                         Geometry *g = draw.path.ptr;

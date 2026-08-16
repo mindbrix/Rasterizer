@@ -145,7 +145,7 @@ struct Concentrichron {
             px = cx + r * cosf(rot), py = cy + r * sinf(rot);
             __sincosf(rot - 0.5 * M_PI, & sine, & cosine);
             ctm = m.concatAroundCenter(Ra::Transform(cosine, sine, -sine, cosine, 0, 0), bx, by), ctm.tx += px - bx, ctm.ty += py - by;
-            scene->addPath(path, ctm, glyphs->draws[i].color, 0.f, 0);
+            scene->addPath(path, ctm, glyphs->draws[i].paint, 0.f, 0);
         }
     }
 };
