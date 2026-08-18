@@ -133,9 +133,6 @@ struct Rasterizer {
                 base = memory->resize(end * 1.5);
             return base + begin;
         }
-        inline void add(T obj) {
-            *(alloc(1)) = obj;
-        }
         inline T *prealloc(size_t n) {
             size_t begin = end;
             alloc(n), end = begin;
