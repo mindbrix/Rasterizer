@@ -690,9 +690,6 @@ struct Rasterizer {
             pathsCount = list.pathsCount;
             texCount = 0;
             images.resize(0);
-            scenes.resize(0);
-            for (auto& scene : list.scenes)
-                scenes.add(scene);
         
             size_t i, sizes[] = { sizeof(Color), sizeof(Transform), sizeof(Transform), sizeof(float), sizeof(Bounds), sizeof(Transform), sizeof(uint32_t) };
             size_t count = sizeof(sizes) / sizeof(*sizes), base = 0;
@@ -719,7 +716,6 @@ struct Rasterizer {
         }
         uint8_t *base = nullptr;  Row<Entry> entries;
         RefVector<Paint> images;
-        RefVector<SceneRef> scenes;
         Params params;
         size_t colors, ctms, clips, widths, bounds, texCtms, texIdxs, texStrips, p16s;
         size_t idxs, pathsCount, texCount, headerSize, size = 0, allocation = 0;
