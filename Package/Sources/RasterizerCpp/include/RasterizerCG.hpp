@@ -190,6 +190,7 @@ struct RasterizerCG {
         CGColorSpaceRef rgb = CGColorSpaceCreateDeviceRGB();
         CGBitmapInfo bitmapInfo = (CGBitmapInfo)(kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little);
         CGContextRef ctx = CGBitmapContextCreate(NULL, width, height, 8, width * sizeof(Ra::Color), rgb, bitmapInfo);
+        CGContextSetBlendMode(ctx, kCGBlendModeCopy);
         CGContextDrawImage(ctx, CGRectMake(0, 0, width, height), image);
         auto buffer = (Ra::Color *)CGBitmapContextGetData(ctx);
         paint = Ra::Paint(buffer, width, height, width * sizeof(Ra::Color));
