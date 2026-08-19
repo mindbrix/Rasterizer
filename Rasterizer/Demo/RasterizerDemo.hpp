@@ -248,7 +248,7 @@ struct RasterizerDemo {
                 
                 Ra::Draw& _draw = scene->draws[i1];
                 if (mouseDown) {
-                    _draw.width = 10;
+                    _draw.width = -8;
                     _draw.paint = Ra::Paint(0, 0, 255, 64);
                     scene->needPrepare = true;
                 } else {
