@@ -289,8 +289,7 @@ struct Rasterizer {
             float *pts = points.alloc(2);  x0 = pts[0] = x, y0 = pts[1] = y, *types.alloc(1) = kMove;
         }
         void lineTo(float x1, float y1) {
-            float ax = x1 - x0, ay = y1 - y0;
-            if (ax == 0.f && ay == 0.f)
+            if (x1 == x0 && y1 == y0)
                 return;
             float *pts = points.alloc(2);  x0 = pts[0] = x1, y0 = pts[1] = y1, *types.alloc(1) = kLine;
         }
