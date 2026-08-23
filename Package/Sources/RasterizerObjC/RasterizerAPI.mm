@@ -154,9 +154,7 @@
     self = [super init];
     if (!self)
         return nil;
-    CGPathRef cgPath = CGPathCreateWithRoundedRect(rect, cornerWidth, cornerHeight, NULL);
-    [self addCGPath:cgPath];
-    CGPathRelease(cgPath);
+    [self addRoundedRect:rect cornerWidth:cornerWidth cornerHeight:cornerHeight];
     return self;
 }
 
@@ -192,11 +190,7 @@
 - (void)addRoundedRect:(CGRect)rect
            cornerWidth:(double)cornerWidth
           cornerHeight:(double)cornerHeight {
-    if (CGRectGetWidth(rect) > 0 && CGRectGetHeight(rect) > 0) {
-        CGPathRef cgPath = CGPathCreateWithRoundedRect(rect, cornerWidth, cornerHeight, NULL);
-        [self addCGPath:cgPath];
-        CGPathRelease(cgPath);
-    }
+    _path->addRoundedRect(RaCG::BoundsFromCGRect(rect), cornerWidth, cornerHeight);
 }
 - (void)addCGPath:(CGPathRef)cgPath {
     RaCG::writeCGPathToPath(cgPath, _path);
