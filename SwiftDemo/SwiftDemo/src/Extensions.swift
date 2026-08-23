@@ -236,7 +236,6 @@ extension RAScene {
         let x1 = 0.5 * (rect.midX + rect.maxX)
         
         let rounded = RAPath(roundedRect: rect.insetBy(dx: inset, dy: inset), cornerWidth: corner, cornerHeight: corner)
-        rounded.close()
         rounded.move(to: rect.midX, y: rect.minY + corner)
         rounded.line(to: rect.midX, y: rect.maxY - corner)
         
@@ -257,9 +256,7 @@ extension RAScene {
     }
     
     func strokeRect(_ rect: CGRect, width: Double, paint: RAPaint) {
-        let path = RAPath(rect: rect)
-        path.close()
-        addStroke(path, ctm: .identity, color: paint, width: width, capStyle: .capButt, joinStyle: .joinMiter)
+        addStroke(RAPath(rect: rect), ctm: .identity, color: paint, width: width, capStyle: .capButt, joinStyle: .joinMiter)
     }
 }
 

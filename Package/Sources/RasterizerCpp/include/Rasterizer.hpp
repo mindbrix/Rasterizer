@@ -271,7 +271,7 @@ struct Rasterizer {
         }
         void addBounds(Bounds b) {
             if (b.ux > b.lx && b.uy > b.ly)
-                moveTo(b.lx, b.ly), lineTo(b.ux, b.ly), lineTo(b.ux, b.uy), lineTo(b.lx, b.uy), lineTo(b.lx, b.ly);
+                moveTo(b.lx, b.ly), lineTo(b.ux, b.ly), lineTo(b.ux, b.uy), lineTo(b.lx, b.uy), lineTo(b.lx, b.ly), close();
         }
         void addEllipse(Bounds b) {
             if (b.ux > b.lx && b.uy > b.ly) {
@@ -281,6 +281,7 @@ struct Rasterizer {
                 cubicTo(s * b.lx + t * b.ux, b.uy, b.lx, t * b.ly + s * b.uy, b.lx, my);
                 cubicTo(b.lx, s * b.ly + t * b.uy, s * b.lx + t * b.ux, b.ly, mx, b.ly);
                 cubicTo(t * b.lx + s * b.ux, b.ly, b.ux, s * b.ly + t * b.uy, b.ux, my);
+                close();
             }
         }
         void moveTo(float x, float y) {
