@@ -711,10 +711,11 @@ struct Rasterizer {
         void resize(size_t n, size_t copySize = 0) {
             if (copySize == 0 && allocation && size > 1000000 && size / allocation > 5)
                 allocation = size = 0, free(base), base = nullptr;
-            allocation = (n + kPageSize - 1) / kPageSize * kPageSize;
+            size_t pageSize = getpagesize();
+            allocation = (n + pageSize - 1) & ~(pageSize - 1);
             if (size < allocation) {
                 size = allocation;
-                uint8_t *resized;  posix_memalign((void **)& resized, kPageSize, size);
+                uint8_t *resized;  posix_memalign((void **)& resized, pageSize, size);
                 if (base) {
                     if (copySize)
                         memcpy(resized, base, copySize);
