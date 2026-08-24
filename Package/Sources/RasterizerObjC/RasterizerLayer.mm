@@ -228,11 +228,17 @@ struct TextureCache : MetalCache<id <MTLTexture>, const Ra::Paint &> {
     Ra::Buffer *buffer = odd ? & _buffer1 : & _buffer0;
     if ([self.layerDelegate respondsToSelector:@selector(writeBuffer:forLayer:)])
         [self.layerDelegate writeBuffer:buffer forLayer:self];
-    
+#if TARGET_IPHONE_SIMULATOR
+    id <MTLBuffer> mtlBuffer = buffer->size == 0 ? nil : [self.device newBufferWithBytes:buffer->base
+                                               length:buffer->size
+                                              options:MTLResourceStorageModeShared];
+#else
     id <MTLBuffer> mtlBuffer = buffer->size == 0 ? nil : [self.device newBufferWithBytesNoCopy:buffer->base
                                                length:buffer->size
                                               options:MTLResourceStorageModeShared
                                           deallocator:nil];
+#endif
+    
     id <CAMetalDrawable> drawable = [self nextDrawable];
     
     MTLTextureDescriptor* desc = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatDepth32Float_Stencil8
