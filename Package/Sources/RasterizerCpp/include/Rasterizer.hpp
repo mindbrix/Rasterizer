@@ -1614,7 +1614,7 @@ struct Rasterizer {
     };
     
     static size_t resizeBuffer(const SceneList& list, Context *contexts, size_t count, size_t *begins, Buffer& buffer) {
-        size_t size = buffer.headerSize, begin = size, end = begin, sz, i, j, instances;
+        size_t size = buffer.headerSize, sz, i, j, instances;
         for (i = 0; i < count; i++)
             size += contexts[i].opaques.end * sizeof(Opaque);
         
@@ -1622,7 +1622,7 @@ struct Rasterizer {
             sz += contexts[i].texs.end();
         buffer.texCount = sz;
         size += sz * kColorTextureWidth * sizeof(Color);
-          
+        
         for (auto& scene: list.scenes)
             size += scene->p16total * sizeof(Point16);
         
@@ -1635,7 +1635,11 @@ struct Rasterizer {
             begins[i] = size, size += instances * sizeof(Edge) + (ctx->outlines.end + ctx->blends.end) * sizeof(Instance) + ctx->segments.end * sizeof(Segment) + ctx->stencils.end * sizeof(Opaque);
         }
         buffer.resize(size, buffer.headerSize);
-        
+        return size;
+    }
+    
+    static void writeOpaques(const SceneList& list, Context *contexts, size_t count, size_t *begins, Buffer& buffer) {
+        size_t begin = buffer.headerSize, end = begin, i, j, sz;
         for (i = 0; i < count; i++)
             if ((sz = contexts[i].opaques.end * sizeof(Opaque)))
                 memcpy(buffer.base + end, contexts[i].opaques.base, sz), end += sz;
@@ -1652,8 +1656,8 @@ struct Rasterizer {
                 memcpy(buffer.base + end, ref.strip, sz), end += sz;
             }
         buffer.p16s = end;
-        return size;
     }
+    
     static void writeContextToBuffer(const SceneList& list, Context *ctx, size_t begin, size_t index, size_t contextCount, Buffer& buffer) {
         size_t i, j, count, size, ip, iz, ic, end, instbegin, passsize, stencilBegin = 0;
         {

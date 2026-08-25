@@ -41,6 +41,7 @@ struct RasterizerRenderer {
         });
         auto begins = (size_t *)alloca(contextCount * sizeof(size_t));
         size_t size = Ra::resizeBuffer(list, & contexts[0], contextCount, begins, *buffer);
+        Ra::writeOpaques(list, & contexts[0], contextCount, begins, *buffer);
         dispatch_apply(contextCount, DISPATCH_APPLY_AUTO, ^(size_t i) {
             Ra::writeContextToBuffer(list, & contexts[0] + i, begins[i], i, contextCount, *buffer);
         });
