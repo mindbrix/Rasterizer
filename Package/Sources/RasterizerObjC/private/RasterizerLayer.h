@@ -19,11 +19,11 @@
 //
 
 #import <QuartzCore/QuartzCore.h>
-#import "RasterizerCG.hpp"
+#import "RasterizerRenderer.hpp"
 
 
 @protocol LayerDelegate <NSObject>
-- (void)writeBuffer:(Ra::Buffer *)buffer forLayer:(CALayer *)layer;
+- (void)writeBuffer:(RenderBuffer *)buffer forLayer:(CALayer *)layer;
 @end
 
 

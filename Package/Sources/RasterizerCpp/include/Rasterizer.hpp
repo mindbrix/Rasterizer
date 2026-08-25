@@ -692,7 +692,6 @@ struct Rasterizer {
             Entry(Type type, size_t begin, size_t end) : type(type), begin(begin), end(end) {}
             Type type;  size_t begin, end;
         };
-        ~Buffer() { if (base) free(base); }
         
         void prepare(const SceneList& list) {
             params = list.params;
@@ -706,29 +705,13 @@ struct Rasterizer {
             for (i = 0; i < count; i++)
                 bases[i] = base, base += (pathsCount + 1) * sizes[i];
             colors = bases[0], ctms = bases[1], clips = bases[2], widths = bases[3], bounds = bases[4], texCtms = bases[5], texIdxs = bases[6];
-            headerSize = (base + 15) & ~15, resize(headerSize), entries.empty();
-        }
-        void resize(size_t n, size_t copySize = 0) {
-            if (copySize == 0 && allocation && size > 1000000 && size / allocation > 5)
-                allocation = size = 0, free(base), base = nullptr;
-            size_t pageSize = getpagesize();
-            allocation = (n + pageSize - 1) & ~(pageSize - 1);
-            if (size < allocation) {
-                size = allocation;
-                uint8_t *resized;  posix_memalign((void **)& resized, pageSize, size);
-                if (base) {
-                    if (copySize)
-                        memcpy(resized, base, copySize);
-                    free(base);
-                }
-                base = resized;
-            }
+            headerSize = (base + 15) & ~15, entries.empty();
         }
         uint8_t *base = nullptr;  Row<Entry> entries;
         RefVector<Paint> images;
         Params params;
         size_t colors, ctms, clips, widths, bounds, texCtms, texIdxs, texStrips, p16s;
-        size_t idxs, pathsCount, texCount, headerSize, size = 0, allocation = 0;
+        size_t idxs, pathsCount, texCount, headerSize;
     };
     struct Allocator {
         enum CountType { kFastEdges, kQuadEdges, kFastMolecules, kQuadMolecules };
@@ -1634,7 +1617,6 @@ struct Rasterizer {
                 instances += pass->count();
             begins[i] = size, size += instances * sizeof(Edge) + (ctx->outlines.end + ctx->blends.end) * sizeof(Instance) + ctx->segments.end * sizeof(Segment) + ctx->stencils.end * sizeof(Opaque);
         }
-        buffer.resize(size, buffer.headerSize);
         return size;
     }
     

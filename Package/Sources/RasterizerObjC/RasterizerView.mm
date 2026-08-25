@@ -20,7 +20,7 @@
 
 #import "RasterizerView.h"
 #import "RasterizerLayer.h"
-#import "RasterizerRenderer.hpp"
+#import "RasterizerCG.hpp"
 #import "RasterizerAPI+Internal.h"
 
 
@@ -126,13 +126,13 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 
 #pragma mark - LayerDelegate
 
-- (void)writeBuffer:(Ra::Buffer *)buffer forLayer:(CALayer *)layer {
+- (void)writeBuffer:(RenderBuffer *)buffer forLayer:(CALayer *)layer {
     if ([self.listDelegate respondsToSelector:@selector(getListAtTime:width:height:)]) {
         float scale = self.layer.contentsScale, w = self.bounds.size.width, h = self.bounds.size.height;
         RASceneList *list = [self.listDelegate getListAtTime:CACurrentMediaTime()
                                                        width:w
                                                       height:h];
-        _renderer.renderList(list.list, scale, w, h, buffer);
+        _renderer.renderList(list.list, scale, w, h, buffer, layer);
     }
 }
 

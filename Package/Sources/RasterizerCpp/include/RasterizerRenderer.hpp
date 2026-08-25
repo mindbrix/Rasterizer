@@ -17,7 +17,28 @@
 //  misrepresented as being the original software.
 //  3. This notice may not be removed or altered from any source distribution.
 //
-#import <CoreGraphics/CoreGraphics.h>
+
+#import <Metal/Metal.h>
+#import "Rasterizer.hpp"
+
+
+struct RenderBuffer {
+    size_t size() const {
+        return mtlBuffer ? mtlBuffer.length : 0;
+    }
+    void resize(size_t n, size_t copySize, id<MTLDevice> device) {
+        if (size() < n) {
+            id <MTLBuffer> newBuffer = [device newBufferWithLength:n options:MTLResourceStorageModeShared];
+            
+            if (mtlBuffer && copySize)
+                memcpy(newBuffer.contents, mtlBuffer.contents, copySize);
+            mtlBuffer = newBuffer;
+        }
+        buffer.base = (uint8_t *)mtlBuffer.contents;
+    }
+    Ra::Buffer buffer;
+    id <MTLBuffer> mtlBuffer;
+};
 
 
 struct RasterizerRenderer {
@@ -26,10 +47,13 @@ struct RasterizerRenderer {
         contexts.resize(count < 1 ? 1 : count);
     }
     
-    void renderList(const Ra::SceneList& list, float scale, float w, float h, Ra::Buffer *buffer) {
+    void renderList(const Ra::SceneList& list, float scale, float w, float h, RenderBuffer *buf, CALayer *layer) {
+        Ra::Buffer *buffer = & buf->buffer;
+        CAMetalLayer *mtlLayer = (CAMetalLayer *)layer;
         size_t contextCount = contexts.size();
         list.prepare();
         buffer->prepare(list);
+        buf->resize(buffer->headerSize, 0, mtlLayer.device);
         
         Ra::Bounds device(0.f, 0.f, ceilf(scale * w), ceilf(scale * h));
         Ra::Transform view = list.ctm.concat(Ra::Transform(scale, 0.f, 0.f, scale, 0.f, 0.f));
@@ -41,6 +65,8 @@ struct RasterizerRenderer {
         });
         auto begins = (size_t *)alloca(contextCount * sizeof(size_t));
         size_t size = Ra::resizeBuffer(list, & contexts[0], contextCount, begins, *buffer);
+        buf->resize(size, buffer->headerSize, mtlLayer.device);
+        
         Ra::writeOpaques(list, & contexts[0], contextCount, begins, *buffer);
         dispatch_apply(contextCount, DISPATCH_APPLY_AUTO, ^(size_t i) {
             Ra::writeContextToBuffer(list, & contexts[0] + i, begins[i], i, contextCount, *buffer);

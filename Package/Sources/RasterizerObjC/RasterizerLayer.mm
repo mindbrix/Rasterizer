@@ -84,7 +84,7 @@ struct TextureCache : MetalCache<id <MTLTexture>, const Ra::Paint &> {
 
 @interface RasterizerLayer ()
 {
-    Ra::Buffer _buffer0, _buffer1;
+    RenderBuffer _buffer0, _buffer1;
     TextureCache _textureCache;
 }
 
@@ -225,19 +225,13 @@ struct TextureCache : MetalCache<id <MTLTexture>, const Ra::Paint &> {
 
 - (void)draw {
     BOOL odd = ++_tick & 1;
-    Ra::Buffer *buffer = odd ? & _buffer1 : & _buffer0;
+    RenderBuffer *buf = odd ? & _buffer1 : & _buffer0;
+    Ra::Buffer *buffer = & buf->buffer;
+
     if ([self.layerDelegate respondsToSelector:@selector(writeBuffer:forLayer:)])
-        [self.layerDelegate writeBuffer:buffer forLayer:self];
-#if TARGET_IPHONE_SIMULATOR
-    id <MTLBuffer> mtlBuffer = buffer->size == 0 ? nil : [self.device newBufferWithBytes:buffer->base
-                                               length:buffer->size
-                                              options:MTLResourceStorageModeShared];
-#else
-    id <MTLBuffer> mtlBuffer = buffer->size == 0 ? nil : [self.device newBufferWithBytesNoCopy:buffer->base
-                                               length:buffer->size
-                                              options:MTLResourceStorageModeShared
-                                          deallocator:nil];
-#endif
+        [self.layerDelegate writeBuffer:buf forLayer:self];
+    
+    id <MTLBuffer> mtlBuffer = buf->mtlBuffer;
     
     id <CAMetalDrawable> drawable = [self nextDrawable];
     
