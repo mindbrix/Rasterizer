@@ -372,6 +372,11 @@ struct Rasterizer {
             validate();
             return types.end > 1 && *types.base == Geometry::kMove && (bounds.lx != bounds.ux || bounds.ly != bounds.uy);
         }
+        bool isDash() {
+            validate();
+            size_t last = types.end - 1;
+            return last == 1 && counts[kLine] == 1;
+        }
         bool isRect() {
             validate();
             const float *pts = points.base;
@@ -531,8 +536,9 @@ struct Rasterizer {
             size_t hash, i;
         };
         void addPath(const Path& path, const Transform& ctm, const Paint& paint, float width, uint8_t flag, Bounds *clipBounds = nullptr, Path *clipPath = nullptr) {
+            Color black(0, 0, 0, 255), red(0, 0, 255, 255);
             if (path->isValid() && paint.isValid() && (clipPath == nullptr || (*clipPath)->isValid())) {
-                new (draws.memory->alloc(1)) Draw(path, ctm, paint, width, flag, clipBounds, clipPath);
+                new (draws.memory->alloc(1)) Draw(path, ctm, path->isDash() ? red : paint, width, flag, clipBounds, clipPath);
                 needPrepare = true;
             }
         }
