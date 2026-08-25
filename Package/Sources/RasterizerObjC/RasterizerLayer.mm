@@ -225,13 +225,13 @@ struct TextureCache : MetalCache<id <MTLTexture>, const Ra::Paint &> {
 
 - (void)draw {
     BOOL odd = ++_tick & 1;
-    RenderBuffer *buf = odd ? & _buffer1 : & _buffer0;
-    Ra::Buffer *buffer = & buf->buffer;
+    RenderBuffer *renderBuffer = odd ? & _buffer1 : & _buffer0;
+    Ra::Buffer *buffer = & renderBuffer->buffer;
 
     if ([self.layerDelegate respondsToSelector:@selector(writeBuffer:forLayer:)])
-        [self.layerDelegate writeBuffer:buf forLayer:self];
+        [self.layerDelegate writeBuffer:renderBuffer forLayer:self];
     
-    id <MTLBuffer> mtlBuffer = buf->mtlBuffer;
+    id <MTLBuffer> mtlBuffer = renderBuffer->mtlBuffer;
     
     id <CAMetalDrawable> drawable = [self nextDrawable];
     
