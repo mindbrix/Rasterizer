@@ -144,7 +144,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
         RASceneList *list = [self.listDelegate getListAtTime:CACurrentMediaTime()
                                                        width:w
                                                       height:h];
-        RaCG::renderListToBitmap(list.list, scale, w, h, ctx);
+        RaCG::renderListWithClear(list.list, scale, w, h, ctx);
     }
 }
 

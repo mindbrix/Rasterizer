@@ -23,7 +23,7 @@
 
 
 struct RasterizerCG {
-    static void renderListToBitmap(const Ra::SceneList& list, float scale, float w, float h, CGContextRef ctx) {
+    static void renderListWithClear(const Ra::SceneList& list, float scale, float w, float h, CGContextRef ctx) {
         CGContextSaveGState(ctx);
         const auto color = list.params.clearColor;
         CGContextSetRGBFillColor(ctx, color.r / 255.0, color.g / 255.0, color.b / 255.0, color.a / 255.0);
