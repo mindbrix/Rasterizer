@@ -46,13 +46,13 @@ struct RasterizerRenderer {
         contexts.resize(count < 1 ? 1 : count);
     }
     
-    void renderList(const Ra::SceneList& list, float scale, float w, float h, RenderBuffer *buf, CALayer *layer) {
-        Ra::Buffer *buffer = & buf->buffer;
+    void renderList(const Ra::SceneList& list, float scale, float w, float h, RenderBuffer *renderBuffer, CALayer *layer) {
+        Ra::Buffer *buffer = & renderBuffer->buffer;
         CAMetalLayer *mtlLayer = (CAMetalLayer *)layer;
         size_t contextCount = contexts.size();
         list.prepare();
         buffer->prepare(list);
-        buf->resize(buffer->headerSize, 0, mtlLayer.device);
+        renderBuffer->resize(buffer->headerSize, 0, mtlLayer.device);
         
         Ra::Bounds device(0.f, 0.f, ceilf(scale * w), ceilf(scale * h));
         Ra::Transform view = list.ctm.concat(Ra::Transform(scale, 0.f, 0.f, scale, 0.f, 0.f));
@@ -64,7 +64,7 @@ struct RasterizerRenderer {
         });
         auto begins = (size_t *)alloca(contextCount * sizeof(size_t));
         size_t size = Ra::resizeBuffer(list, & contexts[0], contextCount, begins, *buffer);
-        buf->resize(size, buffer->headerSize, mtlLayer.device);
+        renderBuffer->resize(size, buffer->headerSize, mtlLayer.device);
         
         Ra::writeOpaques(list, & contexts[0], contextCount, begins, *buffer);
         dispatch_apply(contextCount, DISPATCH_APPLY_AUTO, ^(size_t i) {
