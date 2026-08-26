@@ -105,11 +105,6 @@ struct Rasterizer {
         inline size_t end() const {
             return memory->end;
         }
-        inline Vector clone() const {
-            auto cloned = Vector<T>();
-            cloned.add(memory->addr, end());
-            return cloned;
-        }
         inline T& operator[](size_t i) const {
             return memory->addr[i];
         }
