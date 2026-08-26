@@ -281,9 +281,9 @@ struct Rasterizer {
         }
         void addRoundedRect(Bounds b, float width, float height) {
             if (b.ux > b.lx && b.uy > b.ly && width > 0.f && height > 0.f) {
-                const float t = 0.5f - 2.f / 3.f * (M_SQRT2 - 1.f);
-                const float tx = fminf(0.5f, width / (b.ux - b.lx)), sx = 1.f - tx, tw = t * tx / 0.5f, sw = 1.f - tw;
-                const float ty = fminf(0.5f, height / (b.uy - b.ly)), sy = 1.f - ty, th = t * ty / 0.5f, sh = 1.f - th;
+                const float t = 1.f - 4.f / 3.f * (M_SQRT2 - 1.f);
+                const float tx = fminf(0.5f, width / (b.ux - b.lx)), sx = 1.f - tx, tw = t * tx, sw = 1.f - tw;
+                const float ty = fminf(0.5f, height / (b.uy - b.ly)), sy = 1.f - ty, th = t * ty, sh = 1.f - th;
                 moveTo(b.lx, sy * b.ly + ty * b.uy);
                 lineTo(b.lx, ty * b.ly + sy * b.uy);
                 cubicTo(b.lx, th * b.ly + sh * b.uy, sw * b.lx + tw * b.ux, b.uy, sx * b.lx + tx * b.ux, b.uy);
