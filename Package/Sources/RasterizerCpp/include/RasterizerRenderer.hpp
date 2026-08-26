@@ -23,18 +23,17 @@
 
 
 struct RenderBuffer {
-    size_t size() const {
-        return mtlBuffer ? mtlBuffer.length : 0;
-    }
     void resize(size_t n, size_t copySize, id<MTLDevice> device) {
-        if (size() < n) {
+        size_t size = mtlBuffer ? mtlBuffer.length : 0;
+        
+        if (size < n) {
             id <MTLBuffer> newBuffer = [device newBufferWithLength:n options:MTLResourceStorageModeShared];
             
-            if (mtlBuffer && copySize)
+            if (copySize && copySize <= size)
                 memcpy(newBuffer.contents, mtlBuffer.contents, copySize);
             mtlBuffer = newBuffer;
+            buffer.base = (uint8_t *)mtlBuffer.contents;
         }
-        buffer.base = (uint8_t *)mtlBuffer.contents;
     }
     Ra::Buffer buffer;
     id <MTLBuffer> mtlBuffer;
