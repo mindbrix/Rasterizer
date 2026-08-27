@@ -23,7 +23,7 @@
 
 
 @protocol LayerDelegate <NSObject>
-- (void)writeBuffer:(RenderBuffer *)buffer forLayer:(CALayer *)layer;
+- (void)writeBuffer:(RenderBuffer *)buffer forLayer:(CAMetalLayer *)layer;
 @end
 
 

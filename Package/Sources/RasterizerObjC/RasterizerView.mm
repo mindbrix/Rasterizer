@@ -126,7 +126,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 
 #pragma mark - LayerDelegate
 
-- (void)writeBuffer:(RenderBuffer *)buffer forLayer:(CALayer *)layer {
+- (void)writeBuffer:(RenderBuffer *)buffer forLayer:(CAMetalLayer *)layer {
     if ([self.listDelegate respondsToSelector:@selector(getListAtTime:width:height:)]) {
         float scale = self.layer.contentsScale, w = self.bounds.size.width, h = self.bounds.size.height;
         RASceneList *list = [self.listDelegate getListAtTime:CACurrentMediaTime()
