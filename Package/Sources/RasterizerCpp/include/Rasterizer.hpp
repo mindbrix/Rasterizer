@@ -97,7 +97,13 @@ struct Rasterizer {
             *memory->alloc(1) = obj;
         }
         inline void add(T *objs, size_t n) {
-            memcpy(memory->alloc(n), objs, n * sizeof(T));
+            T *dst = memory->alloc(n);
+            if (!isRef)
+                memcpy(dst, objs, n * sizeof(T));
+            else {
+                for (size_t i = 0; i < n; i++)
+                    *dst++ = *objs++;
+            }
         }
         inline T *resize(size_t n) {
             return memory->resize(n);
