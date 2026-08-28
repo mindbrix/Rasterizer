@@ -82,7 +82,7 @@ struct Rasterizer {
             size = n, end = end < n ? end : n;
             addr = (T *)realloc(addr, n * sizeof(T));
             if (isRef && size > oldSize)
-                bzero(addr + oldSize, (size - oldSize) * sizeof(T));
+                bzero((void *)(addr + oldSize), (size - oldSize) * sizeof(T));
             return addr;
         }
         size_t refCount, size = 0, end = 0;  T *addr = nullptr;
@@ -265,7 +265,7 @@ struct Rasterizer {
     
     struct Geometry {
         enum Type { kMove, kLine, kQuadratic, kCubic, kClose, kCountSize };
-        size_t TypeSizes[kCountSize] = { 1, 1, 2, 3, 1 };
+        const size_t TypeSizes[kCountSize] = { 1, 1, 2, 3, 1 };
         
         void prealloc(size_t count) {
             points.prealloc(2 * count), types.prealloc(count);
