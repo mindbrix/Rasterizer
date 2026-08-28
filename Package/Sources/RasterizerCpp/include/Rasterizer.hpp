@@ -847,9 +847,10 @@ struct Rasterizer {
                         else
                             colors[iz] = draw.paint.color.premultiplied();
                         
-                        ctms[iz] = m, widths[iz] = width, clips[iz] = invclip;
+                        clips[iz] = invclip;
                         Geometry *g = draw.path.ptr;
                         if (width) {
+                            widths[iz] = width;
                             Blend *inst = new (blends.alloc(1)) Blend(iz | colorFlags | Instance::kOutlines | bool(flags & Scene::kRoundCap) * Instance::kRoundCap | bool(flags & Scene::kSquareCap) * Instance::kSquareCap | bool(flags & Scene::kRoundJoin) * Instance::kRoundJoin);
                             
                             Bounds outlineClip = unclipped ? Bounds::huge() : clip.inset(-width, -width);
@@ -868,7 +869,7 @@ struct Rasterizer {
                             i1 = uint32_t(outlines.idx);
                             inst->data.idx = i0, inst->data.count = i1 - i0;
                         } else if (clipWidth * clipHeight / g->types.end < kMoleculesPixelsPerEdge) {
-                            bounds[iz] = *bnds;
+                            ctms[iz] = m, bounds[iz] = *bnds;
                             bool fast = !buffer->params.useCurves || g->maxCurve * det < 16.f;
                             Blend *inst = new (blends.alloc(1)) Blend(iz | colorFlags | Instance::kMolecule | bool(flags & Scene::kFillEvenOdd) * Instance::kEvenOdd | fast * Instance::kFastEdges);
                             inst->g = g, inst->quad.cover = 0;
