@@ -39,10 +39,7 @@ struct RasterizerWinding {
                     float ux = inv.a * px + inv.c * py + inv.tx, uy = inv.b * px + inv.d * py + inv.ty;
                     bool inBounds = fmaxf(fabsf(ux - 0.5f), fabsf(uy - 0.5f)) <= 0.5f;
                     if (inBounds) {
-                        int winding = pointWinding(draw.path.ptr, draw.path->bounds, draw.ctm.concat(ctm), px, py, draw.width, draw.flags);
-                        bool evenOdd = draw.flags & Ra::Scene::kFillEvenOdd;
-                        int mask = evenOdd ? 1 : ~0;
-                        bool inside = winding & mask;
+                        bool inside = pointInside(draw.path.ptr, draw.path->bounds, draw.ctm.concat(ctm), px, py, draw.width, draw.flags, draw.flags & Ra::Scene::kFillEvenOdd);
                         if (inside)
                             return IndexPair(il, is);
                     }
@@ -51,7 +48,7 @@ struct RasterizerWinding {
         return IndexPair();
     }
     
-    static int pointWinding(Ra::Geometry *g, Ra::Bounds bounds, Ra::Transform m, float px, float py, float w, uint8_t flags) {
+    static bool pointInside(Ra::Geometry *g, Ra::Bounds bounds, Ra::Transform m, float px, float py, float w, uint8_t flags, bool evenOdd) {
         float ws = m.scale(), uw = w < 0.f ? -w / ws : w;
         Counter cntr;  cntr.dx = px, cntr.dy = py, cntr.dw = w * (w < 0.f ? -1.f : ws), cntr.flags = flags;
         cntr.quadraticScale = cntr.cubicScale = 1.f;
@@ -64,7 +61,8 @@ struct RasterizerWinding {
             bool polygon = w == 0.f;
             Ra::applyPath(g, m, clip, false, polygon, cntr);
         }
-        return cntr.winding;
+        int mask = evenOdd ? 1 : ~0;
+        return cntr.winding & mask;
     }
     
     struct Counter: Ra::GeometryWriter {
