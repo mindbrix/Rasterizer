@@ -31,14 +31,17 @@ struct RasterizerWinding {
         if (px >= bounds.lx && px < bounds.ux && py >= bounds.ly && py < bounds.uy)
             for (int il = int(list.scenes.size()) - 1; il >= 0; il--) {
                 Ra::Scene& scene = *list.scenes[il].ptr;
-                Ra::Transform ctm = list.ctms[il].concat(list.ctm);
-                Ra::Bounds sceneclip = list.clips[il];
+                Ra::Transform ctm = list.ctms[il].concat(list.ctm), inv;
+                Ra::Bounds sceneclip = list.clips[il], lastClip;
                 for (int is = int(scene.count()) - 1; is >= 0; is--) {
                     Ra::Draw& draw = scene.draws[is];
-                    Ra::Transform inv = sceneclip.intersect(draw.clip).quad(ctm).invert();
+                    if (memcmp(& draw.clip, & lastClip, sizeof(Ra::Bounds)) != 0) {
+                        lastClip = draw.clip;
+                        inv = sceneclip.intersect(draw.clip).quad(ctm).invert();
+                    }
                     float ux = inv.a * px + inv.c * py + inv.tx, uy = inv.b * px + inv.d * py + inv.ty;
-                    bool inBounds = fmaxf(fabsf(ux - 0.5f), fabsf(uy - 0.5f)) <= 0.5f;
-                    if (inBounds) {
+                    bool inClipRect = !list.params.useClips || fmaxf(fabsf(ux - 0.5f), fabsf(uy - 0.5f)) <= 0.5f;
+                    if (inClipRect) {
                         bool inside = pointInside(draw.path.ptr, draw.path->bounds, draw.ctm.concat(ctm), px, py, draw.width, draw.flags, draw.flags & Ra::Scene::kFillEvenOdd);
                         if (inside)
                             return IndexPair(il, is);
@@ -50,17 +53,17 @@ struct RasterizerWinding {
     
     static bool pointInside(Ra::Geometry *g, Ra::Bounds bounds, Ra::Transform m, float px, float py, float w, uint8_t flags, bool evenOdd) {
         float ws = m.scale(), uw = w < 0.f ? -w / ws : w;
-        Counter cntr;  cntr.dx = px, cntr.dy = py, cntr.dw = w * (w < 0.f ? -1.f : ws), cntr.flags = flags;
-        cntr.quadraticScale = cntr.cubicScale = 1.f;
         Ra::Transform unit = bounds.inset(-uw, -uw).quad(m), inv = unit.invert();
-        Ra::Bounds clip = Ra::Bounds(unit);
-        bool visible = clip.lx < clip.ux && clip.ly < clip.uy;
         float ux = inv.a * px + inv.c * py + inv.tx, uy = inv.b * px + inv.d * py + inv.ty;
         bool inBounds = fmaxf(fabsf(ux - 0.5f), fabsf(uy - 0.5f)) <= 0.5f;
-        if (visible && inBounds) {
-            bool polygon = w == 0.f;
-            Ra::applyPath(g, m, clip, false, polygon, cntr);
-        }
+        if (!inBounds)
+            return false;
+        
+        Counter cntr;  cntr.dx = px, cntr.dy = py, cntr.dw = w * (w < 0.f ? -1.f : ws), cntr.flags = flags;
+        cntr.quadraticScale = cntr.cubicScale = 1.f;
+        Ra::Bounds clip = Ra::Bounds(unit);
+        bool polygon = w == 0.f;
+        Ra::applyPath(g, m, clip, false, polygon, cntr);
         int mask = evenOdd ? 1 : ~0;
         return cntr.winding & mask;
     }
