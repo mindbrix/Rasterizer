@@ -1040,111 +1040,202 @@ struct Rasterizer {
         }
         virtual void EndSubpath(float x0, float y0, float x1, float y1, bool closed) {}
         
-        Transform m;
+        void applyGeometry(Geometry *g) {
+            bool closed, closeSubpath = false;  float *p = g->points.base, sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3;
+            for (uint8_t *type = g->types.base, *end = type + g->types.end; type < end; )
+                switch (*type) {
+                    case Geometry::kMove:
+                        if ((closed = (polygon || closeSubpath) && (sx != x0 || sy != y0)))
+                            line(x0, y0, sx, sy);
+                        if (sx != FLT_MAX)
+                            EndSubpath(x0, y0, sx, sy, closeSubpath || closed);
+                        sx = x0 = p[0] * m.a + p[1] * m.c + m.tx, sy = y0 = p[0] * m.b + p[1] * m.d + m.ty, p += 2, type++, closeSubpath = false;
+                        break;
+                    case Geometry::kLine:
+                        x1 = p[0] * m.a + p[1] * m.c + m.tx, y1 = p[0] * m.b + p[1] * m.d + m.ty;
+                        line(x0, y0, x1, y1);
+                        x0 = x1, y0 = y1, p += 2, type++;
+                        break;
+                    case Geometry::kQuadratic:
+                        x1 = p[0] * m.a + p[1] * m.c + m.tx, y1 = p[0] * m.b + p[1] * m.d + m.ty;
+                        x2 = p[2] * m.a + p[3] * m.c + m.tx, y2 = p[2] * m.b + p[3] * m.d + m.ty;
+                        if (unclipped)
+                            Quadratic(x0, y0, x1, y1, x2, y2);
+                        else {
+                            ly = fminf(y0, fminf(y1, y2)), uy = fmaxf(y0, fmaxf(y1, y2));
+                            if (ly < clip.uy && uy > clip.ly) {
+                                lx = fminf(x0, fminf(x1, x2)), ux = fmaxf(x0, fmaxf(x1, x2));
+                                if (polygon || !(ux < clip.lx || lx > clip.ux)) {
+                                    if (ly < clip.ly || uy > clip.uy || lx < clip.lx || ux > clip.ux)
+                                        clipQuadratic(x0, y0, x1, y1, x2, y2);
+                                    else
+                                        Quadratic(x0, y0, x1, y1, x2, y2);
+                                }
+                            }
+                        }
+                        x0 = x2, y0 = y2, p += 4, type += 2;
+                        break;
+                    case Geometry::kCubic:
+                        x1 = p[0] * m.a + p[1] * m.c + m.tx, y1 = p[0] * m.b + p[1] * m.d + m.ty;
+                        x2 = p[2] * m.a + p[3] * m.c + m.tx, y2 = p[2] * m.b + p[3] * m.d + m.ty;
+                        x3 = p[4] * m.a + p[5] * m.c + m.tx, y3 = p[4] * m.b + p[5] * m.d + m.ty;
+                        if (unclipped)
+                            Cubic(x0, y0, x1, y1, x2, y2, x3, y3);
+                        else {
+                            ly = fminf(fminf(y0, y1), fminf(y2, y3)), uy = fmaxf(fmaxf(y0, y1), fmaxf(y2, y3));
+                            if (ly < clip.uy && uy > clip.ly) {
+                                lx = fminf(fminf(x0, x1), fminf(x2, x3)), ux = fmaxf(fmaxf(x0, x1), fmaxf(x2, x3));
+                                if (polygon || !(ux < clip.lx || lx > clip.ux)) {
+                                    if (ly < clip.ly || uy > clip.uy || lx < clip.lx || ux > clip.ux)
+                                        clipCubic(x0, y0, x1, y1, x2, y2, x3, y3);
+                                    else
+                                        Cubic(x0, y0, x1, y1, x2, y2, x3, y3);
+                                }
+                            }
+                        }
+                        x0 = x3, y0 = y3, p += 6, type += 3;
+                        break;
+                    case Geometry::kClose:
+                        p += 2, type++, closeSubpath = true;
+                        break;
+                }
+            if ((closed = (polygon || closeSubpath) && (sx != x0 || sy != y0)))
+                line(x0, y0, sx, sy);
+            EndSubpath(x0, y0, sx, sy, closeSubpath || closed);
+        }
+        
+        void line(float x0, float y0, float x1, float y1) {
+            if (unclipped)
+                writeSegment(x0, y0, x1, y1);
+            else {
+                ly = fminf(y0, y1), uy = fmaxf(y0, y1);
+                if (ly < clip.uy && uy > clip.ly) {
+                    lx = fminf(x0, x1), ux = fmaxf(x0, x1);
+                    if (ly < clip.ly || uy > clip.uy || lx < clip.lx || ux > clip.ux)
+                        clipLine(x0, y0, x1, y1);
+                    else
+                        writeSegment(x0, y0, x1, y1);
+                }
+            }
+        }
+        void clipLine(float x0, float y0, float x1, float y1) {
+            float roots[6], *root = roots, *r, s, t, sx0, sy0, sx1, sy1, mx, my, vx;
+            *root++ = 0.f;
+            if (clip.ly > ly && clip.ly < uy)
+                *root++ = (clip.ly - y0) / (y1 - y0);
+            if (clip.uy > ly && clip.uy < uy)
+                *root++ = (clip.uy - y0) / (y1 - y0);
+            if (clip.lx > lx && clip.lx < ux)
+                *root++ = (clip.lx - x0) / (x1 - x0);
+            if (clip.ux > lx && clip.ux < ux)
+                *root++ = (clip.ux - x0) / (x1 - x0);
+            std::sort(roots + 1, root), *root = 1.f;
+            for (sx0 = x0, sy0 = y0, r = roots; r < root; r++, sx0 = sx1, sy0 = sy1) {
+                t = r[1], s = 1.f - t;
+                sx1 = s * x0 + t * x1, mx = 0.5f * (sx0 + sx1);
+                sy1 = s * y0 + t * y1, my = 0.5f * (sy0 + sy1);
+                if (my >= clip.ly && my < clip.uy) {
+                    if (mx >= clip.lx && mx < clip.ux)
+                        writeSegment(sx0, sy0, sx1, sy1);
+                    else if (polygon)
+                        vx = mx <= clip.lx ? clip.lx : clip.ux, writeSegment(vx, sy0, vx, sy1);
+                }
+            }
+        }
+        void clipQuadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
+            float ax, bx, ay, by, roots[10], *root = roots, *r, t, mt, mx, my, vx, sx0, sy0, sx2, sy2;
+            ax = x2 - x1, bx = x1 - x0, ax -= bx, bx *= 2.f, ay = y2 - y1, by = y1 - y0, ay -= by, by *= 2.f;
+            *root++ = 0.f;
+            if (clip.ly > ly && clip.ly < uy)
+                root = solveQuadratic(ay, by, y0 - clip.ly, root);
+            if (clip.uy > ly && clip.uy < uy)
+                root = solveQuadratic(ay, by, y0 - clip.uy, root);
+            if (clip.lx > lx && clip.lx < ux)
+                root = solveQuadratic(ax, bx, x0 - clip.lx, root);
+            if (clip.ux > lx && clip.ux < ux)
+                root = solveQuadratic(ax, bx, x0 - clip.ux, root);
+            if (root - roots == 1) {
+                if (fmaxf(y0, y2) > clip.ly && fminf(y0, y2) < clip.uy) {
+                    if (fmaxf(x0, x2) > clip.lx && fminf(x0, x2) < clip.ux)
+                        Quadratic(x0, y0, x1, y1, x2, y2);
+                    else if (polygon)
+                        vx = lx <= clip.lx ? clip.lx : clip.ux, writeSegment(vx, y0, vx, y2);
+                }
+            } else {
+                std::sort(roots + 1, root), *root = 1.f;
+                for (sx0 = x0, sy0 = y0, r = roots; r < root; r++, sx0 = sx2, sy0 = sy2) {
+                    t = r[1], mt = 0.5f * (r[0] + r[1]);
+                    sx2 = t == 1.f ? x2 : (ax * t + bx) * t + x0;
+                    sy2 = t == 1.f ? y2 : (ay * t + by) * t + y0;
+                    mx = (ax * mt + bx) * mt + x0;
+                    my = (ay * mt + by) * mt + y0;
+                    if (my >= clip.ly && my < clip.uy) {
+                        if (mx >= clip.lx && mx < clip.ux)
+                            Quadratic(sx0, sy0, 2.f * mx - 0.5f * (sx0 + sx2), 2.f * my - 0.5f * (sy0 + sy2), sx2, sy2);
+                        else if (polygon)
+                            vx = mx <= clip.lx ? clip.lx : clip.ux, writeSegment(vx, sy0, vx, sy2);
+                    }
+                }
+            }
+        }
+        void clipCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3) {
+            float cx, bx, ax, cy, by, ay, roots[14], *root = roots, *r, t, mt, mx, my, vx, x0t, y0t, x1t, y1t, x2t, y2t, x3t, y3t, fx, gx, fy, gy;
+            cx = 3.f * (x1 - x0), bx = 3.f * (x2 - x1), ax = x3 - x0 - bx, bx -= cx;
+            cy = 3.f * (y1 - y0), by = 3.f * (y2 - y1), ay = y3 - y0 - by, by -= cy;
+            *root++ = 0.f;
+            if (clip.ly > ly && clip.ly < uy)
+                root = solveCubic(by, cy, y0 - clip.ly, ay, root);
+            if (clip.uy > ly && clip.uy < uy)
+                root = solveCubic(by, cy, y0 - clip.uy, ay, root);
+            if (clip.lx > lx && clip.lx < ux)
+                root = solveCubic(bx, cx, x0 - clip.lx, ax, root);
+            if (clip.ux > lx && clip.ux < ux)
+                root = solveCubic(bx, cx, x0 - clip.ux, ax, root);
+            if (root - roots == 1) {
+                if (fmaxf(y0, y3) > clip.ly && fminf(y0, y3) < clip.uy) {
+                    if (fmaxf(x0, x3) > clip.lx && fminf(x0, x3) < clip.ux)
+                        Cubic(x0, y0, x1, y1, x2, y2, x3, y3);
+                    else if (polygon)
+                        vx = lx <= clip.lx ? clip.lx : clip.ux, writeSegment(vx, y0, vx, y3);
+                }
+            } else {
+                std::sort(roots + 1, root), *root = 1.f;
+                for (x0t = x0, y0t = y0, r = roots; r < root; r++, x0t = x3t, y0t = y3t) {
+                    t = r[1], mt = 0.5f * (r[0] + r[1]);
+                    x3t = t == 1.f ? x3 : ((ax * t + bx) * t + cx) * t + x0;
+                    y3t = t == 1.f ? y3 : ((ay * t + by) * t + cy) * t + y0;
+                    mx = ((ax * mt + bx) * mt + cx) * mt + x0;
+                    my = ((ay * mt + by) * mt + cy) * mt + y0;
+                    if (my >= clip.ly && my < clip.uy) {
+                        if (mx >= clip.lx && mx < clip.ux) {
+                            const float u = 1.f / 3.f, v = 2.f / 3.f, u3 = 1.f / 27.f, v3 = 8.f / 27.f;
+                            mt = v * r[0] + u * r[1], x1t = ((ax * mt + bx) * mt + cx) * mt + x0, y1t = ((ay * mt + by) * mt + cy) * mt + y0;
+                            mt = u * r[0] + v * r[1], x2t = ((ax * mt + bx) * mt + cx) * mt + x0, y2t = ((ay * mt + by) * mt + cy) * mt + y0;
+                            fx = x1t - v3 * x0t - u3 * x3t, gx = x2t - u3 * x0t - v3 * x3t;
+                            fy = y1t - v3 * y0t - u3 * y3t, gy = y2t - u3 * y0t - v3 * y3t;
+                            Cubic(
+                                x0t, y0t,
+                                3.f * fx - 1.5f * gx, 3.f * fy - 1.5f * gy,
+                                3.f * gx - 1.5f * fx, 3.f * gy - 1.5f * fy,
+                                x3t, y3t
+                            );
+                        } else if (polygon)
+                            vx = mx <= clip.lx ? clip.lx : clip.ux, writeSegment(vx, y0t, vx, y3t);
+                    }
+                }
+            }
+        }
+        
+        Transform m;  Bounds clip;  bool unclipped;  bool polygon;
+        float lx, ly, ux, uy;
         float quadraticScale = 1.f, cubicScale = kCubicPrecision;
     };
     
     static void applyPath(Geometry *g, Transform m, Bounds clip, bool unclipped, bool polygon, GeometryWriter& writer) {
-        bool closed, closeSubpath = false;  float *p = g->points.base, sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3, ly, uy, lx, ux;
-        for (uint8_t *type = g->types.base, *end = type + g->types.end; type < end; )
-            switch (*type) {
-                case Geometry::kMove:
-                    if ((closed = (polygon || closeSubpath) && (sx != x0 || sy != y0)))
-                        line(x0, y0, sx, sy, clip, unclipped, polygon, writer);
-                    if (sx != FLT_MAX)
-                        writer.EndSubpath(x0, y0, sx, sy, closeSubpath || closed);
-                    sx = x0 = p[0] * m.a + p[1] * m.c + m.tx, sy = y0 = p[0] * m.b + p[1] * m.d + m.ty, p += 2, type++, closeSubpath = false;
-                    break;
-                case Geometry::kLine:
-                    x1 = p[0] * m.a + p[1] * m.c + m.tx, y1 = p[0] * m.b + p[1] * m.d + m.ty;
-                    line(x0, y0, x1, y1, clip, unclipped, polygon, writer);
-                    x0 = x1, y0 = y1, p += 2, type++;
-                    break;
-                case Geometry::kQuadratic:
-                    x1 = p[0] * m.a + p[1] * m.c + m.tx, y1 = p[0] * m.b + p[1] * m.d + m.ty;
-                    x2 = p[2] * m.a + p[3] * m.c + m.tx, y2 = p[2] * m.b + p[3] * m.d + m.ty;
-                    if (unclipped)
-                        writer.Quadratic(x0, y0, x1, y1, x2, y2);
-                    else {
-                        ly = fminf(y0, fminf(y1, y2)), uy = fmaxf(y0, fmaxf(y1, y2));
-                        if (ly < clip.uy && uy > clip.ly) {
-                            lx = fminf(x0, fminf(x1, x2)), ux = fmaxf(x0, fmaxf(x1, x2));
-                            if (polygon || !(ux < clip.lx || lx > clip.ux)) {
-                                if (ly < clip.ly || uy > clip.uy || lx < clip.lx || ux > clip.ux)
-                                    clipQuadratic(x0, y0, x1, y1, x2, y2, clip, lx, ly, ux, uy, polygon, writer);
-                                else
-                                    writer.Quadratic(x0, y0, x1, y1, x2, y2);
-                            }
-                        }
-                    }
-                    x0 = x2, y0 = y2, p += 4, type += 2;
-                    break;
-                case Geometry::kCubic:
-                    x1 = p[0] * m.a + p[1] * m.c + m.tx, y1 = p[0] * m.b + p[1] * m.d + m.ty;
-                    x2 = p[2] * m.a + p[3] * m.c + m.tx, y2 = p[2] * m.b + p[3] * m.d + m.ty;
-                    x3 = p[4] * m.a + p[5] * m.c + m.tx, y3 = p[4] * m.b + p[5] * m.d + m.ty;
-                    if (unclipped)
-                        writer.Cubic(x0, y0, x1, y1, x2, y2, x3, y3);
-                    else {
-                        ly = fminf(fminf(y0, y1), fminf(y2, y3)), uy = fmaxf(fmaxf(y0, y1), fmaxf(y2, y3));
-                        if (ly < clip.uy && uy > clip.ly) {
-                            lx = fminf(fminf(x0, x1), fminf(x2, x3)), ux = fmaxf(fmaxf(x0, x1), fmaxf(x2, x3));
-                            if (polygon || !(ux < clip.lx || lx > clip.ux)) {
-                                if (ly < clip.ly || uy > clip.uy || lx < clip.lx || ux > clip.ux)
-                                    clipCubic(x0, y0, x1, y1, x2, y2, x3, y3, clip, lx, ly, ux, uy, polygon, writer);
-                                else
-                                    writer.Cubic(x0, y0, x1, y1, x2, y2, x3, y3);
-                            }
-                        }
-                    }
-                    x0 = x3, y0 = y3, p += 6, type += 3;
-                    break;
-                case Geometry::kClose:
-                    p += 2, type++, closeSubpath = true;
-                    break;
-            }
-        if ((closed = (polygon || closeSubpath) && (sx != x0 || sy != y0)))
-            line(x0, y0, sx, sy, clip, unclipped, polygon, writer);
-        writer.EndSubpath(x0, y0, sx, sy, closeSubpath || closed);
+        writer.m = m, writer.clip = clip, writer.unclipped = unclipped, writer.polygon = polygon;
+        writer.applyGeometry(g);
     }
-    static inline void line(float x0, float y0, float x1, float y1, Bounds clip, bool unclipped, bool polygon, GeometryWriter& writer) {
-        if (unclipped)
-            writer.writeSegment(x0, y0, x1, y1);
-        else {
-            float ly = fminf(y0, y1), uy = fmaxf(y0, y1);
-            if (ly < clip.uy && uy > clip.ly) {
-                if (ly < clip.ly || uy > clip.uy || fminf(x0, x1) < clip.lx || fmaxf(x0, x1) > clip.ux)
-                    clipLine(x0, y0, x1, y1, clip, polygon, writer);
-                else
-                    writer.writeSegment(x0, y0, x1, y1);
-            }
-        }
-    }
-    static void clipLine(float x0, float y0, float x1, float y1, Bounds clip, bool polygon, GeometryWriter& writer) {
-        float lx, ux, ly, uy, roots[6], *root = roots, *r, s, t, sx0, sy0, sx1, sy1, mx, my, vx;
-        lx = fminf(x0, x1), ux = fmaxf(x0, x1), ly = fminf(y0, y1), uy = fmaxf(y0, y1);
-        *root++ = 0.f;
-        if (clip.ly > ly && clip.ly < uy)
-            *root++ = (clip.ly - y0) / (y1 - y0);
-        if (clip.uy > ly && clip.uy < uy)
-            *root++ = (clip.uy - y0) / (y1 - y0);
-        if (clip.lx > lx && clip.lx < ux)
-            *root++ = (clip.lx - x0) / (x1 - x0);
-        if (clip.ux > lx && clip.ux < ux)
-            *root++ = (clip.ux - x0) / (x1 - x0);
-        std::sort(roots + 1, root), *root = 1.f;
-        for (sx0 = x0, sy0 = y0, r = roots; r < root; r++, sx0 = sx1, sy0 = sy1) {
-            t = r[1], s = 1.f - t;
-            sx1 = s * x0 + t * x1, mx = 0.5f * (sx0 + sx1);
-            sy1 = s * y0 + t * y1, my = 0.5f * (sy0 + sy1);
-            if (my >= clip.ly && my < clip.uy) {
-                if (mx >= clip.lx && mx < clip.ux)
-                    writer.writeSegment(sx0, sy0, sx1, sy1);
-                else if (polygon)
-                    vx = mx <= clip.lx ? clip.lx : clip.ux, writer.writeSegment(vx, sy0, vx, sy1);
-            }
-        }
-    }
+    
     static float *solveQuadratic(double A, double B, double C, float *roots) {
         if (fabs(A) < 1e-3) {
             float t = -C / B;  if (t > 0.f && t < 1.f)  *roots++ = t;
@@ -1157,42 +1248,7 @@ struct Rasterizer {
         }
         return roots;
     }
-    static void clipQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, Bounds clip, float lx, float ly, float ux, float uy, bool polygon, GeometryWriter& writer) {
-        float ax, bx, ay, by, roots[10], *root = roots, *r, t, mt, mx, my, vx, sx0, sy0, sx2, sy2;
-        ax = x2 - x1, bx = x1 - x0, ax -= bx, bx *= 2.f, ay = y2 - y1, by = y1 - y0, ay -= by, by *= 2.f;
-        *root++ = 0.f;
-        if (clip.ly > ly && clip.ly < uy)
-            root = solveQuadratic(ay, by, y0 - clip.ly, root);
-        if (clip.uy > ly && clip.uy < uy)
-            root = solveQuadratic(ay, by, y0 - clip.uy, root);
-        if (clip.lx > lx && clip.lx < ux)
-            root = solveQuadratic(ax, bx, x0 - clip.lx, root);
-        if (clip.ux > lx && clip.ux < ux)
-            root = solveQuadratic(ax, bx, x0 - clip.ux, root);
-        if (root - roots == 1) {
-            if (fmaxf(y0, y2) > clip.ly && fminf(y0, y2) < clip.uy) {
-                if (fmaxf(x0, x2) > clip.lx && fminf(x0, x2) < clip.ux)
-                    writer.Quadratic(x0, y0, x1, y1, x2, y2);
-                else if (polygon)
-                    vx = lx <= clip.lx ? clip.lx : clip.ux, writer.writeSegment(vx, y0, vx, y2);
-            }
-        } else {
-            std::sort(roots + 1, root), *root = 1.f;
-            for (sx0 = x0, sy0 = y0, r = roots; r < root; r++, sx0 = sx2, sy0 = sy2) {
-                t = r[1], mt = 0.5f * (r[0] + r[1]);
-                sx2 = t == 1.f ? x2 : (ax * t + bx) * t + x0;
-                sy2 = t == 1.f ? y2 : (ay * t + by) * t + y0;
-                mx = (ax * mt + bx) * mt + x0;
-                my = (ay * mt + by) * mt + y0;
-                if (my >= clip.ly && my < clip.uy) {
-                    if (mx >= clip.lx && mx < clip.ux)
-                        writer.Quadratic(sx0, sy0, 2.f * mx - 0.5f * (sx0 + sx2), 2.f * my - 0.5f * (sy0 + sy2), sx2, sy2);
-                    else if (polygon)
-                        vx = mx <= clip.lx ? clip.lx : clip.ux, writer.writeSegment(vx, sy0, vx, sy2);
-                }
-            }
-        }
-    }
+   
     static float *solveCubic(double B, double C, double D, double A, float *roots) {
         if (fabs(A) < 1e-3)
             return solveQuadratic(B, C, D, roots);
@@ -1218,53 +1274,6 @@ struct Rasterizer {
             }
         }
         return roots;
-    }
-    static void clipCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Bounds clip, float lx, float ly, float ux, float uy, bool polygon, GeometryWriter& writer) {
-        float cx, bx, ax, cy, by, ay, roots[14], *root = roots, *r, t, mt, mx, my, vx, x0t, y0t, x1t, y1t, x2t, y2t, x3t, y3t, fx, gx, fy, gy;
-        cx = 3.f * (x1 - x0), bx = 3.f * (x2 - x1), ax = x3 - x0 - bx, bx -= cx;
-        cy = 3.f * (y1 - y0), by = 3.f * (y2 - y1), ay = y3 - y0 - by, by -= cy;
-        *root++ = 0.f;
-        if (clip.ly > ly && clip.ly < uy)
-            root = solveCubic(by, cy, y0 - clip.ly, ay, root);
-        if (clip.uy > ly && clip.uy < uy)
-            root = solveCubic(by, cy, y0 - clip.uy, ay, root);
-        if (clip.lx > lx && clip.lx < ux)
-            root = solveCubic(bx, cx, x0 - clip.lx, ax, root);
-        if (clip.ux > lx && clip.ux < ux)
-            root = solveCubic(bx, cx, x0 - clip.ux, ax, root);
-        if (root - roots == 1) {
-            if (fmaxf(y0, y3) > clip.ly && fminf(y0, y3) < clip.uy) {
-                if (fmaxf(x0, x3) > clip.lx && fminf(x0, x3) < clip.ux)
-                    writer.Cubic(x0, y0, x1, y1, x2, y2, x3, y3);
-                else if (polygon)
-                    vx = lx <= clip.lx ? clip.lx : clip.ux, writer.writeSegment(vx, y0, vx, y3);
-            }
-        } else {
-            std::sort(roots + 1, root), *root = 1.f;
-            for (x0t = x0, y0t = y0, r = roots; r < root; r++, x0t = x3t, y0t = y3t) {
-                t = r[1], mt = 0.5f * (r[0] + r[1]);
-                x3t = t == 1.f ? x3 : ((ax * t + bx) * t + cx) * t + x0;
-                y3t = t == 1.f ? y3 : ((ay * t + by) * t + cy) * t + y0;
-                mx = ((ax * mt + bx) * mt + cx) * mt + x0;
-                my = ((ay * mt + by) * mt + cy) * mt + y0;
-                if (my >= clip.ly && my < clip.uy) {
-                    if (mx >= clip.lx && mx < clip.ux) {
-                        const float u = 1.f / 3.f, v = 2.f / 3.f, u3 = 1.f / 27.f, v3 = 8.f / 27.f;
-                        mt = v * r[0] + u * r[1], x1t = ((ax * mt + bx) * mt + cx) * mt + x0, y1t = ((ay * mt + by) * mt + cy) * mt + y0;
-                        mt = u * r[0] + v * r[1], x2t = ((ax * mt + bx) * mt + cx) * mt + x0, y2t = ((ay * mt + by) * mt + cy) * mt + y0;
-                        fx = x1t - v3 * x0t - u3 * x3t, gx = x2t - u3 * x0t - v3 * x3t;
-                        fy = y1t - v3 * y0t - u3 * y3t, gy = y2t - u3 * y0t - v3 * y3t;
-                        writer.Cubic(
-                            x0t, y0t,
-                            3.f * fx - 1.5f * gx, 3.f * fy - 1.5f * gy,
-                            3.f * gx - 1.5f * fx, 3.f * gy - 1.5f * fy,
-                            x3t, y3t
-                        );
-                    } else if (polygon)
-                        vx = mx <= clip.lx ? clip.lx : clip.ux, writer.writeSegment(vx, y0t, vx, y3t);
-                }
-            }
-        }
     }
     
     struct CurveIndexer: GeometryWriter {
