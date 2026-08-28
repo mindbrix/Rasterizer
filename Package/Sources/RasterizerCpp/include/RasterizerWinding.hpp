@@ -53,15 +53,17 @@ struct RasterizerWinding {
     
     static bool pointInside(Ra::Geometry *g, Ra::Bounds bounds, Ra::Transform m, float px, float py, float w, uint8_t flags, bool evenOdd) {
         float ws = m.scale(), uw = w < 0.f ? -w / ws : w;
-        Ra::Transform unit = bounds.inset(-uw, -uw).quad(m), inv = unit.invert();
-        float ux = inv.a * px + inv.c * py + inv.tx, uy = inv.b * px + inv.d * py + inv.ty;
-        bool inBounds = fmaxf(fabsf(ux - 0.5f), fabsf(uy - 0.5f)) <= 0.5f;
+        Ra::Transform u = bounds.inset(-uw, -uw).quad(m);
+        float vx = px - u.tx, vy = py - u.ty;
+        float t0 = (vx * u.a + vy * u.b) / (u.a * u.a + u.b * u.b);
+        float t1 = (vx * u.c + vy * u.d) / (u.c * u.c + u.d * u.d);
+        bool inBounds = fmaxf(fabsf(t0 - 0.5f), fabsf(t1 - 0.5f)) <= 0.5f;
         if (!inBounds)
             return false;
         
         Counter cntr;  cntr.dx = px, cntr.dy = py, cntr.dw = w * (w < 0.f ? -1.f : ws), cntr.flags = flags;
         cntr.quadraticScale = cntr.cubicScale = 1.f;
-        Ra::Bounds clip = Ra::Bounds(unit);
+        Ra::Bounds clip = Ra::Bounds(u);
         bool polygon = w == 0.f;
         Ra::applyPath(g, m, clip, false, polygon, cntr);
         int mask = evenOdd ? 1 : ~0;
