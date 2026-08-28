@@ -42,7 +42,7 @@ struct RasterizerWinding {
                     float ux = inv.a * px + inv.c * py + inv.tx, uy = inv.b * px + inv.d * py + inv.ty;
                     bool inClipRect = !list.params.useClips || fmaxf(fabsf(ux - 0.5f), fabsf(uy - 0.5f)) <= 0.5f;
                     if (inClipRect) {
-                        bool inside = pointInside(draw.path.ptr, draw.path->bounds, draw.ctm.concat(ctm), px, py, draw.width, draw.flags, draw.flags & Ra::Scene::kFillEvenOdd);
+                        bool inside = pointInside(px, py, draw.path.ptr, draw.path->bounds, draw.ctm.concat(ctm), draw.width, draw.flags);
                         if (inside)
                             return IndexPair(il, is);
                     }
@@ -51,7 +51,7 @@ struct RasterizerWinding {
         return IndexPair();
     }
     
-    static bool pointInside(Ra::Geometry *g, Ra::Bounds bounds, Ra::Transform m, float px, float py, float w, uint8_t flags, bool evenOdd) {
+    static bool pointInside(float px, float py, Ra::Geometry *g, Ra::Bounds bounds, Ra::Transform m, float w, uint8_t flags) {
         float ws = m.scale(), uw = w < 0.f ? -w / ws : w;
         Ra::Transform u = bounds.inset(-uw, -uw).quad(m);
         float vx = px - u.tx, vy = py - u.ty;
@@ -66,7 +66,7 @@ struct RasterizerWinding {
         Ra::Bounds clip = Ra::Bounds(u);
         bool polygon = w == 0.f;
         Ra::applyPath(g, m, clip, false, polygon, cntr);
-        int mask = evenOdd ? 1 : ~0;
+        int mask = flags & Ra::Scene::kFillEvenOdd ? 1 : ~0;
         return cntr.winding & mask;
     }
     
