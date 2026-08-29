@@ -42,9 +42,12 @@ struct RasterizerWinding {
                     float ux = inv.a * px + inv.c * py + inv.tx, uy = inv.b * px + inv.d * py + inv.ty;
                     bool inClipRect = !list.params.useClips || fmaxf(fabsf(ux - 0.5f), fabsf(uy - 0.5f)) <= 0.5f;
                     if (inClipRect) {
-                        bool inside = pointInside(px, py, draw.path.ptr, draw.path->bounds, draw.ctm.concat(ctm), draw.width, draw.flags);
-                        if (inside)
-                            return IndexPair(il, is);
+                        bool insideClipPath = !list.params.useClips || draw.clipPath.ptr == nullptr || pointInside(px, py, draw.clipPath.ptr, draw.clipPath->bounds, ctm, 0, 0);
+                        if (insideClipPath) {
+                            bool inside = pointInside(px, py, draw.path.ptr, draw.path->bounds, draw.ctm.concat(ctm), draw.width, draw.flags);
+                            if (inside)
+                                return IndexPair(il, is);
+                        }
                     }
                 }
             }

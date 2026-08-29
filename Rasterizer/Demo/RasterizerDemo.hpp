@@ -197,11 +197,6 @@ struct RasterizerDemo {
     Ra::SceneList getDrawList(double time, float w, float h) {
         bounds = Ra::Bounds(0.f, 0.f, w, h);
         redraw = false;
-        if (mouseMove) {
-            list.ctm = ctm;
-            indices = RasterizerWinding::indicesForPoint(list, bounds, mx, my);
-        }
-        
         clock = time * timeScale;
         list = Ra::SceneList();
         if (pastedString.size) {
@@ -240,19 +235,18 @@ struct RasterizerDemo {
         Ra::SceneList draw = list;
         draw.ctm = ctm, draw.params = params;
         if (mouseMove) {
-            list.ctm = ctm;
-            indices = RasterizerWinding::indicesForPoint(list, bounds, mx, my);
+            indices = RasterizerWinding::indicesForPoint(draw, bounds, mx, my);
             if (indices.i0 != INT_MAX) {
                 size_t i0 = indices.i0, i1 = indices.i1;
                 const Ra::SceneRef& scene = list.scenes[i0];
                 
                 Ra::Draw& _draw = scene->draws[i1];
+                Ra::Color red(0, 0, 255, 64);
                 if (mouseDown) {
                     _draw.width = -8;
                     _draw.paint = Ra::Paint(0, 0, 255, 64);
                     scene->needPrepare = true;
                 } else {
-                    Ra::Color red(0, 0, 255, 64);
                     Ra::SceneRef mouseScene;
                     mouseScene->addPath(_draw.path, _draw.ctm, red, _draw.width, _draw.flags);
                     draw.addScene(mouseScene, list.ctms[i0], list.clips[i0]);

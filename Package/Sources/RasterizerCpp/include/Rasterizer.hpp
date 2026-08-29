@@ -1040,8 +1040,8 @@ struct Rasterizer {
         }
         virtual void EndSubpath(float x0, float y0, float x1, float y1, bool closed) {}
         
-        void applyPath(Geometry *g, Transform m, Bounds clip, bool unclipped, bool polygon) {
-            this->m = m, this->clip = clip, this->unclipped = unclipped, this->polygon = polygon;
+        void applyPath(Geometry *g, Transform m0, Bounds clip0, bool unclipped0, bool polygon0) {
+            this->m = m0, this->clip = clip0, this->unclipped = unclipped0, this->polygon = polygon0;
             
             bool closed, closeSubpath = false;  float *p = g->points.base, sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3;
             for (uint8_t *type = g->types.base, *end = type + g->types.end; type < end; )
