@@ -74,7 +74,7 @@ struct RasterizerWinding {
         float dx, dy, dw;  int winding = 0;  uint8_t flags = 0;
         
         void writeSegment(float x0, float y0, float x1, float y1) {
-            if (dw) {
+            if (dw && winding == 0) {
                 if (x0 != x1 || y0 != y1) {
                     float ax, ay, adot, len, bx, by, cx, cy, t, s, sx, sy, cap;
                     bool square = flags & Ra::Scene::kSquareCap;
