@@ -540,8 +540,9 @@ struct Rasterizer {
         void addDraws(const Draw *src, size_t count) {
             if (src == nullptr || count == 0)
                 return;
+            Draw *dst = draws.memory->alloc(count);
             for (size_t i = 0; i < count; i++)
-                draws.add(src[i]);
+                dst[i] = src[i];
             needPrepare = true;
         }
         void addScene(const Scene& scene) {
