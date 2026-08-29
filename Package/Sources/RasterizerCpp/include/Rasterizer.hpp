@@ -1617,6 +1617,20 @@ struct Rasterizer {
         Row<Opaque> *stencils;
     };
     
+    struct Bounder: GeometryWriter {
+        static Bounds GetBounds(Path& path, Transform ctm) {
+            Bounder bounder;
+            bounder.applyPath(path.ptr, ctm, Bounds(), true, false);
+            return bounder.bounds;
+        }
+        
+        void writeSegment(float x0, float y0, float x1, float y1) {
+            bounds.extend(x0, y0);
+            bounds.extend(x1, y1);
+        }
+        Bounds bounds;
+    };
+    
     static size_t resizeBuffer(const SceneList& list, Context *contexts, size_t count, size_t *begins, Buffer& buffer) {
         size_t size = buffer.headerSize, sz, i, j, instances;
         for (i = 0; i < count; i++)
