@@ -1625,10 +1625,32 @@ struct Rasterizer {
         }
         
         void writeSegment(float x0, float y0, float x1, float y1) {
-            bounds.extend(x0, y0);
-            bounds.extend(x1, y1);
+            bounds.extend(x0, y0), bounds.extend(x1, y1);
         }
         Bounds bounds;
+    };
+    
+    struct Huller: GeometryWriter {
+        static Path CreateHullPath(Path& path) {
+            Path hull;
+            Huller huller;
+            huller.g = hull.ptr;
+            huller.applyPath(path.ptr, Transform(), Bounds(), true, false);
+            return hull;
+        }
+        void writeSegment(float x0, float y0, float x1, float y1) {}
+        void Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
+            g->moveTo(x0, y0);
+            g->lineTo(x1, y1);
+            g->lineTo(x2, y2);
+        }
+        void Cubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3) {
+            g->moveTo(x0, y0);
+            g->lineTo(x1, y1);
+            g->lineTo(x2, y2);
+            g->lineTo(x3, y3);
+        }
+        Geometry *g;
     };
     
     static size_t resizeBuffer(const SceneList& list, Context *contexts, size_t count, size_t *begins, Buffer& buffer) {
