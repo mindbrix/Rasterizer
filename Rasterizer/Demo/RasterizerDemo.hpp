@@ -247,12 +247,19 @@ struct RasterizerDemo {
                     scene->needPrepare = true;
                 } else {
                     Ra::Draw mouseDraw = scene->draws[i1];
-                    mouseDraw.paint = Ra::Color(0, 0, 255, 255);
-                    mouseDraw.width = mouseDraw.width ?: -2.f;
+                    const float width = mouseDraw.width;
+                    float inset = width > 0.f ? -0.5f * width : 0.f;
+                    mouseDraw.paint = Ra::Color(0, 0, 224, 255);
+                    mouseDraw.width = width ?: -2.f;
                     Ra::SceneRef mouseScene;
                     mouseScene->addDraws(& mouseDraw, 1);
+                    if (width > 0.f) {
+                        mouseDraw.paint = Ra::Color(0, 0, 0, 255);
+                        mouseDraw.width = -2.f;
+                        mouseScene->addDraws(& mouseDraw, 1);
+                    }
                     Ra::Path boundsPath;
-                    boundsPath->addBounds(mouseDraw.path->bounds);
+                    boundsPath->addBounds(mouseDraw.path->bounds.inset(inset, inset));
                     mouseScene->addPath(boundsPath, mouseDraw.ctm, Ra::Color(0, 0, 0, 255), -2.f, 0);
                     if (!mouseDraw.clip.isHuge()) {
                         Ra::Path clipPath;
