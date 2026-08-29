@@ -248,7 +248,7 @@ struct RasterizerDemo {
                     scene->needPrepare = true;
                 } else {
                     Ra::SceneRef mouseScene;
-                    mouseScene->addPath(_draw.path, _draw.ctm, red, _draw.width, _draw.flags);
+                    mouseScene->addPath(_draw.path, _draw.ctm, red, _draw.width, _draw.flags, & _draw.clip, & _draw.clipPath);
                     draw.addScene(mouseScene, list.ctms[i0], list.clips[i0]);
                 }
             }
