@@ -869,7 +869,7 @@ struct Rasterizer {
                             outliner.applyPath(g, m, outlineClip, unclipped, false);
                             i1 = uint32_t(outlines.idx);
                             inst->data.idx = i0, inst->data.count = i1 - i0;
-                        } else if (clipWidth * clipHeight / g->types.end < kMoleculesPixelsPerEdge) {
+                        } else if (kMoleculesHeight && clipWidth * clipHeight / g->types.end < kMoleculesPixelsPerEdge) {
                             ctms[iz] = m, bounds[iz] = *bnds;
                             bool fast = !buffer->params.useCurves || g->maxCurve * det < 16.f;
                             Blend *inst = new (blends.alloc(1)) Blend(iz | colorFlags | Instance::kMolecule | bool(flags & Scene::kFillEvenOdd) * Instance::kEvenOdd | fast * Instance::kFastEdges);
