@@ -1627,6 +1627,17 @@ struct Rasterizer {
         void writeSegment(float x0, float y0, float x1, float y1) {
             bounds.extend(x0, y0), bounds.extend(x1, y1);
         }
+        void Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
+            bounds.extend(x0, y0), bounds.extend(x2, y2);
+            
+            float ax = x2 - x1, bx = x1 - x0, ay = y2 - y1, by = y1 - y0;
+            if (ax * bx >= 0.f && ay * by >= 0.f)
+                return;;
+            float t0 = fmaxf(0.f, fminf(1.f, bx / (bx - ax))), t1 = fmaxf(0.f, fminf(1.f, by / (by - ay)));
+            ax -= bx, bx *= 2.f, ay -= by, by *= 2.f;
+            bounds.extend((ax * t0 + bx) * t0 + x0, (ay * t0 + by) * t0 + y0);
+            bounds.extend((ax * t1 + bx) * t1 + x0, (ay * t1 + by) * t1 + y0);
+        }
         Bounds bounds;
     };
     
@@ -1640,15 +1651,10 @@ struct Rasterizer {
         }
         void writeSegment(float x0, float y0, float x1, float y1) {}
         void Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
-            g->moveTo(x0, y0);
-            g->lineTo(x1, y1);
-            g->lineTo(x2, y2);
+            g->moveTo(x0, y0), g->lineTo(x1, y1), g->lineTo(x2, y2);
         }
         void Cubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3) {
-            g->moveTo(x0, y0);
-            g->lineTo(x1, y1);
-            g->lineTo(x2, y2);
-            g->lineTo(x3, y3);
+            g->moveTo(x0, y0), g->lineTo(x1, y1), g->lineTo(x2, y2), g->lineTo(x3, y3);
         }
         Geometry *g;
     };
