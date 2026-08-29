@@ -808,7 +808,7 @@ struct Rasterizer {
                                     size_t i0, i1;
                                     i0 = stencils.end;
                                     Stenciler stenciler(clipPath, device, ctm, & stencils);
-                                    applyPath(clipPath, ctm, device, true, true, stenciler);
+                                    stenciler.applyPath(clipPath, ctm, device, true, true);
                                     i1 = stencils.end;
                                     inst->data.idx = int(i0), inst->data.count = int(i1 - i0);
                                 } else
@@ -865,7 +865,7 @@ struct Rasterizer {
                                 }
                                 outliner.opaques = softunclipped ? & opaques : nullptr;
                             }
-                            applyPath(g, m, outlineClip, unclipped, false, outliner);
+                            outliner.applyPath(g, m, outlineClip, unclipped, false);
                             i1 = uint32_t(outlines.idx);
                             inst->data.idx = i0, inst->data.count = i1 - i0;
                         } else if (clipWidth * clipHeight / g->types.end < kMoleculesPixelsPerEdge) {
@@ -883,7 +883,7 @@ struct Rasterizer {
                             CurveIndexer idxr;
                             idxr.clip = clip, idxr.samples = & samples[0], idxr.fast = fast;
                             idxr.dst = idxr.dst0 = segments.alloc(2 * g->upperBound(det));
-                            applyPath(g, m, clip, unclipped, true, idxr);
+                            idxr.applyPath(g, m, clip, unclipped, true);
                             bool softunclipped = true;
                             if (clipActive) {
                                 Bounds soft = quad.concat(invclip);
@@ -1040,7 +1040,9 @@ struct Rasterizer {
         }
         virtual void EndSubpath(float x0, float y0, float x1, float y1, bool closed) {}
         
-        void applyGeometry(Geometry *g) {
+        void applyPath(Geometry *g, Transform m, Bounds clip, bool unclipped, bool polygon) {
+            this->m = m, this->clip = clip, this->unclipped = unclipped, this->polygon = polygon;
+            
             bool closed, closeSubpath = false;  float *p = g->points.base, sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3;
             for (uint8_t *type = g->types.base, *end = type + g->types.end; type < end; )
                 switch (*type) {
@@ -1231,11 +1233,6 @@ struct Rasterizer {
         float quadraticScale = 1.f, cubicScale = kCubicPrecision;
     };
     
-    static void applyPath(Geometry *g, Transform m, Bounds clip, bool unclipped, bool polygon, GeometryWriter& writer) {
-        writer.m = m, writer.clip = clip, writer.unclipped = unclipped, writer.polygon = polygon;
-        writer.applyGeometry(g);
-    }
-    
     static float *solveQuadratic(double A, double B, double C, float *roots) {
         if (fabs(A) < 1e-3) {
             float t = -C / B;  if (t > 0.f && t < 1.f)  *roots++ = t;
@@ -1364,7 +1361,7 @@ struct Rasterizer {
             for (size_t i = 0; i < count; i++)
                 length += pattern[i];
             Dasher dasher(fmod(phase, length), pattern, count);
-            applyPath(path.ptr, Transform(), Bounds(), true, false, dasher);
+            dasher.applyPath(path.ptr, Transform(), Bounds(), true, false);
             return dasher.dashed;
         }
         
@@ -1470,7 +1467,7 @@ struct Rasterizer {
             p16s = & g->p16s, p16cnts = & g->p16cnts, atoms = & g->atoms;
             size_t count = g->points.end / 2;
             p16s->prealloc(count), p16cnts->prealloc(count / kFastSegments), atoms->prealloc(count);
-            applyPath(g, m, Bounds(), true, true, *this);
+            applyPath(g, m, Bounds(), true, true);
             
             Bounds *b = g->molecules.base;
             Point16 *bnd16 = p16s->alloc(g->molecules.end * 2);

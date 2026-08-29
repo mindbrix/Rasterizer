@@ -65,7 +65,7 @@ struct RasterizerWinding {
         cntr.quadraticScale = cntr.cubicScale = 1.f;
         Ra::Bounds clip = Ra::Bounds(u);
         bool polygon = w == 0.f;
-        Ra::applyPath(g, m, clip, false, polygon, cntr);
+        cntr.applyPath(g, m, clip, false, polygon);
         int mask = flags & Ra::Scene::kFillEvenOdd ? 1 : ~0;
         return cntr.winding & mask;
     }
