@@ -42,9 +42,9 @@ struct RasterizerWinding {
                     float ux = inv.a * px + inv.c * py + inv.tx, uy = inv.b * px + inv.d * py + inv.ty;
                     bool inClipRect = !list.params.useClips || fmaxf(fabsf(ux - 0.5f), fabsf(uy - 0.5f)) <= 0.5f;
                     if (inClipRect) {
-                        bool insideClipPath = !list.params.useClips || draw.clipPath.ptr == nullptr || pointInside(px, py, draw.clipPath.ptr, draw.clipPath->bounds, ctm, 0, 0);
+                        bool insideClipPath = !list.params.useClips || draw.clipPath.ptr == nullptr || pointInside(px, py, draw.clipPath.ptr, ctm, 0, 0);
                         if (insideClipPath) {
-                            bool inside = pointInside(px, py, draw.path.ptr, draw.path->bounds, draw.ctm.concat(ctm), draw.width, draw.flags);
+                            bool inside = pointInside(px, py, draw.path.ptr, draw.ctm.concat(ctm), draw.width, draw.flags);
                             if (inside)
                                 return IndexPair(il, is);
                         }
@@ -54,9 +54,9 @@ struct RasterizerWinding {
         return IndexPair();
     }
     
-    static bool pointInside(float px, float py, Ra::Geometry *g, Ra::Bounds bounds, Ra::Transform m, float w, uint8_t flags) {
+    static bool pointInside(float px, float py, Ra::Geometry *g, Ra::Transform m, float w, uint8_t flags) {
         float ws = m.scale(), uw = w < 0.f ? -w / ws : w;
-        Ra::Transform u = bounds.inset(-uw, -uw).quad(m);
+        Ra::Transform u = g->bounds.inset(-uw, -uw).quad(m);
         float vx = px - u.tx, vy = py - u.ty;
         float t0 = (vx * u.a + vy * u.b) / (u.a * u.a + u.b * u.b);
         float t1 = (vx * u.c + vy * u.d) / (u.c * u.c + u.d * u.d);
