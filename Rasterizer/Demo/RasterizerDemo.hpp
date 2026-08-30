@@ -85,9 +85,9 @@ struct RasterizerDemo {
         else if (keyCode == KeyCode::kO)
             params.showOutlines = !params.showOutlines, keyUsed = true, clearHUD();
         else if (keyCode == KeyCode::kP)
-            mouseMove = !mouseMove, indices = mouseMove ? indices : RaWnd::IndexPair(), last = RaWnd::IndexPair(), keyUsed = true, clearHUD();
+            mouseMove = !mouseMove, last = RaWnd::IndexPair(), keyUsed = true, clearHUD();
         else if (keyCode == KeyCode::kL)
-            locked = locked.i0 != INT_MAX ? RaWnd::IndexPair() : indices, keyUsed = true;
+            locked = locked.i0 != INT_MAX ? RaWnd::IndexPair() : last, keyUsed = true;
         else if (keyCode == KeyCode::kS)
             list.ctm = ctm, RaCG::screenGrabToPDF(list, bounds), keyUsed = true;
         else if (keyCode == KeyCode::kT) {
@@ -235,16 +235,16 @@ struct RasterizerDemo {
         Ra::SceneList draw = list;  draw.ctm = ctm, draw.params = params;
         
         if (mouseMove) {
-            indices = RasterizerWinding::indicesForPoint(draw, bounds, mx, my);
+            RaWnd::IndexPair mouse = RasterizerWinding::indicesForPoint(draw, bounds, mx, my);
 
-            if (last.i0 != indices.i0 || last.i1 != indices.i1) {
-                last = indices;
+            if (last.i0 != mouse.i0 || last.i1 != mouse.i1) {
+                last = mouse;
                 
-                if (indices.i0 != INT_MAX)
-                    mouseScene = makeMouseScene(list.scenes[indices.i0]->draws[indices.i1]);
+                if (mouse.i0 != INT_MAX)
+                    mouseScene = makeMouseScene(list.scenes[mouse.i0]->draws[mouse.i1]);
             }
-            if (indices.i0 != INT_MAX)
-                draw.addScene(mouseScene, list.ctms[indices.i0], list.clips[indices.i0]);
+            if (mouse.i0 != INT_MAX)
+                draw.addScene(mouseScene, list.ctms[mouse.i0], list.clips[mouse.i0]);
         }
         if (showHud) {
             Ra::Bounds hudBounds = Ra::Bounds(0, 0, kHudWidth, kHudHeight);
@@ -347,6 +347,6 @@ struct RasterizerDemo {
     bool gpu = true, redraw = false, fit = false, mouseDown = false, mouseMove = false;
     double clock = 0.0, timeScale = 0.333;
     float mx, my;
-    RaWnd::IndexPair indices = RaWnd::IndexPair(), locked = RaWnd::IndexPair(), last = RaWnd::IndexPair();
+    RaWnd::IndexPair locked = RaWnd::IndexPair(), last = RaWnd::IndexPair();
     size_t flags = 0;
 };
