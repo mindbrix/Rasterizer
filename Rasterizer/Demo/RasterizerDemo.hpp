@@ -235,16 +235,20 @@ struct RasterizerDemo {
         Ra::SceneList draw = list;  draw.ctm = ctm, draw.params = params;
         
         if (mouseMove) {
-            RaWnd::IndexPair mouse = RasterizerWinding::indicesForPoint(draw, bounds, mx, my);
-
-            if (last.i0 != mouse.i0 || last.i1 != mouse.i1) {
-                last = mouse;
+            if (locked.i0 != INT_MAX)
+                draw.addScene(mouseScene, list.ctms[locked.i0], list.clips[locked.i0]);
+            else {
+                RaWnd::IndexPair mouse = RasterizerWinding::indicesForPoint(draw, bounds, mx, my);
                 
+                if (last.i0 != mouse.i0 || last.i1 != mouse.i1) {
+                    last = mouse;
+                    
+                    if (mouse.i0 != INT_MAX)
+                        mouseScene = makeMouseScene(list.scenes[mouse.i0]->draws[mouse.i1]);
+                }
                 if (mouse.i0 != INT_MAX)
-                    mouseScene = makeMouseScene(list.scenes[mouse.i0]->draws[mouse.i1]);
+                    draw.addScene(mouseScene, list.ctms[mouse.i0], list.clips[mouse.i0]);
             }
-            if (mouse.i0 != INT_MAX)
-                draw.addScene(mouseScene, list.ctms[mouse.i0], list.clips[mouse.i0]);
         }
         if (showHud) {
             Ra::Bounds hudBounds = Ra::Bounds(0, 0, kHudWidth, kHudHeight);
