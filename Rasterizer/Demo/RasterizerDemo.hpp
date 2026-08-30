@@ -85,7 +85,7 @@ struct RasterizerDemo {
         else if (keyCode == KeyCode::kO)
             params.showOutlines = !params.showOutlines, keyUsed = true, clearHUD();
         else if (keyCode == KeyCode::kP)
-            mouseMove = !mouseMove, last = RaWnd::IndexPair(), keyUsed = true, clearHUD();
+            mouseMove = !mouseMove, unlock(), keyUsed = true, clearHUD();
         else if (keyCode == KeyCode::kL) {
             if (locked.i0 == INT_MAX)
                 lock();
@@ -166,14 +166,16 @@ struct RasterizerDemo {
 #pragma mark - Properties
     
     void lock() {
-        locked = last;
+        restore(), locked = last;
         if (locked.i0 != INT_MAX)
             lockedDraw = list.scenes[locked.i0]->draws[locked.i1];
     }
     void unlock() {
+        restore(), last = RaWnd::IndexPair(), locked = last;
+    }
+    void restore() {
         if (locked.i0 != INT_MAX)
             list.scenes[locked.i0]->draws[locked.i1] = lockedDraw;
-        last = RaWnd::IndexPair(), locked = last;
     }
     
     void clearHUD() {
@@ -253,20 +255,23 @@ struct RasterizerDemo {
             ctm = bounds.fitTransform(list.bounds()), fit = false;
         Ra::SceneList draw = list;  draw.ctm = ctm, draw.params = params;
         
-        if (locked.i0 != INT_MAX)
-            draw.addScene(mouseScene, list.ctms[locked.i0], list.clips[locked.i0]);
-        else if (mouseMove) {
+        if (mouseMove) {
             RaWnd::IndexPair mouse = RasterizerWinding::indicesForPoint(draw, bounds, mx, my);
             
             if (last.i0 != mouse.i0 || last.i1 != mouse.i1) {
                 last = mouse;
-                
+                lock();
                 if (mouse.i0 != INT_MAX)
                     mouseScene = makeMouseScene(list.scenes[mouse.i0]->draws[mouse.i1]);
             }
-            if (mouse.i0 != INT_MAX)
-                draw.addScene(mouseScene, list.ctms[mouse.i0], list.clips[mouse.i0]);
         }
+        if (locked.i0 != INT_MAX) {
+            Ra::Draw& drw = list.scenes[locked.i0]->draws[locked.i1];
+            if (drw.width != 0)
+                drw.paint = Ra::Color(0, 0, 224, 255);
+            draw.addScene(mouseScene, list.ctms[locked.i0], list.clips[locked.i0]);
+        }
+        
         if (showHud) {
             Ra::Bounds hudBounds = Ra::Bounds(0, 0, kHudWidth, kHudHeight);
             if (hud->count() == 0)
@@ -285,10 +290,12 @@ struct RasterizerDemo {
             mouseDraw.paint = Ra::Color(255, 255, 255, 192);
             mouseDraw.width = -8.f;
             mouseScene->addDraws(& mouseDraw, 1);
+            
+            mouseDraw.paint = Ra::Color(0, 0, 224, 255);
+            mouseDraw.width = -4.f;
+            mouseScene->addDraws(& mouseDraw, 1);
         }
-        mouseDraw.paint = Ra::Color(0, 0, 224, 255);
-        mouseDraw.width = width ?: -4.f;
-        mouseScene->addDraws(& mouseDraw, 1);
+        
         if (width > 0.f) {
             mouseDraw.paint = Ra::Color(0, 0, 0, 255);
             mouseDraw.width = -2.f;
