@@ -320,7 +320,8 @@ struct Rasterizer {
             if (t < err) {
                 lineTo(x2, y2);
             } else {
-                float *pts = points.alloc(4);  pts[0] = x1, pts[1] = y1, x0 = pts[2] = x2, y0 = pts[3] = y2, memset(types.alloc(2), kQuadratic, 2);
+                float *pts = points.alloc(4);  pts[0] = x1, pts[1] = y1, x0 = pts[2] = x2, y0 = pts[3] = y2;
+                memset(types.alloc(2), kQuadratic, 2);
                 ax = x2 + x0 - x1 - x1, ay = y2 + y0 - y1 - y1, maxCurve = fmaxf(maxCurve, ax * ax + ay * ay);
             }
         }
@@ -337,7 +338,8 @@ struct Rasterizer {
                 if (dot < 1e-4f)
                     quadTo((3.f * (x1 + x2) - x0 - x3) * 0.25f, (3.f * (y1 + y2) - y0 - y3) * 0.25f, x3, y3);
                 else {
-                    float *pts = points.alloc(6);  pts[0] = x1, pts[1] = y1, pts[2] = x2, pts[3] = y2, pts[4] = x3, pts[5] = y3, memset(types.alloc(3), kCubic, 3);
+                    float *pts = points.alloc(6);  pts[0] = x1, pts[1] = y1, pts[2] = x2, pts[3] = y2, pts[4] = x3, pts[5] = y3;
+                    memset(types.alloc(3), kCubic, 3);
                     bx -= 3.f * (x1 - x0), by -= 3.f * (y1 - y0), dot += bx * bx + by * by, x0 = x3, y0 = y3;
                     s = ceilf(sqrtf(sqrtf(dot)));
                     cubicSums += s, maxCurve = fmaxf(maxCurve, dot / s);
@@ -569,18 +571,16 @@ struct Rasterizer {
             needPrepare = false;
             
             Row<Index> indices;  indices.prealloc(count());
-            bnds.empty();
-            Bounds *bs = bnds.alloc(count());
+            Index *index0 = indices.base, *index1 = indices.base;
+            Bounds *bs = bnds.empty().alloc(count());
             
             for (size_t i = 0; i < count(); i++) {
-                const Draw& draw = draws[i];
-                *bs++ = draw.path->bounds;
+                const Draw& draw = draws[i];  Geometry *g = draw.path.ptr;
+                *bs++ = g->bounds;
                 if (draw.width == 0)
-                    new (indices.alloc(1)) Index(draw.path->hash(), i);
+                    new (index1++) Index(g->hash(), i);
             }
-            Index *index0 = indices.base, *index1 = indices.base + indices.end;
             std::sort(index0, index1);
-            
             p16bases.empty(), p16entries.empty();
             uint32_t *bases = p16bases.alloc(count());
             
