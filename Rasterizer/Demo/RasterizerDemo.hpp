@@ -324,6 +324,7 @@ struct RasterizerDemo {
         fontSize = size;
         if (name)
             strcpy(fontName.resize(strlen(name) + 1), name);
+        resetMouse();
         concentrichron.resetFace();
         pasted = Ra::SceneList();
         text = Ra::SceneList();
@@ -335,6 +336,7 @@ struct RasterizerDemo {
             strcpy((char *)pastedString.resize(strlen(string) + 1), string);
         else
             pastedString = Ra::Memory<char>();
+        resetMouse();
         pasted = Ra::SceneList();
         redraw = true;
     }
@@ -343,6 +345,7 @@ struct RasterizerDemo {
             strcpy((char *)pdfUrl.resize(strlen(url) + 1), url);
         else
             pdfUrl = Ra::Memory<char>();
+        resetMouse();
         pageCount = url ? RaPDF::getPageCount(url) : 0;
         redraw = true;
     }
@@ -351,6 +354,7 @@ struct RasterizerDemo {
             strcpy((char *)svgUrl.resize(strlen(url) + 1), url);
         else
             svgUrl = Ra::Memory<char>();
+        resetMouse();
         redraw = true;
     }
     void setUseGPU(bool useGPU) {
