@@ -1644,36 +1644,25 @@ struct Rasterizer {
     struct Huller: GeometryWriter {
         static constexpr float err = 1e-3f;
         Huller(const Path& path) {
-            g = hull.ptr;
-            p = points.ptr;
+            g = hull.ptr, p = points.ptr;
             applyPath(path.ptr, Transform(), Bounds(), true, false);
         }
-        
-        
         void writeSegment(float x0, float y0, float x1, float y1) {
             g->moveTo(x0, y0), g->lineTo(x1, y1);
             p->moveTo(x0, y0), p->lineTo(x0 + err, y0);
         }
         void Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
             g->moveTo(x0, y0), g->lineTo(x1, y1), g->lineTo(x2, y2);
-            
-            p->moveTo(x0, y0), p->lineTo(x0 + err, y0);
-            p->moveTo(x1, y1), p->lineTo(x1 + err, y1);
+            p->moveTo(x0, y0), p->lineTo(x0 + err, y0), p->moveTo(x1, y1), p->lineTo(x1 + err, y1);
         }
         void Cubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3) {
             g->moveTo(x0, y0), g->lineTo(x1, y1), g->lineTo(x2, y2), g->lineTo(x3, y3);
-            
-            p->moveTo(x0, y0), p->lineTo(x0 + err, y0);
-            p->moveTo(x1, y1), p->lineTo(x1 + err, y1);
-            p->moveTo(x2, y2), p->lineTo(x2 + err, y2);
+            p->moveTo(x0, y0), p->lineTo(x0 + err, y0), p->moveTo(x1, y1), p->lineTo(x1 + err, y1), p->moveTo(x2, y2), p->lineTo(x2 + err, y2);
         }
         void EndSubpath(float x0, float y0, float x1, float y1, bool closed) {
-            if (closed)
-                p->moveTo(x1, y1), p->lineTo(x1 + err, y1);
-            else
-                p->moveTo(x0, y0), p->lineTo(x0 + err, y0);
+            float x = closed ? x1 : x0, y = closed ? y1 : y0;
+            p->moveTo(x, y), p->lineTo(x + err, y);
         }
-        
         Path hull, points;
         Geometry *g, *p;
     };
