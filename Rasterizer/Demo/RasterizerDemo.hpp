@@ -86,22 +86,29 @@ struct RasterizerDemo {
             params.showOutlines = !params.showOutlines, keyUsed = true, clearHUD();
         else if (keyCode == KeyCode::kP)
             mouseMove = !mouseMove, last = RaWnd::IndexPair(), keyUsed = true, clearHUD();
-        else if (keyCode == KeyCode::kL)
-            locked = locked.i0 != INT_MAX ? RaWnd::IndexPair() : last, keyUsed = true;
-        else if (keyCode == KeyCode::kS)
+        else if (keyCode == KeyCode::kL) {
+            if (locked.i0 == INT_MAX)
+                lock();
+            else
+                unlock();
+            keyUsed = true;
+        } else if (keyCode == KeyCode::kS)
             list.ctm = ctm, RaCG::screenGrabToPDF(list, bounds), keyUsed = true;
         else if (keyCode == KeyCode::kT) {
+            unlock();
             showGlyphGrid = false;
             showTime = !showTime;
             setPastedString(nullptr);
             keyUsed = true, clearHUD();
         } else if (keyCode == KeyCode::kG) {
+            unlock();
             showTime = false;
             showGlyphGrid = !showGlyphGrid;
             setPastedString(nullptr);
             keyUsed = true, clearHUD();
         } else if (keyCode == KeyCode::kMinus) {
             if (pageIndex > 0) {
+                unlock();
                 pageIndex--;
                 document = Ra::SceneList();
                 keyUsed = true;
@@ -109,6 +116,7 @@ struct RasterizerDemo {
             
         } else if (keyCode == KeyCode::kPlus) {
             if (pageIndex < pageCount - 1) {
+                unlock();
                 pageIndex++;
                 document = Ra::SceneList();
                 keyUsed = true;
@@ -156,6 +164,17 @@ struct RasterizerDemo {
     
    
 #pragma mark - Properties
+    
+    void lock() {
+        locked = last;
+        if (locked.i0 != INT_MAX)
+            lockedDraw = list.scenes[locked.i0]->draws[locked.i1];
+    }
+    void unlock() {
+        if (locked.i0 != INT_MAX)
+            list.scenes[locked.i0]->draws[locked.i1] = lockedDraw;
+        last = RaWnd::IndexPair(), locked = last;
+    }
     
     void clearHUD() {
         hud = Ra::SceneRef();
@@ -234,21 +253,19 @@ struct RasterizerDemo {
             ctm = bounds.fitTransform(list.bounds()), fit = false;
         Ra::SceneList draw = list;  draw.ctm = ctm, draw.params = params;
         
-        if (mouseMove) {
-            if (locked.i0 != INT_MAX)
-                draw.addScene(mouseScene, list.ctms[locked.i0], list.clips[locked.i0]);
-            else {
-                RaWnd::IndexPair mouse = RasterizerWinding::indicesForPoint(draw, bounds, mx, my);
+        if (locked.i0 != INT_MAX)
+            draw.addScene(mouseScene, list.ctms[locked.i0], list.clips[locked.i0]);
+        else if (mouseMove) {
+            RaWnd::IndexPair mouse = RasterizerWinding::indicesForPoint(draw, bounds, mx, my);
+            
+            if (last.i0 != mouse.i0 || last.i1 != mouse.i1) {
+                last = mouse;
                 
-                if (last.i0 != mouse.i0 || last.i1 != mouse.i1) {
-                    last = mouse;
-                    
-                    if (mouse.i0 != INT_MAX)
-                        mouseScene = makeMouseScene(list.scenes[mouse.i0]->draws[mouse.i1]);
-                }
                 if (mouse.i0 != INT_MAX)
-                    draw.addScene(mouseScene, list.ctms[mouse.i0], list.clips[mouse.i0]);
+                    mouseScene = makeMouseScene(list.scenes[mouse.i0]->draws[mouse.i1]);
             }
+            if (mouse.i0 != INT_MAX)
+                draw.addScene(mouseScene, list.ctms[mouse.i0], list.clips[mouse.i0]);
         }
         if (showHud) {
             Ra::Bounds hudBounds = Ra::Bounds(0, 0, kHudWidth, kHudHeight);
@@ -351,6 +368,7 @@ struct RasterizerDemo {
     bool gpu = true, redraw = false, fit = false, mouseDown = false, mouseMove = false;
     double clock = 0.0, timeScale = 0.333;
     float mx, my;
+    Ra::Draw lockedDraw;
     RaWnd::IndexPair locked = RaWnd::IndexPair(), last = RaWnd::IndexPair();
     size_t flags = 0;
 };

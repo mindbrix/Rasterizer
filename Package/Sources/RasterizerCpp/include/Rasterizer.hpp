@@ -512,6 +512,7 @@ struct Rasterizer {
     };
     
     struct Draw {
+        Draw() {}
         Draw(const Path& path, const Transform& ctm, const Paint& paint, float width, uint8_t flags, Bounds *clipBounds = nullptr, Path *clipPath = nullptr)
         : path(path), ctm(ctm), paint(paint), width(width), flags(flags),
           clip(clipBounds ? *clipBounds : Bounds::huge()), clipPath(clipPath ? *clipPath : nullptr) {}
