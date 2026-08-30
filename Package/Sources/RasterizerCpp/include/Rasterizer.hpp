@@ -1642,21 +1642,40 @@ struct Rasterizer {
     };
     
     struct Huller: GeometryWriter {
-        static Path CreateHullPath(Path& path) {
-            Path hull;
-            Huller huller;
-            huller.g = hull.ptr;
-            huller.applyPath(path.ptr, Transform(), Bounds(), true, false);
-            return hull;
+        static constexpr float err = 1e-3f;
+        Huller(const Path& path) {
+            g = hull.ptr;
+            p = points.ptr;
+            applyPath(path.ptr, Transform(), Bounds(), true, false);
         }
-        void writeSegment(float x0, float y0, float x1, float y1) {}
+        
+        
+        void writeSegment(float x0, float y0, float x1, float y1) {
+            g->moveTo(x0, y0), g->lineTo(x1, y1);
+            p->moveTo(x0, y0), p->lineTo(x0 + err, y0);
+        }
         void Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
             g->moveTo(x0, y0), g->lineTo(x1, y1), g->lineTo(x2, y2);
+            
+            p->moveTo(x0, y0), p->lineTo(x0 + err, y0);
+            p->moveTo(x1, y1), p->lineTo(x1 + err, y1);
         }
         void Cubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3) {
             g->moveTo(x0, y0), g->lineTo(x1, y1), g->lineTo(x2, y2), g->lineTo(x3, y3);
+            
+            p->moveTo(x0, y0), p->lineTo(x0 + err, y0);
+            p->moveTo(x1, y1), p->lineTo(x1 + err, y1);
+            p->moveTo(x2, y2), p->lineTo(x2 + err, y2);
         }
-        Geometry *g;
+        void EndSubpath(float x0, float y0, float x1, float y1, bool closed) {
+            if (closed)
+                p->moveTo(x1, y1), p->lineTo(x1 + err, y1);
+            else
+                p->moveTo(x0, y0), p->lineTo(x0 + err, y0);
+        }
+        
+        Path hull, points;
+        Geometry *g, *p;
     };
     
     static size_t resizeBuffer(const SceneList& list, Context *contexts, size_t count, size_t *begins, Buffer& buffer) {

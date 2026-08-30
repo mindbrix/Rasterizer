@@ -246,20 +246,29 @@ struct RasterizerDemo {
                     _draw.paint = Ra::Color(0, 0, 0, 255);
                     scene->needPrepare = true;
                 } else {
+                    Ra::SceneRef mouseScene;
                     Ra::Draw mouseDraw = scene->draws[i1];
                     Ra::Bounds bounds = Ra::Bounder::GetBounds(mouseDraw.path, Ra::Transform());
                     const float width = mouseDraw.width;
+                    
+                    if (width == 0.f) {
+                        mouseDraw.paint = Ra::Color(255, 255, 255, 192);
+                        mouseDraw.width = -8.f;
+                        mouseScene->addDraws(& mouseDraw, 1);
+                    }
                     mouseDraw.paint = Ra::Color(0, 0, 224, 255);
-                    mouseDraw.width = width ?: -2.f;
-                    Ra::SceneRef mouseScene;
+                    mouseDraw.width = width ?: -4.f;
                     mouseScene->addDraws(& mouseDraw, 1);
                     if (width > 0.f) {
                         mouseDraw.paint = Ra::Color(0, 0, 0, 255);
                         mouseDraw.width = -2.f;
                         mouseScene->addDraws(& mouseDraw, 1);
                     }
-                    Ra::Path hull = Ra::Huller::CreateHullPath(mouseDraw.path);
-                    mouseScene->addPath(hull, mouseDraw.ctm, Ra::Color(0, 0, 0, 255), -2.f, 0);
+                    Ra::Huller hull(mouseDraw.path);
+                    mouseScene->addPath(hull.hull, mouseDraw.ctm, Ra::Color(255, 255, 255, 192), -8.f, 0);
+                    mouseScene->addPath(hull.hull, mouseDraw.ctm, Ra::Color(0, 0, 0, 255), -4.f, 0);
+                    mouseScene->addPath(hull.points, mouseDraw.ctm, Ra::Color(255, 255, 255, 192), -16.f, Ra::Scene::Flags::kRoundCap);
+                    mouseScene->addPath(hull.points, mouseDraw.ctm, Ra::Color(0, 0, 0, 255), -12.f, Ra::Scene::Flags::kRoundCap);
                     
                     Ra::Path boundsPath;
                     boundsPath->addBounds(bounds);
