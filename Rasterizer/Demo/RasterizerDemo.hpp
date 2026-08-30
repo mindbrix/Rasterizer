@@ -85,30 +85,28 @@ struct RasterizerDemo {
         else if (keyCode == KeyCode::kO)
             params.showOutlines = !params.showOutlines, keyUsed = true, clearHUD();
         else if (keyCode == KeyCode::kP)
-            mouseMove = !mouseMove, unlock(), keyUsed = true, clearHUD();
+            mouseMove = !mouseMove, resetMouse(), keyUsed = true, clearHUD();
         else if (keyCode == KeyCode::kL) {
-            if (locked.i0 == INT_MAX)
-                lock();
-            else
-                unlock();
-            keyUsed = true;
+            locked = locked ? false : mouse.i0 != INT_MAX, keyUsed = true;
+            if (!locked)
+                resetMouse();
         } else if (keyCode == KeyCode::kS)
             list.ctm = ctm, RaCG::screenGrabToPDF(list, bounds), keyUsed = true;
         else if (keyCode == KeyCode::kT) {
-            unlock();
+            resetMouse();
             showGlyphGrid = false;
             showTime = !showTime;
             setPastedString(nullptr);
             keyUsed = true, clearHUD();
         } else if (keyCode == KeyCode::kG) {
-            unlock();
+            resetMouse();
             showTime = false;
             showGlyphGrid = !showGlyphGrid;
             setPastedString(nullptr);
             keyUsed = true, clearHUD();
         } else if (keyCode == KeyCode::kMinus) {
             if (pageIndex > 0) {
-                unlock();
+                resetMouse();
                 pageIndex--;
                 document = Ra::SceneList();
                 keyUsed = true;
@@ -116,7 +114,7 @@ struct RasterizerDemo {
             
         } else if (keyCode == KeyCode::kPlus) {
             if (pageIndex < pageCount - 1) {
-                unlock();
+                resetMouse();
                 pageIndex++;
                 document = Ra::SceneList();
                 keyUsed = true;
@@ -165,17 +163,19 @@ struct RasterizerDemo {
    
 #pragma mark - Properties
     
-    void lock() {
-        restore(), locked = last;
-        if (locked.i0 != INT_MAX)
-            lockedDraw = list.scenes[locked.i0]->draws[locked.i1];
+    void setMouse(RaWnd::IndexPair pair) {
+        restore(mouse), mouse = pair, save(mouse);
     }
-    void unlock() {
-        restore(), last = RaWnd::IndexPair(), locked = last;
+    void resetMouse() {
+        restore(mouse), mouse = RaWnd::IndexPair(), last = mouse, locked = false;
     }
-    void restore() {
-        if (locked.i0 != INT_MAX)
-            list.scenes[locked.i0]->draws[locked.i1] = lockedDraw;
+    void save(RaWnd::IndexPair pair) {
+        if (pair.i0 != INT_MAX)
+            mouseDraw = list.scenes[pair.i0]->draws[pair.i1];
+    }
+    void restore(RaWnd::IndexPair pair) {
+        if (pair.i0 != INT_MAX)
+            list.scenes[pair.i0]->draws[pair.i1] = mouseDraw;
     }
     
     void clearHUD() {
@@ -255,21 +255,20 @@ struct RasterizerDemo {
             ctm = bounds.fitTransform(list.bounds()), fit = false;
         Ra::SceneList draw = list;  draw.ctm = ctm, draw.params = params;
         
-        if (mouseMove) {
-            RaWnd::IndexPair mouse = RasterizerWinding::indicesForPoint(draw, bounds, mx, my);
+        if (!locked && mouseMove) {
+            RaWnd::IndexPair pair = RasterizerWinding::indicesForPoint(draw, bounds, mx, my);
             
-            if (last.i0 != mouse.i0 || last.i1 != mouse.i1) {
-                last = mouse;
-                lock();
-                if (mouse.i0 != INT_MAX)
-                    mouseScene = makeMouseScene(list.scenes[mouse.i0]->draws[mouse.i1]);
+            if (last.i0 != pair.i0 || last.i1 != pair.i1) {
+                last = pair, setMouse(pair);
+                if (pair.i0 != INT_MAX)
+                    mouseScene = makeMouseScene(list.scenes[pair.i0]->draws[pair.i1]);
             }
         }
-        if (locked.i0 != INT_MAX) {
-            Ra::Draw& drw = list.scenes[locked.i0]->draws[locked.i1];
+        if (mouse.i0 != INT_MAX) {
+            Ra::Draw& drw = list.scenes[mouse.i0]->draws[mouse.i1];
             if (drw.width != 0)
                 drw.paint = Ra::Color(0, 0, 224, 255);
-            draw.addScene(mouseScene, list.ctms[locked.i0], list.clips[locked.i0]);
+            draw.addScene(mouseScene, list.ctms[mouse.i0], list.clips[mouse.i0]);
         }
         
         if (showHud) {
@@ -365,7 +364,7 @@ struct RasterizerDemo {
     Ra::SceneList list, document, pasted, text;
     Ra::SceneRef hud, mouseScene;
     Ra::Memory<char> pastedString, fontName, pdfUrl, svgUrl;
-    bool showGlyphGrid = false, showTime = false, showHud = true;
+    bool showGlyphGrid = false, showTime = false, showHud = true, locked = false;
     size_t pageCount, pageIndex;
     
     Ra::Transform ctm;
@@ -375,7 +374,7 @@ struct RasterizerDemo {
     bool gpu = true, redraw = false, fit = false, mouseDown = false, mouseMove = false;
     double clock = 0.0, timeScale = 0.333;
     float mx, my;
-    Ra::Draw lockedDraw;
-    RaWnd::IndexPair locked = RaWnd::IndexPair(), last = RaWnd::IndexPair();
+    Ra::Draw mouseDraw;
+    RaWnd::IndexPair mouse = RaWnd::IndexPair(), last = RaWnd::IndexPair();
     size_t flags = 0;
 };
