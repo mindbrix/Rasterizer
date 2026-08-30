@@ -85,7 +85,7 @@ struct RasterizerDemo {
         else if (keyCode == KeyCode::kO)
             params.showOutlines = !params.showOutlines, keyUsed = true, clearHUD();
         else if (keyCode == KeyCode::kP)
-            mouseMove = !mouseMove, indices = mouseMove ? indices : RaWnd::IndexPair(), keyUsed = true, clearHUD();
+            mouseMove = !mouseMove, indices = mouseMove ? indices : RaWnd::IndexPair(), last = RaWnd::IndexPair(), keyUsed = true, clearHUD();
         else if (keyCode == KeyCode::kL)
             locked = locked.i0 != INT_MAX ? RaWnd::IndexPair() : indices, keyUsed = true;
         else if (keyCode == KeyCode::kS)
@@ -232,56 +232,19 @@ struct RasterizerDemo {
         }
         if (fit)
             ctm = bounds.fitTransform(list.bounds()), fit = false;
-        Ra::SceneList draw = list;
-        draw.ctm = ctm, draw.params = params;
+        Ra::SceneList draw = list;  draw.ctm = ctm, draw.params = params;
+        
         if (mouseMove) {
             indices = RasterizerWinding::indicesForPoint(draw, bounds, mx, my);
-            if (indices.i0 != INT_MAX) {
-                size_t i0 = indices.i0, i1 = indices.i1;
-                const Ra::SceneRef& scene = list.scenes[i0];
+
+            if (last.i0 != indices.i0 || last.i1 != indices.i1) {
+                last = indices;
                 
-                if (mouseDown) {
-                    Ra::Draw& _draw = scene->draws[i1];
-                    _draw.width = -8;
-                    _draw.paint = Ra::Color(0, 0, 0, 255);
-                    scene->needPrepare = true;
-                } else {
-                    Ra::SceneRef mouseScene;
-                    Ra::Draw mouseDraw = scene->draws[i1];
-                    Ra::Bounds bounds = Ra::Bounder::GetBounds(mouseDraw.path, Ra::Transform());
-                    const float width = mouseDraw.width;
-                    
-                    if (width == 0.f) {
-                        mouseDraw.paint = Ra::Color(255, 255, 255, 192);
-                        mouseDraw.width = -8.f;
-                        mouseScene->addDraws(& mouseDraw, 1);
-                    }
-                    mouseDraw.paint = Ra::Color(0, 0, 224, 255);
-                    mouseDraw.width = width ?: -4.f;
-                    mouseScene->addDraws(& mouseDraw, 1);
-                    if (width > 0.f) {
-                        mouseDraw.paint = Ra::Color(0, 0, 0, 255);
-                        mouseDraw.width = -2.f;
-                        mouseScene->addDraws(& mouseDraw, 1);
-                    }
-                    Ra::Huller hull(mouseDraw.path);
-                    mouseScene->addPath(hull.hull, mouseDraw.ctm, Ra::Color(255, 255, 255, 192), -8.f, 0);
-                    mouseScene->addPath(hull.hull, mouseDraw.ctm, Ra::Color(0, 0, 0, 255), -4.f, 0);
-                    mouseScene->addPath(hull.points, mouseDraw.ctm, Ra::Color(255, 255, 255, 192), -16.f, Ra::Scene::Flags::kRoundCap);
-                    mouseScene->addPath(hull.points, mouseDraw.ctm, Ra::Color(0, 0, 0, 255), -12.f, Ra::Scene::Flags::kRoundCap);
-                    
-                    Ra::Path boundsPath;
-                    boundsPath->addBounds(bounds);
-                    boundsPath->addBounds(mouseDraw.path->bounds);
-                    mouseScene->addPath(boundsPath, mouseDraw.ctm, Ra::Color(0, 0, 0, 255), -2.f, 0);
-                    if (!mouseDraw.clip.isHuge()) {
-                        Ra::Path clipPath;
-                        clipPath->addBounds(mouseDraw.clip);
-                        mouseScene->addPath(clipPath, Ra::Transform(), Ra::Color(0, 0, 255, 255), -2.f, 0);
-                    }
-                    draw.addScene(mouseScene, list.ctms[i0], list.clips[i0]);
-                }
+                if (indices.i0 != INT_MAX)
+                    mouseScene = makeMouseScene(list.scenes[indices.i0]->draws[indices.i1]);
             }
+            if (indices.i0 != INT_MAX)
+                draw.addScene(mouseScene, list.ctms[indices.i0], list.clips[indices.i0]);
         }
         if (showHud) {
             Ra::Bounds hudBounds = Ra::Bounds(0, 0, kHudWidth, kHudHeight);
@@ -291,6 +254,41 @@ struct RasterizerDemo {
             draw.addScene(hud, m, hudBounds);
         }
         return draw;
+    }
+    Ra::SceneRef makeMouseScene(Ra::Draw mouseDraw) {
+        Ra::SceneRef mouseScene;
+        Ra::Bounds bounds = Ra::Bounder::GetBounds(mouseDraw.path, Ra::Transform());
+        const float width = mouseDraw.width;
+        
+        if (width == 0.f) {
+            mouseDraw.paint = Ra::Color(255, 255, 255, 192);
+            mouseDraw.width = -8.f;
+            mouseScene->addDraws(& mouseDraw, 1);
+        }
+        mouseDraw.paint = Ra::Color(0, 0, 224, 255);
+        mouseDraw.width = width ?: -4.f;
+        mouseScene->addDraws(& mouseDraw, 1);
+        if (width > 0.f) {
+            mouseDraw.paint = Ra::Color(0, 0, 0, 255);
+            mouseDraw.width = -2.f;
+            mouseScene->addDraws(& mouseDraw, 1);
+        }
+        Ra::Huller hull(mouseDraw.path);
+        mouseScene->addPath(hull.hull, mouseDraw.ctm, Ra::Color(255, 255, 255, 192), -8.f, 0);
+        mouseScene->addPath(hull.hull, mouseDraw.ctm, Ra::Color(0, 0, 0, 255), -4.f, 0);
+        mouseScene->addPath(hull.points, mouseDraw.ctm, Ra::Color(255, 255, 255, 192), -16.f, Ra::Scene::Flags::kRoundCap);
+        mouseScene->addPath(hull.points, mouseDraw.ctm, Ra::Color(0, 0, 0, 255), -12.f, Ra::Scene::Flags::kRoundCap);
+        
+        Ra::Path boundsPath;
+        boundsPath->addBounds(bounds);
+        boundsPath->addBounds(mouseDraw.path->bounds);
+        mouseScene->addPath(boundsPath, mouseDraw.ctm, Ra::Color(0, 0, 0, 255), -2.f, 0);
+        if (!mouseDraw.clip.isHuge()) {
+            Ra::Path clipPath;
+            clipPath->addBounds(mouseDraw.clip);
+            mouseScene->addPath(clipPath, Ra::Transform(), Ra::Color(0, 0, 255, 255), -2.f, 0);
+        }
+        return mouseScene;
     }
     bool getShouldRedraw() const {
         return redraw || showTime;
@@ -337,7 +335,7 @@ struct RasterizerDemo {
     float fontSize = 14;
     Concentrichron concentrichron;
     Ra::SceneList list, document, pasted, text;
-    Ra::SceneRef hud;
+    Ra::SceneRef hud, mouseScene;
     Ra::Memory<char> pastedString, fontName, pdfUrl, svgUrl;
     bool showGlyphGrid = false, showTime = false, showHud = true;
     size_t pageCount, pageIndex;
@@ -349,6 +347,6 @@ struct RasterizerDemo {
     bool gpu = true, redraw = false, fit = false, mouseDown = false, mouseMove = false;
     double clock = 0.0, timeScale = 0.333;
     float mx, my;
-    RaWnd::IndexPair indices = RaWnd::IndexPair(), locked = RaWnd::IndexPair();
+    RaWnd::IndexPair indices = RaWnd::IndexPair(), locked = RaWnd::IndexPair(), last = RaWnd::IndexPair();
     size_t flags = 0;
 };
