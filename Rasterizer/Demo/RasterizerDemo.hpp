@@ -138,35 +138,18 @@ struct RasterizerDemo {
         mouseDown = false;
     }
     void onMagnify(float s) {
-        if (locked) {
-            if (mouse.i0 != INT_MAX) {
-                Ra::Draw& drw = list.scenes[mouse.i0]->draws[mouse.i1];
-                float cx = drw.path->bounds.cx();
-                float cy = drw.path->bounds.cy();
-                drw.ctm = drw.ctm.concatAroundCenter(Ra::Transform(s, 0.f, 0.f, s, 0.f, 0.f), cx, cy);
-            }
-        } else {
-            float cx = (flags & Flags::kShift) ? mx : bounds.cx();
-            float cy = (flags & Flags::kShift) ? my : bounds.cy();
-            ctm = ctm.concatAroundCenter(Ra::Transform(s, 0.f, 0.f, s, 0.f, 0.f), cx, cy);
-        }
+        if (locked)
+            concatLocked(Ra::Transform(s, 0.f, 0.f, s, 0.f, 0.f));
+        else
+            concat(Ra::Transform(s, 0.f, 0.f, s, 0.f, 0.f));
         redraw = true;
     }
     void onRotate(float a) {
-        if (locked) {
-            if (mouse.i0 != INT_MAX) {
-                Ra::Draw& drw = list.scenes[mouse.i0]->draws[mouse.i1];
-                float cx = drw.path->bounds.cx();
-                float cy = drw.path->bounds.cy();
-                float sine, cosine;  __sincosf(a, & sine, & cosine);
-                drw.ctm = drw.ctm.concatAroundCenter(Ra::Transform(cosine, sine, - sine, cosine, 0, 0), cx, cy);
-            }
-        } else {
-            float cx = (flags & Flags::kShift) ? mx : bounds.cx();
-            float cy = (flags & Flags::kShift) ? my : bounds.cy();
-            float sine, cosine;  __sincosf(a, & sine, & cosine);
-            ctm = ctm.concatAroundCenter(Ra::Transform(cosine, sine, - sine, cosine, 0, 0), cx, cy);
-        }
+        float sine, cosine;  __sincosf(a, & sine, & cosine);
+        if (locked)
+            concatLocked(Ra::Transform(cosine, sine, - sine, cosine, 0, 0));
+        else
+            concat(Ra::Transform(cosine, sine, - sine, cosine, 0, 0));
         redraw = true;
     }
     void onDrag(float dx, float dy) {
@@ -187,6 +170,22 @@ struct RasterizerDemo {
     
 #pragma mark - Properties
     
+    void concat(Ra::Transform transform) {
+        float cx = (flags & Flags::kShift) ? mx : bounds.cx();
+        float cy = (flags & Flags::kShift) ? my : bounds.cy();
+        ctm = ctm.concatAroundCenter(transform, cx, cy);
+    }
+    void concatLocked(Ra::Transform transform) {
+        if (mouse.i0 != INT_MAX) {
+            Ra::Draw& drw = list.scenes[mouse.i0]->draws[mouse.i1];
+            Ra::Transform m = list.ctms[mouse.i0].concat(ctm).invert();
+            Ra::Transform& dm = drw.ctm;
+            float bx = drw.path->bounds.cx(), by = drw.path->bounds.cy();
+            float cx = (flags & Flags::kShift) ? mx * m.a + my * m.c + m.tx : bx * dm.a + by * dm.c + dm.tx;
+            float cy = (flags & Flags::kShift) ? mx * m.b + my * m.d + m.ty : bx * dm.b + by * dm.d + dm.ty;
+            drw.ctm = drw.ctm.concatAroundCenter(transform, cx, cy);
+        }
+    }
     void translateLocked(float dx, float dy) {
         if (mouse.i0 != INT_MAX) {
             Ra::Draw& drw = list.scenes[mouse.i0]->draws[mouse.i1];
