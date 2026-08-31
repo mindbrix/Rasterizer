@@ -85,7 +85,7 @@ struct RasterizerDemo {
         else if (keyCode == KeyCode::kO)
             params.showOutlines = !params.showOutlines, keyUsed = true, clearHUD();
         else if (keyCode == KeyCode::kP)
-            mouseMove = !mouseMove, resetMouse(), keyUsed = true, clearHUD();
+            pathMouseOver = !pathMouseOver, resetMouse(), keyUsed = true, clearHUD();
         else if (keyCode == KeyCode::kL) {
             toggleLocked(), keyUsed = true;
         } else if (keyCode == KeyCode::kS)
@@ -125,9 +125,7 @@ struct RasterizerDemo {
     void onKeyUp(unsigned short keyCode) {
     }
     void onMouseMove(float x, float y) {
-        mx = x, my = y;
-        if (mouseMove)
-            redraw = true;
+        mx = x, my = y, mouseMoved = true;
     }
     void onMouseDown(float x, float y) {
         mouseDown = true;
@@ -193,9 +191,11 @@ struct RasterizerDemo {
     
     void setMouse(RaWnd::IndexPair pair) {
         restore(mouse), mouse = pair, save(mouse);
+        if (pair.i0 != INT_MAX)
+            mouseScene = makeMouseScene(list.scenes[pair.i0]->draws[pair.i1]);
     }
     void resetMouse() {
-        restore(mouse), mouse = RaWnd::IndexPair(), last = mouse, locked = false;
+        restore(mouse), mouse = RaWnd::IndexPair(), last = mouse, locked = false, mouseMoved = true;
     }
     void save(RaWnd::IndexPair pair) {
         if (pair.i0 != INT_MAX)
@@ -230,7 +230,7 @@ struct RasterizerDemo {
                 || (*item.key == 'G' && showGlyphGrid)
                 || (*item.key == 'I' && params.showOpaques)
                 || (*item.key == 'O' && params.showOutlines)
-                || (*item.key == 'P' && mouseMove)
+                || (*item.key == 'P' && pathMouseOver)
                 || (*item.key == 'T' && showTime)
                 || (*item.key == 'C' && params.useCurves))
                 color = activeColor;
@@ -283,15 +283,6 @@ struct RasterizerDemo {
             ctm = bounds.fitTransform(list.bounds()), fit = false;
         Ra::SceneList draw = list;  draw.ctm = ctm, draw.params = params;
         
-        if (!locked && mouseMove) {
-            RaWnd::IndexPair pair = RasterizerWinding::indicesForPoint(draw, bounds, mx, my);
-            
-            if (last.i0 != pair.i0 || last.i1 != pair.i1) {
-                last = pair, setMouse(pair);
-                if (pair.i0 != INT_MAX)
-                    mouseScene = makeMouseScene(list.scenes[pair.i0]->draws[pair.i1]);
-            }
-        }
         if (mouse.i0 != INT_MAX) {
             Ra::Draw& drw = list.scenes[mouse.i0]->draws[mouse.i1];
             if (drw.width != 0)
@@ -346,8 +337,17 @@ struct RasterizerDemo {
         }
         return mouseScene;
     }
-    bool getShouldRedraw() const {
-        return redraw || showTime;
+    bool getShouldRedraw() {
+        bool should = redraw || showTime;
+        
+        if (!locked && pathMouseOver && mouseMoved) {
+            mouseMoved = false;
+            list.ctm = ctm;
+            RaWnd::IndexPair pair = RasterizerWinding::indicesForPoint(list, bounds, mx, my);
+            if (last.i0 != pair.i0 || last.i1 != pair.i1)
+                last = pair, setMouse(pair), should = true;
+        }
+        return should;
     }
     void setFont(const char *url, const char *name, float size) {
         fontSize = size;
@@ -404,7 +404,7 @@ struct RasterizerDemo {
     Ra::Bounds bounds;
 
     Ra::Params params;
-    bool gpu = true, redraw = false, fit = false, mouseDown = false, mouseMove = false, shift = false;
+    bool gpu = true, redraw = false, fit = false, mouseDown = false, mouseMoved = false, pathMouseOver = false, shift = false;
     double clock = 0.0, timeScale = 0.333;
     float mx, my;
     Ra::Draw mouseDraw;
