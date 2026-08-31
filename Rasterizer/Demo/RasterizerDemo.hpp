@@ -212,43 +212,50 @@ struct RasterizerDemo {
             list.scenes[pair.i0]->draws[pair.i1] = mouseDraw;
     }
     
-    void clearHUD() {
-        hud = Ra::SceneRef();
+    void setFont(const char *url, const char *name, float size) {
+        fontSize = size;
+        if (name)
+            strcpy(fontName.resize(strlen(name) + 1), name);
+        resetMouse();
+        concentrichron.resetFace();
+        pasted = Ra::SceneList();
+        text = Ra::SceneList();
+        clearHUD();
+        redraw = true;
     }
-    Ra::SceneRef getHUD(Ra::Bounds hudBounds) {
-        Ra::SceneRef hud;
-
-        float padding = 0.666 * hudBounds.height() / (kHudItemCount + 2);
-        Ra::Bounds text = hudBounds.inset(padding, 0.666 * padding);
-        
-        Ra::Path bgPath;  bgPath->addBounds(hudBounds.inset(0.5 * kHudBorder, 0.5 * kHudBorder)), bgPath->close();
-        hud->addPath(bgPath, Ra::Transform(), bgColor, 0, 0);
-        
-        float lineHeight = text.height() / kHudItemCount, uy;
-        float fontSize = lineHeight * lineHeight / RaCT::lineHeightFor(fontName.addr, lineHeight);
-        
-        for (size_t i = 0; i < kHudItemCount; i++) {
-            HudItem& item = hudItems[i];
-            uy = text.uy - i * lineHeight;
-            Ra::Color color = textColor;
-            if (  (*item.key == '0')
-                || (*item.key == 'B' && params.useClips)
-                || (*item.key == 'G' && showGlyphGrid)
-                || (*item.key == 'I' && params.showOpaques)
-                || (*item.key == 'O' && params.showOutlines)
-                || (*item.key == 'P' && pathMouseOver)
-                || (*item.key == 'T' && showTime)
-                || (*item.key == 'C' && params.useCurves))
-                color = activeColor;
-            RaCT::addCStringToSceneInRect(item.key, fontName.addr, fontSize, textColor, Ra::Bounds(text.lx, hudBounds.ly, text.ux, uy), Ra::Transform(), Ra::Bounds(), hud);
-            char const *label = item.text;
-            if (*item.key == '0' && !gpu)
-                label = item.alt;
-            RaCT::addCStringToSceneInRect(label, fontName.addr, fontSize, color, Ra::Bounds(text.lx + 2 * fontSize, hudBounds.ly, text.ux, uy), Ra::Transform(), Ra::Bounds(), hud);
-        }
-        hud->addPath(bgPath, Ra::Transform(), textColor, kHudBorder, 0);
-        return hud;
+    void setPastedString(const char *string) {
+        if (string)
+            strcpy((char *)pastedString.resize(strlen(string) + 1), string);
+        else
+            pastedString = Ra::Memory<char>();
+        resetMouse();
+        pasted = Ra::SceneList();
+        redraw = true;
     }
+    void setPdfUrl(const char *url) {
+        if (url)
+            strcpy((char *)pdfUrl.resize(strlen(url) + 1), url);
+        else
+            pdfUrl = Ra::Memory<char>();
+        resetMouse();
+        pageCount = url ? RaPDF::getPageCount(url) : 0;
+        redraw = true;
+    }
+    void setSvgUrl(const char *url) {
+        if (url)
+            strcpy((char *)svgUrl.resize(strlen(url) + 1), url);
+        else
+            svgUrl = Ra::Memory<char>();
+        resetMouse();
+        redraw = true;
+    }
+    void setUseGPU(bool useGPU) {
+        gpu = useGPU;
+        redraw = true, clearHUD();
+    }
+    
+#pragma mark - Delegate
+    
     bool getShouldRedraw(double time, float w, float h) {
         bool should = redraw || showTime;
         redraw = false;
@@ -324,6 +331,46 @@ struct RasterizerDemo {
         }
         return draw;
     }
+    
+#pragma mark - Drawing
+    
+    void clearHUD() {
+        hud = Ra::SceneRef();
+    }
+    Ra::SceneRef getHUD(Ra::Bounds hudBounds) {
+        Ra::SceneRef hud;
+
+        float padding = 0.666 * hudBounds.height() / (kHudItemCount + 2);
+        Ra::Bounds text = hudBounds.inset(padding, 0.666 * padding);
+        
+        Ra::Path bgPath;  bgPath->addBounds(hudBounds.inset(0.5 * kHudBorder, 0.5 * kHudBorder)), bgPath->close();
+        hud->addPath(bgPath, Ra::Transform(), bgColor, 0, 0);
+        
+        float lineHeight = text.height() / kHudItemCount, uy;
+        float fontSize = lineHeight * lineHeight / RaCT::lineHeightFor(fontName.addr, lineHeight);
+        
+        for (size_t i = 0; i < kHudItemCount; i++) {
+            HudItem& item = hudItems[i];
+            uy = text.uy - i * lineHeight;
+            Ra::Color color = textColor;
+            if (  (*item.key == '0')
+                || (*item.key == 'B' && params.useClips)
+                || (*item.key == 'G' && showGlyphGrid)
+                || (*item.key == 'I' && params.showOpaques)
+                || (*item.key == 'O' && params.showOutlines)
+                || (*item.key == 'P' && pathMouseOver)
+                || (*item.key == 'T' && showTime)
+                || (*item.key == 'C' && params.useCurves))
+                color = activeColor;
+            RaCT::addCStringToSceneInRect(item.key, fontName.addr, fontSize, textColor, Ra::Bounds(text.lx, hudBounds.ly, text.ux, uy), Ra::Transform(), Ra::Bounds(), hud);
+            char const *label = item.text;
+            if (*item.key == '0' && !gpu)
+                label = item.alt;
+            RaCT::addCStringToSceneInRect(label, fontName.addr, fontSize, color, Ra::Bounds(text.lx + 2 * fontSize, hudBounds.ly, text.ux, uy), Ra::Transform(), Ra::Bounds(), hud);
+        }
+        hud->addPath(bgPath, Ra::Transform(), textColor, kHudBorder, 0);
+        return hud;
+    }
     Ra::SceneRef makeMouseScene(Ra::Draw mouseDraw) {
         Ra::SceneRef mouseScene;
         Ra::Bounds bounds = Ra::Bounder::GetBounds(mouseDraw.path, Ra::Transform());
@@ -362,47 +409,7 @@ struct RasterizerDemo {
         }
         return mouseScene;
     }
-    void setFont(const char *url, const char *name, float size) {
-        fontSize = size;
-        if (name)
-            strcpy(fontName.resize(strlen(name) + 1), name);
-        resetMouse();
-        concentrichron.resetFace();
-        pasted = Ra::SceneList();
-        text = Ra::SceneList();
-        clearHUD();
-        redraw = true;
-    }
-    void setPastedString(const char *string) {
-        if (string)
-            strcpy((char *)pastedString.resize(strlen(string) + 1), string);
-        else
-            pastedString = Ra::Memory<char>();
-        resetMouse();
-        pasted = Ra::SceneList();
-        redraw = true;
-    }
-    void setPdfUrl(const char *url) {
-        if (url)
-            strcpy((char *)pdfUrl.resize(strlen(url) + 1), url);
-        else
-            pdfUrl = Ra::Memory<char>();
-        resetMouse();
-        pageCount = url ? RaPDF::getPageCount(url) : 0;
-        redraw = true;
-    }
-    void setSvgUrl(const char *url) {
-        if (url)
-            strcpy((char *)svgUrl.resize(strlen(url) + 1), url);
-        else
-            svgUrl = Ra::Memory<char>();
-        resetMouse();
-        redraw = true;
-    }
-    void setUseGPU(bool useGPU) {
-        gpu = useGPU;
-        redraw = true, clearHUD();
-    }
+    
     
     Ra::Color textColor = Ra::Color(0, 0, 0, 255), activeColor = Ra::Color(0, 0, 255, 255), bgColor = Ra::Color(255, 255, 255, 192);
     float fontSize = 14;
