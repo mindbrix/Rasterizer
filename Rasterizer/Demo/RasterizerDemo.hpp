@@ -170,42 +170,31 @@ struct RasterizerDemo {
         redraw = true;
     }
     void onDrag(float dx, float dy) {
-        if (locked) {
-            if (mouse.i0 != INT_MAX) {
-                Ra::Draw& drw = list.scenes[mouse.i0]->draws[mouse.i1];
-                Ra::Transform m;
-                m = list.ctms[mouse.i0].concat(list.ctm);
-                m = drw.ctm.concat(m);
-                m = m.invert();
-                float ux = m.a * dx + m.c * dy;
-                float uy = m.b * dx + m.d * dy;
-                
-                drw.ctm = drw.ctm.concat(Ra::Transform(1, 0, 0, 1, ux, uy));
-                
-//                drw.ctm.tx += ux;
-//                drw.ctm.ty += uy;
-            }
-        } else {
+        if (locked)
+            translateLocked(dx, dy);
+        else
             ctm.tx += dx, ctm.ty += dy;
-        }
         mx += dx, my += dy;
         redraw = true;
     }
     void onTranslate(float dx, float dy) {
-        if (locked) {
-            if (mouse.i0 != INT_MAX) {
-                Ra::Draw& drw = list.scenes[mouse.i0]->draws[mouse.i1];
-                drw.ctm.tx += dx;
-                drw.ctm.ty += dy;
-            }
-        } else {
+        if (locked)
+            translateLocked(dx, dy);
+        else
             ctm.tx += dx, ctm.ty += dy;
-        }
         redraw = true;
     }
     
-   
 #pragma mark - Properties
+    
+    void translateLocked(float dx, float dy) {
+        if (mouse.i0 != INT_MAX) {
+            Ra::Draw& drw = list.scenes[mouse.i0]->draws[mouse.i1];
+            Ra::Transform m = drw.ctm.concat(list.ctms[mouse.i0]).concat(ctm).invert();
+            Ra::Transform translate = Ra::Transform(1, 0, 0, 1, m.a * dx + m.c * dy, m.b * dx + m.d * dy);
+            drw.ctm = translate.concat(drw.ctm);
+        }
+    }
     
     void setMouse(RaWnd::IndexPair pair) {
         restore(mouse), mouse = pair, save(mouse);
