@@ -138,25 +138,69 @@ struct RasterizerDemo {
         mouseDown = false;
     }
     void onMagnify(float s) {
-        float cx = (flags & Flags::kShift) ? mx : bounds.cx();
-        float cy = (flags & Flags::kShift) ? my : bounds.cy();
-        ctm = ctm.concatAroundCenter(Ra::Transform(s, 0.f, 0.f, s, 0.f, 0.f), cx, cy);
+        if (locked) {
+            if (mouse.i0 != INT_MAX) {
+                Ra::Draw& drw = list.scenes[mouse.i0]->draws[mouse.i1];
+                float cx = drw.path->bounds.cx();
+                float cy = drw.path->bounds.cy();
+                drw.ctm = drw.ctm.concatAroundCenter(Ra::Transform(s, 0.f, 0.f, s, 0.f, 0.f), cx, cy);
+            }
+        } else {
+            float cx = (flags & Flags::kShift) ? mx : bounds.cx();
+            float cy = (flags & Flags::kShift) ? my : bounds.cy();
+            ctm = ctm.concatAroundCenter(Ra::Transform(s, 0.f, 0.f, s, 0.f, 0.f), cx, cy);
+        }
         redraw = true;
     }
     void onRotate(float a) {
-        float cx = (flags & Flags::kShift) ? mx : bounds.cx();
-        float cy = (flags & Flags::kShift) ? my : bounds.cy();
-        float sine, cosine;  __sincosf(a, & sine, & cosine);
-        ctm = ctm.concatAroundCenter(Ra::Transform(cosine, sine, - sine, cosine, 0, 0), cx, cy);
+        if (locked) {
+            if (mouse.i0 != INT_MAX) {
+                Ra::Draw& drw = list.scenes[mouse.i0]->draws[mouse.i1];
+                float cx = drw.path->bounds.cx();
+                float cy = drw.path->bounds.cy();
+                float sine, cosine;  __sincosf(a, & sine, & cosine);
+                drw.ctm = drw.ctm.concatAroundCenter(Ra::Transform(cosine, sine, - sine, cosine, 0, 0), cx, cy);
+            }
+        } else {
+            float cx = (flags & Flags::kShift) ? mx : bounds.cx();
+            float cy = (flags & Flags::kShift) ? my : bounds.cy();
+            float sine, cosine;  __sincosf(a, & sine, & cosine);
+            ctm = ctm.concatAroundCenter(Ra::Transform(cosine, sine, - sine, cosine, 0, 0), cx, cy);
+        }
         redraw = true;
     }
     void onDrag(float dx, float dy) {
-        ctm.tx += dx, ctm.ty += dy;
+        if (locked) {
+            if (mouse.i0 != INT_MAX) {
+                Ra::Draw& drw = list.scenes[mouse.i0]->draws[mouse.i1];
+                Ra::Transform m;
+                m = list.ctms[mouse.i0].concat(list.ctm);
+                m = drw.ctm.concat(m);
+                m = m.invert();
+                float ux = m.a * dx + m.c * dy;
+                float uy = m.b * dx + m.d * dy;
+                
+                drw.ctm = drw.ctm.concat(Ra::Transform(1, 0, 0, 1, ux, uy));
+                
+//                drw.ctm.tx += ux;
+//                drw.ctm.ty += uy;
+            }
+        } else {
+            ctm.tx += dx, ctm.ty += dy;
+        }
         mx += dx, my += dy;
         redraw = true;
     }
     void onTranslate(float dx, float dy) {
-        ctm.tx += dx, ctm.ty += dy;
+        if (locked) {
+            if (mouse.i0 != INT_MAX) {
+                Ra::Draw& drw = list.scenes[mouse.i0]->draws[mouse.i1];
+                drw.ctm.tx += dx;
+                drw.ctm.ty += dy;
+            }
+        } else {
+            ctm.tx += dx, ctm.ty += dy;
+        }
         redraw = true;
     }
     
@@ -268,7 +312,7 @@ struct RasterizerDemo {
             Ra::Draw& drw = list.scenes[mouse.i0]->draws[mouse.i1];
             if (drw.width != 0)
                 drw.paint = Ra::Color(0, 0, 224, 255);
-            draw.addScene(mouseScene, list.ctms[mouse.i0], list.clips[mouse.i0]);
+            draw.addScene(mouseScene, drw.ctm.concat(list.ctms[mouse.i0]), list.clips[mouse.i0]);
         }
         
         if (showHud) {
@@ -284,36 +328,37 @@ struct RasterizerDemo {
         Ra::SceneRef mouseScene;
         Ra::Bounds bounds = Ra::Bounder::GetBounds(mouseDraw.path, Ra::Transform());
         const float width = mouseDraw.width;
+        mouseDraw.ctm = Ra::Transform();
         
         if (width == 0.f) {
             mouseDraw.paint = Ra::Color(255, 255, 255, 192);
-            mouseDraw.width = -8.f;
+            mouseDraw.width = -4.f;
             mouseScene->addDraws(& mouseDraw, 1);
             
             mouseDraw.paint = Ra::Color(0, 0, 224, 255);
-            mouseDraw.width = -4.f;
+            mouseDraw.width = -2.f;
             mouseScene->addDraws(& mouseDraw, 1);
         }
         
         if (width > 0.f) {
             mouseDraw.paint = Ra::Color(0, 0, 0, 255);
-            mouseDraw.width = -2.f;
+            mouseDraw.width = -1.f;
             mouseScene->addDraws(& mouseDraw, 1);
         }
         Ra::Huller hull(mouseDraw.path);
-        mouseScene->addPath(hull.hull, mouseDraw.ctm, Ra::Color(255, 255, 255, 192), -8.f, 0);
-        mouseScene->addPath(hull.hull, mouseDraw.ctm, Ra::Color(0, 0, 0, 255), -4.f, 0);
-        mouseScene->addPath(hull.points, mouseDraw.ctm, Ra::Color(255, 255, 255, 192), -16.f, Ra::Scene::Flags::kRoundCap);
-        mouseScene->addPath(hull.points, mouseDraw.ctm, Ra::Color(0, 0, 0, 255), -12.f, Ra::Scene::Flags::kRoundCap);
+        mouseScene->addPath(hull.hull, mouseDraw.ctm, Ra::Color(255, 255, 255, 192), -4.f, 0);
+        mouseScene->addPath(hull.hull, mouseDraw.ctm, Ra::Color(0, 0, 0, 255), -2.f, 0);
+        mouseScene->addPath(hull.points, mouseDraw.ctm, Ra::Color(255, 255, 255, 192), -8.f, Ra::Scene::Flags::kRoundCap);
+        mouseScene->addPath(hull.points, mouseDraw.ctm, Ra::Color(0, 0, 0, 255), -6.f, Ra::Scene::Flags::kRoundCap);
         
         Ra::Path boundsPath;
         boundsPath->addBounds(bounds);
         boundsPath->addBounds(mouseDraw.path->bounds);
-        mouseScene->addPath(boundsPath, mouseDraw.ctm, Ra::Color(0, 0, 0, 255), -2.f, 0);
+        mouseScene->addPath(boundsPath, mouseDraw.ctm, Ra::Color(0, 0, 0, 255), -1.f, 0);
         if (!mouseDraw.clip.isHuge()) {
             Ra::Path clipPath;
             clipPath->addBounds(mouseDraw.clip);
-            mouseScene->addPath(clipPath, Ra::Transform(), Ra::Color(0, 0, 255, 255), -2.f, 0);
+            mouseScene->addPath(clipPath, Ra::Transform(), Ra::Color(0, 0, 255, 255), -1.f, 0);
         }
         return mouseScene;
     }

@@ -36,6 +36,9 @@ struct RasterizerCG {
     }
     
     static void renderList(const Ra::SceneList& list, Ra::Bounds bounds, CGContextRef ctx) {
+        CGAffineTransform m = CGContextGetCTM(ctx);
+        CGFloat scale = sqrt(abs(m.a * m.d - m.b * m.c));
+        
         CGContextConcatCTM(ctx, CGFromTransform(list.ctm));
         
         for (int j = 0; j < list.scenes.size(); j++) {
@@ -73,7 +76,9 @@ struct RasterizerCG {
                     const auto& paint = draw.paint;
                     const auto color = paint.color;
                     if (list.params.showOutlines) {
-                        CGContextSetLineWidth(ctx, (CGFloat)-109.05473e+14);
+                        CGAffineTransform m = CGContextGetCTM(ctx);
+                        CGFloat s = sqrt(abs(m.a * m.d - m.b * m.c));
+                        CGContextSetLineWidth(ctx, scale * 0.5 / s);
                         if (draw.width)
                             CGContextSetRGBStrokeColor(ctx, 1, 0, 0, 1);
                         else
@@ -82,7 +87,7 @@ struct RasterizerCG {
                     } else if (draw.width) {
                         CGAffineTransform m = CGContextGetCTM(ctx);
                         CGFloat s = sqrt(abs(m.a * m.d - m.b * m.c));
-                        CGContextSetLineWidth(ctx, draw.width < 0.f ? -draw.width / s : draw.width);
+                        CGContextSetLineWidth(ctx, draw.width < 0.f ? -scale * draw.width / s : draw.width);
                         bool square = draw.flags & Ra::Scene::kSquareCap;
                         bool round = draw.flags & Ra::Scene::kRoundCap;
                         CGContextSetLineCap(ctx, round ? kCGLineCapRound : square ? kCGLineCapSquare : kCGLineCapButt);

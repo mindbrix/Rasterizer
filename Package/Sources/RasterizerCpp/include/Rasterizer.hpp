@@ -759,7 +759,10 @@ struct Rasterizer {
         uint32_t iz;  Color *strip;
     };
     struct Context {
-        void drawList(const SceneList& list, Bounds device, Transform view, size_t slz, size_t suz, Buffer *buffer) {
+        void drawList(const SceneList& list, float scale, float w, float h, size_t slz, size_t suz, Buffer *buffer) {
+            Bounds device(0.f, 0.f, ceilf(scale * w), ceilf(scale * h));
+            Transform view = list.ctm.concat(Transform(scale, 0.f, 0.f, scale, 0.f, 0.f));
+            
             empty(), allocator.empty(device), allocator.refill(0);
             size_t fatlines = 1.f + ceilf((device.uy - device.ly) * krfh);
             if (samples.end() != fatlines) {
@@ -822,7 +825,7 @@ struct Rasterizer {
                     }
                     m = draw.ctm.concat(ctm), det = fabsf(m.a * m.d - m.b * m.c);
                     uw = draw.width;
-                    width = list.params.showOutlines ? 1.f : uw * (uw > 0.f ? sqrtf(det) : -1.f);
+                    width = list.params.showOutlines ? 0.5f * scale : uw * (uw > 0.f ? sqrtf(det) : -scale);
                     bnds = scn->bnds.base + is, quad = bnds->quad(m), dev = Bounds(quad).inset(-width, -width);
                     clip = dev.integral().intersect(clipBounds);
                     

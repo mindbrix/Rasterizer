@@ -53,13 +53,10 @@ struct RasterizerRenderer {
         buffer->prepare(list);
         renderBuffer->resize(buffer->headerSize, 0, layer.device);
         
-        Ra::Bounds device(0.f, 0.f, ceilf(scale * w), ceilf(scale * h));
-        Ra::Transform view = list.ctm.concat(Ra::Transform(scale, 0.f, 0.f, scale, 0.f, 0.f));
-        
         auto divisions = (size_t *)alloca((contextCount + 1) * sizeof(size_t));
         writeBalancedWeightDivisions(list, divisions);
         dispatch_apply(contextCount, DISPATCH_APPLY_AUTO, ^(size_t i) {
-            contexts[i].drawList(list, device, view, divisions[i], divisions[i + 1], buffer);
+            contexts[i].drawList(list, scale, w, h, divisions[i], divisions[i + 1], buffer);
         });
         auto begins = (size_t *)alloca(contextCount * sizeof(size_t));
         size_t size = Ra::resizeBuffer(list, & contexts[0], contextCount, begins, *buffer);
