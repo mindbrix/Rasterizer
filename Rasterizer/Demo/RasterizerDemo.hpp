@@ -62,7 +62,7 @@ struct RasterizerDemo {
         setPastedString(string);
     }
     void onFlags(size_t keyFlags) {
-        flags = keyFlags;
+        flags = keyFlags, shift = flags & Flags::kShift;
         redraw = true;
     }
     bool onKeyDown(unsigned short keyCode, size_t keyFlags) {
@@ -167,16 +167,13 @@ struct RasterizerDemo {
 #pragma mark - Properties
     
     void concat(Ra::Transform transform) {
-        float cx = (flags & Flags::kShift) ? mx : bounds.cx();
-        float cy = (flags & Flags::kShift) ? my : bounds.cy();
-        ctm = ctm.concatAroundCenter(transform, cx, cy);
+        ctm = ctm.concatAroundCenter(transform, shift ? mx : bounds.cx(), shift ? my : bounds.cy());
     }
     void concatLocked(Ra::Transform transform) {
         if (mouse.i0 != INT_MAX) {
             Ra::Draw& draw = list.scenes[mouse.i0]->draws[mouse.i1];
-            Ra::Transform m = (flags & Flags::kShift) ? list.ctms[mouse.i0].concat(ctm).invert() : draw.ctm;
-            float bx = (flags & Flags::kShift) ? mx : draw.path->bounds.cx();
-            float by = (flags & Flags::kShift) ? my : draw.path->bounds.cy();
+            Ra::Transform m = shift ? list.ctms[mouse.i0].concat(ctm).invert() : draw.ctm;
+            float bx = shift ? mx : draw.path->bounds.cx(), by = shift ? my : draw.path->bounds.cy();
             draw.ctm = draw.ctm.concatAroundCenter(transform, bx * m.a + by * m.c + m.tx, bx * m.b + by * m.d + m.ty);
         }
     }
@@ -402,7 +399,7 @@ struct RasterizerDemo {
     Ra::Bounds bounds;
 
     Ra::Params params;
-    bool gpu = true, redraw = false, fit = false, mouseDown = false, mouseMove = false;
+    bool gpu = true, redraw = false, fit = false, mouseDown = false, mouseMove = false, shift = false;
     double clock = 0.0, timeScale = 0.333;
     float mx, my;
     Ra::Draw mouseDraw;
