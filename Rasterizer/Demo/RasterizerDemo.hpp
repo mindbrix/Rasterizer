@@ -173,13 +173,11 @@ struct RasterizerDemo {
     }
     void concatLocked(Ra::Transform transform) {
         if (mouse.i0 != INT_MAX) {
-            Ra::Draw& drw = list.scenes[mouse.i0]->draws[mouse.i1];
-            Ra::Transform m = list.ctms[mouse.i0].concat(ctm).invert();
-            Ra::Transform& dm = drw.ctm;
-            float bx = drw.path->bounds.cx(), by = drw.path->bounds.cy();
-            float cx = (flags & Flags::kShift) ? mx * m.a + my * m.c + m.tx : bx * dm.a + by * dm.c + dm.tx;
-            float cy = (flags & Flags::kShift) ? mx * m.b + my * m.d + m.ty : bx * dm.b + by * dm.d + dm.ty;
-            drw.ctm = drw.ctm.concatAroundCenter(transform, cx, cy);
+            Ra::Draw& draw = list.scenes[mouse.i0]->draws[mouse.i1];
+            Ra::Transform m = (flags & Flags::kShift) ? list.ctms[mouse.i0].concat(ctm).invert() : draw.ctm;
+            float bx = (flags & Flags::kShift) ? mx : draw.path->bounds.cx();
+            float by = (flags & Flags::kShift) ? my : draw.path->bounds.cy();
+            draw.ctm = draw.ctm.concatAroundCenter(transform, bx * m.a + by * m.c + m.tx, bx * m.b + by * m.d + m.ty);
         }
     }
     void translateLocked(float dx, float dy) {
