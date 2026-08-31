@@ -129,6 +129,16 @@ struct RasterizerDemo {
     }
     void onMouseDown(float x, float y) {
         mouseDown = true;
+        if (locked) {
+            if (mouse.i0 != INT_MAX) {
+                Ra::Draw& draw = list.scenes[mouse.i0]->draws[mouse.i1];
+                Ra::Transform m = draw.path->bounds.quad(draw.ctm.concat(list.ctms[mouse.i0]).concat(ctm)).invert();
+                float ux = x * m.a + y * m.c + m.tx;
+                float uy = x * m.b + y * m.d + m.ty;
+                if ((fmaxf(fabsf(ux - 0.5f), fabsf(uy - 0.5f)) > 0.5f))
+                    toggleLocked();
+            }
+        }
         if (!locked)
             toggleLocked(), redraw = true;
     }
