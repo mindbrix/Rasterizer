@@ -135,14 +135,20 @@ struct RasterizerDemo {
     void onMouseUp(float x, float y) {
         mouseDown = false;
     }
-    void onMagnify(float s) {
+    void onMagnify(float s, bool ended) {
+        if (rotating)
+            return;
+        magnifying = !ended;
         if (locked)
             concatLocked(Ra::Transform(s, 0.f, 0.f, s, 0.f, 0.f));
         else
             concat(Ra::Transform(s, 0.f, 0.f, s, 0.f, 0.f));
         redraw = true;
     }
-    void onRotate(float a) {
+    void onRotate(float a, bool ended) {
+        if (magnifying)
+            return;
+        rotating = !ended;
         float sine, cosine;  __sincosf(a, & sine, & cosine);
         if (locked)
             concatLocked(Ra::Transform(cosine, sine, - sine, cosine, 0, 0));
@@ -405,6 +411,7 @@ struct RasterizerDemo {
 
     Ra::Params params;
     bool gpu = true, redraw = false, fit = false, mouseDown = false, mouseMoved = false, pathMouseOver = false, shift = false;
+    bool magnifying = false, rotating = false;
     double clock = 0.0, timeScale = 0.333;
     float mx, my;
     Ra::Draw mouseDraw;

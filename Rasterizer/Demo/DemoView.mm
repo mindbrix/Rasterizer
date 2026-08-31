@@ -107,10 +107,10 @@
 }
 
 - (void)magnifyWithEvent:(NSEvent *)event {
-    _demo.onMagnify(float(1 + event.magnification));
+    _demo.onMagnify(float(1 + event.magnification), event.phase == NSEventPhaseEnded);
 }
 - (void)rotateWithEvent:(NSEvent *)event {
-    _demo.onRotate(float(event.rotation / 10));
+    _demo.onRotate(float(event.rotation / 10), event.phase == NSEventPhaseEnded);
 }
 - (void)scrollWheel:(NSEvent *)event {
     CGFloat inversion = ([event respondsToSelector:@selector(isDirectionInvertedFromDevice)] && [event isDirectionInvertedFromDevice]) ? 1.0f : -1.0f;
