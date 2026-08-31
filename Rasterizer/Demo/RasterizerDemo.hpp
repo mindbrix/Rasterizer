@@ -130,11 +130,8 @@ struct RasterizerDemo {
     void onMouseDown(float x, float y) {
         mouseDown = true;
         if (locked) {
-            Ra::Draw& draw = list.scenes[mouse.i0]->draws[mouse.i1];
-            Ra::Transform m = draw.path->bounds.quad(draw.ctm.concat(list.ctms[mouse.i0]).concat(ctm)).invert();
-            float ux = x * m.a + y * m.c + m.tx;
-            float uy = x * m.b + y * m.d + m.ty;
-            if ((fmaxf(fabsf(ux - 0.5f), fabsf(uy - 0.5f)) > 0.5f))
+            Ra::Transform m = lockedCTM().invert();
+            if (!lockedDraw().path->bounds.contains(x * m.a + y * m.c + m.tx, x * m.b + y * m.d + m.ty))
                 toggleLocked();
         }
         if (!locked)
@@ -166,9 +163,11 @@ struct RasterizerDemo {
     }
     
 #pragma mark - Properties
+    Ra::Draw& lockedDraw() const {
+        return list.scenes[mouse.i0]->draws[mouse.i1];
+    }
     Ra::Transform lockedCTM() const {
-        Ra::Draw& draw = list.scenes[mouse.i0]->draws[mouse.i1];
-        return draw.ctm.concat(list.ctms[mouse.i0]).concat(ctm);
+        return lockedDraw().ctm.concat(list.ctms[mouse.i0]).concat(ctm);
     }
     void toggleLocked() {
         locked = locked ? false : mouse.i0 != INT_MAX;
@@ -177,7 +176,7 @@ struct RasterizerDemo {
     }
     void concat(Ra::Transform transform) {
         if (locked) {
-            Ra::Draw& draw = list.scenes[mouse.i0]->draws[mouse.i1];
+            Ra::Draw& draw = lockedDraw();
             Ra::Transform m = shift ? list.ctms[mouse.i0].concat(ctm).invert() : draw.ctm;
             float bx = shift ? mx : draw.path->bounds.cx(), by = shift ? my : draw.path->bounds.cy();
             draw.ctm = draw.ctm.concatAroundCenter(transform, bx * m.a + by * m.c + m.tx, bx * m.b + by * m.d + m.ty);
@@ -187,8 +186,8 @@ struct RasterizerDemo {
     }
     void translate(float dx, float dy) {
         if (locked) {
-            Ra::Draw& draw = list.scenes[mouse.i0]->draws[mouse.i1];
-            Ra::Transform m = draw.ctm.concat(list.ctms[mouse.i0]).concat(ctm).invert();
+            Ra::Draw& draw = lockedDraw();
+            Ra::Transform m = lockedCTM().invert();
             Ra::Transform translate = Ra::Transform(1, 0, 0, 1, m.a * dx + m.c * dy, m.b * dx + m.d * dy);
             draw.ctm = translate.concat(draw.ctm);
         } else
