@@ -249,10 +249,29 @@ struct RasterizerDemo {
         hud->addPath(bgPath, Ra::Transform(), textColor, kHudBorder, 0);
         return hud;
     }
+    bool getShouldRedraw(double time, float w, float h) {
+        bool should = redraw || showTime;
+        redraw = false;
+        
+        if (!locked && pathMouseOver && mouseMoved) {
+            mouseMoved = false;
+            list.ctm = ctm;
+            RaWnd::IndexPair pair = RasterizerWinding::indicesForPoint(list, bounds, mx, my);
+            if (last.i0 != pair.i0 || last.i1 != pair.i1)
+                last = pair, setMouse(pair), should = true;
+        }
+        if (should)
+            lastTime = time;
+        else if (lastTime) {
+            double age = time - lastTime;
+            if (age > 2) {
+                lastTime = 0;
+            }
+        }
+        return should;
+    }
     Ra::SceneList getDrawList(double time, float w, float h) {
         bounds = Ra::Bounds(0.f, 0.f, w, h);
-        redraw = false;
-        clock = time * timeScale;
         list = Ra::SceneList();
         if (pastedString.size) {
             if (pasted.pathsCount == 0) {
@@ -343,18 +362,6 @@ struct RasterizerDemo {
         }
         return mouseScene;
     }
-    bool getShouldRedraw() {
-        bool should = redraw || showTime;
-        
-        if (!locked && pathMouseOver && mouseMoved) {
-            mouseMoved = false;
-            list.ctm = ctm;
-            RaWnd::IndexPair pair = RasterizerWinding::indicesForPoint(list, bounds, mx, my);
-            if (last.i0 != pair.i0 || last.i1 != pair.i1)
-                last = pair, setMouse(pair), should = true;
-        }
-        return should;
-    }
     void setFont(const char *url, const char *name, float size) {
         fontSize = size;
         if (name)
@@ -412,7 +419,7 @@ struct RasterizerDemo {
     Ra::Params params;
     bool gpu = true, redraw = false, fit = false, mouseDown = false, mouseMoved = false, pathMouseOver = false, shift = false;
     bool magnifying = false, rotating = false;
-    double clock = 0.0, timeScale = 0.333;
+    double lastTime = 0.0;
     float mx, my;
     Ra::Draw mouseDraw;
     RaWnd::IndexPair mouse = RaWnd::IndexPair(), last = RaWnd::IndexPair();

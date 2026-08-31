@@ -50,7 +50,7 @@
 #pragma mark - SceneListDelegate
 
 - (BOOL)shouldRedrawAtTime:(double)time width:(double)width height:(double)height {
-    return _demo.getShouldRedraw();
+    return _demo.getShouldRedraw(time, width, height);
 }
 
 - (RASceneList *)getListAtTime:(double)time width:(double)width height:(double)height {
