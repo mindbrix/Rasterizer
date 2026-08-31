@@ -87,9 +87,7 @@ struct RasterizerDemo {
         else if (keyCode == KeyCode::kP)
             mouseMove = !mouseMove, resetMouse(), keyUsed = true, clearHUD();
         else if (keyCode == KeyCode::kL) {
-            locked = locked ? false : mouse.i0 != INT_MAX, keyUsed = true;
-            if (!locked)
-                resetMouse();
+            toggleLocked(), keyUsed = true;
         } else if (keyCode == KeyCode::kS)
             list.ctm = ctm, RaCG::screenGrabToPDF(list, bounds), keyUsed = true;
         else if (keyCode == KeyCode::kT) {
@@ -133,6 +131,8 @@ struct RasterizerDemo {
     }
     void onMouseDown(float x, float y) {
         mouseDown = true;
+        if (!locked)
+            toggleLocked(), redraw = true;
     }
     void onMouseUp(float x, float y) {
         mouseDown = false;
@@ -166,6 +166,11 @@ struct RasterizerDemo {
     
 #pragma mark - Properties
     
+    void toggleLocked() {
+        locked = locked ? false : mouse.i0 != INT_MAX;
+        if (!locked)
+            resetMouse();
+    }
     void concat(Ra::Transform transform) {
         ctm = ctm.concatAroundCenter(transform, shift ? mx : bounds.cx(), shift ? my : bounds.cy());
     }
