@@ -153,12 +153,8 @@ struct RasterizerDemo {
         redraw = true;
     }
     void onDrag(float dx, float dy) {
-        if (locked)
-            translateLocked(dx, dy);
-        else
-            ctm.tx += dx, ctm.ty += dy;
+        onTranslate(dx, dy);
         mx += dx, my += dy;
-        redraw = true;
     }
     void onTranslate(float dx, float dy) {
         if (locked)
