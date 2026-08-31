@@ -167,6 +167,7 @@ struct Rasterizer {
                 (c * ty - d * tx) * recip,      -(a * ty - b * tx) * recip
             );
         }
+        inline float det() const { return a * d - b * c; }
         inline float scale() const { return sqrtf(fabsf(a * d - b * c)); }
         float a, b, c, d, tx, ty;
     };

@@ -155,7 +155,8 @@ struct RasterizerDemo {
         if (magnifying)
             return;
         rotating = !ended;
-        float sine, cosine;  __sincosf(a, & sine, & cosine);
+        bool flipped = !locked ? false : lockedCTM().det() < 0;
+        float sine, cosine;  __sincosf(flipped ? -a : a, & sine, & cosine);
         concat(Ra::Transform(cosine, sine, - sine, cosine, 0, 0));
     }
     void onDrag(float dx, float dy) {
@@ -167,7 +168,10 @@ struct RasterizerDemo {
     }
     
 #pragma mark - Properties
-    
+    Ra::Transform lockedCTM() const {
+        Ra::Draw& draw = list.scenes[mouse.i0]->draws[mouse.i1];
+        return draw.ctm.concat(list.ctms[mouse.i0]).concat(ctm);
+    }
     void toggleLocked() {
         locked = locked ? false : mouse.i0 != INT_MAX;
         if (!locked)
