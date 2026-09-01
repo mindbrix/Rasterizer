@@ -296,7 +296,7 @@ struct RasterizerDemo {
                 Ra::SceneRef scene;
                 Ra::Transform m = RaSVG::addSvgToScene(svgUrl.addr, scene);
                 document.addScene(scene, m);
-                fit = true;
+                shouldFit = true;
             }
             list.addList(document);
         } else if (pdfUrl.size) {
@@ -304,12 +304,12 @@ struct RasterizerDemo {
                 Ra::SceneRef scene;
                 Ra::Transform m = RaPDF::addPdfPageToScene(pdfUrl.addr, pageIndex, scene);
                 document.addScene(scene, m);
-                fit = true;
+                shouldFit = true;
             }
             list.addList(document);
         }
-        if (fit)
-            ctm = bounds.fitTransform(list.bounds()), fit = false;
+        if (shouldFit)
+            ctm = bounds.fitTransform(list.bounds()), shouldFit = false;
         Ra::SceneList draw = list;  draw.ctm = ctm, draw.params = params;
         
         if (mouse.i0 != INT_MAX) {
@@ -407,6 +407,7 @@ struct RasterizerDemo {
         return mouseScene;
     }
     
+    Ra::Transform ctm;  Ra::Bounds bounds;  Ra::Params params;
     
     Ra::Color textColor = Ra::Color(0, 0, 0, 255), activeColor = Ra::Color(0, 0, 255, 255), bgColor = Ra::Color(255, 255, 255, 192);
     float fontSize = 14;
@@ -414,15 +415,10 @@ struct RasterizerDemo {
     Ra::SceneList list, document, pasted, text;
     Ra::SceneRef hud, mouseScene;
     Ra::Memory<char> pastedString, fontName, pdfUrl, svgUrl;
-    bool showGlyphGrid = false, showTime = false, showHud = true, locked = false;
+    bool showGlyphGrid = false, showTime = false, showHud = true, gpu = true, pathMouseOver = false, shouldFit = false;
     size_t pageCount, pageIndex;
     
-    Ra::Transform ctm;
-    Ra::Bounds bounds;
-
-    Ra::Params params;
-    bool gpu = true, redraw = false, fit = false, mouseDown = false, mouseMoved = false, pathMouseOver = false, shift = false;
-    bool magnifying = false, rotating = false;
+    bool redraw = false, mouseDown = false, mouseMoved = false, shift = false, locked = false, magnifying = false, rotating = false;
     double lastTime = 0.0;
     float mx, my;
     Ra::Draw mouseDraw;
