@@ -253,7 +253,8 @@ struct RasterizerPDF {
                             path = clip, clipPath = nullptr;
                 flags |= fillmode == FPDF_FILLMODE_ALTERNATE ? Ra::Draw::kFillEvenOdd : 0;
             }
-            scene->addPath(path, ctm, Ra::Color(B, G, R, A), width, flags, clipBounds, clipPath);
+            if (path->isValid())
+                scene->addPath(path, ctm, Ra::Color(B, G, R, A), width, flags, clipBounds, clipPath);
         }
     }
     
