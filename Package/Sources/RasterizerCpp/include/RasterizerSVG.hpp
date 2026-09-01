@@ -40,7 +40,7 @@ struct RasterizerSVG {
                 for (NSVGshape *shape = image->shapes; shape != NULL; shape = shape->next)
                     if (shape->fill.type != NSVG_PAINT_NONE)
                         writePathFromShape(shape, path);
-                scene->addPath(path, Ra::Transform(), Ra::Color(), 0.f, Ra::Scene::kFillEvenOdd);
+                scene->addPath(path, Ra::Transform(), Ra::Color(), 0.f, Ra::Draw::kFillEvenOdd);
             } else {
                 for (NSVGshape *shape = image->shapes; shape != NULL; shape = shape->next) {
                     Ra::Path path;
@@ -49,7 +49,7 @@ struct RasterizerSVG {
                         continue;
                     Ra::Transform ctm;
                     if (shape->fill.type != NSVG_PAINT_NONE) {
-                        int flags = shape->fillRule == NSVG_FILLRULE_EVENODD ? Ra::Scene::kFillEvenOdd : 0;
+                        int flags = shape->fillRule == NSVG_FILLRULE_EVENODD ? Ra::Draw::kFillEvenOdd : 0;
                         scene->addPath(path, ctm, paintFromPaint(shape->fill), 0.f, flags);
                     }
                     if (shape->stroke.type != NSVG_PAINT_NONE && shape->strokeWidth) {
@@ -57,9 +57,9 @@ struct RasterizerSVG {
                             path = Ra::Dasher::CreateDashedPath(path, shape->strokeDashOffset, shape->strokeDashArray, shape->strokeDashCount);
                         }
                         char cap = shape->strokeLineCap;
-                        int flags = cap == NSVG_CAP_ROUND ? Ra::Scene::kRoundCap : cap == NSVG_CAP_SQUARE ? Ra::Scene::kSquareCap : 0;
+                        int flags = cap == NSVG_CAP_ROUND ? Ra::Draw::kRoundCap : cap == NSVG_CAP_SQUARE ? Ra::Draw::kSquareCap : 0;
                         char join = shape->strokeLineJoin;
-                        flags |= join == NSVG_JOIN_ROUND ? Ra::Scene::kRoundJoin : 0;
+                        flags |= join == NSVG_JOIN_ROUND ? Ra::Draw::kRoundJoin : 0;
                         scene->addPath(path, ctm, paintFromPaint(shape->stroke), shape->strokeWidth, flags);
                     }
                 }

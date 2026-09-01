@@ -233,10 +233,10 @@ struct RasterizerPDF {
                 FPDFPageObj_GetStrokeWidth(pageObject, & width);
                 width = width == 0.f ? -1.f : width;
                 int cap = FPDFPageObj_GetLineCap(pageObject);
-                flags |= cap == FPDF_LINECAP_ROUND ? Ra::Scene::kRoundCap : 0;
-                flags |= cap == FPDF_LINECAP_PROJECTING_SQUARE ? Ra::Scene::kSquareCap : 0;
+                flags |= cap == FPDF_LINECAP_ROUND ? Ra::Draw::kRoundCap : 0;
+                flags |= cap == FPDF_LINECAP_PROJECTING_SQUARE ? Ra::Draw::kSquareCap : 0;
                 int join = FPDFPageObj_GetLineJoin(pageObject);
-                flags |= join == FPDF_LINEJOIN_ROUND ? Ra::Scene::kRoundJoin : 0;
+                flags |= join == FPDF_LINEJOIN_ROUND ? Ra::Draw::kRoundJoin : 0;
                 size_t dashCount = FPDFPageObj_GetDashCount(pageObject);
                 if (dashCount) {
                     float phase;
@@ -251,7 +251,7 @@ struct RasterizerPDF {
                     for (auto clip : clipPaths)
                         if (!clip->isRect())
                             path = clip, clipPath = nullptr;
-                flags |= fillmode == FPDF_FILLMODE_ALTERNATE ? Ra::Scene::kFillEvenOdd : 0;
+                flags |= fillmode == FPDF_FILLMODE_ALTERNATE ? Ra::Draw::kFillEvenOdd : 0;
             }
             scene->addPath(path, ctm, Ra::Color(B, G, R, A), width, flags, clipBounds, clipPath);
         }

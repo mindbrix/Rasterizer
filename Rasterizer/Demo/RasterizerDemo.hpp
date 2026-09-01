@@ -416,8 +416,8 @@ struct RasterizerDemo {
         Ra::Huller hull(mouseDraw.path);
         mouseScene->addPath(hull.hull, mouseDraw.ctm, Ra::Color(255, 255, 255, 192), -4.f, 0);
         mouseScene->addPath(hull.hull, mouseDraw.ctm, Ra::Color(0, 0, 0, 255), -2.f, 0);
-        mouseScene->addPath(hull.points, mouseDraw.ctm, Ra::Color(255, 255, 255, 192), -8.f, Ra::Scene::Flags::kRoundCap);
-        mouseScene->addPath(hull.points, mouseDraw.ctm, Ra::Color(0, 0, 0, 255), -6.f, Ra::Scene::Flags::kRoundCap);
+        mouseScene->addPath(hull.points, mouseDraw.ctm, Ra::Color(255, 255, 255, 192), -8.f, Ra::Draw::Flags::kRoundCap);
+        mouseScene->addPath(hull.points, mouseDraw.ctm, Ra::Color(0, 0, 0, 255), -6.f, Ra::Draw::Flags::kRoundCap);
         
         Ra::Path boundsPath;
         boundsPath->addBounds(bounds);

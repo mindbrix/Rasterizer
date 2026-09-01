@@ -85,7 +85,7 @@ struct RasterizerWinding {
         Ra::Bounds clip = Ra::Bounds(u);
         bool polygon = w == 0.f;
         cntr.applyPath(g, m, clip, false, polygon);
-        int mask = flags & Ra::Scene::kFillEvenOdd ? 1 : ~0;
+        int mask = flags & Ra::Draw::kFillEvenOdd ? 1 : ~0;
         return cntr.winding & mask;
     }
     
@@ -97,13 +97,13 @@ struct RasterizerWinding {
                 if (winding == 0 && (x0 != x1 || y0 != y1)) {
                     float ax, ay, adot, len, bx, by, cx, cy, t, s, sx, sy, cap;
                     ax = x1 - x0, ay = y1 - y0, adot = ax * ax + ay * ay, bx = dx - x0, by = dy - y0;
-                    if (flags & Ra::Scene::kRoundCap) {
+                    if (flags & Ra::Draw::kRoundCap) {
                         t = (ax * bx + ay * by) / adot, t = fmaxf(0.f, fminf(1.f, t)), s = 1.f - t;
                         cx = s * x0 + t * x1 - dx, cy = s * y0 + t * y1 - dy;
                         winding = (cx * cx + cy * cy) < 0.25f * dw * dw;
                     } else {
                         len = sqrtf(adot), sx = (ax * bx + ay * by) / len, sy = (ax * by - ay * bx) / len;
-                        cap = flags & Ra::Scene::kSquareCap ? 0.5f * dw : 0.f;
+                        cap = flags & Ra::Draw::kSquareCap ? 0.5f * dw : 0.f;
                         winding = sx > -cap && sx < len + cap && fabsf(sy) < 0.5f * dw;
                     }
                 }

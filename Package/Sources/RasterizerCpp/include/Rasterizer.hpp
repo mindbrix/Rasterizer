@@ -516,6 +516,11 @@ struct Rasterizer {
     };
     
     struct Draw {
+        enum Flags { kFillEvenOdd = 1 << 1, kRoundCap = 1 << 2, kSquareCap = 1 << 3, kRoundJoin = 1 << 4, kInvisible = 1 << 7 };
+
+        static bool AreValid(const Path& path, const Paint& paint, const Path *clipPath) {
+            return path->isValid() && paint.isValid() && (clipPath == nullptr || clipPath->ptr == nullptr || clipPath->ptr->isValid());
+        }
         Draw() {}
         Draw(const Path& path, const Transform& ctm, const Paint& paint, float width, uint8_t flags, Bounds *clipBounds = nullptr, Path *clipPath = nullptr)
         : path(path), ctm(ctm), paint(paint), width(width), flags(flags), bnds(path->bounds),
@@ -524,11 +529,12 @@ struct Rasterizer {
         inline Bounds bounds() const {
             return Bounds(path->bounds.inset(-0.5f * width, -0.5f * width).quad(ctm)).intersect(clip);
         }
+        bool isValid() const {
+            return AreValid(path, paint, & clipPath);
+        }
         Path path;  Transform ctm;  Paint paint;  float width = 0.f;  uint8_t flags = 0;  Bounds clip, bnds;  Path clipPath = nullptr;
     };
     struct Scene {
-        enum Flags { kFillEvenOdd = 1 << 1, kRoundCap = 1 << 2, kSquareCap = 1 << 3, kRoundJoin = 1 << 4 };
-
         struct Entry {
             Entry(const Geometry *g, size_t idx) : g(g), idx(idx) {}
             const Geometry *g;  size_t idx;
@@ -539,7 +545,7 @@ struct Rasterizer {
             size_t hash, i;
         };
         void addPath(const Path& path, const Transform& ctm, const Paint& paint, float width, uint8_t flag, Bounds *clipBounds = nullptr, Path *clipPath = nullptr) {
-            if (path->isValid() && paint.isValid() && (clipPath == nullptr || clipPath->ptr == nullptr || (*clipPath)->isValid())) {
+            if (Draw::AreValid(path, paint, clipPath)) {
                 new (draws.memory->alloc(1)) Draw(path, ctm, paint, width, flag, clipBounds, clipPath);
                 needPrepare = true;
             }
@@ -549,7 +555,8 @@ struct Rasterizer {
                 return;
             Draw *dst = draws.memory->alloc(count);
             for (size_t i = 0; i < count; i++)
-                dst[i] = src[i];
+                if (src[i].isValid())
+                    dst[i] = src[i];
             needPrepare = true;
         }
         void addScene(const Scene& scene) {
@@ -857,7 +864,7 @@ struct Rasterizer {
                         Geometry *g = draw.path.ptr;
                         if (width) {
                             widths[iz] = width;
-                            Blend *inst = new (blends.alloc(1)) Blend(iz | colorFlags | Instance::kOutlines | bool(flags & Scene::kRoundCap) * Instance::kRoundCap | bool(flags & Scene::kSquareCap) * Instance::kSquareCap | bool(flags & Scene::kRoundJoin) * Instance::kRoundJoin);
+                            Blend *inst = new (blends.alloc(1)) Blend(iz | colorFlags | Instance::kOutlines | bool(flags & Draw::kRoundCap) * Instance::kRoundCap | bool(flags & Draw::kSquareCap) * Instance::kSquareCap | bool(flags & Draw::kRoundJoin) * Instance::kRoundJoin);
                             
                             Bounds outlineClip = unclipped ? Bounds::huge() : clip.inset(-width, -width);
                             uint32_t i0 = uint32_t(outlines.idx), i1;
@@ -877,7 +884,7 @@ struct Rasterizer {
                         } else if (kMoleculesHeight && clipWidth * clipHeight / g->types.end < kMoleculesPixelsPerEdge) {
                             ctms[iz] = m, bounds[iz] = draw.bnds;
                             bool fast = !buffer->params.useCurves || g->maxCurve * det < 16.f;
-                            Blend *inst = new (blends.alloc(1)) Blend(iz | colorFlags | Instance::kMolecule | bool(flags & Scene::kFillEvenOdd) * Instance::kEvenOdd | fast * Instance::kFastEdges);
+                            Blend *inst = new (blends.alloc(1)) Blend(iz | colorFlags | Instance::kMolecule | bool(flags & Draw::kFillEvenOdd) * Instance::kEvenOdd | fast * Instance::kFastEdges);
                             inst->g = g, inst->quad.cover = 0;
                             inst->quad.base = int(p16total + scn->p16bases.base[is]);
                             inst->quad.molsbase = int(g->p16s.idx / 2);
@@ -895,7 +902,7 @@ struct Rasterizer {
                                 Bounds soft = quad.concat(invclip);
                                 softunclipped = fmaxf(fmaxf(fabsf(soft.lx - 0.5f), fabsf(soft.ux - 0.5f)), fmaxf(fabsf(soft.ly - 0.5f), fabsf(soft.uy - 0.5f))) < softclipMargin;
                             }
-                            writeSegmentInstances(clip, flags & Scene::kFillEvenOdd, iz, isOpaque && softunclipped && lastClipPath == nullptr, fast, colorFlags, *this);
+                            writeSegmentInstances(clip, flags & Draw::kFillEvenOdd, iz, isOpaque && softunclipped && lastClipPath == nullptr, fast, colorFlags, *this);
                             segments.idx = segments.end = idxr.dst - segments.base;
                         }
                         if (isImage)

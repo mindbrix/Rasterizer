@@ -88,10 +88,10 @@ struct RasterizerCG {
                         CGAffineTransform m = CGContextGetCTM(ctx);
                         CGFloat s = sqrt(abs(m.a * m.d - m.b * m.c));
                         CGContextSetLineWidth(ctx, draw.width < 0.f ? -scale * draw.width / s : draw.width);
-                        bool square = draw.flags & Ra::Scene::kSquareCap;
-                        bool round = draw.flags & Ra::Scene::kRoundCap;
+                        bool square = draw.flags & Ra::Draw::kSquareCap;
+                        bool round = draw.flags & Ra::Draw::kRoundCap;
                         CGContextSetLineCap(ctx, round ? kCGLineCapRound : square ? kCGLineCapSquare : kCGLineCapButt);
-                        bool roundJoin = draw.flags & Ra::Scene::kRoundJoin;
+                        bool roundJoin = draw.flags & Ra::Draw::kRoundJoin;
                         CGContextSetLineJoin(ctx, roundJoin ? kCGLineJoinRound : kCGLineJoinMiter);
                         
                         if (paint.isGradient() || paint.isImage()) {
@@ -110,7 +110,7 @@ struct RasterizerCG {
                     } else {
                         if (paint.isGradient() || paint.isImage()) {
                             CGContextSaveGState(ctx);
-                            if (draw.flags & Ra::Scene::kFillEvenOdd)
+                            if (draw.flags & Ra::Draw::kFillEvenOdd)
                                 CGContextEOClip(ctx);
                             else
                                 CGContextClip(ctx);
@@ -121,7 +121,7 @@ struct RasterizerCG {
                             CGContextRestoreGState(ctx);
                         } else {
                             CGContextSetRGBFillColor(ctx, color.r / 255.0, color.g / 255.0, color.b / 255.0, color.a / 255.0);
-                            if (draw.flags & Ra::Scene::kFillEvenOdd)
+                            if (draw.flags & Ra::Draw::kFillEvenOdd)
                                 CGContextEOFillPath(ctx);
                             else
                                 CGContextFillPath(ctx);
