@@ -18,7 +18,6 @@
 //  3. This notice may not be removed or altered from any source distribution.
 //
 
-#import <bitset>
 #import "Rasterizer.hpp"
 
 struct RasterizerWinding {
@@ -54,35 +53,18 @@ struct RasterizerWinding {
             }
         return IndexPair();
     }
+    
     static Ra::Vector<IndexPair> indicesForRect(Ra::SceneList& list, Ra::Bounds rect) {
-        const Ra::Bounds unit(0, 0, 1, 1);
-        
-        Ra::Row<uint64_t> hits;
-        size_t bpi = sizeof(*hits.base) * 8, mask = bpi - 1, size = ((list.pathsCount + mask) & ~mask) / bpi;
-        uint64_t *hitbits = hits.alloc(size);
-        bzero(hitbits, size * sizeof(*hits.base));
-        
         Ra::Vector<IndexPair> indices;
-        Ra::Transform inv = rect.quad(Ra::Transform()).invert();
-        for (size_t iz = 0, il = 0; il < list.scenes.size(); il++) {
+        for (size_t il = 0; il < list.scenes.size(); il++) {
             const Ra::Scene& scene = *list.scenes[il].ptr;
+            const Ra::Transform ctm = list.ctms[il].concat(list.ctm);
             
-            Ra::Transform ctm = list.ctms[il].concat(list.ctm);
-            
-            for (size_t is = 0; is < scene.count(); is++, iz++) {
+            for (size_t is = 0; is < scene.count(); is++) {
                 const Ra::Draw& draw = scene.draws[is];
-                
-                Ra::Transform m = draw.ctm.concat(ctm);
-                Ra::Transform quad = draw.path->bounds.quad(m);
-                Ra::Transform test0 = quad.concat(inv);
-                Ra::Bounds intersected = Ra::Bounds(test0).intersect(unit);
-                bool inside = intersected.isRect();
-                
-                if (inside) {
-//                    hitbits[iz / bpi] |= (1 << iz % bpi);
-                    
+                const Ra::Transform m = draw.ctm.concat(ctm), quad = draw.bnds.quad(m);
+                if (Ra::Bounds(quad).intersect(rect).isRect())
                     indices.add(IndexPair(il, is));
-                }
             }
         }
         return indices;

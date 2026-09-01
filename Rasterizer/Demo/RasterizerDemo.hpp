@@ -91,35 +91,33 @@ struct RasterizerDemo {
         } else if (keyCode == KeyCode::kS)
             list.ctm = ctm, RaCG::screenGrabToPDF(list, bounds), keyUsed = true;
         else if (keyCode == KeyCode::kT) {
-            resetMouse();
+            clearList();
             showGlyphGrid = false;
             showTime = !showTime;
             setPastedString(nullptr);
             keyUsed = true, clearHUD();
         } else if (keyCode == KeyCode::kG) {
-            resetMouse();
+            clearList();
             showTime = false;
             showGlyphGrid = !showGlyphGrid;
             setPastedString(nullptr);
             keyUsed = true, clearHUD();
         } else if (keyCode == KeyCode::kMinus) {
             if (pageIndex > 0) {
-                resetMouse();
+                clearList();
                 pageIndex--;
                 document = Ra::SceneList();
                 keyUsed = true;
             }
-            
         } else if (keyCode == KeyCode::kPlus) {
             if (pageIndex < pageCount - 1) {
-                resetMouse();
+                clearList();
                 pageIndex++;
                 document = Ra::SceneList();
                 keyUsed = true;
             }
         }
         redraw = keyUsed;
-        
         return keyUsed;
     }
     void onKeyUp(unsigned short keyCode) {
@@ -164,6 +162,10 @@ struct RasterizerDemo {
     }
     
 #pragma mark - Properties
+    void clearList() {
+        resetMouse();
+        list = Ra::SceneList();
+    }
     Ra::Draw& lockedDraw() const {
         return list.scenes[mouse.i0]->draws[mouse.i1];
     }
@@ -259,23 +261,26 @@ struct RasterizerDemo {
     
     bool getShouldRedraw(double time, float w, float h) {
         bool should = redraw || showTime;
-        redraw = false;
         
+        list.ctm = ctm;
         if (pathMouseOver && mouseMoved) {
-            mouseMoved = false;
-            list.ctm = ctm;
             RaWnd::IndexPair pair = RasterizerWinding::indicesForPoint(list, bounds, mx, my);
-            auto indices = RasterizerWinding::indicesForRect(list, bounds);
-            
+
             if (!locked && (last.i0 != pair.i0 || last.i1 != pair.i1))
                 setMouse(pair), should = true;
             last = pair;
         }
+        if (pathMouseOver) {
+            Ra::Bounds mouseRect = Ra::Bounds(mx, my, mx, my).inset(-64, -64).intersect(bounds);
+            indices = RasterizerWinding::indicesForRect(list, mouseRect), should = true;
+        }
+            
         if (should)
             lastTime = time;
         else if (lastTime && time - lastTime > 2)
             lastTime = 0;
         
+        redraw = false, mouseMoved = false;
         return should;
     }
     Ra::SceneList getDrawList(double time, float w, float h) {
@@ -316,6 +321,21 @@ struct RasterizerDemo {
             ctm = bounds.fitTransform(list.bounds()), shouldFit = false;
         Ra::SceneList draw = list;  draw.ctm = ctm, draw.params = params;
         
+        if (pathMouseOver) {
+            Ra::SceneRef rectScene;
+            Ra::Bounds unit(0, 0, 1, 1);
+            Ra::Path unitPath;
+            unitPath->addBounds(unit);
+            
+            for (size_t i = 0; i < indices.end(); i++) {
+                const RaWnd::IndexPair pair = indices[i];
+                const Ra::Scene& scene = *list.scenes[pair.i0].ptr;
+                const Ra::Draw& drw = scene.draws[pair.i1];
+                Ra::Transform m = drw.ctm.concat(list.ctms[pair.i0]).concat(list.ctm), quad = drw.bnds.quad(m);
+                rectScene->addPath(unitPath, quad, Ra::Color(0, 0, 224, 255), -1, 0);
+            }
+            draw.addScene(rectScene);
+        }
         if (mouse.i0 != INT_MAX) {
             Ra::Draw& drw = list.scenes[mouse.i0]->draws[mouse.i1];
             if (drw.width != 0)
@@ -426,6 +446,7 @@ struct RasterizerDemo {
     double lastTime = 0.0;
     float mx, my;
     Ra::Draw mouseDraw;
+    Ra::Vector<RaWnd::IndexPair> indices;
     RaWnd::IndexPair mouse = RaWnd::IndexPair(), last = RaWnd::IndexPair();
     size_t flags = 0;
 };
