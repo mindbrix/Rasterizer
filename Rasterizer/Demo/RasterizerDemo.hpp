@@ -265,6 +265,8 @@ struct RasterizerDemo {
             mouseMoved = false;
             list.ctm = ctm;
             RaWnd::IndexPair pair = RasterizerWinding::indicesForPoint(list, bounds, mx, my);
+            auto indices = RasterizerWinding::indicesForRect(list, bounds);
+            
             if (!locked && (last.i0 != pair.i0 || last.i1 != pair.i1))
                 setMouse(pair), should = true;
             last = pair;

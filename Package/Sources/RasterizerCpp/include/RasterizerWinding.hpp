@@ -53,6 +53,31 @@ struct RasterizerWinding {
             }
         return IndexPair();
     }
+    static Ra::Vector<IndexPair> indicesForRect(Ra::SceneList& list, Ra::Bounds rect) {
+        const Ra::Bounds unit(0, 0, 1, 1);
+        
+        Ra::Vector<IndexPair> indices;
+        Ra::Transform inv = rect.quad(Ra::Transform()).invert();
+        for (size_t il = 0; il < list.scenes.size(); il++) {
+            const Ra::Scene& scene = *list.scenes[il].ptr;
+            
+            Ra::Transform ctm = list.ctms[il].concat(list.ctm);
+            
+            for (size_t is = 0; is < scene.count(); is++) {
+                const Ra::Draw& draw = scene.draws[is];
+                
+                Ra::Transform m = draw.ctm.concat(ctm);
+                Ra::Transform quad = draw.path->bounds.quad(m);
+                Ra::Transform test0 = quad.concat(inv);
+                Ra::Bounds intersected = Ra::Bounds(test0).intersect(unit);
+                bool inside = intersected.isRect();
+                
+                if (inside)
+                    indices.add(IndexPair(il, is));
+            }
+        }
+        return indices;
+    }
     
     static bool pointInside(float px, float py, Ra::Geometry *g, Ra::Transform m, float w, uint8_t flags) {
         float ws = m.scale(), uw = w < 0.f ? -w / ws : w;

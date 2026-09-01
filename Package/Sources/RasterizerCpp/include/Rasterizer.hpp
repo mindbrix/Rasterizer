@@ -1640,7 +1640,7 @@ struct Rasterizer {
             
             float ax = x2 - x1, bx = x1 - x0, ay = y2 - y1, by = y1 - y0;
             if (ax * bx >= 0.f && ay * by >= 0.f)
-                return;;
+                return;
             float t0 = fmaxf(0.f, fminf(1.f, bx / (bx - ax))), t1 = fmaxf(0.f, fminf(1.f, by / (by - ay)));
             ax -= bx, bx *= 2.f, ay -= by, by *= 2.f;
             bounds.extend((ax * t0 + bx) * t0 + x0, (ay * t0 + by) * t0 + y0);
