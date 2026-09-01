@@ -131,8 +131,9 @@ struct RasterizerDemo {
         mouseDown = true;
         if (locked) {
             Ra::Transform m = lockedCTM().invert();
+            auto saved = last;
             if (!lockedDraw().path->bounds.contains(x * m.a + y * m.c + m.tx, x * m.b + y * m.d + m.ty))
-                toggleLocked();
+                toggleLocked(), setMouse(saved);
         }
         if (!locked)
             toggleLocked(), redraw = true;
@@ -260,12 +261,13 @@ struct RasterizerDemo {
         bool should = redraw || showTime;
         redraw = false;
         
-        if (!locked && pathMouseOver && mouseMoved) {
+        if (pathMouseOver && mouseMoved) {
             mouseMoved = false;
             list.ctm = ctm;
             RaWnd::IndexPair pair = RasterizerWinding::indicesForPoint(list, bounds, mx, my);
-            if (last.i0 != pair.i0 || last.i1 != pair.i1)
-                last = pair, setMouse(pair), should = true;
+            if (!locked && (last.i0 != pair.i0 || last.i1 != pair.i1))
+                setMouse(pair), should = true;
+            last = pair;
         }
         if (should)
             lastTime = time;
