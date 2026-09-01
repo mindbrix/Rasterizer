@@ -18,6 +18,7 @@
 //  3. This notice may not be removed or altered from any source distribution.
 //
 
+#import <bitset>
 #import "Rasterizer.hpp"
 
 struct RasterizerWinding {
@@ -56,14 +57,19 @@ struct RasterizerWinding {
     static Ra::Vector<IndexPair> indicesForRect(Ra::SceneList& list, Ra::Bounds rect) {
         const Ra::Bounds unit(0, 0, 1, 1);
         
+        Ra::Row<uint64_t> hits;
+        size_t bpi = sizeof(*hits.base) * 8, mask = bpi - 1, size = ((list.pathsCount + mask) & ~mask) / bpi;
+        uint64_t *hitbits = hits.alloc(size);
+        bzero(hitbits, size * sizeof(*hits.base));
+        
         Ra::Vector<IndexPair> indices;
         Ra::Transform inv = rect.quad(Ra::Transform()).invert();
-        for (size_t il = 0; il < list.scenes.size(); il++) {
+        for (size_t iz = 0, il = 0; il < list.scenes.size(); il++) {
             const Ra::Scene& scene = *list.scenes[il].ptr;
             
             Ra::Transform ctm = list.ctms[il].concat(list.ctm);
             
-            for (size_t is = 0; is < scene.count(); is++) {
+            for (size_t is = 0; is < scene.count(); is++, iz++) {
                 const Ra::Draw& draw = scene.draws[is];
                 
                 Ra::Transform m = draw.ctm.concat(ctm);
@@ -72,8 +78,11 @@ struct RasterizerWinding {
                 Ra::Bounds intersected = Ra::Bounds(test0).intersect(unit);
                 bool inside = intersected.isRect();
                 
-                if (inside)
+                if (inside) {
+//                    hitbits[iz / bpi] |= (1 << iz % bpi);
+                    
                     indices.add(IndexPair(il, is));
+                }
             }
         }
         return indices;
