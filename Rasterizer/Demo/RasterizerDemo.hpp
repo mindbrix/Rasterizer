@@ -269,12 +269,9 @@ struct RasterizerDemo {
         }
         if (should)
             lastTime = time;
-        else if (lastTime) {
-            double age = time - lastTime;
-            if (age > 2) {
-                lastTime = 0;
-            }
-        }
+        else if (lastTime && time - lastTime > 2)
+            lastTime = 0;
+        
         return should;
     }
     Ra::SceneList getDrawList(double time, float w, float h) {
