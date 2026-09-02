@@ -35,6 +35,8 @@ struct RasterizerWinding {
                 Ra::Bounds sceneclip = list.clips[il], lastClip;
                 for (int is = int(scene.count()) - 1; is >= 0; is--) {
                     Ra::Draw& draw = scene.draws[is];
+                    if (draw.flags & Ra::Draw::kInvisible)
+                        continue;
                     if (memcmp(& draw.clip, & lastClip, sizeof(Ra::Bounds)) != 0) {
                         lastClip = draw.clip;
                         inv = sceneclip.intersect(draw.clip).quad(ctm).invert();
@@ -62,6 +64,8 @@ struct RasterizerWinding {
             
             for (size_t is = 0; is < scene.count(); is++) {
                 const Ra::Draw& draw = scene.draws[is];
+                if (draw.flags & Ra::Draw::kInvisible)
+                    continue;
                 const Ra::Transform m = draw.ctm.concat(ctm), quad = draw.bnds.quad(m);
                 if (Ra::Bounds(quad).intersect(rect).isRect())
                     indices.add(IndexPair(il, is));

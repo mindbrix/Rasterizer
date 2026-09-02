@@ -275,7 +275,7 @@ struct Rasterizer {
             points.prealloc(2 * count), types.prealloc(count);
         }
         void addBounds(Bounds b) {
-            if (b.ux > b.lx && b.uy > b.ly)
+            if (b.ux > b.lx || b.uy > b.ly)
                 moveTo(b.lx, b.ly), lineTo(b.ux, b.ly), lineTo(b.ux, b.uy), lineTo(b.lx, b.uy), lineTo(b.lx, b.ly), close();
         }
         void addEllipse(Bounds b) {
@@ -523,14 +523,11 @@ struct Rasterizer {
         }
         Draw() {}
         Draw(const Path& path, const Transform& ctm, const Paint& paint, float width, uint8_t flags, Bounds *clipBounds = nullptr, Path *clipPath = nullptr)
-        : path(path), ctm(ctm), paint(paint), width(width), flags(flags), bnds(path->bounds),
+        : path(path), ctm(ctm), paint(paint), width(width), flags(flags | kInvisible * !AreValid(path, paint, clipPath)), bnds(path->bounds),
           clip(clipBounds ? *clipBounds : Bounds::huge()), clipPath(clipPath ? *clipPath : nullptr) {}
         
         inline Bounds bounds() const {
-            return Bounds(path->bounds.inset(-0.5f * width, -0.5f * width).quad(ctm)).intersect(clip);
-        }
-        bool isValid() const {
-            return AreValid(path, paint, & clipPath);
+            return Bounds(bnds.inset(-0.5f * width, -0.5f * width).quad(ctm)).intersect(clip);
         }
         Path path;  Transform ctm;  Paint paint;  float width = 0.f;  uint8_t flags = 0;  Bounds clip, bnds;  Path clipPath = nullptr;
     };
@@ -545,18 +542,16 @@ struct Rasterizer {
             size_t hash, i;
         };
         void addPath(const Path& path, const Transform& ctm, const Paint& paint, float width, uint8_t flag, Bounds *clipBounds = nullptr, Path *clipPath = nullptr) {
-            if (Draw::AreValid(path, paint, clipPath)) {
-                new (draws.memory->alloc(1)) Draw(path, ctm, paint, width, flag, clipBounds, clipPath);
-                needPrepare = true;
-            }
+            assert(Draw::AreValid(path, paint, clipPath));
+            new (draws.memory->alloc(1)) Draw(path, ctm, paint, width, flag, clipBounds, clipPath);
+            needPrepare = true;
         }
         void addDraws(const Draw *src, size_t count) {
             if (src == nullptr || count == 0)
                 return;
             Draw *dst = draws.memory->alloc(count);
             for (size_t i = 0; i < count; i++)
-                if (src[i].isValid())
-                    dst[i] = src[i];
+                dst[i] = src[i];
             needPrepare = true;
         }
         void addScene(const Scene& scene) {
@@ -790,8 +785,8 @@ struct Rasterizer {
             Color black(0, 0, 0, 255), red(0, 0, 255, 255);
             size_t lz, uz, i, clz, cuz, iz, is, cnt; uint32_t p16total = 0;
             Geometry *lastClipPath = nullptr, *currentClipPath = nullptr;
-            uint8_t flags;
             float det, width, softclipMargin = 0.5f;
+            
             for (lz = uz = i = 0; i < list.scenes.size(); p16total += list.scenes[i]->p16total, i++, lz = uz ) {
                 const Scene *scn = list.scenes[i].ptr;
                 uz = lz + scn->count(), clz = lz < slz ? slz : lz > suz ? suz : lz, cuz = uz < slz ? slz : uz > suz ? suz : uz;
@@ -800,7 +795,8 @@ struct Rasterizer {
                                 
                 for (is = clz - lz, iz = clz; iz < cuz; iz++, is++) {
                     Draw& draw = scn->draws[is];
-                    flags = draw.flags;
+                    if (draw.flags & Draw::kInvisible)
+                        continue;
                     
                     if (list.params.useClips) {
                         if (memcmp(& draw.clip, & lastClip, sizeof(Bounds)) != 0) {
@@ -839,7 +835,6 @@ struct Rasterizer {
                     
                     if (clip.lx < clip.ux && clip.ly < clip.uy) {
                         bool unclipped = clip.contains(dev);
-                        float clipWidth = clip.width(), clipHeight = clip.height();
                         Paint *color = & draw.paint;
                         bool isOpaque = color->isOpaque();
                         bool isGradient = list.params.showOutlines ? false : color->isGradient();
@@ -864,7 +859,7 @@ struct Rasterizer {
                         Geometry *g = draw.path.ptr;
                         if (width) {
                             widths[iz] = width;
-                            Blend *inst = new (blends.alloc(1)) Blend(iz | colorFlags | Instance::kOutlines | bool(flags & Draw::kRoundCap) * Instance::kRoundCap | bool(flags & Draw::kSquareCap) * Instance::kSquareCap | bool(flags & Draw::kRoundJoin) * Instance::kRoundJoin);
+                            Blend *inst = new (blends.alloc(1)) Blend(iz | colorFlags | Instance::kOutlines | bool(draw.flags & Draw::kRoundCap) * Instance::kRoundCap | bool(draw.flags & Draw::kSquareCap) * Instance::kSquareCap | bool(draw.flags & Draw::kRoundJoin) * Instance::kRoundJoin);
                             
                             Bounds outlineClip = unclipped ? Bounds::huge() : clip.inset(-width, -width);
                             uint32_t i0 = uint32_t(outlines.idx), i1;
@@ -881,10 +876,10 @@ struct Rasterizer {
                             outliner.applyPath(g, m, outlineClip, unclipped, false);
                             i1 = uint32_t(outlines.idx);
                             inst->data.idx = i0, inst->data.count = i1 - i0;
-                        } else if (kMoleculesHeight && clipWidth * clipHeight / g->types.end < kMoleculesPixelsPerEdge) {
+                        } else if (kMoleculesHeight && clip.width() * clip.height() / g->types.end < kMoleculesPixelsPerEdge) {
                             ctms[iz] = m, bounds[iz] = draw.bnds;
                             bool fast = !buffer->params.useCurves || g->maxCurve * det < 16.f;
-                            Blend *inst = new (blends.alloc(1)) Blend(iz | colorFlags | Instance::kMolecule | bool(flags & Draw::kFillEvenOdd) * Instance::kEvenOdd | fast * Instance::kFastEdges);
+                            Blend *inst = new (blends.alloc(1)) Blend(iz | colorFlags | Instance::kMolecule | bool(draw.flags & Draw::kFillEvenOdd) * Instance::kEvenOdd | fast * Instance::kFastEdges);
                             inst->g = g, inst->quad.cover = 0;
                             inst->quad.base = int(p16total + scn->p16bases.base[is]);
                             inst->quad.molsbase = int(g->p16s.idx / 2);
@@ -902,7 +897,7 @@ struct Rasterizer {
                                 Bounds soft = quad.concat(invclip);
                                 softunclipped = fmaxf(fmaxf(fabsf(soft.lx - 0.5f), fabsf(soft.ux - 0.5f)), fmaxf(fabsf(soft.ly - 0.5f), fabsf(soft.uy - 0.5f))) < softclipMargin;
                             }
-                            writeSegmentInstances(clip, flags & Draw::kFillEvenOdd, iz, isOpaque && softunclipped && lastClipPath == nullptr, fast, colorFlags, *this);
+                            writeSegmentInstances(clip, draw.flags & Draw::kFillEvenOdd, iz, isOpaque && softunclipped && lastClipPath == nullptr, fast, colorFlags, *this);
                             segments.idx = segments.end = idxr.dst - segments.base;
                         }
                         if (isImage)

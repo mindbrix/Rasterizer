@@ -190,7 +190,8 @@ struct RasterizerCoreText {
                 CGPathRef cgPath = CTFontCreatePathForGlyph(ctFont, glyph, NULL);
                 Ra::Path path;
                 RaCG::writeCGPathToPath(cgPath, path);
-                scene->addPath(path, Ra::Transform(1, 0.f, 0.f, 1, lineHeight * float(glyph % d), lineHeight * float(glyph / d)), color, 0.f, 0);
+                if (path->isValid())
+                    scene->addPath(path, Ra::Transform(1, 0.f, 0.f, 1, lineHeight * float(glyph % d), lineHeight * float(glyph / d)), color, 0.f, 0);
                 CGPathRelease(cgPath);
             }
         }
