@@ -151,7 +151,7 @@ struct RasterizerDemo {
         rotating = !ended;
         bool flipped = !locked ? false : lockedCTM().det() < 0;
         float sine, cosine;  __sincosf(flipped ? -a : a, & sine, & cosine);
-        concat(Ra::Transform(cosine, sine, - sine, cosine, 0, 0));
+        concat(Ra::Transform(cosine, sine, -sine, cosine, 0, 0));
     }
     void onDrag(float dx, float dy) {
         translate(dx, dy);
@@ -324,23 +324,23 @@ struct RasterizerDemo {
         if (pathMouseOver) {
             Ra::SceneRef rectScene;
             Ra::Bounds unit(0, 0, 1, 1);
-            Ra::Path unitPath;
-            unitPath->addBounds(unit);
-            
+            Ra::Path unitRect, unitEllipse;
+            unitRect->addBounds(unit);
+            unitEllipse->addEllipse(unit);
             for (size_t i = 0; i < indices.end(); i++) {
                 const Ra::Color red(0, 0, 224, 255);
                 const RaWnd::IndexPair pair = indices[i];
                 const Ra::Scene& scene = *list.scenes[pair.i0].ptr;
                 const Ra::Draw& drw = scene.draws[pair.i1];
                 Ra::Transform m = drw.ctm.concat(list.ctms[pair.i0]).concat(list.ctm), quad = drw.bnds.quad(m);
-                rectScene->addPath(unitPath, quad, red, -1, 0);
+                rectScene->addPath(unitRect, quad, red, -1, 0);
             }
             Ra::Bounds mouseRect = Ra::Bounds(mx, my, mx, my).inset(-64, -64).intersect(bounds);
-            rectScene->addPath(unitPath, mouseRect.quad(ctm.invert()), Ra::Color(0, 0, 0, 255), -1, 0);
+            rectScene->addPath(unitRect, mouseRect.quad(ctm.invert()), Ra::Color(0, 0, 0, 255), -1, 0);
             
             draw.addScene(rectScene);
         }
-        if (mouse.i0 != INT_MAX) {
+        if (0 && mouse.i0 != INT_MAX) {
             Ra::Draw& drw = list.scenes[mouse.i0]->draws[mouse.i1];
             if (drw.width != 0)
                 drw.paint = Ra::Color(0, 0, 224, 255);
