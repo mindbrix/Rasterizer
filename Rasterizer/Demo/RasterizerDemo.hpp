@@ -71,12 +71,12 @@ struct RasterizerDemo {
         
         bool keyUsed = false;
         if (keyCode == KeyCode::kB)
-            params.useClips = !params.useClips, clearIndices(), keyUsed = true, clearHUD();
+            params.useClips = !params.useClips, keyUsed = true, clearHUD();
         else if (keyCode == KeyCode::kC)
             params.useCurves = !params.useCurves, keyUsed = true, clearHUD();
         else if (keyCode == KeyCode::kF) {
             Ra::Transform fit = bounds.fitTransform(list.bounds());
-            ctm = memcmp(& ctm, & fit, sizeof(ctm)) == 0 ? Ra::Transform() : fit, clearIndices();
+            ctm = memcmp(& ctm, & fit, sizeof(ctm)) == 0 ? Ra::Transform() : fit;
             keyUsed = true;
         } else if (keyCode == KeyCode::kH)
             showHud = !showHud, keyUsed = true;
@@ -85,7 +85,7 @@ struct RasterizerDemo {
         else if (keyCode == KeyCode::kO)
             params.showOutlines = !params.showOutlines, keyUsed = true, clearHUD();
         else if (keyCode == KeyCode::kP)
-            pathMouseOver = !pathMouseOver, resetMouse(), clearIndices(), keyUsed = true, clearHUD();
+            pathMouseOver = !pathMouseOver, resetMouse(), keyUsed = true, clearHUD();
         else if (keyCode == KeyCode::kL) {
             toggleLocked(), keyUsed = true;
         } else if (keyCode == KeyCode::kS)
@@ -123,7 +123,7 @@ struct RasterizerDemo {
     void onKeyUp(unsigned short keyCode) {
     }
     void onMouseMove(float x, float y) {
-        mx = x, my = y, mouseMoved = true, clearIndices();
+        mx = x, my = y, mouseMoved = true;
     }
     void onMouseDown(float x, float y) {
         mouseDown = true;
@@ -142,13 +142,13 @@ struct RasterizerDemo {
     void onMagnify(float s, bool ended) {
         if (rotating)
             return;
-        magnifying = !ended, clearIndices();
+        magnifying = !ended;
         concat(Ra::Transform(s, 0.f, 0.f, s, 0.f, 0.f));
     }
     void onRotate(float a, bool ended) {
         if (magnifying)
             return;
-        rotating = !ended, clearIndices();
+        rotating = !ended;
         bool flipped = !locked ? false : lockedCTM().det() < 0;
         float sine, cosine;  __sincosf(flipped ? -a : a, & sine, & cosine);
         concat(Ra::Transform(cosine, sine, -sine, cosine, 0, 0));
@@ -158,15 +158,11 @@ struct RasterizerDemo {
         mx += dx, my += dy;
     }
     void onTranslate(float dx, float dy) {
-        translate(dx, dy), clearIndices();
+        translate(dx, dy);
     }
     
 #pragma mark - Properties
-    void clearIndices() {
-        indices.resize(0);
-    }
     void clearList() {
-        clearIndices();
         resetMouse();
         list = Ra::SceneList();
     }
@@ -264,21 +260,8 @@ struct RasterizerDemo {
 #pragma mark - Delegate
     
     bool getShouldRedraw(double time, float w, float h) {
-        bool should = redraw || showTime;
-        
-        list.ctm = ctm, list.params = params;
-        if (pathMouseOver && mouseMoved) {
-            RaWnd::IndexPair pair = RasterizerWinding::indicesForPoint(list, bounds, mx, my);
+        bool should = redraw || showTime || (pathMouseOver && mouseMoved);
 
-            if (!locked && (last.i0 != pair.i0 || last.i1 != pair.i1))
-                setMouse(pair), should = true;
-            last = pair;
-        }
-        if (pathMouseOver && indices.end() == 0) {
-            Ra::Bounds mouseRect = Ra::Bounds(mx, my, mx, my).inset(-64, -64).intersect(bounds);
-            indices = RasterizerWinding::indicesForRect(list, mouseRect), should = true;
-        }
-            
         if (should)
             lastTime = time;
         else if (lastTime && time - lastTime > 2)
@@ -323,9 +306,18 @@ struct RasterizerDemo {
         }
         if (shouldFit)
             ctm = bounds.fitTransform(list.bounds()), shouldFit = false;
-        Ra::SceneList draw = list;  draw.ctm = ctm, draw.params = params;
+        Ra::SceneList draw = list;  draw.ctm = ctm, list.ctm = ctm, draw.params = params, list.params = params;
         
         if (pathMouseOver) {
+            RaWnd::IndexPair pair = RasterizerWinding::indicesForPoint(list, bounds, mx, my);
+
+            if (!locked && (last.i0 != pair.i0 || last.i1 != pair.i1))
+                setMouse(pair);
+            last = pair;
+            
+            Ra::Bounds mouseRect = Ra::Bounds(mx, my, mx, my).inset(-64, -64).intersect(bounds);
+            indices = RasterizerWinding::indicesForRect(list, mouseRect);
+                
             Ra::SceneRef rectScene;
             Ra::Bounds unit(0, 0, 1, 1);
             Ra::Path unitRect, unitEllipse;
@@ -336,10 +328,9 @@ struct RasterizerDemo {
                 const RaWnd::IndexPair pair = indices[i];
                 const Ra::Scene& scene = *list.scenes[pair.i0].ptr;
                 const Ra::Draw& drw = scene.draws[pair.i1];
-                Ra::Transform m = drw.ctm.concat(list.ctms[pair.i0]).concat(list.ctm), quad = drw.bnds.quad(m);
+                Ra::Transform m = drw.ctm.concat(list.ctms[pair.i0]), quad = drw.bnds.quad(m);
                 rectScene->addPath(unitRect, quad, red, -1, 0);
             }
-            Ra::Bounds mouseRect = Ra::Bounds(mx, my, mx, my).inset(-64, -64).intersect(bounds);
             rectScene->addPath(unitRect, mouseRect.quad(ctm.invert()), Ra::Color(0, 0, 0, 255), -1, 0);
             
             draw.addScene(rectScene);
