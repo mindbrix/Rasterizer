@@ -66,9 +66,9 @@ struct RasterizerWinding {
                 const Ra::Draw& draw = scene.draws[is];
                 if (draw.flags & Ra::Draw::kInvisible)
                     continue;
-                const Ra::Transform m = draw.ctm.concat(ctm), quad = draw.bnds.quad(m);
-                const Ra::Bounds clip = Ra::Bounds(quad);
-                if (clip.intersect(rect).isRect() && (rect.contains(clip) || Winder::BoundsWinding(rect, draw.path.ptr, m, draw.width, draw.flags)))
+                const Ra::Transform m = draw.ctm.concat(ctm);
+                const Ra::Bounds clip = draw.bnds.quad(m);
+                if (clip.intersect(rect).isRect() && (rect.contains(clip) || Winder::TouchesRect(rect, draw.path.ptr, m, draw.width, draw.flags)))
                     indices.add(IndexPair(il, is));
             }
         }
@@ -95,10 +95,10 @@ struct RasterizerWinding {
     }
     
     struct Winder: Ra::GeometryWriter {
-        static float BoundsWinding(Ra::Bounds bounds, Ra::Geometry *g, Ra::Transform m, float width, uint8_t flags) {
-            Ra::Transform unit = m.concat(bounds.quad(Ra::Transform()).invert());
+        static bool TouchesRect(Ra::Bounds rect, Ra::Geometry *g, Ra::Transform m, float width, uint8_t flags) {
+            Ra::Transform unit = m.concat(rect.quad(Ra::Transform()).invert());
             float ws = unit.scale(), dw = width * (width < 0.f ? -1.f : ws);
-            Winder winder;  winder.dw = width == 0 ? 0 : 0.5f * dw, winder.flags = flags, winder.m = unit, winder.inv = unit.invert();
+            Winder winder;  winder.dw = width == 0 ? 0 : 0.5f * dw, winder.flags = flags;
             winder.applyPath(g, unit, Ra::Bounds(), true, width == 0);
             return fabsf(winder.winding) > 1e-3f;
         }
@@ -106,41 +106,31 @@ struct RasterizerWinding {
         inline static float saturate(float t) {
             return fmaxf(0.f, fminf(1.f, t));
         }
-        float count(float x0, float y0, float x1, float y1) {
+        float awinding(float x0, float y0, float x1, float y1) {
             float w0 = saturate(y0), w1 = saturate(y1), cover = w1 - w0;
             float dx = x1 - x0, dy = y1 - y0, a0 = dx * ((dx > 0.0 ? w0 : w1) - y0) - dy * (1.0 - x0);
             return saturate(-a0 / fmaf(fabsf(dx), cover, dy)) * cover;
         }
         void writeSegment(float x0, float y0, float x1, float y1) {
             if (dw == 0)
-                winding += count(x0, y0, x1, y1);
+                winding += awinding(x0, y0, x1, y1);
             else {
-                float ax, ay, dot, scale, cap, cx, cy, sx, sy, sx0, sy0, sx1, sy1;
+                float ax, ay, dot, scale, cap, capx, capy, edgex, edgey, sx0, sy0, sx1, sy1;
                 ax = x1 - x0, ay = y1 - y0, dot = ax * ax + ay * ay, scale = dw / sqrtf(dot);
                 cap = scale * bool(flags & (Ra::Draw::kRoundCap | Ra::Draw::kSquareCap));
-                cx = cap * ax, sx = scale * -ay;
-                cy = cap * ay, sy = scale * ax;
+                capx = cap * ax, edgex = scale * -ay;
+                capy = cap * ay, edgey = scale * ax;
                 
-//                ax = inv.a * (x1 - x0) + inv.c * (y1 - y0);
-//                ay = inv.b * (x1 - x0) + inv.d * (y1 - y0);
-//                dot = ax * ax + ay * ay, scale = 1.f / sqrtf(dot);
-//                
-//                cap = uw * (flags & (Ra::Draw::kRoundCap | Ra::Draw::kSquareCap));
-//                cx = cap * (ax * m.a + ay * m.c);
-//                cy = cap * (ax * m.b + ay * m.d);
-//                sx = uw * (-ay * m.a + ax * m.c);
-//                sy = uw * (-ay * m.b + ax * m.d);
-                
-                sx0 = sx1 = x0 - cx - sx, sy0 = sy1 = y0 - cy - sy;
+                sx0 = sx1 = x0 - capx - edgex, sy0 = sy1 = y0 - capy - edgey;
                 for (size_t i = 1; i < 5; i++, sx0 = sx1, sy0 = sy1) {
                     bool right = (i % 4) / 2, up = (i % 2) ^ right;
-                    sx1 = (right ? x1 : x0) + (up ? 1 : -1) * sx + (right ? 1 : -1) * cx;
-                    sy1 = (right ? y1 : y0) + (up ? 1 : -1) * sy + (right ? 1 : -1) * cy;
-                    winding += count(sx0, sy0, sx1, sy1);
+                    sx1 = (right ? x1 : x0) + (up ? 1 : -1) * edgex + (right ? 1 : -1) * capx;
+                    sy1 = (right ? y1 : y0) + (up ? 1 : -1) * edgey + (right ? 1 : -1) * capy;
+                    winding += awinding(sx0, sy0, sx1, sy1);
                 }
             }
         }
-        float dw = 0, winding = 0;  uint8_t flags = 0;  Ra::Transform m, inv;
+        float dw = 0, winding = 0;  uint8_t flags = 0;
     };
     struct Counter: Ra::GeometryWriter {
         float dx, dy, dw;  int winding = 0;  uint8_t flags = 0;
