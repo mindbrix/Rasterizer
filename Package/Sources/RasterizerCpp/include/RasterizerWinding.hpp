@@ -67,9 +67,10 @@ struct RasterizerWinding {
                 const Ra::Draw& draw = scene.draws[is];
                 if (draw.flags & Ra::Draw::kInvisible)
                     continue;
-                if (list.params.useClips && (!sceneclip.isHuge() || !draw.clip.isHuge())) {
-                    const Ra::Bounds compound = sceneclip.intersect(draw.clip);
-                    if (!Winder::TouchesRect(rect, compound, ctm))
+                if (list.params.useClips) {
+                    if ((!sceneclip.isHuge() || !draw.clip.isHuge()) && !Winder::TouchesRect(rect, sceneclip.intersect(draw.clip), ctm))
+                        continue;
+                    if (draw.clipPath.ptr && !Winder::TouchesRect(rect, draw.clipPath.ptr, ctm, 0, 0))
                         continue;
                 }
                 const Ra::Transform m = draw.ctm.concat(ctm);
@@ -125,7 +126,6 @@ struct RasterizerWinding {
             for (size_t i = 1; i < 5; i++, x0 = x1, y0 = y1) {
                 bool right = (i % 4) / 2, up = (i % 2) ^ right;
                 x1 = (right ? rect.ux : rect.lx), y1 = (up ? rect.uy : rect.ly);
-                
                 winding += uwinding(x0, y0, x1, y1);
             }
         }
