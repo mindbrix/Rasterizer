@@ -61,11 +61,17 @@ struct RasterizerWinding {
         for (size_t il = 0; il < list.scenes.size(); il++) {
             const Ra::Scene& scene = *list.scenes[il].ptr;
             const Ra::Transform ctm = list.ctms[il].concat(list.ctm);
+            const Ra::Bounds& sceneclip = list.clips[il];
             
             for (size_t is = 0; is < scene.count(); is++) {
                 const Ra::Draw& draw = scene.draws[is];
                 if (draw.flags & Ra::Draw::kInvisible)
                     continue;
+                if (list.params.useClips && (!sceneclip.isHuge() || !draw.clip.isHuge())) {
+                    const Ra::Bounds compound = sceneclip.intersect(draw.clip);
+                    if (!Winder::TouchesRect(rect, compound, ctm))
+                        continue;
+                }
                 const Ra::Transform m = draw.ctm.concat(ctm);
                 const Ra::Bounds clip = draw.bnds.quad(m);
                 if (clip.intersect(rect).isRect() && (rect.contains(clip) || Winder::TouchesRect(rect, draw.path.ptr, m, draw.width, draw.flags)))
@@ -103,10 +109,27 @@ struct RasterizerWinding {
             return fabsf(winder.winding) > 1e-3f;
         }
         
+        static bool TouchesRect(Ra::Bounds rect, Ra::Bounds b, Ra::Transform ctm) {
+            Winder winder;
+            winder.unit = ctm.concat(rect.quad(Ra::Transform()).invert());
+            winder.applyRect(b);
+            return fabsf(winder.winding) > 1e-3f;
+        }
+        
         inline static float saturate(float t) {
             return fmaxf(0.f, fminf(1.f, t));
         }
-        float uwinding(float x0, float y0, float x1, float y1) {
+        void applyRect(Ra::Bounds rect) {
+            float x0, y0, x1, y1;
+            x0 = x1 = rect.lx, y0 = y1 = rect.ly;
+            for (size_t i = 1; i < 5; i++, x0 = x1, y0 = y1) {
+                bool right = (i % 4) / 2, up = (i % 2) ^ right;
+                x1 = (right ? rect.ux : rect.lx), y1 = (up ? rect.uy : rect.ly);
+                
+                winding += uwinding(x0, y0, x1, y1);
+            }
+        }
+        inline float uwinding(float x0, float y0, float x1, float y1) {
             return awinding(
                 fmaf(x0, unit.a, fmaf(y0, unit.c, unit.tx)),
                 fmaf(x0, unit.b, fmaf(y0, unit.d, unit.ty)),
@@ -114,7 +137,7 @@ struct RasterizerWinding {
                 fmaf(x1, unit.b, fmaf(y1, unit.d, unit.ty))
             );
         }
-        float awinding(float x0, float y0, float x1, float y1) {
+        inline float awinding(float x0, float y0, float x1, float y1) {
             float w0 = saturate(y0), w1 = saturate(y1), cover = w1 - w0;
             float dx = x1 - x0, dy = y1 - y0, a0 = dx * ((dx > 0.0 ? w0 : w1) - y0) - dy * (1.0 - x0);
             return saturate(-a0 / fmaf(fabsf(dx), cover, dy)) * cover;

@@ -266,7 +266,7 @@ struct RasterizerDemo {
     bool getShouldRedraw(double time, float w, float h) {
         bool should = redraw || showTime;
         
-        list.ctm = ctm;
+        list.ctm = ctm, list.params = params;
         if (pathMouseOver && mouseMoved) {
             RaWnd::IndexPair pair = RasterizerWinding::indicesForPoint(list, bounds, mx, my);
 
