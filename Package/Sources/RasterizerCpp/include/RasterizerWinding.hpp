@@ -97,10 +97,10 @@ struct RasterizerWinding {
     struct Winder: Ra::GeometryWriter {
         static float BoundsWinding(Ra::Bounds bounds, Ra::Geometry *g, Ra::Transform m, float width, uint8_t flags) {
             Ra::Transform unit = m.concat(bounds.quad(Ra::Transform()).invert());
-            float ws = m.scale(), uw = width < 0.f ? -width / ws : width;
-            Winder winder;  winder.uw = width == 0 ? 0 : 0.0001f * uw, winder.flags = flags, winder.m = unit, winder.inv = unit.invert();
+            float ws = unit.scale(), dw = width * (width < 0.f ? -1.f : ws);
+            Winder winder;  winder.dw = width == 0 ? 0 : 0.5f * dw, winder.flags = flags, winder.m = unit, winder.inv = unit.invert();
             winder.applyPath(g, unit, Ra::Bounds(), true, width == 0);
-            return winder.winding;
+            return fabsf(winder.winding) > 1e-3f;
         }
         
         inline static float saturate(float t) {
@@ -112,11 +112,11 @@ struct RasterizerWinding {
             return saturate(-a0 / fmaf(fabsf(dx), cover, dy)) * cover;
         }
         void writeSegment(float x0, float y0, float x1, float y1) {
-            if (uw == 0)
+            if (dw == 0)
                 winding += count(x0, y0, x1, y1);
             else {
                 float ax, ay, dot, scale, cap, cx, cy, sx, sy, sx0, sy0, sx1, sy1;
-                ax = x1 - x0, ay = y1 - y0, dot = ax * ax + ay * ay, scale = uw / sqrtf(dot);
+                ax = x1 - x0, ay = y1 - y0, dot = ax * ax + ay * ay, scale = dw / sqrtf(dot);
                 cap = scale * bool(flags & (Ra::Draw::kRoundCap | Ra::Draw::kSquareCap));
                 cx = cap * ax, sx = scale * -ay;
                 cy = cap * ay, sy = scale * ax;
@@ -140,7 +140,7 @@ struct RasterizerWinding {
                 }
             }
         }
-        float uw = 0, winding = 0;  uint8_t flags = 0;  Ra::Transform m, inv;
+        float dw = 0, winding = 0;  uint8_t flags = 0;  Ra::Transform m, inv;
     };
     struct Counter: Ra::GeometryWriter {
         float dx, dy, dw;  int winding = 0;  uint8_t flags = 0;
