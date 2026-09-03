@@ -71,12 +71,12 @@ struct RasterizerDemo {
         
         bool keyUsed = false;
         if (keyCode == KeyCode::kB)
-            params.useClips = !params.useClips, keyUsed = true, clearHUD();
+            params.useClips = !params.useClips, clearIndices(), keyUsed = true, clearHUD();
         else if (keyCode == KeyCode::kC)
             params.useCurves = !params.useCurves, keyUsed = true, clearHUD();
         else if (keyCode == KeyCode::kF) {
             Ra::Transform fit = bounds.fitTransform(list.bounds());
-            ctm = memcmp(& ctm, & fit, sizeof(ctm)) == 0 ? Ra::Transform() : fit;
+            ctm = memcmp(& ctm, & fit, sizeof(ctm)) == 0 ? Ra::Transform() : fit, clearIndices();
             keyUsed = true;
         } else if (keyCode == KeyCode::kH)
             showHud = !showHud, keyUsed = true;
@@ -85,7 +85,7 @@ struct RasterizerDemo {
         else if (keyCode == KeyCode::kO)
             params.showOutlines = !params.showOutlines, keyUsed = true, clearHUD();
         else if (keyCode == KeyCode::kP)
-            pathMouseOver = !pathMouseOver, resetMouse(), keyUsed = true, clearHUD();
+            pathMouseOver = !pathMouseOver, resetMouse(), clearIndices(), keyUsed = true, clearHUD();
         else if (keyCode == KeyCode::kL) {
             toggleLocked(), keyUsed = true;
         } else if (keyCode == KeyCode::kS)
@@ -123,7 +123,7 @@ struct RasterizerDemo {
     void onKeyUp(unsigned short keyCode) {
     }
     void onMouseMove(float x, float y) {
-        mx = x, my = y, mouseMoved = true;
+        mx = x, my = y, mouseMoved = true, clearIndices();
     }
     void onMouseDown(float x, float y) {
         mouseDown = true;
@@ -142,13 +142,13 @@ struct RasterizerDemo {
     void onMagnify(float s, bool ended) {
         if (rotating)
             return;
-        magnifying = !ended;
+        magnifying = !ended, clearIndices();
         concat(Ra::Transform(s, 0.f, 0.f, s, 0.f, 0.f));
     }
     void onRotate(float a, bool ended) {
         if (magnifying)
             return;
-        rotating = !ended;
+        rotating = !ended, clearIndices();
         bool flipped = !locked ? false : lockedCTM().det() < 0;
         float sine, cosine;  __sincosf(flipped ? -a : a, & sine, & cosine);
         concat(Ra::Transform(cosine, sine, -sine, cosine, 0, 0));
@@ -158,11 +158,15 @@ struct RasterizerDemo {
         mx += dx, my += dy;
     }
     void onTranslate(float dx, float dy) {
-        translate(dx, dy);
+        translate(dx, dy), clearIndices();
     }
     
 #pragma mark - Properties
+    void clearIndices() {
+        indices.resize(0);
+    }
     void clearList() {
+        clearIndices();
         resetMouse();
         list = Ra::SceneList();
     }
@@ -270,7 +274,7 @@ struct RasterizerDemo {
                 setMouse(pair), should = true;
             last = pair;
         }
-        if (pathMouseOver) {
+        if (pathMouseOver && indices.end() == 0) {
             Ra::Bounds mouseRect = Ra::Bounds(mx, my, mx, my).inset(-64, -64).intersect(bounds);
             indices = RasterizerWinding::indicesForRect(list, mouseRect), should = true;
         }
