@@ -273,7 +273,8 @@ struct RasterizerPDF {
     static void writeShadingToScene(FPDF_PAGE page, FPDF_PAGEOBJECT page_object, Ra::Bounds* clipBounds, std::vector<Ra::Path>& clipPaths, Ra::SceneRef& scene) {
         if (clipPaths.size()) {
             auto paint = paintFromPageObject(page, page_object);
-            scene->addPath(clipPaths[0], Ra::Transform(), paint, 0, 0, clipBounds);
+            if (paint.isValid())
+                scene->addPath(clipPaths[0], Ra::Transform(), paint, 0, 0, clipBounds);
         }
     }
     
