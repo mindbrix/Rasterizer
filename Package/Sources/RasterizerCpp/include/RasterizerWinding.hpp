@@ -106,7 +106,7 @@ struct RasterizerWinding {
             float ws = m.scale(), dw = width * (width < 0.f ? -1.f : ws);
             Winder winder;  winder.dw = width == 0 ? 0 : 0.5f * dw, winder.flags = flags;
             winder.unit = rect.quad(Ra::Transform()).invert();
-            winder.applyPath(g, m, rect, false, width == 0);
+            winder.applyPath(g, m, rect.inset(-dw, -dw), false, width == 0);
             return fabsf(winder.winding) > 1e-3f;
         }
         
