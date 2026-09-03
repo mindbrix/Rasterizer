@@ -104,10 +104,11 @@ struct RasterizerWinding {
     struct Winder: Ra::GeometryWriter {
         static bool TouchesRect(Ra::Bounds rect, Ra::Geometry *g, Ra::Transform m, float width, uint8_t flags) {
             float ws = m.scale(), dw = width * (width < 0.f ? -1.f : ws);
-            Winder winder;  winder.dw = width == 0 ? 0 : 0.5f * dw, winder.flags = flags;
+            Winder winder;  winder.dw = 0.5f * dw, winder.flags = flags;
             winder.unit = rect.quad(Ra::Transform()).invert();
             winder.applyPath(g, m, rect.inset(-dw, -dw), false, width == 0);
-            return fabsf(winder.winding) > 1e-3f;
+            float cover = fabsf(winder.winding);
+            return (flags & Ra::Draw::kFillEvenOdd ? 1.f - fabsf(fmodf(cover, 2.f) - 1.f) : cover) > 1e-3f;
         }
         
         static bool TouchesRect(Ra::Bounds rect, Ra::Bounds b, Ra::Transform ctm) {
