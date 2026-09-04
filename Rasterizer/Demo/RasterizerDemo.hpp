@@ -309,11 +309,12 @@ struct RasterizerDemo {
         Ra::SceneList draw = list;  draw.ctm = ctm, list.ctm = ctm, draw.params = params, list.params = params;
         
         if (pathMouseOver) {
-            RaWnd::IndexPair pair = RasterizerWinding::indicesForPoint(list, bounds, mx, my);
+            Ra::Bounds pixRect = Ra::Bounds(mx, my, mx, my).integral();
+            indices = RasterizerWinding::indicesForRect(list, pixRect);
+            RaWnd::IndexPair pair = indices.end() ? indices.back() : RaWnd::IndexPair();
 
             if (!locked && (last.i0 != pair.i0 || last.i1 != pair.i1))
-                setMouse(pair);
-            last = pair;
+                setMouse(pair), last = pair;
             
             Ra::Bounds mouseRect = Ra::Bounds(mx, my, mx, my).inset(-64, -64).intersect(bounds);
             indices = RasterizerWinding::indicesForRect(list, mouseRect);
