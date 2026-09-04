@@ -49,11 +49,11 @@
 
 #pragma mark - SceneListDelegate
 
-- (BOOL)shouldRedrawAtTime:(double)time width:(double)width height:(double)height {
+- (BOOL)shouldRedrawAtTime:(double)time scale:(double)scale width:(double)width height:(double)height {
     return _demo.getShouldRedraw(time, width, height);
 }
 
-- (RASceneList *)getListAtTime:(double)time width:(double)width height:(double)height {
+- (RASceneList *)getListAtTime:(double)time scale:(double)scale width:(double)width height:(double)height {
     RASceneList *list = [RASceneList new];
     list.list = _demo.getDrawList(time, width, height);
     return list;

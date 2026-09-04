@@ -104,7 +104,7 @@ class SwiftDemo: NSObject {
 }
 
 extension SwiftDemo: RASceneListDelegate {
-    func shouldRedraw(atTime time: Double, width: Double, height: Double) -> Bool {
+    func shouldRedraw(atTime time: Double, scale: Double, width: Double, height: Double) -> Bool {
         bounds = CGRect(x: 0, y: 0, width: width, height: height)
         
         let pageCount = PageID.allCases.count
@@ -116,7 +116,7 @@ extension SwiftDemo: RASceneListDelegate {
         redraw = false
         return should
     }
-    func getListAtTime(_ time: Double, width: Double, height: Double) -> RASceneList {
+    func getListAtTime(_ time: Double, scale: Double, width: Double, height: Double) -> RASceneList {
         bounds = CGRect(x: 0, y: 0, width: width, height: height)
         let list = RASceneList()
         let t = paused ? slider : time - floor(time)

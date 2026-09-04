@@ -111,9 +111,10 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     @autoreleasepool {
         if (dispatch_semaphore_wait(_inflight_semaphore, DISPATCH_TIME_NOW) == 0)
             dispatch_async(dispatch_get_main_queue(), ^{
-                if ([self.listDelegate respondsToSelector:@selector(shouldRedrawAtTime:width:height:)]) {
-                    float w = self.bounds.size.width, h = self.bounds.size.height;
+                if ([self.listDelegate respondsToSelector:@selector(shouldRedrawAtTime:scale:width:height:)]) {
+                    double scale = self.layer.contentsScale, w = self.bounds.size.width, h = self.bounds.size.height;
                     if ([self.listDelegate shouldRedrawAtTime:CACurrentMediaTime()
+                                                        scale:scale
                                                         width:w
                                                        height:h]) {
                         [self.layer setNeedsDisplay];
@@ -127,9 +128,10 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 #pragma mark - LayerDelegate
 
 - (void)writeBuffer:(RenderBuffer *)buffer forLayer:(CAMetalLayer *)layer {
-    if ([self.listDelegate respondsToSelector:@selector(getListAtTime:width:height:)]) {
-        float scale = self.layer.contentsScale, w = self.bounds.size.width, h = self.bounds.size.height;
+    if ([self.listDelegate respondsToSelector:@selector(getListAtTime:scale:width:height:)]) {
+        double scale = self.layer.contentsScale, w = self.bounds.size.width, h = self.bounds.size.height;
         RASceneList *list = [self.listDelegate getListAtTime:CACurrentMediaTime()
+                                                       scale:scale
                                                        width:w
                                                       height:h];
         _renderer.renderList(list.list, scale, w, h, buffer, layer);
@@ -139,9 +141,10 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 #pragma mark - CALayerDelegate
 
 - (void)drawLayer:(CALayer *)layer inContext:(CGContextRef)ctx {
-    if ([self.listDelegate respondsToSelector:@selector(getListAtTime:width:height:)]) {
-        float scale = self.layer.contentsScale, w = self.bounds.size.width, h = self.bounds.size.height;
+    if ([self.listDelegate respondsToSelector:@selector(getListAtTime:scale:width:height:)]) {
+        double scale = self.layer.contentsScale, w = self.bounds.size.width, h = self.bounds.size.height;
         RASceneList *list = [self.listDelegate getListAtTime:CACurrentMediaTime()
+                                                       scale:scale
                                                        width:w
                                                       height:h];
         RaCG::renderListWithClear(list.list, scale, w, h, ctx);

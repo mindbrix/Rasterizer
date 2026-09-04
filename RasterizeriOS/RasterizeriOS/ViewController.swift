@@ -89,13 +89,13 @@ class ViewController: UIViewController {
 }
 
 extension ViewController: RASceneListDelegate {
-    func shouldRedraw(atTime time: Double, width: Double, height: Double) -> Bool {
+    func shouldRedraw(atTime time: Double, scale: Double, width: Double, height: Double) -> Bool {
         let should = redraw || svgList == nil
         redraw = false
         return should
     }
     
-    func getListAtTime(_ time: Double, width: Double, height: Double) -> RASceneList {
+    func getListAtTime(_ time: Double, scale: Double, width: Double, height: Double) -> RASceneList {
         let list = svgList ?? CounterRotatingCircles(time, width: width, height: height)
         list.ctm = ctm
         return list

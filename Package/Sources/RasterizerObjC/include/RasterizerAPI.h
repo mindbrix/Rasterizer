@@ -140,6 +140,6 @@ typedef NS_ENUM(NSUInteger, RAJoinStyle) {
 
 
 @protocol RASceneListDelegate <NSObject>
-- (BOOL)shouldRedrawAtTime:(double)time width:(double)width height:(double)height;
-- (nonnull RASceneList *)getListAtTime:(double)time width:(double)width height:(double)height;
+- (BOOL)shouldRedrawAtTime:(double)time scale:(double)scale width:(double)width height:(double)height;
+- (nonnull RASceneList *)getListAtTime:(double)time scale:(double)scale width:(double)width height:(double)height;
 @end
