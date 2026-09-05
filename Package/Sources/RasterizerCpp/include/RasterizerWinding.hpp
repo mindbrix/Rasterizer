@@ -21,14 +21,14 @@
 #import "Rasterizer.hpp"
 
 struct RasterizerWinding {
-    struct IndexPair {
-        IndexPair() : i0(INT_MAX), i1(INT_MAX) {}
-        IndexPair(size_t i0, size_t i1) : i0(int(i0)), i1(int(i1)) {}
+    struct Pair {
+        Pair() : i0(INT_MAX), i1(INT_MAX) {}
+        Pair(size_t i0, size_t i1) : i0(int(i0)), i1(int(i1)) {}
         int i0, i1;
     };
     
-    static Ra::Vector<IndexPair> indicesForRect(Ra::SceneList& list, Ra::Bounds rect) {
-        Ra::Vector<IndexPair> indices;
+    static Ra::Vector<Pair> indicesForRect(Ra::SceneList& list, Ra::Bounds rect) {
+        Ra::Vector<Pair> indices;
         for (size_t il = 0; il < list.scenes.size(); il++) {
             const Ra::Scene& scene = *list.scenes[il].ptr;
             const Ra::Transform ctm = list.ctms[il].concat(list.ctm);
@@ -47,7 +47,7 @@ struct RasterizerWinding {
                 const Ra::Transform m = draw.ctm.concat(ctm);
                 const Ra::Bounds clip = draw.bnds.quad(m);
                 if (clip.intersect(rect).isRect() && (rect.contains(clip) || Winder::TouchesRect(rect, draw.path.ptr, m, draw.width, draw.flags)))
-                    indices.add(IndexPair(il, is));
+                    indices.add(Pair(il, is));
             }
         }
         return indices;

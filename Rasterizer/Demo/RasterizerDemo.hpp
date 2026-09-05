@@ -198,19 +198,19 @@ struct RasterizerDemo {
         redraw = true;
     }
     
-    void setMouse(RaWnd::IndexPair pair) {
+    void setMouse(RaWnd::Pair pair) {
         restore(mouse), mouse = pair, save(mouse);
         if (pair.i0 != INT_MAX)
             mouseScene = makeMouseScene(list.scenes[pair.i0]->draws[pair.i1]);
     }
     void resetMouse() {
-        restore(mouse), mouse = RaWnd::IndexPair(), last = mouse, locked = false, mouseMoved = true;
+        restore(mouse), mouse = RaWnd::Pair(), last = mouse, locked = false, mouseMoved = true;
     }
-    void save(RaWnd::IndexPair pair) {
+    void save(RaWnd::Pair pair) {
         if (pair.i0 != INT_MAX)
             mouseDraw = list.scenes[pair.i0]->draws[pair.i1];
     }
-    void restore(RaWnd::IndexPair pair) {
+    void restore(RaWnd::Pair pair) {
         if (pair.i0 != INT_MAX)
             list.scenes[pair.i0]->draws[pair.i1] = mouseDraw;
     }
@@ -311,7 +311,7 @@ struct RasterizerDemo {
         if (pathMouseOver) {
             Ra::Bounds pixRect = Ra::Bounds(mx, my, mx, my).integral();
             indices = RasterizerWinding::indicesForRect(list, pixRect);
-            RaWnd::IndexPair pair = indices.end() ? indices.back() : RaWnd::IndexPair();
+            RaWnd::Pair pair = indices.end() ? indices.back() : RaWnd::Pair();
 
             if (!locked && (last.i0 != pair.i0 || last.i1 != pair.i1))
                 setMouse(pair), last = pair;
@@ -326,7 +326,7 @@ struct RasterizerDemo {
             unitEllipse->addEllipse(unit);
             for (size_t i = 0; i < indices.end(); i++) {
                 const Ra::Color red(0, 0, 224, 255);
-                const RaWnd::IndexPair pair = indices[i];
+                const RaWnd::Pair pair = indices[i];
                 const Ra::Scene& scene = *list.scenes[pair.i0].ptr;
                 const Ra::Draw& drw = scene.draws[pair.i1];
                 Ra::Transform m = drw.ctm.concat(list.ctms[pair.i0]), quad = drw.bnds.quad(m);
@@ -446,7 +446,7 @@ struct RasterizerDemo {
     double lastTime = 0.0;
     float mx, my;
     Ra::Draw mouseDraw;
-    Ra::Vector<RaWnd::IndexPair> indices;
-    RaWnd::IndexPair mouse = RaWnd::IndexPair(), last = RaWnd::IndexPair();
+    Ra::Vector<RaWnd::Pair> indices;
+    RaWnd::Pair mouse = RaWnd::Pair(), last = RaWnd::Pair();
     size_t flags = 0;
 };
