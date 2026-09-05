@@ -39,6 +39,16 @@ extension CGRect {
             tx: minX + 0.5 * (w - s * bw) - s * b.minX,
             ty: minY + 0.5 * (h - s * bh) - s * b.minY)
     }
+    
+    public func perimeter() -> CGFloat {
+        2 * (width + height)
+    }
+    
+    public func ellipsePerimeter() -> CGFloat {
+        let a = 0.5 * width
+        let b = 0.5 * height
+        return CGFloat.pi * (3 * (a + b) - sqrt((3 * a + b) * (a + 3 * b)))
+    }
 }
 
 public func CounterRotatingCircles(_ time: Double, width: Double, height: Double) -> RASceneList {
@@ -57,4 +67,14 @@ public func CounterRotatingCircles(_ time: Double, width: Double, height: Double
     }
     scene.addFill(path, ctm: .identity, color: RAPaint(), evenOdd: true)
     return RASceneList(scene: scene)
+}
+
+extension RAScene {
+    public func fillRect(_ rect: CGRect, paint: RAPaint) {
+        addFill(RAPath(rect: rect), ctm: .identity, color: paint, evenOdd: false)
+    }
+    
+    public func strokeRect(_ rect: CGRect, width: Double, paint: RAPaint) {
+        addStroke(RAPath(rect: rect), ctm: .identity, color: paint, width: width, capStyle: .capButt, joinStyle: .joinMiter)
+    }
 }

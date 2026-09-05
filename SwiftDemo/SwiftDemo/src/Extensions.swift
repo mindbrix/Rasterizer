@@ -18,16 +18,6 @@ extension CGRect {
         let h = Int(height) / grid
         return CGRect(x: col * w, y: row * h, width: w, height: h)
     }
-    func perimeter() -> CGFloat {
-        2 * (width + height)
-    }
-    
-    func ellipsePerimeter() -> CGFloat {
-        let a = 0.5 * width
-        let b = 0.5 * height
-        return CGFloat.pi * (3 * (a + b) - sqrt((3 * a + b) * (a + 3 * b)))
-    }
-    
     func snappedTo(lineHeight: CGFloat, in b: CGRect) -> CGRect {
         let ly = b.maxY - ceil((b.maxY - minY) / lineHeight) * lineHeight
         let uy = b.maxY - floor((b.maxY - maxY) / lineHeight) * lineHeight
@@ -249,14 +239,6 @@ extension RAScene {
         
         addStroke(rounded, ctm: .identity, color: gray, width: width, capStyle: .capButt, joinStyle: .joinMiter)
         addStroke(glyphs, ctm: .identity, color: paint, width: width, capStyle: .capButt, joinStyle: .joinMiter)
-    }
-    
-    func fillRect(_ rect: CGRect, paint: RAPaint) {
-        addFill(RAPath(rect: rect), ctm: .identity, color: paint, evenOdd: false)
-    }
-    
-    func strokeRect(_ rect: CGRect, width: Double, paint: RAPaint) {
-        addStroke(RAPath(rect: rect), ctm: .identity, color: paint, width: width, capStyle: .capButt, joinStyle: .joinMiter)
     }
 }
 
