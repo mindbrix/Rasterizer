@@ -267,6 +267,38 @@ struct Rasterizer {
         uint16_t x, y;
     };
     
+    struct Cell {
+        uint16_t lx, ly, ux, uy, ox, oy;
+    };
+    struct Quad {
+        Cell cell;  short cover;  int base, biid, molsbase;
+    };
+    struct Quadratic {
+        float x0, y0, x1, y1, x2, y2;
+    };
+    struct Outline {
+        Quadratic quad;
+        short prev, next;
+    };
+    struct Instance {
+        enum Flags {
+            kRoundJoin = 1 << 21,   kStencil = 1 << 21,
+            kIsRadial = 1 << 22,    kDisableImage = 1 << 22,
+            kIsGradient = 1 << 23,  kNextImage = 1 << 23,
+            kIsImage = 1 << 24,     kIsCurve = 1 << 24,
+            kMolecule = 1 << 25,    kPCap = 1 << 25,
+            kFastEdges = 1 << 26,   kNCap = 1 << 26,
+            kEdge = 1 << 27,        kF0 = 1 << 27,
+            kRoundCap = 1 << 28,    kF1 = 1 << 28,
+            kOutlines = 1 << 29,
+            kSquareCap = 1 << 30,
+            kEvenOdd = 1 << 31,
+            kFragmentMask = (kOutlines | kSquareCap | kEvenOdd)
+        };
+        Instance(size_t iz) : iz(uint32_t(iz)) {}
+        uint32_t iz;  union { Quad quad;  Outline outline; };
+    };
+    
     struct Geometry {
         enum Type { kMove, kLine, kQuadratic, kCubic, kClose, kCountSize };
         const size_t TypeSizes[kCountSize] = { 1, 1, 2, 3, 1 };
@@ -405,6 +437,7 @@ struct Rasterizer {
         float x0 = 0.f, y0 = 0.f, maxCurve = 0.f;  Row<uint8_t> types;  Row<float> points;
         Bounds bounds;  Row<Bounds> molecules;
         Row<Point16> p16s;  Row<uint8_t> p16cnts;  Row<Atom> atoms;
+        Row<Instance> outlines;
     };
     typedef Ref<Geometry> Path;
     
@@ -580,32 +613,40 @@ struct Rasterizer {
             Row<Index> indices;  indices.prealloc(count());
             Index *index0 = indices.base, *index1 = indices.base;
             
-            for (size_t i = 0; i < count(); i++) {
-                const Draw& draw = draws[i];  Geometry *g = draw.path.ptr;
-                if (draw.width == 0)
-                    new (index1++) Index(g->hash(), i);
-            }
+            for (size_t i = 0; i < count(); i++)
+                new (index1++) Index(draws[i].path.ptr->hash(), i);
+            
             std::sort(index0, index1);
             p16bases.empty(), p16entries.empty();
             uint32_t *bases = p16bases.alloc(count());
             
-            size_t lastHash = 0, count = 0, total = 0, srcIndex = 0;
+            size_t lastHash = 0, count = 0, total = 0, lastIndex = ~0;
             for (Index *index = index0; index < index1; index++) {
+                const Draw& draw = draws[index->i];  Geometry *g = draw.path.ptr;
+                
                 if (index == index0 || lastHash != index->hash) {
-                    lastHash = index->hash;
-                    srcIndex = index->i;
-                    total += count;
-
-                    Geometry *g = draws[index->i].path.ptr;
-                    new (p16entries.alloc(1)) Entry(g, total);
+                    lastHash = index->hash, lastIndex = index->i;
                     
-                    if (kMoleculesHeight && g->p16s.end == 0)
-                        P16Writer().writeGeometry(g);
-                    count = g->p16s.end;
+                    if (kCacheOutlines && g->outlines.end == 0) {
+                        Outliner outliner;
+                        outliner.outlines = & g->outlines;
+                        outliner.applyPath(g, Transform(), Bounds(), true, false);
+                    }
+                    if (draw.width == 0) {
+                        total += count;
+                        
+                        new (p16entries.alloc(1)) Entry(g, total);
+                        
+                        if (kMoleculesHeight && g->p16s.end == 0)
+                            P16Writer().writeGeometry(g);
+                        count = g->p16s.end;
+                    }
                 }
-                bases[index->i] = uint32_t(total);
-                if (srcIndex != index->i)
-                    draws[index->i].path = draws[srcIndex].path;
+                if (draw.width == 0)
+                    bases[index->i] = uint32_t(total);
+                
+                if (lastIndex != index->i)
+                    draws[index->i].path = draws[lastIndex].path;
             }
             total += count;
             p16total = uint32_t(total);
@@ -649,37 +690,6 @@ struct Rasterizer {
     struct Segment {
         inline Segment(float x0, float y0, float x1, float y1, bool curve) : ix0((*((uint32_t *)& x0) & ~1) | curve), y0(y0), x1(x1), y1(y1) {}
         union { float x0; uint32_t ix0; };  float y0, x1, y1;
-    };
-    struct Cell {
-        uint16_t lx, ly, ux, uy, ox, oy;
-    };
-    struct Quad {
-        Cell cell;  short cover;  int base, biid, molsbase;
-    };
-    struct Quadratic {
-        float x0, y0, x1, y1, x2, y2;
-    };
-    struct Outline {
-        Quadratic quad;
-        short prev, next;
-    };
-    struct Instance {
-        enum Flags {
-            kRoundJoin = 1 << 21,   kStencil = 1 << 21,
-            kIsRadial = 1 << 22,    kDisableImage = 1 << 22,
-            kIsGradient = 1 << 23,  kNextImage = 1 << 23,
-            kIsImage = 1 << 24,     kIsCurve = 1 << 24,
-            kMolecule = 1 << 25,    kPCap = 1 << 25,
-            kFastEdges = 1 << 26,   kNCap = 1 << 26,
-            kEdge = 1 << 27,        kF0 = 1 << 27,
-            kRoundCap = 1 << 28,    kF1 = 1 << 28,
-            kOutlines = 1 << 29,
-            kSquareCap = 1 << 30,
-            kEvenOdd = 1 << 31,
-            kFragmentMask = (kOutlines | kSquareCap | kEvenOdd)
-        };
-        Instance(size_t iz) : iz(uint32_t(iz)) {}
-        uint32_t iz;  union { Quad quad;  Outline outline; };
     };
     struct Opaque {
         uint32_t iz;  union { Cell cell;  Quadratic quad; };
@@ -858,24 +868,41 @@ struct Rasterizer {
                         clips[iz] = invclip;
                         Geometry *g = draw.path.ptr;
                         if (width) {
+                            if (kCacheOutlines)
+                                assert(g->outlines.end);
                             widths[iz] = width;
                             Blend *inst = new (blends.alloc(1)) Blend(iz | colorFlags | Instance::kOutlines | bool(draw.flags & Draw::kRoundCap) * Instance::kRoundCap | bool(draw.flags & Draw::kSquareCap) * Instance::kSquareCap | bool(draw.flags & Draw::kRoundJoin) * Instance::kRoundJoin);
                             
                             Bounds outlineClip = unclipped ? Bounds::huge() : clip.inset(-width, -width);
                             uint32_t i0 = uint32_t(outlines.idx), i1;
-                            Outliner outliner;
-                            outliner.iz = inst->iz, outliner.outlines = & outlines;
-                            if (width > 4.f && isOpaque && lastClipPath == nullptr) {
-                                bool softunclipped = true;
-                                if (clipActive) {
-                                    Bounds soft = quad.concat(invclip);
-                                    softunclipped = fmaxf(fmaxf(fabsf(soft.lx - 0.5f), fabsf(soft.ux - 0.5f)), fmaxf(fabsf(soft.ly - 0.5f), fabsf(soft.uy - 0.5f))) < softclipMargin;
+                            if (kCacheOutlines && unclipped) {
+                                ctms[iz] = m;
+                                Instance *dst = outlines.alloc(g->outlines.end);
+                                for (size_t i = 0; i < g->outlines.end; i++, dst++) {
+                                    const Instance& out = g->outlines.base[i];
+                                    const Quadratic& q = out.outline.quad;
+                                    dst->iz = inst->iz, dst->outline.prev = out.outline.prev, dst->outline.next = out.outline.next;
+                                    dst->outline.quad = q;
                                 }
-                                outliner.opaques = softunclipped ? & opaques : nullptr;
+                                outlines.idx = outlines.end;
+                            } else {
+                                ctms[iz] = Transform();
+                                Outliner outliner;
+                                outliner.iz = inst->iz, outliner.outlines = & outlines;
+                                if (width > 4.f && isOpaque && lastClipPath == nullptr) {
+                                    bool softunclipped = true;
+                                    if (clipActive) {
+                                        Bounds soft = quad.concat(invclip);
+                                        softunclipped = fmaxf(fmaxf(fabsf(soft.lx - 0.5f), fabsf(soft.ux - 0.5f)), fmaxf(fabsf(soft.ly - 0.5f), fabsf(soft.uy - 0.5f))) < softclipMargin;
+                                    }
+                                    outliner.opaques = softunclipped ? & opaques : nullptr;
+                                }
+                                outliner.applyPath(g, m, outlineClip, unclipped, false);
                             }
-                            outliner.applyPath(g, m, outlineClip, unclipped, false);
                             i1 = uint32_t(outlines.idx);
                             inst->data.idx = i0, inst->data.count = i1 - i0;
+                            assert(i1 - i0 < g->upperBound(det));
+                            
                         } else if (kMoleculesHeight && clip.width() * clip.height() / g->types.end < kMoleculesPixelsPerEdge) {
                             ctms[iz] = m, bounds[iz] = draw.bnds;
                             bool fast = !buffer->params.useCurves || g->maxCurve * det < 16.f;
@@ -1570,6 +1597,10 @@ struct Rasterizer {
                     Opaque *opaque0 = opaques->alloc(dst - dst0), *opaque = opaque0;
                     for (Instance *src = dst0; src < dst; src++, opaque++)
                         opaque->iz = iz, opaque->quad = src->outline.quad;
+                    if (unclipped) {
+                        assert(closed == (first->outline.prev != 0));
+                        assert(closed == (last->outline.next != 0));
+                    }
                     if (!closed) {
                         opaque0->iz |= Instance::kPCap;
                         (opaque - 1)->iz |= Instance::kNCap;
