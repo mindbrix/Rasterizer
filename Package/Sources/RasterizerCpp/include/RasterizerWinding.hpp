@@ -60,14 +60,14 @@ struct RasterizerWinding {
             winder.unit = rect.quad(Ra::Transform()).invert();
             winder.applyPath(g, m, rect.inset(-dw, -dw), false, width == 0.f);
             float cover = fabsf(winder.winding);
-            return (flags & Ra::Draw::kFillEvenOdd ? 1.f - fabsf(fmodf(cover, 2.f) - 1.f) : cover) > 1e-3f;
+            return (flags & Ra::Draw::kFillEvenOdd ? 1.f - fabsf(fmodf(cover, 2.f) - 1.f) : cover) > 1e-6f;
         }
         
         static bool TouchesRect(Ra::Bounds rect, Ra::Bounds b, Ra::Transform ctm) {
             Winder winder;
             winder.unit = ctm.concat(rect.quad(Ra::Transform()).invert());
             winder.applyRect(b);
-            return fabsf(winder.winding) > 1e-3f;
+            return fabsf(winder.winding) > 1e-6f;
         }
         
         inline static float saturate(float t) {
