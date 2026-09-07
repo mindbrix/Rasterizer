@@ -54,7 +54,7 @@ struct RasterizerRenderer {
         renderBuffer->resize(buffer->headerSize, 0, layer.device);
         
         auto divisions = (size_t *)alloca((contextCount + 1) * sizeof(size_t));
-        writeBalancedWeightDivisions(list, divisions);
+        writeDivisions(list, divisions);
         dispatch_apply(contextCount, DISPATCH_APPLY_AUTO, ^(size_t i) {
             contexts[i].drawList(list, scale, w, h, divisions[i], divisions[i + 1], buffer);
         });
@@ -76,24 +76,12 @@ struct RasterizerRenderer {
         colors[buffer->pathsCount] = buffer->params.clearColor;
     }
     
-    void writeBalancedWeightDivisions(const Ra::SceneList& list, size_t *divisions) {
+    void writeDivisions(const Ra::SceneList& list, size_t *divisions) {
         size_t contextCount = contexts.size();
-        size_t total = 0, count, si, i, iz, target;
-        for (int j = 0; j < list.scenes.size(); j++)
-            total += list.scenes[j]->weight();
-        if (total == 0)
-            memset(divisions, 0, (contextCount + 1) * sizeof(*divisions));
-        else {
-            divisions[0] = 0, divisions[contextCount] = list.pathsCount;
-            auto scene = & list.scenes[0];
-            for (count = si = iz = 0, i = 1; i < contextCount; i++) {
-                for (target = total * i / contextCount; count < target; iz++, si++) {
-                    if (si == (scene->ptr)->count())
-                        scene++, si = 0;
-                    count += (scene->ptr)->draws[si].path->types.end;
-                }
-                divisions[i] = iz;
-            }
+        divisions[0] = 0;
+        for (size_t i = 0; i < contextCount; i++) {
+            float t = float(i + 1) / float(contextCount);
+            divisions[i + 1] = t * float(list.pathsCount);
         }
     }
     void reset() {
