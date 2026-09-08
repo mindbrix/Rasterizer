@@ -53,10 +53,10 @@ struct RasterizerRenderer {
         buffer->prepare(list);
         renderBuffer->resize(buffer->headerSize, 0, layer.device);
         
-        auto divisions = (size_t *)alloca((contextCount + 1) * sizeof(size_t));
-        writeDivisions(list, divisions);
         dispatch_apply(contextCount, DISPATCH_APPLY_AUTO, ^(size_t i) {
-            contexts[i].drawList(list, scale, w, h, divisions[i], divisions[i + 1], buffer);
+            size_t slz = float(i) / float(contextCount) * float(list.pathsCount);
+            size_t suz = float(i + 1) / float(contextCount) * float(list.pathsCount);
+            contexts[i].drawList(list, scale, w, h, slz, suz, buffer);
         });
         auto begins = (size_t *)alloca(contextCount * sizeof(size_t));
         size_t size = Ra::resizeBuffer(list, & contexts[0], contextCount, begins, *buffer);
@@ -76,14 +76,6 @@ struct RasterizerRenderer {
         colors[buffer->pathsCount] = buffer->params.clearColor;
     }
     
-    void writeDivisions(const Ra::SceneList& list, size_t *divisions) {
-        size_t contextCount = contexts.size();
-        divisions[0] = 0;
-        for (size_t i = 0; i < contextCount; i++) {
-            float t = float(i + 1) / float(contextCount);
-            divisions[i + 1] = t * float(list.pathsCount);
-        }
-    }
     void reset() {
         for (auto& ctx : contexts)
             ctx.reset();
