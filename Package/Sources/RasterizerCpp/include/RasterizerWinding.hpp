@@ -45,7 +45,8 @@ struct RasterizerWinding {
                         continue;
                 }
                 const Ra::Transform m = draw.ctm.concat(ctm);
-                const Ra::Bounds clip = draw.bnds.quad(m);
+                const float dw = draw.width * (draw.width < 0.f ? -1.f : m.scale());
+                const Ra::Bounds clip = Ra::Bounds(draw.bnds.quad(m)).inset(-dw, -dw);
                 if (clip.intersects(rect) && (rect.contains(clip) || Winder::TouchesRect(rect, draw.path.ptr, m, draw.width, draw.flags)))
                     indices.add(Pair(il, is));
             }
