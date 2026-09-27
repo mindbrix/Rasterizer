@@ -1295,7 +1295,7 @@ struct Rasterizer {
     }
     
     struct CurveIndexer: GeometryWriter {
-        Segment *dst, *dst0;  bool fast;  Bounds clip;  Row<Sample> *samples;
+        Segment *dst, *dst0;  bool fast;  Row<Sample> *samples;
         
         void writeSegment(float x0, float y0, float x1, float y1) {
             if (y0 != y1)
