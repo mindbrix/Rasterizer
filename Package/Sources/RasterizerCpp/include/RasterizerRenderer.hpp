@@ -35,7 +35,7 @@ struct RenderBuffer {
         return mtlBuffer ? mtlBuffer.length : 0;;
     }
     bool willShrink(size_t n) const {
-        return header && size() > 1000000 && size() / n > 5;;
+        return header && size() > 1000000 && size() / n > 5;
     }
     void resize(size_t n) {
         if (size() < n || willShrink(n)) {
@@ -74,8 +74,7 @@ struct RasterizerRenderer {
         });
         auto begins = (size_t *)alloca(contextCount * sizeof(size_t));
         size_t size = Ra::resizeBuffer(list, & contexts[0], contextCount, begins, *buffer);
-        if (renderBuffer->willShrink(size))
-            reset();
+        bool willShrink = renderBuffer->willShrink(size);
         renderBuffer->allocContextSlices(size);
         
         Ra::writeOpaques(list, & contexts[0], contextCount, begins, *buffer);
@@ -90,6 +89,9 @@ struct RasterizerRenderer {
         
         auto colors = (Ra::Color *)(buffer->base + buffer->colors);
         colors[buffer->pathsCount] = buffer->params.clearColor;
+        
+        if (willShrink)
+            reset();
     }
     
     void reset() {
