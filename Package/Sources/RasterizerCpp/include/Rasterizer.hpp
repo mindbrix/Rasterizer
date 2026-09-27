@@ -215,6 +215,9 @@ struct Rasterizer {
         inline bool isHuge() const {
             return lx == -5e11f;
         }
+        inline bool isNull() const {
+            return lx == FLT_MAX && ly == FLT_MAX;
+        }
         inline bool isRect() const {
             return ux > lx && uy > ly;
         }
@@ -356,7 +359,7 @@ struct Rasterizer {
                 Bounds molecule;
                 for (size_t i = points.idx; i < points.end; i += 2)
                     molecule.extend(points.base[i], points.base[i + 1]);
-                if (!molecule.isZero()) {
+                if (!molecule.isNull() && !molecule.isZero()) {
                     bounds.extend(molecule);
                     *(molecules.alloc(1)) = molecule;
                     for (size_t i = types.idx; i < types.end;) {
