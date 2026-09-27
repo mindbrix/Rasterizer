@@ -566,12 +566,6 @@ struct Rasterizer {
         size_t count() const {
             return draws.end();
         }
-        size_t weight() const {
-            size_t total = 0;
-            for (int i = 0; i < draws.end(); i++)
-                total += draws[i].path->types.end;
-            return total;
-        }
         void prepare() {
             if (!needPrepare)
                 return;
