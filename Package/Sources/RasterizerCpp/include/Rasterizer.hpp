@@ -34,11 +34,8 @@ struct Rasterizer {
             if (ptr && --(ptr->refCount) == 0)
                 delete ptr;
         }
-        Ref(T* src) {
-            ptr = src;
-            if (ptr)
-                ptr->refCount = 1;
-        }
+        Ref(std::nullptr_t) {}
+        
         Ref(const Ref& other) {
             *this = other;
         }
