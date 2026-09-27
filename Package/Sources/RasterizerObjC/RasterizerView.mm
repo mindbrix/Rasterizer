@@ -134,7 +134,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
                                                        scale:scale
                                                        width:w
                                                       height:h];
-        _renderer.renderList(list.list, scale, w, h, buffer, layer);
+        _renderer.renderList(list.list, scale, w, h, buffer);
     }
 }
 

@@ -60,7 +60,7 @@ struct RasterizerRenderer {
         contexts.resize(count < 1 ? 1 : count);
     }
     
-    void renderList(const Ra::SceneList& list, float scale, float w, float h, RenderBuffer *renderBuffer, CAMetalLayer *layer) {
+    void renderList(const Ra::SceneList& list, float scale, float w, float h, RenderBuffer *renderBuffer) {
         Ra::Buffer *buffer = & renderBuffer->buffer;
         size_t contextCount = contexts.size();
         list.prepare();
