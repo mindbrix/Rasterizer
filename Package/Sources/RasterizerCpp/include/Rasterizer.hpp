@@ -518,16 +518,21 @@ struct Rasterizer {
     struct Draw {
         enum Flags { kFillEvenOdd = 1 << 1, kRoundCap = 1 << 2, kSquareCap = 1 << 3, kRoundJoin = 1 << 4, kInvisible = 1 << 7 };
 
-        static bool AreValid(const Path& path, const Paint& paint, const Path *clipPath) {
-            return path->isValid() && paint.isValid() && (clipPath == nullptr || clipPath->ptr == nullptr || clipPath->ptr->isValid());
-        }
         Draw() {}
         Draw(const Path& path, const Transform& ctm, const Paint& paint, float width, uint8_t flags, Bounds *clipBounds = nullptr, Path *clipPath = nullptr)
-        : path(path), ctm(ctm), paint(paint), width(width), flags(flags | kInvisible * !AreValid(path, paint, clipPath)), bnds(path->bounds),
-          clip(clipBounds ? *clipBounds : Bounds::huge()), clipPath(clipPath ? *clipPath : nullptr) {}
+        : path(path), ctm(ctm), paint(paint), width(width), flags(flags), clip(clipBounds ? *clipBounds : Bounds::huge()), clipPath(clipPath ? *clipPath : nullptr) {
+              validate();
+          }
         
         inline Bounds bounds() const {
             return Bounds(bnds.inset(-0.5f * width, -0.5f * width).quad(ctm)).intersect(clip);
+        }
+        bool validate() {
+            bool isValid = path->isValid() && paint.isValid() && (clipPath.ptr == nullptr || clipPath->isValid());
+            if (isValid)
+                bnds = path->bounds;
+            flags = (flags & ~kInvisible) | (isValid ? 0 : kInvisible);
+            return isValid;
         }
         Path path;  Transform ctm;  Paint paint;  float width = 0.f;  uint8_t flags = 0;  Bounds clip, bnds;  Path clipPath = nullptr;
     };
@@ -542,7 +547,6 @@ struct Rasterizer {
             size_t hash, i;
         };
         void addPath(const Path& path, const Transform& ctm, const Paint& paint, float width, uint8_t flag, Bounds *clipBounds = nullptr, Path *clipPath = nullptr) {
-            assert(Draw::AreValid(path, paint, clipPath));
             new (draws.memory->alloc(1)) Draw(path, ctm, paint, width, flag, clipBounds, clipPath);
             needPrepare = true;
         }
@@ -560,7 +564,8 @@ struct Rasterizer {
         Bounds bounds() const {
             Bounds b;
             for (int i = 0; i < draws.end(); i++)
-                b.extend(draws[i].bounds());
+                if ((draws[i].flags & Draw::kInvisible) == 0)
+                    b.extend(draws[i].bounds());
             return b;
         }
         size_t count() const {
@@ -575,9 +580,11 @@ struct Rasterizer {
             Index *index0 = indices.base, *index1 = indices.base;
             
             for (size_t i = 0; i < count(); i++) {
-                const Draw& draw = draws[i];  Geometry *g = draw.path.ptr;
-                if (draw.width == 0)
-                    new (index1++) Index(g->hash(), i);
+                Draw& draw = draws[i];
+                if (draw.validate()) {
+                    if (draw.width == 0)
+                        new (index1++) Index(draw.path->hash(), i);
+                }
             }
             std::sort(index0, index1);
             p16bases.empty(), p16entries.empty();
