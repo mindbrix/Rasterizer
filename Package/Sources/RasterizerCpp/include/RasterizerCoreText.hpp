@@ -118,17 +118,18 @@ struct RasterizerCoreText {
                 Ra::Transform m = RaCG::transformFromCG(CGAffineTransformTranslate(ctm, positions[j].x, positions[j].y));
                 auto key = hash + glyphs[j];
                 auto it = cache.find(key);
-                if (it != cache.end())
-                    scene->addPath(it->second, m, color, 0, 0, & clipBounds);
+                if (it != cache.end()) {
+                    if (it->second->isValid())
+                        scene->addPath(it->second, m, color, 0, 0, & clipBounds);
+                }
                 else {
                     Ra::Path path;
                     CGPathRef cgPath = CTFontCreatePathForGlyph(font, glyphs[j], NULL);
                     RaCG::writeCGPathToPath(cgPath, path);
                     CGPathRelease(cgPath);
-                    if (path->isValid()) {
-                        cache.emplace(key, path);
+                    cache.emplace(key, path);
+                    if (path->isValid())
                         scene->addPath(path, m, color, 0, 0, & clipBounds);
-                    }
                 }
             }
         }
