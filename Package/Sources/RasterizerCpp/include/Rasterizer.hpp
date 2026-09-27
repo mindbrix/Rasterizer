@@ -206,6 +206,9 @@ struct Rasterizer {
         inline Bounds integral() const {
             return { floorf(lx), floorf(ly), ceilf(ux), ceilf(uy) };
         }
+        inline bool intersects(const Bounds b) const {
+            return ux >= b.lx && lx <= b.ux && uy >= b.ly && ly <= b.uy;
+        }
         inline Bounds intersect(const Bounds b) const {
             return {
                 fmaxf(b.lx, fminf(b.ux, lx)), fmaxf(b.ly, fminf(b.uy, ly)),
