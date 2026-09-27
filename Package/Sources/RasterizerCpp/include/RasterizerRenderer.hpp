@@ -39,7 +39,7 @@ struct RenderBuffer {
     }
     void resize(size_t n) {
         if (size() < n || willShrink(n)) {
-            id <MTLBuffer> newBuffer = [device newBufferWithLength:n options:MTLResourceStorageModeShared];
+            id <MTLBuffer> newBuffer = [device newBufferWithLength:n * 4 / 3 options:MTLResourceStorageModeShared];
             
             if (header && header <= size())
                 memcpy(newBuffer.contents, mtlBuffer.contents, header);
