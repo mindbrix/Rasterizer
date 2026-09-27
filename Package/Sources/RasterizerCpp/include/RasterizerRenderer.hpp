@@ -31,13 +31,17 @@ struct RenderBuffer {
     void allocContextSlices(size_t n) {
         resize(n);
     }
+    size_t size() const {
+        return mtlBuffer ? mtlBuffer.length : 0;;
+    }
+    bool willShrink(size_t n) const {
+        return header && size() > 1000000 && size() / n > 5;;
+    }
     void resize(size_t n) {
-        size_t size = mtlBuffer ? mtlBuffer.length : 0;
-        
-        if (size < n || (header && size > 1000000 && size / n > 5)) {
+        if (size() < n || willShrink(n)) {
             id <MTLBuffer> newBuffer = [device newBufferWithLength:n options:MTLResourceStorageModeShared];
             
-            if (header && header <= size)
+            if (header && header <= size())
                 memcpy(newBuffer.contents, mtlBuffer.contents, header);
             mtlBuffer = newBuffer;
             buffer.base = (uint8_t *)mtlBuffer.contents;
@@ -70,6 +74,8 @@ struct RasterizerRenderer {
         });
         auto begins = (size_t *)alloca(contextCount * sizeof(size_t));
         size_t size = Ra::resizeBuffer(list, & contexts[0], contextCount, begins, *buffer);
+        if (renderBuffer->willShrink(size))
+            reset();
         renderBuffer->allocContextSlices(size);
         
         Ra::writeOpaques(list, & contexts[0], contextCount, begins, *buffer);
