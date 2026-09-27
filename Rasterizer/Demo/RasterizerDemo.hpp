@@ -364,7 +364,7 @@ struct RasterizerDemo {
         float padding = 0.666 * hudBounds.height() / (kHudItemCount + 2);
         Ra::Bounds text = hudBounds.inset(padding, 0.666 * padding);
         
-        Ra::Path bgPath;  bgPath->addBounds(hudBounds.inset(0.5 * kHudBorder, 0.5 * kHudBorder)), bgPath->close();
+        Ra::Path bgPath;  bgPath->addBounds(hudBounds.inset(0.5 * kHudBorder, 0.5 * kHudBorder));
         hud->addPath(bgPath, Ra::Transform(), bgColor, 0, 0);
         
         float lineHeight = text.height() / kHudItemCount, uy;
