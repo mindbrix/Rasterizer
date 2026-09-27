@@ -215,9 +215,6 @@ struct Rasterizer {
         inline bool isHuge() const {
             return lx == -5e11f;
         }
-        inline bool isNull() const {
-            return lx == FLT_MAX && ly == FLT_MAX;
-        }
         inline bool isRect() const {
             return ux > lx && uy > ly;
         }
@@ -240,7 +237,7 @@ struct Rasterizer {
             };
         }
         inline Transform fitTransform(const Bounds b) const {
-            if (isNull() || !isRect() || b.isNull() || !b.isRect())
+            if (!isRect() || !b.isRect())
                 return Transform();
             float w = width(), h = height(), bw = b.width(), bh = b.height(), s = fminf(w / bw, h / bh);
             return {
@@ -359,7 +356,7 @@ struct Rasterizer {
                 Bounds molecule;
                 for (size_t i = points.idx; i < points.end; i += 2)
                     molecule.extend(points.base[i], points.base[i + 1]);
-                if (!molecule.isNull() && !molecule.isZero()) {
+                if (!molecule.isZero()) {
                     bounds.extend(molecule);
                     *(molecules.alloc(1)) = molecule;
                     for (size_t i = types.idx; i < types.end;) {

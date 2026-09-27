@@ -31,13 +31,13 @@
 typedef std::map<CFIndex, Ra::Path> GlyphCache;
 
 struct RasterizerCoreText {
-    static Ra::Bounds addCStringToSceneInRect(const char *string, const char *fontName, float fontSize, Ra::Color color, Ra::Bounds rect, Ra::Transform ctm, Ra::Bounds clip, Ra::SceneRef& scene) {
+    static Ra::Bounds addCStringToSceneInRect(const char *string, const char *fontName, float fontSize, Ra::Color color, Ra::Bounds rect, Ra::Transform ctm, Ra::SceneRef& scene) {
         CGColorRef cgColor = RaCG::CGColorCreateFromColor(color);
         CFStringRef cfString = CFStringCreateWithCString(kCFAllocatorDefault, string, kCFStringEncodingUTF8);
         CFDictionaryRef attributes = createAttributes(fontName, fontSize, cgColor);
         CFAttributedStringRef attr = CFAttributedStringCreate(kCFAllocatorDefault, cfString, attributes);
         GlyphCache cache;
-        CGRect bounds = addTextToSceneInRect(attr, RaCG::CGRectFromBounds(rect), RaCG::CGFromTransform(ctm), clip.isNull() ? CGRectNull : RaCG::CGRectFromBounds(clip), scene, cache);
+        CGRect bounds = addTextToSceneInRect(attr, RaCG::CGRectFromBounds(rect), RaCG::CGFromTransform(ctm), CGRectNull, scene, cache);
         CGColorRelease(cgColor);
         CFRelease(cfString);
         CFRelease(attributes);
