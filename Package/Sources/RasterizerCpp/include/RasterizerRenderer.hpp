@@ -23,19 +23,29 @@
 
 
 struct RenderBuffer {
-    void resize(size_t n, size_t copySize, id<MTLDevice> device) {
+    void allocHeader(size_t n) {
+        header = 0;
+        resize(n);
+        header = n;
+    }
+    void allocContextSlices(size_t n) {
+        resize(n);
+    }
+    void resize(size_t n) {
         size_t size = mtlBuffer ? mtlBuffer.length : 0;
         
-        if (size < n) {
+        if (size < n || (header && size > 1000000 && size / n > 5)) {
             id <MTLBuffer> newBuffer = [device newBufferWithLength:n options:MTLResourceStorageModeShared];
             
-            if (copySize && copySize <= size)
-                memcpy(newBuffer.contents, mtlBuffer.contents, copySize);
+            if (header && header <= size)
+                memcpy(newBuffer.contents, mtlBuffer.contents, header);
             mtlBuffer = newBuffer;
             buffer.base = (uint8_t *)mtlBuffer.contents;
         }
     }
+    size_t header = 0;
     Ra::Buffer buffer;
+    id<MTLDevice> device;
     id <MTLBuffer> mtlBuffer;
 };
 
@@ -51,7 +61,7 @@ struct RasterizerRenderer {
         size_t contextCount = contexts.size();
         list.prepare();
         buffer->prepare(list);
-        renderBuffer->resize(buffer->headerSize, 0, layer.device);
+        renderBuffer->allocHeader(buffer->headerSize);
         
         dispatch_apply(contextCount, DISPATCH_APPLY_AUTO, ^(size_t i) {
             size_t slz = float(i) / float(contextCount) * float(list.pathsCount);
@@ -60,7 +70,7 @@ struct RasterizerRenderer {
         });
         auto begins = (size_t *)alloca(contextCount * sizeof(size_t));
         size_t size = Ra::resizeBuffer(list, & contexts[0], contextCount, begins, *buffer);
-        renderBuffer->resize(size, buffer->headerSize, layer.device);
+        renderBuffer->allocContextSlices(size);
         
         Ra::writeOpaques(list, & contexts[0], contextCount, begins, *buffer);
         dispatch_apply(contextCount, DISPATCH_APPLY_AUTO, ^(size_t i) {

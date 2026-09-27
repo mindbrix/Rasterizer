@@ -118,6 +118,8 @@ struct TextureCache : MetalCache<id <MTLTexture>, const Ra::Paint &> {
         return nil;
     
     self.device = MTLCreateSystemDefaultDevice();
+    _buffer0.device =  self.device;
+    _buffer1.device =  self.device;
     self.pixelFormat = MTLPixelFormatBGRA8Unorm;
     self.magnificationFilter = kCAFilterNearest;
     self.colorspace = nil;
