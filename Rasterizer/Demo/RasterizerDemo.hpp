@@ -309,7 +309,7 @@ struct RasterizerDemo {
         Ra::SceneList draw = list;  draw.ctm = ctm, list.ctm = ctm, draw.params = params, list.params = params;
         
         if (pathMouseOver) {
-            Ra::Bounds pixRect = Ra::Bounds(mx, my, mx, my).integral();
+            Ra::Bounds pixRect = Ra::Bounds(floorf(mx), floorf(my), floorf(mx) + 1.f, floorf(my) + 1.f);
             indices = RasterizerWinding::indicesForRect(list, pixRect);
             RaWnd::Pair pair = indices.end() ? indices.back() : RaWnd::Pair();
 
@@ -332,7 +332,7 @@ struct RasterizerDemo {
                 Ra::Transform m = drw.ctm.concat(list.ctms[pair.i0]), quad = drw.bnds.quad(m);
                 rectScene->addPath(unitRect, quad, red, -1, 0);
             }
-            rectScene->addPath(unitRect, mouseRect.quad(ctm.invert()), Ra::Color(0, 0, 0, 255), -1, 0);
+//            rectScene->addPath(unitRect, mouseRect.quad(ctm.invert()), Ra::Color(0, 0, 0, 255), -1, 0);
             
             draw.addScene(rectScene);
         }
