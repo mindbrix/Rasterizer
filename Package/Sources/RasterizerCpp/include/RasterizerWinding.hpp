@@ -57,32 +57,29 @@ struct RasterizerWinding {
     struct Winder: Ra::GeometryWriter {
         static bool TouchesRect(Ra::Bounds rect, Ra::Geometry *g, Ra::Transform m, float width, uint8_t flags) {
             float ws = m.scale(), dw = width * (width < 0.f ? -1.f : ws);
-            Winder winder;  winder.dw = 0.5f * dw, winder.flags = flags;
+            Winder winder;  winder.dw = 0.5f * dw, winder.flags = flags, winder.rect = rect;
             winder.unit = rect.quad(Ra::Transform()).invert();
             winder.applyPath(g, m, rect.inset(-dw, -dw), false, width == 0.f);
             float cover = fabsf(winder.winding);
-            return (flags & Ra::Draw::kFillEvenOdd ? 1.f - fabsf(fmodf(cover, 2.f) - 1.f) : cover) > 1e-6f;
+            return (width == 0.f && flags & Ra::Draw::kFillEvenOdd ? 1.f - fabsf(fmodf(cover, 2.f) - 1.f) : cover) > 1e-6f;
         }
         
         static bool TouchesRect(Ra::Bounds rect, Ra::Bounds b, Ra::Transform ctm) {
             Winder winder;
             winder.unit = ctm.concat(rect.quad(Ra::Transform()).invert());
-            winder.applyRect(b);
+            winder.quad(b.lx, b.ly, b.lx, b.uy, b.ux, b.uy, b.ux, b.ly);
             return fabsf(winder.winding) > 1e-6f;
         }
         
         inline static float saturate(float t) {
             return fmaxf(0.f, fminf(1.f, t));
         }
-        void applyRect(Ra::Bounds rect) {
-            float x0, y0, x1, y1;
-            x0 = x1 = rect.lx, y0 = y1 = rect.ly;
-            for (size_t i = 1; i < 5; i++, x0 = x1, y0 = y1) {
-                bool right = (i % 4) / 2, up = (i % 2) ^ right;
-                x1 = (right ? rect.ux : rect.lx), y1 = (up ? rect.uy : rect.ly);
-                winding += uwinding(x0, y0, x1, y1);
-            }
+        inline static float awinding(float x0, float y0, float x1, float y1) {
+            float w0 = saturate(y0), w1 = saturate(y1), cover = w1 - w0;
+            float dx = x1 - x0, dy = y1 - y0, a0 = dx * ((dx > 0.f ? w0 : w1) - y0) - dy * (1.f - x0);
+            return saturate(-a0 / fmaf(fabsf(dx), cover, dy)) * cover;
         }
+        
         inline float uwinding(float x0, float y0, float x1, float y1) {
             return awinding(
                 fmaf(x0, unit.a, fmaf(y0, unit.c, unit.tx)),
@@ -91,31 +88,68 @@ struct RasterizerWinding {
                 fmaf(x1, unit.b, fmaf(y1, unit.d, unit.ty))
             );
         }
-        inline float awinding(float x0, float y0, float x1, float y1) {
-            float w0 = saturate(y0), w1 = saturate(y1), cover = w1 - w0;
-            float dx = x1 - x0, dy = y1 - y0, a0 = dx * ((dx > 0.f ? w0 : w1) - y0) - dy * (1.f - x0);
-            return saturate(-a0 / fmaf(fabsf(dx), cover, dy)) * cover;
+        inline void quad(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3) {
+            winding += fabsf(uwinding(x0, y0, x1, y1) + uwinding(x1, y1, x2, y2) + uwinding(x2, y2, x3, y3) + uwinding(x3, y3, x0, y0));
+        }
+        void disc(float x, float y) {
+            float dx = fmaxf(0.f, fmaxf(rect.lx - x, x - rect.ux)), dy = fmaxf(0.f, fmaxf(rect.ly - y, y - rect.uy));
+            if (dx * dx + dy * dy < dw * dw)
+                winding += 1.f;
+        }
+        void cap(float x, float y, float tx, float ty) {
+            if (flags & Ra::Draw::kRoundCap)
+                disc(x, y);
+            else if (flags & Ra::Draw::kSquareCap) {
+                float ex = dw * tx, ey = dw * ty;
+                quad(x + ey, y - ex, x - ey, y + ex, x - ey + ex, y + ex + ey, x + ey + ex, y - ex + ey);
+            }
+        }
+        void endCap(float x0, float y0, float x1, float y1) {
+            float tx = x1 - x0, ty = y1 - y0, rt = 1.f / sqrtf(tx * tx + ty * ty);
+            cap(x1, y1, tx * rt, ty * rt);
+        }
+        void join(float x0, float y0, float x1, float y1, float x2, float y2) {
+            float ax = x1 - x0, ay = y1 - y0, bx = x2 - x1, by = y2 - y1, ra, rb, dot, cross;
+            ra = 1.f / sqrtf(ax * ax + ay * ay), rb = 1.f / sqrtf(bx * bx + by * by);
+            ax *= ra, ay *= ra, bx *= rb, by *= rb, dot = ax * bx + ay * by, cross = ax * by - ay * bx;
+            if (dot < kMiterLimit)
+                cap(x1, y1, ax, ay), cap(x1, y1, -bx, -by);
+            else if (flags & Ra::Draw::kRoundJoin)
+                disc(x1, y1);
+            else if (cross != 0.f) {
+                float s = cross > 0.f ? -dw : dw, nax = -ay * s, nay = ax * s, nbx = -by * s, nby = bx * s, k = 1.f / (1.f + dot);
+                quad(x1, y1, x1 + nax, y1 + nay, x1 + (nax + nbx) * k, y1 + (nay + nby) * k, x1 + nbx, y1 + nby);
+            }
         }
         void writeSegment(float x0, float y0, float x1, float y1) {
             if (dw == 0)
                 winding += uwinding(x0, y0, x1, y1);
-            else {
-                float ax, ay, dot, scale, cap, capx, capy, edgex, edgey, sx0, sy0, sx1, sy1;
-                ax = x1 - x0, ay = y1 - y0, dot = ax * ax + ay * ay, scale = dw / sqrtf(dot);
-                cap = scale * bool(flags & (Ra::Draw::kRoundCap | Ra::Draw::kSquareCap));
-                capx = cap * ax, edgex = scale * -ay;
-                capy = cap * ay, edgey = scale * ax;
-                
-                sx0 = sx1 = x0 - capx - edgex, sy0 = sy1 = y0 - capy - edgey;
-                for (size_t i = 1; i < 5; i++, sx0 = sx1, sy0 = sy1) {
-                    bool right = (i % 4) / 2, up = (i % 2) ^ right;
-                    sx1 = (right ? x1 : x0) + (up ? 1 : -1) * edgex + (right ? 1 : -1) * capx;
-                    sy1 = (right ? y1 : y0) + (up ? 1 : -1) * edgey + (right ? 1 : -1) * capy;
-                    winding += uwinding(sx0, sy0, sx1, sy1);
-                }
+            else if (x0 != x1 || y0 != y1) {
+                float scale = dw / sqrtf((x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0)), nx = scale * (y0 - y1), ny = scale * (x1 - x0);
+                quad(x0 - nx, y0 - ny, x0 + nx, y0 + ny, x1 + nx, y1 + ny, x1 - nx, y1 - ny);
+                if (!hasFirst)
+                    fx0 = x0, fy0 = y0, fx1 = x1, fy1 = y1, hasFirst = true;
+                else if (px1 == x0 && py1 == y0)
+                    join(px0, py0, x0, y0, x1, y1);
+                px0 = x0, py0 = y0, px1 = x1, py1 = y1;
             }
         }
-        float dw = 0, winding = 0;  uint8_t flags = 0;  Ra::Transform unit;
+        void EndSubpath(float x0, float y0, float x1, float y1, bool closed) {
+            if (hasFirst) {
+                if (closed) {
+                    if (px1 == fx0 && py1 == fy0)
+                        join(px0, py0, fx0, fy0, fx1, fy1);
+                } else {
+                    if (fx0 == x1 && fy0 == y1)
+                        endCap(fx1, fy1, fx0, fy0);
+                    if (px1 == x0 && py1 == y0)
+                        endCap(px0, py0, px1, py1);
+                }
+            }
+            hasFirst = false;
+        }
+        float dw = 0, winding = 0;  uint8_t flags = 0;  Ra::Transform unit;  Ra::Bounds rect;
+        float px0, py0, px1, py1, fx0, fy0, fx1, fy1;  bool hasFirst = false;
     };
 };
 
