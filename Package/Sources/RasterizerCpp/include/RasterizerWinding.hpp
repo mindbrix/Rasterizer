@@ -29,27 +29,45 @@ struct RasterizerWinding {
     
     static Ra::Vector<Pair> indicesForRect(const Ra::SceneList& list, Ra::Bounds rect) {
         Ra::Vector<Pair> indices;
+        const Ra::Geometry *lastClipPath = nullptr;  size_t lastScene = ~size_t(0);  Ra::Bounds lastClipRect;  bool lastClipTouches = false;
         for (size_t il = 0; il < list.scenes.size(); il++) {
             const Ra::Scene& scene = *list.scenes[il].ptr;
             const Ra::Transform ctm = list.ctms[il].concat(list.ctm);
             const Ra::Bounds& sceneclip = list.clips[il];
-            
+
             for (size_t is = 0; is < scene.count(); is++) {
                 const Ra::Draw& draw = scene.draws[is];
                 if (draw.flags & Ra::Draw::kInvisible)
                     continue;
-                if (list.params.useClips) {
-                    if ((!sceneclip.isHuge() || !draw.clip.isHuge()) && !Winder::TouchesRect(rect, sceneclip.intersect(draw.clip), ctm))
-                        continue;
-                    if (draw.clipPath.ptr && !Winder::TouchesRect(rect, draw.clipPath.ptr, ctm, 0, 0, 0))
-                        continue;
-                }
+                const bool useClips = list.params.useClips, clipped = useClips && (!sceneclip.isHuge() || !draw.clip.isHuge());
+                const Ra::Bounds clipBounds = sceneclip.intersect(draw.clip);
+                Ra::Bounds r = rect;
+                if (clipped)
+                    r = r.intersect(Ra::Bounds(clipBounds.quad(ctm)));
+                if (useClips && draw.clipPath.ptr)
+                    r = r.intersect(Ra::Bounds(draw.clipPath->bounds.quad(ctm)));
+                if (!r.isRect())
+                    continue;
+
                 const Ra::Transform m = draw.ctm.concat(ctm);
-                const float dw = draw.width * (draw.width < 0.f ? -1.f : m.scale());
+                const float dw = draw.width * (draw.width <= 0.f ? -1.f : m.scale());
                 static const float miterOutset = 0.5f / sqrtf(0.5f * (1.f + float(kMiterLimit)));
                 const float outset = dw * (draw.flags & Ra::Draw::kRoundJoin ? 1.f : miterOutset);
                 const Ra::Bounds clip = Ra::Bounds(draw.bnds.quad(m)).inset(-outset, -outset);
-                if (clip.intersects(rect) && (rect.contains(clip) || Winder::TouchesRect(rect, draw.path.ptr, m, dw, outset, draw.flags)))
+                if (!clip.intersects(r))
+                    continue;
+
+                if (clipped && !Winder::TouchesRect(r, clipBounds, ctm))
+                    continue;
+                if (useClips && draw.clipPath.ptr) {
+                    if (draw.clipPath.ptr != lastClipPath || il != lastScene || memcmp(& r, & lastClipRect, sizeof(r)) != 0) {
+                        lastClipPath = draw.clipPath.ptr, lastScene = il, lastClipRect = r;
+                        lastClipTouches = Winder::TouchesRect(r, draw.clipPath.ptr, ctm, 0, 0, 0);
+                    }
+                    if (!lastClipTouches)
+                        continue;
+                }
+                if (r.contains(clip) || Winder::TouchesRect(r, draw.path.ptr, m, dw, outset, draw.flags))
                     indices.add(Pair(il, is));
             }
         }
