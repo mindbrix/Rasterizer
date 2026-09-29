@@ -70,7 +70,7 @@ struct RasterizerCG {
                     CGContextSaveGState(ctx);
                     if (list.params.useClips && draw.clipPath.ptr) {
                         writePathToCGContext(draw.clipPath.ptr, ctx);
-                        CGContextEOClip(ctx);
+                        CGContextClip(ctx);
                     }
                     CGContextConcatCTM(ctx, CGFromTransform(draw.ctm));
                     writePathToCGContext(g, ctx);
