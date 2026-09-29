@@ -27,7 +27,7 @@ struct RasterizerWinding {
         int i0, i1;
     };
     
-    static Ra::Vector<Pair> indicesForRect(Ra::SceneList& list, Ra::Bounds rect) {
+    static Ra::Vector<Pair> indicesForRect(const Ra::SceneList& list, Ra::Bounds rect) {
         Ra::Vector<Pair> indices;
         for (size_t il = 0; il < list.scenes.size(); il++) {
             const Ra::Scene& scene = *list.scenes[il].ptr;
@@ -41,13 +41,15 @@ struct RasterizerWinding {
                 if (list.params.useClips) {
                     if ((!sceneclip.isHuge() || !draw.clip.isHuge()) && !Winder::TouchesRect(rect, sceneclip.intersect(draw.clip), ctm))
                         continue;
-                    if (draw.clipPath.ptr && !Winder::TouchesRect(rect, draw.clipPath.ptr, ctm, 0, 0))
+                    if (draw.clipPath.ptr && !Winder::TouchesRect(rect, draw.clipPath.ptr, ctm, 0, 0, 0))
                         continue;
                 }
                 const Ra::Transform m = draw.ctm.concat(ctm);
                 const float dw = draw.width * (draw.width < 0.f ? -1.f : m.scale());
-                const Ra::Bounds clip = Ra::Bounds(draw.bnds.quad(m)).inset(-dw, -dw);
-                if (clip.intersects(rect) && (rect.contains(clip) || Winder::TouchesRect(rect, draw.path.ptr, m, draw.width, draw.flags)))
+                static const float miterOutset = 0.5f / sqrtf(0.5f * (1.f + float(kMiterLimit)));
+                const float outset = dw * (draw.flags & Ra::Draw::kRoundJoin ? 1.f : miterOutset);
+                const Ra::Bounds clip = Ra::Bounds(draw.bnds.quad(m)).inset(-outset, -outset);
+                if (clip.intersects(rect) && (rect.contains(clip) || Winder::TouchesRect(rect, draw.path.ptr, m, dw, outset, draw.flags)))
                     indices.add(Pair(il, is));
             }
         }
@@ -55,13 +57,12 @@ struct RasterizerWinding {
     }
     
     struct Winder: Ra::GeometryWriter {
-        static bool TouchesRect(Ra::Bounds rect, Ra::Geometry *g, Ra::Transform m, float width, uint8_t flags) {
-            float ws = m.scale(), dw = width * (width < 0.f ? -1.f : ws);
+        static bool TouchesRect(Ra::Bounds rect, Ra::Geometry *g, Ra::Transform m, float dw, float outset, uint8_t flags) {
             Winder winder;  winder.dw = 0.5f * dw, winder.flags = flags, winder.rect = rect;
             winder.unit = rect.quad(Ra::Transform()).invert();
-            winder.applyPath(g, m, rect.inset(-dw, -dw), false, width == 0.f);
+            winder.applyPath(g, m, rect.inset(-outset, -outset), false, dw == 0.f);
             float cover = fabsf(winder.winding);
-            return (width == 0.f && flags & Ra::Draw::kFillEvenOdd ? 1.f - fabsf(fmodf(cover, 2.f) - 1.f) : cover) > 1e-6f;
+            return (dw == 0.f && flags & Ra::Draw::kFillEvenOdd ? 1.f - fabsf(fmodf(cover, 2.f) - 1.f) : cover) > 1e-6f;
         }
         
         static bool TouchesRect(Ra::Bounds rect, Ra::Bounds b, Ra::Transform ctm) {
