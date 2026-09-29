@@ -62,7 +62,7 @@ struct RasterizerWinding {
                 if (useClips && draw.clipPath.ptr) {
                     if (draw.clipPath.ptr != lastClipPath || il != lastScene || memcmp(& r, & lastClipRect, sizeof(r)) != 0) {
                         lastClipPath = draw.clipPath.ptr, lastScene = il, lastClipRect = r;
-                        lastClipTouches = Winder::TouchesRect(r, draw.clipPath.ptr, ctm, 0, 0, 0);
+                        lastClipTouches = Winder::TouchesRect(r, draw.clipPath.ptr, ctm, 0, 0, Ra::Draw::kFillEvenOdd);
                     }
                     if (!lastClipTouches)
                         continue;
