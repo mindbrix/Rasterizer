@@ -274,21 +274,21 @@ struct RasterizerDemo {
         bounds = Ra::Bounds(0.f, 0.f, w, h);
         list = Ra::SceneList();
         if (pastedString.size) {
-            if (pasted.pathsCount == 0) {
+            if (pasted.pathsCount() == 0) {
                 Ra::SceneRef glyphs;
                 RaCT::addCStringToSceneInRect(pastedString.addr, fontName.addr, fontSize, textColor, bounds, Ra::Transform(), glyphs);
                 pasted.addScene(glyphs);
             }
             list.addList(pasted);
         } else if (showGlyphGrid) {
-            if (text.pathsCount == 0) {
+            if (text.pathsCount() == 0) {
                 text.addScene(RaCT::writeGlyphGrid(fontName.addr, fontSize, textColor));
             }
             list.addList(text);
         } else if (showTime) {
             list.addList(concentrichron.writeList(fontName.addr));
         } else if (svgUrl.size) {
-            if (document.pathsCount == 0) {
+            if (document.pathsCount() == 0) {
                 Ra::SceneRef scene;
                 Ra::Transform m = RaSVG::addSvgToScene(svgUrl.addr, scene);
                 document.addScene(scene, m);
@@ -296,7 +296,7 @@ struct RasterizerDemo {
             }
             list.addList(document);
         } else if (pdfUrl.size) {
-            if (document.pathsCount == 0) {
+            if (document.pathsCount() == 0) {
                 Ra::SceneRef scene;
                 Ra::Transform m = RaPDF::addPdfPageToScene(pdfUrl.addr, pageIndex, scene);
                 document.addScene(scene, m);

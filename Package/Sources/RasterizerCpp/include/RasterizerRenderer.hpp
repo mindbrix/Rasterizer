@@ -66,10 +66,11 @@ struct RasterizerRenderer {
         list.prepare();
         buffer->prepare(list);
         renderBuffer->allocHeader(buffer->headerSize);
+        size_t pathsCount = list.pathsCount();
         
         dispatch_apply(contextCount, DISPATCH_APPLY_AUTO, ^(size_t i) {
-            size_t slz = float(i) / float(contextCount) * float(list.pathsCount);
-            size_t suz = float(i + 1) / float(contextCount) * float(list.pathsCount);
+            size_t slz = float(i) / float(contextCount) * float(pathsCount);
+            size_t suz = float(i + 1) / float(contextCount) * float(pathsCount);
             contexts[i].drawList(list, scale, w, h, slz, suz, buffer);
         });
         auto begins = (size_t *)alloca(contextCount * sizeof(size_t));

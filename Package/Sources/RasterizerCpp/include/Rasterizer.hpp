@@ -636,15 +636,21 @@ struct Rasterizer {
         }
         SceneList& addScene(SceneRef scene, Transform ctm = Transform(), Bounds clip = Bounds::huge()) {
             if (scene->count())
-                pathsCount += scene->count(), scenes.emplace_back(scene), ctms.emplace_back(ctm), clips.emplace_back(clip);
+                scenes.emplace_back(scene), ctms.emplace_back(ctm), clips.emplace_back(clip);
             return *this;
+        }
+        size_t pathsCount() const {
+            size_t count = 0;
+            for (auto scene: scenes)
+                count += scene->count();
+            return count;
         }
         void prepare() const {
             for (auto scene: scenes)
                 scene->prepare();
         }
         Transform ctm;  Params params;
-        size_t pathsCount = 0;  std::vector<SceneRef> scenes;  std::vector<Transform> ctms;  std::vector<Bounds> clips;
+        std::vector<SceneRef> scenes;  std::vector<Transform> ctms;  std::vector<Bounds> clips;
     };
     
     struct Segment {
@@ -703,7 +709,7 @@ struct Rasterizer {
         
         void prepare(const SceneList& list) {
             params = list.params;
-            pathsCount = list.pathsCount;
+            pathsCount = list.pathsCount();
             texCount = 0;
             images.resize(0);
         
