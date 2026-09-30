@@ -537,14 +537,14 @@ struct Rasterizer {
           }
         
         inline Bounds bounds() const {
-            return Bounds(bnds.inset(-0.5f * width, -0.5f * width).quad(ctm)).intersect(clip);
+            return Bounds(bnds.inset(-0.5f * fmax(0.f, width), -0.5f * fmax(0.f, width)).quad(ctm)).intersect(clip);
         }
         bool validate() {
             bool isValid = path->isValid() && paint.isValid();
             if (isValid)
-                bnds = path->bounds;
-            if (clipPath.ptr)
-                clipPath->validate();
+                bnds = path->bounds, path->hash();
+            if (clipPath.ptr && clipPath->isValid())
+                clipPath->hash();
             flags = (flags & ~kInvisible) | (isValid ? 0 : kInvisible);
             return isValid;
         }
@@ -590,10 +590,8 @@ struct Rasterizer {
             
             for (size_t i = 0; i < count(); i++) {
                 Draw& draw = draws[i];
-                if (draw.validate()) {
-                    if (draw.width == 0)
-                        new (index1++) Index(draw.path->hash(), i);
-                }
+                if (draw.validate() && draw.width == 0)
+                    new (index1++) Index(draw.path->hash(), i);
             }
             std::sort(index0, index1);
             p16bases.empty(), p16entries.resize(0);
@@ -909,7 +907,7 @@ struct Rasterizer {
                             bool fast = !buffer->params.useCurves || g->maxCurve * det < 4.f;
                             CurveIndexer idxr;
                             idxr.clip = clip, idxr.samples = & samples[0], idxr.fast = fast;
-                            idxr.dst = idxr.dst0 = segments.alloc(2 * g->upperBound(det));
+                            idxr.dst = idxr.dst0 = segments.alloc(3 * g->upperBound(det));
                             idxr.applyPath(g, m, clip, unclipped, true);
                             bool softunclipped = true;
                             if (clipActive) {
