@@ -835,7 +835,7 @@ struct Rasterizer {
                     quad = draw.bnds.quad(m), dev = Bounds(quad).inset(-width, -width);
                     clip = dev.integral().intersect(clipBounds);
                     
-                    if (clip.lx < clip.ux && clip.ly < clip.uy) {
+                    if (det && clip.lx < clip.ux && clip.ly < clip.uy) {
                         bool unclipped = clip.contains(dev);
                         Paint *color = & draw.paint;
                         bool isOpaque = color->isOpaque();
