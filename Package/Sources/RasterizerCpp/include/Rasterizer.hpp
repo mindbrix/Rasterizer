@@ -170,6 +170,7 @@ struct Rasterizer {
     };
     struct Bounds {
         static inline Bounds huge() { return Bounds(-5e11f, -5e11f, 5e11f, 5e11f); }
+        static inline Bounds zero() { return Bounds(0.f, 0.f, 0.f, 0.f); }
         Bounds() : lx(FLT_MAX), ly(FLT_MAX), ux(-FLT_MAX), uy(-FLT_MAX) {}
         Bounds(float lx, float ly, float ux, float uy) : lx(lx), ly(ly), ux(ux), uy(uy) {}
         inline float width() const {
@@ -561,7 +562,7 @@ struct Rasterizer {
             for (int i = 0; i < draws.end(); i++)
                 if ((draws[i].flags & Draw::kInvisible) == 0)
                     b.extend(draws[i].bounds());
-            return b;
+            return b.isNull() ? Bounds::zero() : b;
         }
         size_t count() const {
             return draws.end();
@@ -622,7 +623,7 @@ struct Rasterizer {
             Bounds b;
             for (int i = 0; i < scenes.size(); i++)
                 b.extend(clips[i].intersect(scenes[i]->bounds().quad(ctms[i])));
-            return b;
+            return b.isNull() ? Bounds::zero() : b;
         }
         SceneList& addList(SceneList list) {
             for (int i = 0; i < list.scenes.size(); i++)
