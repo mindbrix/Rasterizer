@@ -538,6 +538,8 @@ struct Rasterizer {
             bool isValid = path->isValid() && paint.isValid();
             if (isValid)
                 bnds = path->bounds;
+            if (clipPath.ptr)
+                clipPath->validate();
             flags = (flags & ~kInvisible) | (isValid ? 0 : kInvisible);
             return isValid;
         }
