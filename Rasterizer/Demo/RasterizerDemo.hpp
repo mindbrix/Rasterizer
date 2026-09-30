@@ -260,7 +260,7 @@ struct RasterizerDemo {
 #pragma mark - Delegate
     
     bool getShouldRedraw(double time, float w, float h) {
-        redraw |= showTime || (pathMouseOver && mouseMoved);
+        redraw = redraw || showTime || (pathMouseOver && mouseMoved);
 
         if (redraw)
             lastTime = time;

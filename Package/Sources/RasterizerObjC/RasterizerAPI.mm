@@ -303,7 +303,7 @@
     Ra::Path p = path.path;
     Ra::Bounds clipBounds = CGRectIsNull(clip) || CGRectIsEmpty(clip) || CGRectIsInfinite(clip) ? Ra::Bounds::huge() : RaCG::BoundsFromCGRect(clip);
     auto m = RaCG::transformFromCG(ctm);
-    Ra::Path clp = clipPath != nil ? clipPath.path : Ra::Path();
+    Ra::Path clp = clipPath != nil ? clipPath.path : Ra::Path(nullptr);
     _scene->addPath(p, m, color.paint, 0, evenOdd ? Ra::Draw::kFillEvenOdd : 0, & clipBounds, clipPath != nil ? & clp : nullptr);
 }
 
@@ -320,7 +320,7 @@
     auto m = RaCG::transformFromCG(ctm);
     uint8_t capFlags = capStyle == kCapButt ? 0 : capStyle == kCapSquare ? Ra::Draw::kSquareCap : Ra::Draw::kRoundCap;
     uint8_t joinFlags = joinStyle == kJoinMiter ? 0 : Ra::Draw::kRoundJoin;
-    Ra::Path clp = clipPath != nil ? clipPath.path : Ra::Path();
+    Ra::Path clp = clipPath != nil ? clipPath.path : Ra::Path(nullptr);
     _scene->addPath(p, m, color.paint, width, capFlags | joinFlags, & clipBounds, clipPath != nil ? & clp : nullptr);
 }
 
