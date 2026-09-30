@@ -543,8 +543,12 @@ struct Rasterizer {
             bool isValid = path->isValid() && paint.isValid();
             if (isValid)
                 bnds = path->bounds, path->hash();
-            if (clipPath.ptr && clipPath->isValid())
-                clipPath->hash();
+            if (clipPath.ptr) {
+                if (clipPath->isValid())
+                    clipPath->hash();
+                else
+                    clipPath = nullptr;
+            }
             flags = (flags & ~kInvisible) | (isValid ? 0 : kInvisible);
             return isValid;
         }
@@ -725,9 +729,10 @@ struct Rasterizer {
         
             size_t i, sizes[] = { sizeof(Color), sizeof(Transform), sizeof(Transform), sizeof(float), sizeof(Bounds), sizeof(Transform), sizeof(uint32_t) };
             size_t count = sizeof(sizes) / sizeof(*sizes), base = 0;
+            size_t colorsCount = (pathsCount / kColorTextureWidth + 1) * kColorTextureWidth;    // Whole color texture rows
             Vector<size_t> bases(count);
             for (i = 0; i < count; i++)
-                bases[i] = base, base += (pathsCount + 1) * sizes[i];
+                bases[i] = base, base += (i == 0 ? colorsCount : pathsCount + 1) * sizes[i];
             colors = bases[0], ctms = bases[1], clips = bases[2], widths = bases[3], bounds = bases[4], texCtms = bases[5], texIdxs = bases[6];
             headerSize = (base + 15) & ~15, entries.empty();
         }
@@ -829,7 +834,7 @@ struct Rasterizer {
                             lastClipPath = clipPath, lastClipCtm = ctm;
                             Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kStencil);
                             inst->data.count = 0, inst->g = nullptr;
-                            if (clipPath && clipPath->isValid()) {
+                            if (clipPath) {
                                 if (currentClipPath != clipPath || memcmp(& currentClipCtm, & ctm, sizeof(Transform)) != 0) {
                                     currentClipPath = clipPath, currentClipCtm = ctm;
                                     size_t i0, i1;
