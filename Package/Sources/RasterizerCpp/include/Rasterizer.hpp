@@ -93,7 +93,7 @@ struct Rasterizer {
         inline void add(T obj) {
             *memory->alloc(1) = obj;
         }
-        inline void add(T *objs, size_t n) {
+        inline void add(const T *objs, size_t n) {
             T *dst = memory->alloc(n);
             if (!isRef)
                 memcpy(dst, objs, n * sizeof(T));
@@ -553,13 +553,8 @@ struct Rasterizer {
         void addDraws(const Draw *src, size_t count) {
             if (src == nullptr || count == 0)
                 return;
-            Draw *dst = draws.memory->alloc(count);
-            for (size_t i = 0; i < count; i++)
-                dst[i] = src[i];
+            draws.add(src, count);
             needPrepare = true;
-        }
-        void addScene(const Scene& scene) {
-            addDraws(& scene.draws[0], scene.draws.end());
         }
         Bounds bounds() const {
             Bounds b;
