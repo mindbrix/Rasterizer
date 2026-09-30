@@ -212,7 +212,7 @@ struct RasterizerDemo {
     }
     void restore(RaWnd::Pair pair) {
         if (pair.i0 != INT_MAX)
-            list.scenes[pair.i0]->draws[pair.i1] = mouseDraw;
+            list.scenes[pair.i0]->draws[pair.i1] = mouseDraw, list.scenes[pair.i0]->needPrepare = true;
     }
     
     void setFont(const char *url, const char *name, float size) {
