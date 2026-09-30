@@ -50,6 +50,8 @@ struct RasterizerWinding {
                     continue;
 
                 const Ra::Transform m = draw.ctm.concat(ctm);
+                if (m.det() == 0.f && draw.width >= 0.f)
+                    continue;
                 const float dw = draw.width * (draw.width <= 0.f ? -1.f : m.scale());
                 static const float miterOutset = 0.5f / sqrtf(0.5f * (1.f + float(kMiterLimit)));
                 const float outset = dw * (draw.flags & Ra::Draw::kRoundJoin ? 1.f : miterOutset);
