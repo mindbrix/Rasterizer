@@ -533,7 +533,7 @@ struct Rasterizer {
             return Bounds(bnds.inset(-0.5f * width, -0.5f * width).quad(ctm)).intersect(clip);
         }
         bool validate() {
-            bool isValid = path->isValid() && paint.isValid() && (clipPath.ptr == nullptr || clipPath->isValid());
+            bool isValid = path->isValid() && paint.isValid();
             if (isValid)
                 bnds = path->bounds;
             flags = (flags & ~kInvisible) | (isValid ? 0 : kInvisible);
@@ -819,7 +819,7 @@ struct Rasterizer {
                             lastClipPath = clipPath;
                             Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kStencil);
                             inst->data.count = 0, inst->g = nullptr;
-                            if (clipPath) {
+                            if (clipPath && clipPath->isValid()) {
                                 if (currentClipPath != clipPath) {
                                     currentClipPath = clipPath;
                                     size_t i0, i1;

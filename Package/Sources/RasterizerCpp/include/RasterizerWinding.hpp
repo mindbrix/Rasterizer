@@ -44,7 +44,7 @@ struct RasterizerWinding {
                 Ra::Bounds r = rect;
                 if (clipped)
                     r = r.intersect(Ra::Bounds(clipBounds.quad(ctm)));
-                if (useClips && draw.clipPath.ptr)
+                if (useClips && draw.clipPath.ptr && draw.clipPath->isValid())
                     r = r.intersect(Ra::Bounds(draw.clipPath->bounds.quad(ctm)));
                 if (!r.isRect())
                     continue;
@@ -59,7 +59,7 @@ struct RasterizerWinding {
 
                 if (clipped && !Winder::TouchesRect(r, clipBounds, ctm))
                     continue;
-                if (useClips && draw.clipPath.ptr) {
+                if (useClips && draw.clipPath.ptr && draw.clipPath->isValid()) {
                     if (draw.clipPath.ptr != lastClipPath || il != lastScene || memcmp(& r, & lastClipRect, sizeof(r)) != 0) {
                         lastClipPath = draw.clipPath.ptr, lastScene = il, lastClipRect = r;
                         lastClipTouches = Winder::TouchesRect(r, draw.clipPath.ptr, ctm, 0, 0, Ra::Draw::kFillEvenOdd);
