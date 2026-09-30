@@ -635,7 +635,7 @@ struct Rasterizer {
             for (int i = 0; i < scenes.size(); i++) {
                 Bounds scene = scenes[i]->bounds();
                 if (!scene.isNull())
-                    b.extend(clips[i].intersect(scene.quad(ctms[i])));
+                    b.extend(clips[i].intersect(scene).quad(ctms[i]));
             }
             return b;
         }
