@@ -260,17 +260,18 @@ struct RasterizerDemo {
 #pragma mark - Delegate
     
     bool getShouldRedraw(double time, float w, float h) {
-        bool should = redraw || showTime || (pathMouseOver && mouseMoved);
+        redraw |= showTime || (pathMouseOver && mouseMoved);
 
-        if (should)
+        if (redraw)
             lastTime = time;
         else if (lastTime && time - lastTime > 2)
             lastTime = 0;
         
-        redraw = false, mouseMoved = false;
-        return should;
+        return redraw;
     }
     Ra::SceneList getDrawList(double time, float w, float h) {
+        redraw = false, mouseMoved = false;
+        
         bounds = Ra::Bounds(0.f, 0.f, w, h);
         list = Ra::SceneList();
         if (pastedString.size) {
