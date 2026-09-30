@@ -534,7 +534,7 @@ struct Rasterizer {
             flags = (flags & ~kInvisible) | (isValid ? 0 : kInvisible);
             return isValid;
         }
-        Path path;  Transform ctm;  Paint paint;  float width = 0.f;  uint8_t flags = 0;  Bounds clip, bnds;  Path clipPath = nullptr;
+        Path path;  Transform ctm;  Paint paint;  float width = 0.f;  uint8_t flags = kInvisible;  Bounds clip, bnds;  Path clipPath = nullptr;
     };
     struct Scene {
         struct Entry {
