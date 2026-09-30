@@ -591,7 +591,7 @@ struct Rasterizer {
                 }
             }
             std::sort(index0, index1);
-            p16bases.empty(), p16entries.empty();
+            p16bases.empty(), p16entries.resize(0);
             uint32_t *bases = p16bases.alloc(count());
             
             size_t lastHash = 0, count = 0, total = 0, srcIndex = 0;
@@ -602,7 +602,7 @@ struct Rasterizer {
                     total += count;
 
                     const Path p = draws[index->i].path;
-                    new (p16entries.alloc(1)) Entry(p, total);
+                    new (p16entries.memory->alloc(1)) Entry(p, total);
                     
                     if (kMoleculesHeight && p->p16s.end == 0)
                         P16Writer().writeGeometry(p.ptr);
@@ -618,7 +618,7 @@ struct Rasterizer {
         size_t refCount;
         RefVector<Draw> draws;
         bool needPrepare = false;
-        Row<uint32_t> p16bases;  Row<Entry> p16entries;  uint32_t p16total = 0;
+        Row<uint32_t> p16bases;  RefVector<Entry> p16entries;  uint32_t p16total = 0;
     };
     typedef Ref<Scene> SceneRef;
     
@@ -1738,15 +1738,15 @@ struct Rasterizer {
             auto p16s = (Point16 *)(buffer.base + buffer.p16s);
             size_t p16paths = 0, p16total = 0, m0 = 0, m1 = 0, i0, i1, c0, c1;
             for (auto& scene: list.scenes)
-                p16paths += scene->p16entries.end;
+                p16paths += scene->p16entries.end();
             i0 = index * p16paths / contextCount;
             i1 = (index + 1) * p16paths / contextCount;
             for (auto& scene: list.scenes) {
-                m1 = m0 + scene->p16entries.end;
+                m1 = m0 + scene->p16entries.end();
                 c0 = m0 < i0 ? i0 : m0 > i1 ? i1 : m0;
                 c1 = m1 < i0 ? i0 : m1 > i1 ? i1 : m1;
                 for (; c0 < c1; c0++) {
-                    auto& entry = scene->p16entries.base[c0 - m0];
+                    auto& entry = scene->p16entries[c0 - m0];
                     memcpy(p16s + p16total + entry.idx, entry.p->p16s.base, entry.p->p16s.end * sizeof(Point16));
                 }
                 m0 = m1, p16total += scene->p16total;
