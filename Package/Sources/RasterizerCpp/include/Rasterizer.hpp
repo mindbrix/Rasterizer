@@ -308,18 +308,20 @@ struct Rasterizer {
             }
         }
         void moveTo(float x, float y) {
+            if (xxhash)
+                return;
             validate();
             float *pts = points.alloc(2);  x0 = pts[0] = x, y0 = pts[1] = y, *types.alloc(1) = kMove;
         }
         void lineTo(float x1, float y1) {
-            if (x1 == x0 && y1 == y0)
+            if (xxhash || (x1 == x0 && y1 == y0))
                 return;
             float *pts = points.alloc(2);  x0 = pts[0] = x1, y0 = pts[1] = y1, *types.alloc(1) = kLine;
         }
         void quadTo(float x1, float y1, float x2, float y2) {
             float ax, bx, ay, by, dot, t, err = 1e-2f;
             ax = x1 - x0, bx = x2 - x0, ay = y1 - y0, by = y2 - y0, dot = bx * bx + by * by;
-            if (dot == 0.f)
+            if (xxhash || dot == 0.f)
                 return;
             t = fabsf(ax * -by + ay * bx) / dot;
             if (t < err) {
@@ -333,7 +335,7 @@ struct Rasterizer {
         void cubicTo(float x1, float y1, float x2, float y2, float x3, float y3) {
             float cx, bx, ax, cy, by, ay, dot, t0, t1, err = 1e-2f, s;
             ax = x1 - x0, bx = x2 - x0, cx = x3 - x0, ay = y1 - y0, by = y2 - y0, cy = y3 - y0, dot = cx * cx + cy * cy;
-            if (dot == 0.f)
+            if (xxhash || dot == 0.f)
                 return;
             t0 = fabsf(ax * -cy + ay * cx) / dot, t1 = fabsf(bx * -cy + by * cx) / dot;
             if (t0 < err && t1 < err) {
@@ -352,6 +354,8 @@ struct Rasterizer {
             }
         }
         void close() {
+            if (xxhash)
+                return;
             float *pts = points.alloc(2);  pts[0] = x0, pts[1] = y0, *types.alloc(1) = kClose;
         }
         
