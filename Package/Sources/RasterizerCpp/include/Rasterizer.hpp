@@ -547,8 +547,8 @@ struct Rasterizer {
     };
     struct Scene {
         struct Entry {
-            Entry(const Geometry *g, size_t idx) : g(g), idx(idx) {}
-            const Geometry *g;  size_t idx;
+            Entry(const Path p, size_t idx) : p(p), idx(idx) {}
+            const Path p;  size_t idx;
         };
         struct Index {
             Index(size_t hash, size_t i) : hash(hash), i(i)  {}
@@ -601,12 +601,12 @@ struct Rasterizer {
                     srcIndex = index->i;
                     total += count;
 
-                    Geometry *g = draws[index->i].path.ptr;
-                    new (p16entries.alloc(1)) Entry(g, total);
+                    const Path p = draws[index->i].path;
+                    new (p16entries.alloc(1)) Entry(p, total);
                     
-                    if (kMoleculesHeight && g->p16s.end == 0)
-                        P16Writer().writeGeometry(g);
-                    count = g->p16s.end;
+                    if (kMoleculesHeight && p->p16s.end == 0)
+                        P16Writer().writeGeometry(p.ptr);
+                    count = p->p16s.end;
                 }
                 bases[index->i] = uint32_t(total);
                 if (srcIndex != index->i)
@@ -1747,7 +1747,7 @@ struct Rasterizer {
                 c1 = m1 < i0 ? i0 : m1 > i1 ? i1 : m1;
                 for (; c0 < c1; c0++) {
                     auto& entry = scene->p16entries.base[c0 - m0];
-                    memcpy(p16s + p16total + entry.idx, entry.g->p16s.base, entry.g->p16s.end * sizeof(Point16));
+                    memcpy(p16s + p16total + entry.idx, entry.p->p16s.base, entry.p->p16s.end * sizeof(Point16));
                 }
                 m0 = m1, p16total += scene->p16total;
             }
