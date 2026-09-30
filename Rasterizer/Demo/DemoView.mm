@@ -107,10 +107,10 @@
 }
 
 - (void)magnifyWithEvent:(NSEvent *)event {
-    _demo.onMagnify(float(1 + event.magnification), event.phase == NSEventPhaseEnded);
+    _demo.onMagnify(float(1 + event.magnification), (event.phase & (NSEventPhaseEnded | NSEventPhaseCancelled)) != 0);
 }
 - (void)rotateWithEvent:(NSEvent *)event {
-    _demo.onRotate(float(event.rotation / 10), event.phase == NSEventPhaseEnded);
+    _demo.onRotate(float(event.rotation / 10), (event.phase & (NSEventPhaseEnded | NSEventPhaseCancelled)) != 0);
 }
 - (void)scrollWheel:(NSEvent *)event {
     CGFloat inversion = ([event respondsToSelector:@selector(isDirectionInvertedFromDevice)] && [event isDirectionInvertedFromDevice]) ? 1.0f : -1.0f;
