@@ -66,12 +66,11 @@ struct RasterizerRenderer {
         list.prepare();
         buffer->prepare(list);
         renderBuffer->allocHeader(buffer->headerSize);
-        size_t pathsCount = list.pathsCount();
         
+        auto divisions = (size_t *)alloca((contextCount + 1) * sizeof(size_t));
+        writeDivisions(list, contextCount, divisions);
         dispatch_apply(contextCount, DISPATCH_APPLY_AUTO, ^(size_t i) {
-            size_t slz = float(i) / float(contextCount) * float(pathsCount);
-            size_t suz = float(i + 1) / float(contextCount) * float(pathsCount);
-            contexts[i].drawList(list, scale, w, h, slz, suz, buffer);
+            contexts[i].drawList(list, scale, w, h, divisions[i], divisions[i + 1], buffer);
         });
         auto begins = (size_t *)alloca(contextCount * sizeof(size_t));
         size_t size = Ra::resizeBuffer(list, & contexts[0], contextCount, begins, *buffer);
@@ -93,6 +92,28 @@ struct RasterizerRenderer {
         
         if (willShrink)
             reset();
+    }
+    
+    // Split the list into contiguous draw ranges of equal prepared weight
+    static void writeDivisions(const Ra::SceneList& list, size_t count, size_t *divisions) {
+        size_t total = 0, pathsCount = list.pathsCount(), sum = 0, base = 0, j = 0, target;
+        for (auto& scene : list.scenes)
+            total += scene->weight;
+        divisions[0] = 0, divisions[count] = pathsCount;
+        for (size_t i = 1; i < count; i++) {
+            if (total == 0) {
+                divisions[i] = i * pathsCount / count;
+                continue;
+            }
+            for (target = total * i / count; j < list.scenes.size() && sum + list.scenes[j]->weight < target; j++)
+                sum += list.scenes[j]->weight, base += list.scenes[j]->count();
+            if (j == list.scenes.size())
+                divisions[i] = pathsCount;
+            else {
+                const Ra::Scene& scene = *list.scenes[j].ptr;
+                divisions[i] = base + (std::lower_bound(scene.weights.base, scene.weights.base + scene.count(), target - sum) - scene.weights.base);
+            }
+        }
     }
     
     void reset() {

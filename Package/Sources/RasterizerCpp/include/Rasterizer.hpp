@@ -591,11 +591,16 @@ struct Rasterizer {
             
             Row<Index> indices;  indices.prealloc(count());
             Index *index0 = indices.base, *index1 = indices.base;
+            size_t *cumulative = weights.empty().alloc(count());
+            weight = 0;
             
             for (size_t i = 0; i < count(); i++) {
                 Draw& draw = draws[i];
-                if (draw.validate() && draw.width == 0)
+                bool isValid = draw.validate();
+                if (isValid && draw.width == 0)
                     new (index1++) Index(draw.path->hash(), i);
+                weight += isValid ? draw.path->types.end + 16 : 0;    // Estimated drawList cost: per-draw overhead + per-type work
+                cumulative[i] = weight;
             }
             std::sort(index0, index1);
             p16bases.empty(), p16entries.resize(0);
@@ -626,6 +631,7 @@ struct Rasterizer {
         RefVector<Draw> draws;
         bool needPrepare = false;
         Row<uint32_t> p16bases;  RefVector<Entry> p16entries;  uint32_t p16total = 0;
+        Row<size_t> weights;  size_t weight = 0;
     };
     typedef Ref<Scene> SceneRef;
     
