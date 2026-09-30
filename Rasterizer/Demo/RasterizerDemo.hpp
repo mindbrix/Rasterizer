@@ -149,7 +149,7 @@ struct RasterizerDemo {
         if (magnifying)
             return;
         rotating = !ended;
-        bool flipped = !locked ? false : lockedCTM().det() < 0;
+        bool flipped = locked && list.ctms[mouse.i0].concat(ctm).det() < 0;
         float sine, cosine;  __sincosf(flipped ? -a : a, & sine, & cosine);
         concat(Ra::Transform(cosine, sine, -sine, cosine, 0, 0));
     }
