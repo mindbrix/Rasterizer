@@ -796,7 +796,7 @@ struct Rasterizer {
             
             Color black(0, 0, 0, 255), red(0, 0, 255, 255);
             size_t lz, uz, i, clz, cuz, iz, is, cnt; uint32_t p16total = 0;
-            Geometry *lastClipPath = nullptr, *currentClipPath = nullptr;
+            Geometry *lastClipPath = nullptr, *currentClipPath = nullptr;  Transform lastClipCtm, currentClipCtm;
             float det, width, softclipMargin = 0.5f;
             
             for (lz = uz = i = 0; i < list.scenes.size(); p16total += list.scenes[i]->p16total, i++, lz = uz ) {
@@ -820,13 +820,13 @@ struct Rasterizer {
                             clipBounds = Bounds(clipquad).integral().intersect(device);
                         }
                         Geometry *clipPath = draw.clipPath.ptr;
-                        if (lastClipPath != clipPath) {
-                            lastClipPath = clipPath;
+                        if (lastClipPath != clipPath || (clipPath && memcmp(& lastClipCtm, & ctm, sizeof(Transform)) != 0)) {
+                            lastClipPath = clipPath, lastClipCtm = ctm;
                             Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kStencil);
                             inst->data.count = 0, inst->g = nullptr;
                             if (clipPath && clipPath->isValid()) {
-                                if (currentClipPath != clipPath) {
-                                    currentClipPath = clipPath;
+                                if (currentClipPath != clipPath || memcmp(& currentClipCtm, & ctm, sizeof(Transform)) != 0) {
+                                    currentClipPath = clipPath, currentClipCtm = ctm;
                                     size_t i0, i1;
                                     i0 = stencils.end;
                                     Stenciler stenciler(clipPath, device, ctm, & stencils);
