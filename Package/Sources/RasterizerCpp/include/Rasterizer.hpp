@@ -295,15 +295,17 @@ struct Rasterizer {
                 const float t = 1.f - 4.f / 3.f * (M_SQRT2 - 1.f);
                 const float tx = fminf(0.5f, fmaxf(0.f, width) / (b.ux - b.lx)), sx = 1.f - tx, tw = t * tx, sw = 1.f - tw;
                 const float ty = fminf(0.5f, fmaxf(0.f, height) / (b.uy - b.ly)), sy = 1.f - ty, th = t * ty, sh = 1.f - th;
-                moveTo(b.lx, sy * b.ly + ty * b.uy);
-                lineTo(b.lx, ty * b.ly + sy * b.uy);
-                cubicTo(b.lx, th * b.ly + sh * b.uy, sw * b.lx + tw * b.ux, b.uy, sx * b.lx + tx * b.ux, b.uy);
-                lineTo(tx * b.lx + sx * b.ux, b.uy);
-                cubicTo(tw * b.lx + sw * b.ux, b.uy, b.ux, th * b.ly + sh * b.uy, b.ux, ty * b.ly + sy * b.uy);
-                lineTo(b.ux, sy * b.ly + ty * b.uy);
-                cubicTo(b.ux, sh * b.ly + th * b.uy, tw * b.lx + sw * b.ux, b.ly, tx * b.lx + sx * b.ux, b.ly);
-                lineTo(sx * b.lx + tx * b.ux, b.ly);
-                cubicTo(sw * b.lx + tw * b.ux, b.ly, b.lx, sh * b.ly + th * b.uy, b.lx, sy * b.ly + ty * b.uy);
+                if (tx == 0.f && ty == 0.f)
+                    return addBounds(b);
+                moveTo(b.ux, 0.5f * (b.ly + b.uy));
+                lineTo(b.ux, ty * b.ly + sy * b.uy);
+                cubicTo(b.ux, th * b.ly + sh * b.uy, tw * b.lx + sw * b.ux, b.uy, tx * b.lx + sx * b.ux, b.uy);
+                lineTo(sx * b.lx + tx * b.ux, b.uy);
+                cubicTo(sw * b.lx + tw * b.ux, b.uy, b.lx, th * b.ly + sh * b.uy, b.lx, ty * b.ly + sy * b.uy);
+                lineTo(b.lx, sy * b.ly + ty * b.uy);
+                cubicTo(b.lx, sh * b.ly + th * b.uy, sw * b.lx + tw * b.ux, b.ly, sx * b.lx + tx * b.ux, b.ly);
+                lineTo(tx * b.lx + sx * b.ux, b.ly);
+                cubicTo(tw * b.lx + sw * b.ux, b.ly, b.ux, sh * b.ly + th * b.uy, b.ux, sy * b.ly + ty * b.uy);
                 close();
             }
         }
