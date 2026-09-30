@@ -226,9 +226,25 @@ struct RasterizerPDF {
         if (FPDFPath_GetDrawMode(pageObject, & fillmode, & stroke)) {
             Ra::Path path = PathWriter().createPathFromObject(pageObject);
             unsigned int R = 0, G = 0, B = 0, A = 255;
-            float width = 0.f;
-            uint8_t flags = 0;
+            if (fillmode != FPDF_FILLMODE_NONE) {
+                Ra::Path fill = path;
+                Ra::Path *fillClipPath = clipPath;
+                Ra::Transform fillCTM = ctm;
+                FPDFPageObj_GetFillColor(pageObject, & R, & G, & B, & A);
+                if (fill->isRect() && ctm.det() != 0.f) {
+                    // A rect fill that covers a non-rect clip paints the clip itself; clip paths are in page space
+                    Ra::Transform inv = ctm.invert();
+                    for (auto clip : clipPaths)
+                        if (!clip->isRect() && clip->isValid() && path->bounds.contains(Ra::Bounds(clip->bounds.quad(inv))))
+                            fill = clip, fillClipPath = nullptr, fillCTM = Ra::Transform();
+                }
+                uint8_t flags = fillmode == FPDF_FILLMODE_ALTERNATE ? Ra::Draw::kFillEvenOdd : 0;
+                if (fill->isValid())
+                    scene->addPath(fill, fillCTM, Ra::Color(B, G, R, A), 0.f, flags, clipBounds, fillClipPath);
+            }
             if (stroke) {
+                float width = 0.f;
+                uint8_t flags = 0;
                 FPDFPageObj_GetStrokeColor(pageObject, & R, & G, & B, & A);
                 FPDFPageObj_GetStrokeWidth(pageObject, & width);
                 width = width == 0.f ? -1.f : width;
@@ -245,16 +261,9 @@ struct RasterizerPDF {
                     FPDFPageObj_GetDashArray(pageObject, & lengths[0], dashCount);
                     path = Ra::Dasher::CreateDashedPath(path, phase, & lengths[0], dashCount);;
                 }
-            } else {
-                FPDFPageObj_GetFillColor(pageObject, & R, & G, & B, & A);
-                if (path->isRect())
-                    for (auto clip : clipPaths)
-                        if (!clip->isRect())
-                            path = clip, clipPath = nullptr;
-                flags |= fillmode == FPDF_FILLMODE_ALTERNATE ? Ra::Draw::kFillEvenOdd : 0;
+                if (path->isValid())
+                    scene->addPath(path, ctm, Ra::Color(B, G, R, A), width, flags, clipBounds, clipPath);
             }
-            if (path->isValid())
-                scene->addPath(path, ctm, Ra::Color(B, G, R, A), width, flags, clipBounds, clipPath);
         }
     }
     

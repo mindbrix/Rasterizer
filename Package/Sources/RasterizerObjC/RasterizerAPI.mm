@@ -320,7 +320,8 @@
     auto m = RaCG::transformFromCG(ctm);
     uint8_t capFlags = capStyle == kCapButt ? 0 : capStyle == kCapSquare ? Ra::Draw::kSquareCap : Ra::Draw::kRoundCap;
     uint8_t joinFlags = joinStyle == kJoinMiter ? 0 : Ra::Draw::kRoundJoin;
-    _scene->addPath(p, m, color.paint, width, capFlags | joinFlags, & clipBounds);
+    Ra::Path clp = clipPath != nil ? clipPath.path : Ra::Path();
+    _scene->addPath(p, m, color.paint, width, capFlags | joinFlags, & clipBounds, clipPath != nil ? & clp : nullptr);
 }
 
 - (CGRect)addFrame:(RAFrame *)frame

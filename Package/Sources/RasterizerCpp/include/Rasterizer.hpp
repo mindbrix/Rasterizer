@@ -429,6 +429,11 @@ struct Rasterizer {
             float alpha = a / 255.f;
             return Color(b * alpha, g * alpha, r * alpha, a);
         }
+        Color withOpacity(float opacity) const {
+            Color color = *this;
+            color.a = uint8_t(color.a * fmaxf(0.f, fminf(1.f, opacity)) + 0.5f);
+            return color;
+        }
         Component b, g, r, a;
     };
     
@@ -1869,8 +1874,8 @@ struct Rasterizer {
                 }
                 begin = end;
             }
-            ctx->entries.add(Buffer::Entry(Buffer::kDisableClip, 0, 0));
         }
+        ctx->entries.add(Buffer::Entry(Buffer::kDisableClip, 0, 0));
     }
 };
 typedef Rasterizer Ra;
