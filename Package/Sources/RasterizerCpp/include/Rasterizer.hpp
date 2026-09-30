@@ -241,7 +241,7 @@ struct Rasterizer {
             };
         }
         inline Transform fitTransform(const Bounds b) const {
-            if (!isRect() || !b.isRect())
+            if (isNull() || !isRect() || b.isNull() || !b.isRect())
                 return Transform();
             float w = width(), h = height(), bw = b.width(), bh = b.height(), s = fminf(w / bw, h / bh);
             return {
@@ -566,7 +566,7 @@ struct Rasterizer {
             for (int i = 0; i < draws.end(); i++)
                 if ((draws[i].flags & Draw::kInvisible) == 0)
                     b.extend(draws[i].bounds());
-            return b.isNull() ? Bounds::zero() : b;
+            return b;
         }
         size_t count() const {
             return draws.end();
@@ -625,9 +625,12 @@ struct Rasterizer {
     struct SceneList {
         Bounds bounds() const {
             Bounds b;
-            for (int i = 0; i < scenes.size(); i++)
-                b.extend(clips[i].intersect(scenes[i]->bounds().quad(ctms[i])));
-            return b.isNull() ? Bounds::zero() : b;
+            for (int i = 0; i < scenes.size(); i++) {
+                Bounds scene = scenes[i]->bounds();
+                if (!scene.isNull())
+                    b.extend(clips[i].intersect(scene.quad(ctms[i])));
+            }
+            return b;
         }
         SceneList& addList(SceneList list) {
             for (int i = 0; i < list.scenes.size(); i++)
