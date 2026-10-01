@@ -82,9 +82,7 @@ struct RasterizerWinding {
             winder.unit = rect.quad(Ra::Transform()).invert();
             winder.applyPath(g, m, rect.inset(-outset, -outset), false, dw == 0.f);
             float cover = fabsf(winder.winding);
-            if (dw != 0.f)
-                return cover > 1e-6f;
-            return winder.crosses || (flags & Ra::Draw::kFillEvenOdd ? 1.f - fabsf(fmodf(cover, 2.f) - 1.f) : cover) > 0.5f;
+            return (dw == 0.f && flags & Ra::Draw::kFillEvenOdd ? 1.f - fabsf(fmodf(cover, 2.f) - 1.f) : cover) > 1e-6f;
         }
         
         static bool TouchesRect(Ra::Bounds rect, Ra::Bounds b, Ra::Transform ctm) {
@@ -145,11 +143,9 @@ struct RasterizerWinding {
             }
         }
         void writeSegment(float x0, float y0, float x1, float y1) {
-            if (dw == 0) {
+            if (dw == 0)
                 winding += uwinding(x0, y0, x1, y1);
-                if (!crosses && (x0 != x1 || y0 != y1))
-                    crosses = !(x0 == x1 && (x0 == clip.lx || x0 == clip.ux)) && !(y0 == y1 && (y0 == clip.ly || y0 == clip.uy));
-            } else if (x0 != x1 || y0 != y1) {
+            else if (x0 != x1 || y0 != y1) {
                 float scale = dw / sqrtf((x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0)), nx = scale * (y0 - y1), ny = scale * (x1 - x0);
                 quad(x0 - nx, y0 - ny, x0 + nx, y0 + ny, x1 + nx, y1 + ny, x1 - nx, y1 - ny);
                 if (!hasFirst)
@@ -174,7 +170,7 @@ struct RasterizerWinding {
             hasFirst = false;
         }
         float dw = 0, winding = 0;  uint8_t flags = 0;  Ra::Transform unit;  Ra::Bounds rect;
-        float px0, py0, px1, py1, fx0, fy0, fx1, fy1;  bool hasFirst = false, crosses = false;
+        float px0, py0, px1, py1, fx0, fy0, fx1, fy1;  bool hasFirst = false;
     };
 };
 
