@@ -24,9 +24,7 @@
 
 struct RenderBuffer {
     void allocHeader(size_t n) {
-        header = 0;
-        resize(n);
-        header = n;
+        header = 0, resize(n), header = n;
     }
     void allocContextSlices(size_t n) {
         resize(n);
