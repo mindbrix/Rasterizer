@@ -66,17 +66,17 @@ struct TextureCache : MetalCache<id <MTLTexture>, const Ra::Paint &> {
     __strong id <MTLTexture> createPayload(const Ra::Paint & image, id <MTLDevice> device) override {
         MTLTextureDescriptor* desc = [MTLTextureDescriptor
             texture2DDescriptorWithPixelFormat:MTLPixelFormatBGRA8Unorm
-                                         width:image.w
-                                        height:image.h
+                                         width:image.store->w
+                                        height:image.store->h
                                      mipmapped:NO];
         desc.storageMode = MTLStorageModeShared;
         desc.usage = MTLTextureUsageShaderRead;
         
         auto texture = [device newTextureWithDescriptor:desc];
-        [texture replaceRegion:MTLRegionMake2D(0, 0, image.w, image.h)
+        [texture replaceRegion:MTLRegionMake2D(0, 0, image.store->w, image.store->h)
                         mipmapLevel:0
-                          withBytes:& image.colors[0]
-                        bytesPerRow:image.w * sizeof(Ra::Color)];
+                          withBytes:& image.store->colors[0]
+                        bytesPerRow:image.store->w * sizeof(Ra::Color)];
         return texture;
     }
 };

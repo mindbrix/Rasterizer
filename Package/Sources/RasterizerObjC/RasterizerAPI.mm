@@ -289,7 +289,7 @@
 
 - (void)addImage:(nonnull RAPaint *)image
              ctm:(CGAffineTransform)ctm {
-    CGRect rect = CGRectMake(0, 0, image.paint.w, image.paint.h);
+    CGRect rect = CGRectMake(0, 0, image.paint.store->w, image.paint.store->h);
     RAPath *path = [[RAPath alloc] initWithRect:rect];
     [self addFill:path ctm:ctm color:image evenOdd:false];
 }
