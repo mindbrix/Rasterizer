@@ -383,8 +383,8 @@ struct Rasterizer {
             }
         }
         bool isValid() {
-            validate();
-            return types.end > 1 && *types.base == Geometry::kMove && (bounds.lx != bounds.ux || bounds.ly != bounds.uy);
+            hash();
+            return valid;
         }
         bool isRect() {
             validate();
@@ -404,11 +404,15 @@ struct Rasterizer {
             }
             return cubics + 2 * (counts[kMove] + counts[kLine] + counts[kQuadratic] + counts[kCubic]);
         }
-        size_t hash() {
-            xxhash = xxhash ?: XXH64(points.base, points.end * sizeof(float), XXH64(types.base, types.end * sizeof(uint8_t), 0));
+        size_t hash() {    // Freezes the geometry and caches its validity
+            if (xxhash == 0) {
+                validate();
+                valid = types.end > 1 && *types.base == Geometry::kMove && (bounds.lx != bounds.ux || bounds.ly != bounds.uy);
+                xxhash = XXH64(points.base, points.end * sizeof(float), XXH64(types.base, types.end * sizeof(uint8_t), 0)) ?: 1;
+            }
             return xxhash;
         }
-        size_t refCount, xxhash = 0, cubicSums = 0, counts[kCountSize] = { 0, 0, 0, 0, 0 };
+        size_t refCount, xxhash = 0, cubicSums = 0, counts[kCountSize] = { 0, 0, 0, 0, 0 };  bool valid = false;
         float x0 = 0.f, y0 = 0.f, maxCurve = 0.f;  Row<uint8_t> types;  Row<float> points;
         Bounds bounds;  Row<Bounds> molecules;
         Row<Point16> p16s;  Row<uint8_t> p16cnts;  Row<Atom> atoms;
@@ -540,10 +544,8 @@ struct Rasterizer {
         bool validate() {
             bool isValid = path->isValid() && paint.isValid();
             if (isValid)
-                bnds = path->bounds, path->hash();
-            if (clipPath.ptr && clipPath->isValid())
-                clipPath->hash();
-            else
+                bnds = path->bounds;
+            if (clipPath.ptr && !clipPath->isValid())
                 clipPath = nullptr;
             flags = (flags & ~kInvisible) | (isValid ? 0 : kInvisible);
             return isValid;
