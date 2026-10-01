@@ -430,9 +430,7 @@ struct Rasterizer {
             return Color(b * alpha, g * alpha, r * alpha, a);
         }
         Color withOpacity(float opacity) const {
-            Color color = *this;
-            color.a = uint8_t(color.a * fmaxf(0.f, fminf(1.f, opacity)) + 0.5f);
-            return color;
+            return Color(b, g, r, a * fmaxf(0.f, fminf(1.f, opacity)) + 0.5f);
         }
         Component b, g, r, a;
     };
