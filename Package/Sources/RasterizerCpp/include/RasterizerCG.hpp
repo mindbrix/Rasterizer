@@ -151,7 +151,7 @@ struct RasterizerCG {
         CGGradientRef gradient = CGGradientFromPaint(paint);
         CGPoint zero = CGPointMake(0.0, 0.0), end = CGPointMake(0.0, 1.0);
         auto options = kCGGradientDrawsBeforeStartLocation | kCGGradientDrawsAfterEndLocation;
-        CGContextConcatCTM(ctx, CGFromTransform(paint.store->ctm));
+        CGContextConcatCTM(ctx, CGFromTransform(paint.bitmap->ctm));
         if (paint.type == Ra::Paint::kRadial)
             CGContextDrawRadialGradient(ctx, gradient, zero, 0, zero, 1, options);
         else
@@ -166,24 +166,24 @@ struct RasterizerCG {
     }
     
     static CGImageRef CGImageFromPaint(const Ra::Paint& paint) {
-        CGDataProviderRef provider = CGDataProviderCreateWithData(NULL, & paint.store->colors[0], paint.store->colors.end() * sizeof(Ra::Color), NULL);
+        CGDataProviderRef provider = CGDataProviderCreateWithData(NULL, & paint.bitmap->colors[0], paint.bitmap->colors.end() * sizeof(Ra::Color), NULL);
         CGColorSpaceRef rgb = CGColorSpaceCreateDeviceRGB();
-        CGImageRef image = CGImageCreate(paint.store->w, paint.store->h, 8, 32, paint.store->w * sizeof(Ra::Color), rgb, kCGImageAlphaFirst | kCGBitmapByteOrder32Little, provider, NULL, false, kCGRenderingIntentDefault);
+        CGImageRef image = CGImageCreate(paint.bitmap->w, paint.bitmap->h, 8, 32, paint.bitmap->w * sizeof(Ra::Color), rgb, kCGImageAlphaFirst | kCGBitmapByteOrder32Little, provider, NULL, false, kCGRenderingIntentDefault);
         CGColorSpaceRelease(rgb);
         CGDataProviderRelease(provider);
         return image;
     }
     
     static CGGradientRef CGGradientFromPaint(Ra::Paint paint) {
-        size_t count = paint.store->colors.end();
-        auto stop = & paint.store->colors[0];
+        size_t count = paint.bitmap->colors.end();
+        auto stop = & paint.bitmap->colors[0];
         Ra::Vector<CGFloat> components(4 * count);
         CGFloat *rgba = & components[0];
         for (size_t i = 0; i < count; i++, stop++)
             *rgba++ = stop->r / 255.0, *rgba++ = stop->g / 255.0, *rgba++ = stop->b / 255.0, *rgba++ = stop->a / 255.0;
         Ra::Vector<CGFloat> locations(count);
         for (size_t i = 0; i < count; i++)
-            locations[i] = paint.store->locs[i];
+            locations[i] = paint.bitmap->locs[i];
         CGColorSpaceRef space = CGColorSpaceCreateDeviceRGB();
         CGGradientRef gradient = CGGradientCreateWithColorComponents(space, & components[0], & locations[0], count);
         CGColorSpaceRelease(space);

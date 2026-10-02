@@ -113,7 +113,7 @@ struct RasterizerPDF {
                 ctm = transformForPage(page);
                 if (0) {
                     Ra::Paint paint = paintFromPage(page);
-                    Ra::Bounds bounds(0, 0, paint.store->w, paint.store->h);
+                    Ra::Bounds bounds(0, 0, paint.bitmap->w, paint.bitmap->h);
                     Ra::Path path;  path->addBounds(bounds);
                     scene->addPath(path, Ra::Transform(), paint, 0, 0);
                 } else

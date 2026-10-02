@@ -439,36 +439,56 @@ struct Rasterizer {
         Component b, g, r, a;
     };
     
-    struct Paint {
-        struct Storage {
-            void writeGradientStrip(Color *dst, size_t size) const {
-                size_t count = locs.end();
-                if (count == 0)
-                    return;
-                
-                float *locations = & locs[0];
-                Color *stops = & colors[0];
-                std::sort(locations, locations + count);
-                float lower = locations[0], upper = locations[count - 1];
-                float t, *t0, *t1;
-                size_t loc;
-                for (size_t i = 0; i < size; i++) {
-                    t = fmaxf(lower, fminf(upper, float(i) / float(size - 1)));
-                    t0 = locations, t1 = t0 + 1;
-                    for (loc = 0; loc < count - 1; loc++, t0++, t1++)
-                        if (t >= *t0 && t <= *t1)
-                            break;
-                    t = fmaxf(0.f, fminf(1.f, (t - *t0) / (*t1 - *t0)));
-                    dst[i] = Color(stops[loc], stops[loc + 1], t).premultiplied();
-                }
+    struct Bitmap {
+        void addGradient(Color *stops, float *locations, size_t count, Transform transform) {
+            colors.add(stops, count);
+            locs.add(locations, count);
+            ctm = transform;
+            writeGradientStrip(strip.memory->alloc(kColorTextureWidth), kColorTextureWidth);
+        }
+        void addImage(Color *buffer, size_t width, size_t height, size_t bpr) {
+            size_t stride = bpr / sizeof(Color);
+            w = width, h = height;
+            if (stride == width)
+                colors.add(buffer, width * height);
+            else {
+                for (size_t i = 0; i < height; i++)
+                    colors.add(buffer + i * stride, width);
             }
+            xxhash = XXH64(& width, sizeof(width), 0);
+            xxhash = XXH64(& height, sizeof(height), xxhash);
+            xxhash = XXH64(& colors[0], width * height * sizeof(Color), xxhash);
+        }
+        void writeGradientStrip(Color *dst, size_t size) const {
+            size_t count = locs.end();
+            if (count == 0)
+                return;
             
-            size_t refCount, xxhash = 0, w = 0, h = 0;
-            Vector<Color> colors;
-            Vector<float> locs;
-            Transform ctm;
-            Vector<Color> strip;
-        };
+            float *locations = & locs[0];
+            Color *stops = & colors[0];
+            std::sort(locations, locations + count);
+            float lower = locations[0], upper = locations[count - 1];
+            float t, *t0, *t1;
+            size_t loc;
+            for (size_t i = 0; i < size; i++) {
+                t = fmaxf(lower, fminf(upper, float(i) / float(size - 1)));
+                t0 = locations, t1 = t0 + 1;
+                for (loc = 0; loc < count - 1; loc++, t0++, t1++)
+                    if (t >= *t0 && t <= *t1)
+                        break;
+                t = fmaxf(0.f, fminf(1.f, (t - *t0) / (*t1 - *t0)));
+                dst[i] = Color(stops[loc], stops[loc + 1], t).premultiplied();
+            }
+        }
+        
+        size_t refCount, xxhash = 0, w = 0, h = 0;
+        Vector<Color> colors;
+        Vector<float> locs;
+        Transform ctm;
+        Vector<Color> strip;
+    };
+    
+    struct Paint {
         enum Type { kColor = 0, kLinear, kRadial, kImage };
         
         Paint() {}
@@ -480,12 +500,8 @@ struct Rasterizer {
             if (maxAlpha == 0)
                 return;
             type = isRadial ? kRadial : kLinear;
-            
-            store = Ref<Storage>();
-            store->colors.add(stops, count);
-            store->locs.add(locations, count);
-            store->ctm = transform;
-            store->writeGradientStrip(store->strip.memory->alloc(kColorTextureWidth), kColorTextureWidth);
+            bitmap = Ref<Bitmap>();
+            bitmap->addGradient(stops, locations, count, transform);
         }
         Paint(Color *buffer, size_t width, size_t height, size_t bpr) {
             if (buffer == nullptr || width == 0 || height == 0 || bpr == 0)
@@ -495,19 +511,8 @@ struct Rasterizer {
                 return;
             assert(bpr / sizeof(Color) >= width);
             type = kImage;
-            size_t stride = bpr / sizeof(Color);
-            
-            store = Ref<Storage>();
-            store->w = width, store->h = height;
-            if (stride == width)
-                store->colors.add(buffer, width * height);
-            else {
-                for (size_t i = 0; i < height; i++)
-                    store->colors.add(buffer + i * stride, width);
-            }
-            store->xxhash = XXH64(& width, sizeof(width), 0);
-            store->xxhash = XXH64(& height, sizeof(height), store->xxhash);
-            store->xxhash = XXH64(& store->colors[0], width * height * sizeof(Color), store->xxhash);
+            bitmap = Ref<Bitmap>();
+            bitmap->addImage(buffer, width, height, bpr);
         }
         inline bool isValid() const {
             return maxAlpha != 0;
@@ -522,7 +527,7 @@ struct Rasterizer {
             return type == kImage;
         }
         inline size_t hash() const {
-            return store.ptr ? store->xxhash : 0;
+            return bitmap.ptr ? bitmap->xxhash : 0;
         }
         inline void setMinMaxAlpha(Color *buffer, size_t width, size_t height, size_t bpr) {
             float alpha, min = 255, max = 0;
@@ -535,7 +540,7 @@ struct Rasterizer {
         Type type = kColor;
         Color color;
         Component minAlpha = 255, maxAlpha = 255;
-        Ref<Storage> store = nullptr;
+        Ref<Bitmap> bitmap = nullptr;
     };
     
     struct Draw {
@@ -877,8 +882,8 @@ struct Rasterizer {
                         bool isImage = list.params.showOutlines ? false : color->type == Paint::kImage;
                         size_t colorFlags = isImage ? Instance::kIsImage : (isGradient * Instance::kIsGradient | isRadial * Instance::kIsRadial);
                         if (isGradient) {
-                            texCtms[iz] = color->store->ctm.concat(m).invert();
-                            texs.add(TexRef(iz, & color->store->strip[0]));
+                            texCtms[iz] = color->bitmap->ctm.concat(m).invert();
+                            texs.add(TexRef(iz, & color->bitmap->strip[0]));
                         } else if (isImage) {
                             texCtms[iz] = quad.invert();
                             new (blends.alloc(1)) Blend(iz | Instance::kIsImage | Instance::kNextImage);
