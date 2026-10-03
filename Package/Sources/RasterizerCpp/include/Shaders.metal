@@ -120,9 +120,10 @@ float sqBezier(float2 p0, float2 p1, float2 p2) {
         float2 pt = fma(fma(va, t, vb), t, p0);
         return dot(pt, pt);
     }
-    float v = acos(-sqrt(-27.0 / p3) * 0.5 * q) * third;
+    float r = sqrt(-p * third);
+    float v = acos(-0.5 * q / (r * r * r)) * third;
     float m = cos(v), n = sin(v) * 1.732050808;
-    float2 ts = saturate(float2(m + m, -n - m) * sqrt(-p * third) - a);
+    float2 ts = saturate(float2(m + m, -n - m) * r - a);
     float2 pt0 = fma(fma(va, ts.x, vb), ts.x, p0);
     float2 pt1 = fma(fma(va, ts.y, vb), ts.y, p0);
     return min(dot(pt0, pt0), dot(pt1, pt1));
@@ -603,11 +604,10 @@ vertex InstancesVertex instances_vertex_main(
         ax = x1 - x2, bx = x1 - x0, cx = x2 - x0;
         ay = y1 - y2, by = y1 - y0, cy = y2 - y0;
         float cdot = cx * cx + cy * cy, rc = rsqrt(cdot);
-        float area = cx * by - cy * bx;
-        float tc = abs(area / cdot);
-        
-        isCurve = params->useCurves && x1 != FLT_MAX && tc > 1e-3;
-        ow = isCurve ? 0.5 * tc / rc : 0.0;
+        float area = abs(cx * by - cy * bx);
+
+        isCurve = params->useCurves && x1 != FLT_MAX && area > 1e-3 * cdot;
+        ow = isCurve ? 0.5 * area * rc : 0.0;
         
         float caplimit = dw == 1.0 ? 0.0 : kMiterLimit;
         
@@ -625,14 +625,14 @@ vertex InstancesVertex instances_vertex_main(
         next = normalize({ (isCurve ? x1 : x2) - x0, (isCurve ? y1 : y2) - y0 });
         prev = rsqrt(pdot) * float2(px0, py0);
         pcap = pcap || pdot < 1e-6 || dot(prev, next) < caplimit;
-        tangent = pcap ? no : normalize(prev + next);
-        m0 = 1.0 / abs(dot(no, tangent)) * float2(-tangent.y, tangent.x);
+        tangent = pcap ? no : prev + next;
+        m0 = float2(-tangent.y, tangent.x) / abs(dot(no, tangent));
         
         prev = normalize({ x2 - (isCurve ? x1 : x0), y2 - (isCurve ? y1 : y0) });
         next = rsqrt(ndot) * float2(nx1, ny1);
         ncap = ncap || ndot < 1e-6 || dot(prev, next) < caplimit;
-        tangent = ncap ? no : normalize(prev + next);
-        m1 = 1.0 / abs(dot(no, tangent)) * float2(-tangent.y, tangent.x);
+        tangent = ncap ? no : prev + next;
+        m1 = float2(-tangent.y, tangent.x) / abs(dot(no, tangent));
         
         float lcap = (isCurve ? 0.41 * dw : 0.0) + (squareCap || roundCap ? dw : 0.5);
         
