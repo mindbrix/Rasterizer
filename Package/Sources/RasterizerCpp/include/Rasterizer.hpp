@@ -832,7 +832,8 @@ struct Rasterizer {
                 uz = lz + scn->count(), clz = lz < slz ? slz : lz > suz ? suz : lz, cuz = uz < slz ? slz : uz > suz ? suz : uz;
                 Transform ctm = list.ctms[i].concat(view), clipquad, m, quad, invclip;
                 Bounds dev, clip, clipBounds = device, sceneclip = list.clips[i], lastClip;
-                                
+                bool clipCtmChanged = memcmp(& lastClipCtm, & ctm, sizeof(Transform)) != 0;
+
                 for (is = clz - lz, iz = clz; iz < cuz; iz++, is++) {
                     Draw& draw = scn->draws[is];
                     if (draw.flags & Draw::kInvisible)
@@ -848,8 +849,8 @@ struct Rasterizer {
                             clipBounds = Bounds(clipquad).integral().intersect(device);
                         }
                         Geometry *clipPath = draw.clipPath.ptr;
-                        if (lastClipPath != clipPath || (clipPath && memcmp(& lastClipCtm, & ctm, sizeof(Transform)) != 0)) {
-                            lastClipPath = clipPath, lastClipCtm = ctm;
+                        if (lastClipPath != clipPath || (clipPath && clipCtmChanged)) {
+                            lastClipPath = clipPath, lastClipCtm = ctm, clipCtmChanged = false;
                             Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kStencil);
                             inst->data.count = 0, inst->g = nullptr;
                             if (clipPath) {
@@ -877,6 +878,14 @@ struct Rasterizer {
                         bool unclipped = clip.contains(dev);
                         Paint *color = & draw.paint;
                         bool isOpaque = color->isOpaque();
+                        auto softUnclipped = [&]() {
+                            if (!isOpaque || lastClipPath != nullptr)
+                                return false;
+                            if (!clipActive)
+                                return true;
+                            Bounds soft = quad.concat(invclip);
+                            return fmaxf(fmaxf(fabsf(soft.lx - 0.5f), fabsf(soft.ux - 0.5f)), fmaxf(fabsf(soft.ly - 0.5f), fabsf(soft.uy - 0.5f))) < softclipMargin;
+                        };
                         bool isGradient = list.params.showOutlines ? false : color->isGradient();
                         bool isRadial = isGradient && color->type == Paint::kRadial;
                         bool isImage = list.params.showOutlines ? false : color->type == Paint::kImage;
@@ -905,14 +914,8 @@ struct Rasterizer {
                             uint32_t i0 = uint32_t(outlines.idx), i1;
                             Outliner outliner;
                             outliner.iz = inst->iz, outliner.outlines = & outlines;
-                            if (width > 4.f && isOpaque && lastClipPath == nullptr) {
-                                bool softunclipped = true;
-                                if (clipActive) {
-                                    Bounds soft = quad.concat(invclip);
-                                    softunclipped = fmaxf(fmaxf(fabsf(soft.lx - 0.5f), fabsf(soft.ux - 0.5f)), fmaxf(fabsf(soft.ly - 0.5f), fabsf(soft.uy - 0.5f))) < softclipMargin;
-                                }
-                                outliner.opaques = softunclipped ? & opaques : nullptr;
-                            }
+                            if (width > 4.f && softUnclipped())
+                                outliner.opaques = & opaques;
                             outliner.applyPath(g, m, outlineClip, unclipped, false);
                             i1 = uint32_t(outlines.idx);
                             inst->data.idx = i0, inst->data.count = i1 - i0;
@@ -932,12 +935,7 @@ struct Rasterizer {
                             idxr.clip = clip, idxr.samples = & samples[0], idxr.fast = fast;
                             idxr.dst = idxr.dst0 = segments.alloc(3 * g->upperBound(det));
                             idxr.applyPath(g, m, clip, unclipped, true);
-                            bool softunclipped = true;
-                            if (clipActive) {
-                                Bounds soft = quad.concat(invclip);
-                                softunclipped = fmaxf(fmaxf(fabsf(soft.lx - 0.5f), fabsf(soft.ux - 0.5f)), fmaxf(fabsf(soft.ly - 0.5f), fabsf(soft.uy - 0.5f))) < softclipMargin;
-                            }
-                            writeSegmentInstances(clip, draw.flags & Draw::kFillEvenOdd, iz, isOpaque && softunclipped && lastClipPath == nullptr, fast, colorFlags, *this);
+                            writeSegmentInstances(clip, draw.flags & Draw::kFillEvenOdd, iz, softUnclipped(), fast, colorFlags, *this);
                             segments.idx = segments.end = idxr.dst - segments.base;
                         }
                         if (isImage)
