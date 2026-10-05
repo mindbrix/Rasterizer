@@ -37,7 +37,7 @@ let package = Package(
             dependencies: ["RasterizerCpp"],
             path: "Sources/RasterizerObjC",
             resources: [
-                .copy("../../Sources/RasterizerCpp/include/Shaders.metal")
+                .process("../../Sources/RasterizerCpp/include/Shaders.metal")
             ],
             cxxSettings: [
                 .headerSearchPath("private"),
