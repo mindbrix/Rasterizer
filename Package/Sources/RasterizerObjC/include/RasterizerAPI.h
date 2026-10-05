@@ -76,44 +76,8 @@ typedef NS_ENUM(NSUInteger, RAJoinStyle) {
     kJoinMiter = 0, kJoinRound
 };
 
-// A draw, edited as a whole: read one from a scene, change it, then replace it with -[RAScene setDraw:atIndex:]
-@interface RADraw: NSObject
-@property(nonnull, nonatomic) RAPath *path;
-@property(nonatomic) CGAffineTransform ctm;
-@property(nonnull, nonatomic) RAPaint *color;
-@property(nonatomic) double width;      // 0 fills, > 0 strokes
-@property(nonatomic) BOOL evenOdd;
-@property(nonatomic) RACapStyle capStyle;
-@property(nonatomic) RAJoinStyle joinStyle;
-@property(nonatomic) CGRect clip;       // Empty, null or infinite clips nothing
-@property(nullable, nonatomic) RAPath *clipPath;
-@property(nonatomic) BOOL hidden;       // Hidden draws keep their index, but are not drawn
-
-- (nonnull id)initWithPath:(nonnull RAPath *)path ctm:(CGAffineTransform)ctm color:(nonnull RAPaint *)color;
-@end
-
-
 @interface RAScene: NSObject
 @property(nonatomic, readonly) CGRect bounds;
-@property(nonatomic, readonly) NSUInteger count;
-
-// Whole-draw edits. Draws are indexed in the order they were added. Scenes only grow: hide draws instead of removing them.
-- (nonnull RADraw *)drawAtIndex:(NSUInteger)index;
-- (void)setDraw:(nonnull RADraw *)draw atIndex:(NSUInteger)index;
-- (void)addDraw:(nonnull RADraw *)draw;
-// Appends copies of a scene's draws, sharing its geometry. The scene may be this one.
-// Copying from a prepared (rendered) scene into a scene with no pending additions needs no hashing, matching or derivation.
-// The source is never prepared by copying, so an unrendered source, e.g. a parsed file, holds no cache references.
-- (void)addDrawsFromScene:(nonnull RAScene *)scene;
-- (void)addDrawsFromScene:(nonnull RAScene *)scene range:(NSRange)range;
-
-// Test support: prepares the scene and checks its incremental state, or checks the global geometry cache.
-// Each returns nil, or a description of the first broken invariant.
-- (nullable NSString *)validate;
-+ (nullable NSString *)validateCache;
-// Test support: geometry cache statistics, including the fragmentation of its P16 & outline storage: bytes used, wasted by size
-// class rounding, and free in size class free lists, within the end & capacity of each
-+ (nonnull NSDictionary<NSString *, NSNumber *> *)cacheStatistics;
 
 - (void)addFill:(nonnull RAPath *)path
             ctm:(CGAffineTransform)ctm

@@ -398,7 +398,7 @@ struct TextureCache : MetalCache<id <MTLTexture>, const Ra::Paint &> {
                     [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->ctms atIndex:4];
                     [commandEncoder setVertexBuffer:mtlBuffer offset:instbase atIndex:5];
                     [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->bounds atIndex:7];
-                    [commandEncoder setVertexBuffer:renderBuffer->p16Buffer ?: mtlBuffer offset:0 atIndex:8];
+                    [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->p16s atIndex:8];
                     [commandEncoder setVertexBytes:& width length:sizeof(width) atIndex:10];
                     [commandEncoder setVertexBytes:& height length:sizeof(height) atIndex:11];
                     [commandEncoder setVertexBytes:& buffer->params length:sizeof(Ra::Params) atIndex:14];
@@ -417,7 +417,6 @@ struct TextureCache : MetalCache<id <MTLTexture>, const Ra::Paint &> {
                 [commandEncoder setDepthStencilState:useClip ? _instancesClipDepthState : _instancesDepthState];
                 [commandEncoder setStencilReferenceValue:0];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
-                [commandEncoder setVertexBuffer:renderBuffer->outlineBuffer ?: mtlBuffer offset:0 atIndex:3];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->ctms atIndex:4];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->clips atIndex:5];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->widths atIndex:6];
@@ -442,9 +441,7 @@ struct TextureCache : MetalCache<id <MTLTexture>, const Ra::Paint &> {
     }
     [commandEncoder endEncoding];
     __block dispatch_semaphore_t block_sema = _inflight_semaphore;
-    uint64_t frame = renderBuffer->frame;
     [commandBuffer addCompletedHandler:^(id <MTLCommandBuffer> buffer) {
-        Ra::GeometryCache::shared().completeFrame(frame);     // Cache ranges retired in this frame can now be reused
         dispatch_semaphore_signal(block_sema);
     }];
     [commandBuffer presentDrawable:drawable];

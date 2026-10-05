@@ -37,6 +37,3 @@
 #define kCubicSolverLimit 5e-2f
 #define kDepthRange 0.1f
 #define kColorTextureWidth 64
-#define kCacheOutlines 1
-#define kOutlinesHeight 1024.f          // Cached outlines flatten cubics as if the path's larger dimension were this many pixels
-#define kOutlinesMinTypes 32            // Cost gate: strokes of geometry with cubics, or at least this many path types, cache their outlines

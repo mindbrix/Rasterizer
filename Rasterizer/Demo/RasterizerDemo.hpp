@@ -166,11 +166,8 @@ struct RasterizerDemo {
         resetMouse();
         list = Ra::SceneList();
     }
-    const Ra::Draw& lockedDraw() const {
-        return list.scenes[mouse.i0]->draw(mouse.i1);
-    }
-    void setLockedDraw(const Ra::Draw& draw) {
-        list.scenes[mouse.i0]->setDraw(mouse.i1, draw);
+    Ra::Draw& lockedDraw() const {
+        return list.scenes[mouse.i0]->draws[mouse.i1];
     }
     Ra::Transform lockedCTM() const {
         return lockedDraw().ctm.concat(list.ctms[mouse.i0]).concat(ctm);
@@ -182,22 +179,20 @@ struct RasterizerDemo {
     }
     void concat(Ra::Transform transform) {
         if (locked) {
-            Ra::Draw draw = lockedDraw();
+            Ra::Draw& draw = lockedDraw();
             Ra::Transform m = shift ? list.ctms[mouse.i0].concat(ctm).invert() : draw.ctm;
             float bx = shift ? mx : draw.path->bounds.cx(), by = shift ? my : draw.path->bounds.cy();
             draw.ctm = draw.ctm.concatAroundCenter(transform, bx * m.a + by * m.c + m.tx, bx * m.b + by * m.d + m.ty);
-            setLockedDraw(draw);
         } else
             ctm = ctm.concatAroundCenter(transform, shift ? mx : bounds.cx(), shift ? my : bounds.cy());
         redraw = true;
     }
     void translate(float dx, float dy) {
         if (locked) {
-            Ra::Draw draw = lockedDraw();
+            Ra::Draw& draw = lockedDraw();
             Ra::Transform m = lockedCTM().invert();
             Ra::Transform translate = Ra::Transform(1, 0, 0, 1, m.a * dx + m.c * dy, m.b * dx + m.d * dy);
             draw.ctm = translate.concat(draw.ctm);
-            setLockedDraw(draw);
         } else
             ctm.tx += dx, ctm.ty += dy;
         redraw = true;
@@ -217,7 +212,7 @@ struct RasterizerDemo {
     }
     void restore(RaWnd::Pair pair) {
         if (pair.i0 != INT_MAX)
-            list.scenes[pair.i0]->setDraw(pair.i1, mouseDraw);
+            list.scenes[pair.i0]->draws[pair.i1] = mouseDraw, list.scenes[pair.i0]->needPrepare = true;
     }
     
     void setFont(const char *url, const char *name, float size) {

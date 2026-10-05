@@ -37,7 +37,7 @@ struct RasterizerWinding {
 
             for (size_t is = 0; is < scene.count(); is++) {
                 const Ra::Draw& draw = scene.draws[is];
-                if (draw.flags & Ra::Draw::kInvalid)
+                if (draw.flags & Ra::Draw::kInvisible)
                     continue;
                 const bool useClips = list.params.useClips, clipped = useClips && (!sceneclip.isHuge() || !draw.clip.isHuge());
                 const Ra::Bounds clipBounds = sceneclip.intersect(draw.clip);

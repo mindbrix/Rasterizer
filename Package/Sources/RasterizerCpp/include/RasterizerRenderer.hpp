@@ -49,20 +49,7 @@ struct RenderBuffer {
     Ra::Buffer buffer;
     id<MTLDevice> device;
     id <MTLBuffer> mtlBuffer;
-    id <MTLBuffer> p16Buffer, outlineBuffer;    // The GeometryCache's storage, read in place by the GPU
-    uint64_t frame = 0;     // The GeometryCache frame this buffer was written for, completed when its command buffer completes
 };
-
-// Backs the GeometryCache's arenas with shared MTLBuffers. A command buffer retains the buffers it binds, so storage the cache
-// replaces when it grows stays alive until the frames reading it complete.
-static void *MetalStorageAllocate(void *context, size_t size, void **handle) {
-    id <MTLBuffer> buffer = [(__bridge id<MTLDevice>)context newBufferWithLength:size options:MTLResourceStorageModeShared];
-    *handle = (__bridge_retained void *)buffer;
-    return buffer.contents;
-}
-static void MetalStorageRelease(void *handle) {
-    CFRelease(handle);
-}
 
 
 struct RasterizerRenderer {
@@ -74,24 +61,7 @@ struct RasterizerRenderer {
     void renderList(const Ra::SceneList& list, float scale, float w, float h, RenderBuffer *renderBuffer) {
         Ra::Buffer *buffer = & renderBuffer->buffer;
         size_t contextCount = contexts.size();
-        Ra::GeometryCache& cache = Ra::GeometryCache::shared();
-        {
-            std::lock_guard<std::mutex> lock(cache.mutex);
-            if (cache.allocator.context != (__bridge void *)renderBuffer->device) {
-                Ra::StorageAllocator allocator;
-                allocator.context = (__bridge void *)renderBuffer->device;
-                allocator.allocate = MetalStorageAllocate, allocator.release = MetalStorageRelease, allocator.isGPU = true;
-                cache.setAllocator(allocator);
-            }
-            renderBuffer->frame = cache.beginFrame();
-        }
         list.prepare();
-        {
-            std::lock_guard<std::mutex> lock(cache.mutex);
-            cache.ensureStorage();
-            renderBuffer->p16Buffer = (__bridge id<MTLBuffer>)cache.p16s.handle;
-            renderBuffer->outlineBuffer = (__bridge id<MTLBuffer>)cache.outlines.handle;
-        }
         buffer->prepare(list);
         renderBuffer->allocHeader(buffer->headerSize);
         
