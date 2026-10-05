@@ -24,6 +24,10 @@
 @property(nonatomic) CTFrameRef frame;
 @end
 
+@interface RADraw ()
+@property(nonatomic) Ra::Draw draw;
+@end
+
 @interface RAScene ()
 @property(nonatomic) Ra::SceneRef scene;
 @end

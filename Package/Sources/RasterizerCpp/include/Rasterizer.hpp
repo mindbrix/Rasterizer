@@ -20,8 +20,14 @@
 
 #import "Rasterizer.h"
 #import "xxhash.h"
+#import <atomic>
 #import <map>
+#import <mutex>
 #import <vector>
+#ifdef __APPLE__
+#import <dispatch/dispatch.h>
+#import <unistd.h>
+#endif
 #pragma clang diagnostic ignored "-Wcomma"
 
 struct Rasterizer {
@@ -268,6 +274,37 @@ struct Rasterizer {
         uint16_t x, y;
     };
     
+    struct Cell {
+        uint16_t lx, ly, ux, uy, ox, oy;
+    };
+    struct Quad {
+        Cell cell;  short cover;  int base, biid, molsbase;
+    };
+    struct Quadratic {
+        float x0, y0, x1, y1, x2, y2;
+    };
+    struct Outline {
+        Quadratic quad;
+        short prev, next;
+    };
+    struct Instance {
+        enum Flags {
+            kRoundJoin = 1 << 21,   kStencil = 1 << 21,
+            kIsRadial = 1 << 22,    kDisableImage = 1 << 22,
+            kIsGradient = 1 << 23,  kNextImage = 1 << 23,
+            kIsImage = 1 << 24,     kIsCurve = 1 << 24,
+            kMolecule = 1 << 25,    kPCap = 1 << 25,    kCachedOutline = 1 << 25,
+            kFastEdges = 1 << 26,   kNCap = 1 << 26,
+            kEdge = 1 << 27,        kF0 = 1 << 27,
+            kRoundCap = 1 << 28,    kF1 = 1 << 28,
+            kOutlines = 1 << 29,
+            kSquareCap = 1 << 30,
+            kEvenOdd = 1 << 31,
+            kFragmentMask = (kOutlines | kSquareCap | kEvenOdd)
+        };
+        Instance(size_t iz) : iz(uint32_t(iz)) {}
+        uint32_t iz;  union { Quad quad;  Outline outline;  struct { uint32_t src; } store; };    // store.src indexes GeometryCache::outlines
+    };
     struct Geometry {
         enum Type { kMove, kLine, kQuadratic, kCubic, kClose, kCountSize };
         const size_t TypeSizes[kCountSize] = { 1, 1, 2, 3, 1 };
@@ -415,7 +452,7 @@ struct Rasterizer {
         size_t refCount, xxhash = 0, cubicSums = 0, counts[kCountSize] = { 0, 0, 0, 0, 0 };  bool valid = false;
         float x0 = 0.f, y0 = 0.f, maxCurve = 0.f;  Row<uint8_t> types;  Row<float> points;
         Bounds bounds;  Row<Bounds> molecules;
-        Row<Point16> p16s;  Row<uint8_t> p16cnts;  Row<Atom> atoms;
+        Row<uint8_t> p16cnts;  Row<Atom> atoms;  size_t p16Idx = 0;    // CPU side molecule data. The P16s themselves live in the GeometryCache.
     };
     typedef Ref<Geometry> Path;
     
@@ -544,7 +581,7 @@ struct Rasterizer {
     };
     
     struct Draw {
-        enum Flags { kFillEvenOdd = 1 << 1, kRoundCap = 1 << 2, kSquareCap = 1 << 3, kRoundJoin = 1 << 4, kInvisible = 1 << 7 };
+        enum Flags { kFillEvenOdd = 1 << 1, kRoundCap = 1 << 2, kSquareCap = 1 << 3, kRoundJoin = 1 << 4, kHidden = 1 << 6, kInvalid = 1 << 7 };     // kHidden is set by callers; validate() sets kInvalid for an invalid path or paint, or kHidden
 
         Draw() {}
         Draw(const Path& path, const Transform& ctm, const Paint& paint, float width, uint8_t flags, Bounds *clipBounds = nullptr, Path *clipPath = nullptr)
@@ -556,26 +593,449 @@ struct Rasterizer {
             return Bounds(bnds.inset(-0.5f * fmax(0.f, width), -0.5f * fmax(0.f, width)).quad(ctm)).intersect(clip);
         }
         bool validate() {
-            bool isValid = path->isValid() && paint.isValid();
+            bool isValid = path->isValid() && paint.isValid(), isVisible = isValid && (flags & kHidden) == 0;
             if (isValid)
                 bnds = path->bounds;
             if (clipPath.ptr && !clipPath->isValid())
                 clipPath = nullptr;
-            flags = (flags & ~kInvisible) | (isValid ? 0 : kInvisible);
-            return isValid;
+            flags = (flags & ~kInvalid) | (isVisible ? 0 : kInvalid);
+            return isVisible;
         }
-        Path path;  Transform ctm;  Paint paint;  float width = 0.f;  uint8_t flags = kInvisible;  Bounds clip, bnds;  Path clipPath = nullptr;
+        Path path;  Transform ctm;  Paint paint;  float width = 0.f;  uint8_t flags = kInvalid;  Bounds clip, bnds;  Path clipPath = nullptr;
     };
-    struct Scene {
+    // Pluggable storage for the GeometryCache's arenas, e.g. shared MTLBuffers so the GPU reads cache data in place.
+    // allocate returns the memory and sets *handle, which release later frees. The default is malloc & free.
+    struct StorageAllocator {
+        static void *mallocAllocate(void *context, size_t size, void **handle) { return *handle = malloc(size); }
+        static void mallocRelease(void *handle) { free(handle); }
+        void *context = nullptr;
+        void *(*allocate)(void *context, size_t size, void **handle) = mallocAllocate;
+        void (*release)(void *handle) = mallocRelease;
+        bool isGPU = false;     // GPU storage defers reuse of freed ranges until the frames that may read them complete
+    };
+
+    // Long-lived storage for one kind of cached data. Ranges come from segregated size classes: exact up to 16 elements, then 4 per
+    // power of two, so a range wastes at most 25%. Each class keeps a stack of freed offsets, so allocating & freeing are O(1), with
+    // no splitting, coalescing or compaction: fragmentation is accepted and measured. When full, storage doubles, which is rare.
+    // Replaced storage stays alive until frames in flight complete, as Metal command buffers retain the buffers they bind.
+    template<typename T>
+    struct Arena {
+        static const uint32_t kClassCount = 17 + 4 * 28;
+        static uint32_t sizeClass(uint32_t n) {
+            if (n <= 16)
+                return n;
+            uint32_t p = 31 - __builtin_clz(n - 1), q = (n + (1 << (p - 2)) - 1) >> (p - 2);   // 2^p < n <= 2^(p+1), so q is 5...8
+            return 17 + (p - 4) * 4 + (q - 5);
+        }
+        static uint32_t classSize(uint32_t c) {
+            return c <= 16 ? c : (5 + (c - 17) % 4) << ((c - 17) / 4 + 2);
+        }
+        Arena() {}
+        Arena(const Arena&) = delete;
+        Arena& operator= (const Arena&) = delete;
+        ~Arena() {
+            if (handle)
+                release(handle);
+        }
+        uint32_t alloc(uint32_t n, const StorageAllocator& allocator) {
+            uint32_t c = sizeClass(n), size = classSize(c), offset;
+            used += n, allocated += size;
+            if (frees[c].end)
+                return freeTotal -= size, frees[c].base[--frees[c].end];
+            if (end + size > capacity)
+                grow(end + size, allocator);
+            offset = uint32_t(end), end += size;
+            return offset;
+        }
+        void free(uint32_t offset, uint32_t n) {
+            if (n == 0)
+                return;
+            uint32_t c = sizeClass(n), size = classSize(c);
+            used -= n, allocated -= size, freeTotal += size, *frees[c].alloc(1) = offset;
+        }
+        void reserve(size_t n, const StorageAllocator& allocator) {    // Moves to new storage of n elements
+            void *newHandle = nullptr;
+            T *newBase = (T *)allocator.allocate(allocator.context, n * sizeof(T), & newHandle);
+            if (end)
+                memcpy(newBase, base, end * sizeof(T));
+            if (handle)
+                release(handle);
+            base = newBase, capacity = n, handle = newHandle, release = allocator.release;
+        }
+        void grow(size_t minimum, const StorageAllocator& allocator) {
+            size_t doubled = capacity * 2;
+            reserve(doubled > minimum ? doubled : minimum > 4096 ? minimum : 4096, allocator), grows++;
+        }
+        T *base = nullptr;
+        size_t end = 0, capacity = 0, grows = 0;
+        size_t used = 0, allocated = 0, freeTotal = 0;     // Elements requested, held by live ranges after rounding, & held by free ranges
+        void *handle = nullptr;  void (*release)(void *handle) = nullptr;
+        Row<uint32_t> frees[kClassCount];       // Freed offsets, by size class
+    };
+    
+    // The single, long-lived home of Geometry-derived render data: P16s for fills and, where caching beats re-deriving, outlines
+    // for strokes. Entries are keyed by geometry hash and reference counted by the draws of every scene. A draw holds its entry's
+    // slot, which is stable for the entry's lifetime. Requests are matched by merge-joining their sorted hashes against a sorted
+    // index and a small sorted delta, so there is no per-draw hashing.
+    // An entry whose last reference goes keeps its data, and can be revived, until retainFrames after its retireFrame has completed
+    // on the GPU: only then does reclaim() free its ranges for reuse, so frames in flight never read reused storage, and rebuilt
+    // scenes revive rather than re-derive. Without GPU storage, entries are reclaimed at the next reclaim().
+    // Mutation is serialised by the mutex, but must not overlap rendering on another thread.
+    struct GeometryCache {
         struct Entry {
-            Entry(const Path p, size_t idx) : p(p), idx(idx) {}
-            const Path p;  size_t idx;
+            Path p = nullptr;  size_t hash = 0;  uint32_t refs = 0;  uint64_t retireFrame = 0;
+            uint32_t p16Base = 0, p16Count = 0, outlineBase = 0, outlineCount = 0;
+            bool hasP16s = false, hasOutlines = false;
         };
-        struct Index {
-            Index(size_t hash, size_t i) : hash(hash), i(i)  {}
-            inline bool operator< (const Index& other) const  { return hash < other.hash; }
-            size_t hash, i;
+        struct Key {
+            Key(size_t hash, uint32_t slot) : hash(hash), slot(slot) {}
+            inline bool operator< (const Key& other) const  { return hash < other.hash; }
+            size_t hash;  uint32_t slot;
         };
+        struct Request {
+            Request(size_t hash, const Path *path, size_t i, bool isFill) : hash(hash), path(path), i(uint32_t(i)), slot(kNone), isFill(isFill) {}
+            inline bool operator< (const Request& other) const  { return hash < other.hash; }
+            size_t hash;  const Path *path;  uint32_t i, slot;  bool isFill;
+        };
+        struct Retiree {
+            uint32_t slot;  uint64_t frame;
+        };
+        static const uint32_t kNone = ~0;
+
+        // Defined out of line in GeometryCache.cpp, so every object & image shares one cache. An inline function-local static
+        // is duplicated wherever objects are prelinked with hidden visibility, as SwiftPM does for RasterizerObjC.o.
+        __attribute__((visibility("default"))) static GeometryCache& shared();
+        // The cost gate: only strokes whose outlining costs more than copying cached outlines use the cache
+        static bool cachesOutlines(const Geometry *g) {
+            return kCacheOutlines && (g->counts[Geometry::kCubic] || g->types.end >= kOutlinesMinTypes);
+        }
+
+        // The renderer calls beginFrame() before preparing a frame, and completeFrame() from any thread once the GPU has finished it
+        uint64_t beginFrame() {
+            return ++frame;
+        }
+        void completeFrame(uint64_t f) {
+            uint64_t done = completedFrame.load();
+            while (f > done && !completedFrame.compare_exchange_weak(done, f))
+                ;
+        }
+
+        // Acquires a reference for every request, deriving whatever data the request needs, and sets each request's slot
+        void acquire(Request *r, Request *rend) {
+            if (r == rend)
+                return;
+            std::sort(r, rend);
+            Key *m = index.base, *mend = m + index.end, *dl = delta.base, *dlend = dl + delta.end;
+            added.empty(), misses.empty();
+            while (r < rend) {
+                size_t hash = r->hash;  uint32_t slot;
+                while (m < mend && m->hash < hash)
+                    m++;
+                while (dl < dlend && dl->hash < hash)
+                    dl++;
+                if (m < mend && m->hash == hash)
+                    slot = m->slot;
+                else if (dl < dlend && dl->hash == hash)
+                    slot = dl->slot;
+                else
+                    slot = newEntry(*r->path, hash), new (added.alloc(1)) Key(hash, slot);
+                Entry& entry = entries[slot];
+                if (entry.refs == 0)
+                    retiringBytes -= bytes(entry);     // Revive a retiring entry. New entries have no data, so this is a no-op for them
+                for (; r < rend && r->hash == hash; r++) {
+                    entry.refs++, r->slot = slot;
+                    bool needsP16s = r->isFill && !entry.hasP16s && kMoleculesHeight, needsOutlines = !r->isFill && !entry.hasOutlines;
+                    if (needsP16s || needsOutlines) {
+                        Miss *miss = misses.alloc(1);
+                        miss->slot = slot, miss->isP16s = needsP16s, miss->weight = uint32_t(entry.p->types.end + 16);
+                        (needsP16s ? entry.hasP16s : entry.hasOutlines) = true;    // Its count & base are set when derived & stored
+                    }
+                }
+            }
+            if (added.end) {
+                mergeKeys(delta, added);
+                if (delta.end > 64 && delta.end * 8 > index.end)
+                    mergeKeys(index, delta), delta.empty();
+            }
+            deriveMisses();
+            storeStaged();
+        }
+        void release(uint32_t slot) {
+            if (slot != kNone && --entries[slot].refs == 0) {
+                entries[slot].retireFrame = frame, retiringBytes += bytes(entries[slot]);
+                Retiree *retiree = retirees.alloc(1);
+                retiree->slot = slot, retiree->frame = frame;
+            }
+        }
+        // Frees the ranges & slots of entries still unreferenced retainFrames after the GPU has completed their retireFrame.
+        // Retaining them lets scenes that are rebuilt or reloaded revive their geometry instead of deriving it again.
+        void reclaim() {
+            uint64_t completed = allocator.isGPU ? completedFrame.load() : frame, retain = allocator.isGPU ? retainFrames : 0;
+            uint64_t done = completed > retain ? completed - retain : 0;
+            size_t i = retirees.idx, reclaimed = 0;
+            for (; i < retirees.end && retirees.base[i].frame <= done; i++) {
+                uint32_t slot = retirees.base[i].slot;
+                Entry& entry = entries[slot];
+                if (entry.refs || entry.retireFrame != retirees.base[i].frame)
+                    continue;      // Revived, or retired again later
+                retiringBytes -= bytes(entry);
+                if (entry.hasP16s)
+                    p16s.free(entry.p16Base, entry.p16Count);
+                if (entry.hasOutlines)
+                    outlines.free(entry.outlineBase, entry.outlineCount);
+                entry = Entry(), *freeSlots.alloc(1) = slot, reclaimed++;
+            }
+            retirees.idx = i;
+            if (retirees.idx == retirees.end)
+                retirees.empty();
+            else if (retirees.idx > 4096 && retirees.idx * 2 > retirees.end) {
+                memmove(retirees.base, retirees.base + retirees.idx, (retirees.end - retirees.idx) * sizeof(Retiree));
+                retirees.end -= retirees.idx, retirees.idx = 0;
+            }
+            if (reclaimed)
+                removeFreedKeys(index), removeFreedKeys(delta);
+        }
+        // Moves the arenas into the new allocator's storage, e.g. when a Metal renderer first draws
+        void setAllocator(const StorageAllocator& newAllocator) {
+            allocator = newAllocator;
+            if (p16s.handle)
+                p16s.reserve(p16s.capacity, allocator);
+            if (outlines.handle)
+                outlines.reserve(outlines.capacity, allocator);
+        }
+        // Gives empty arenas storage, so a renderer always has buffers to bind
+        void ensureStorage() {
+            if (p16s.handle == nullptr)
+                p16s.grow(0, allocator);
+            if (outlines.handle == nullptr)
+                outlines.grow(0, allocator);
+        }
+
+        static size_t bytes(const Entry& entry) {
+            return entry.p16Count * sizeof(Point16) + entry.outlineCount * sizeof(Outline);
+        }
+        uint32_t newEntry(const Path& path, size_t hash) {
+            uint32_t slot;
+            if (freeSlots.end)
+                slot = freeSlots.base[--freeSlots.end];
+            else
+                slot = uint32_t(entries.end()), new (entries.memory->alloc(1)) Entry();
+            Entry& entry = entries[slot];
+            entry = Entry(), entry.p = path, entry.hash = hash;
+            return slot;
+        }
+        // Derives the queued misses into per-worker staging, then stored by storeStaged(). Each miss is a distinct geometry, or the
+        // other kind of data for one, so large batches derive in parallel: workers share nothing but read-only Geometry & entries.
+        void deriveMisses() {
+            size_t n = misses.end, total = 0, count = 1, i, k;
+            if (n == 0)
+                return;
+            for (i = 0; i < n; i++)
+                total += misses.base[i].weight;
+#ifdef __APPLE__
+            if (total >= kParallelWeight) {
+                long cpus = sysconf(_SC_NPROCESSORS_ONLN);
+                count = cpus < 1 ? 1 : size_t(cpus) < kMaxWorkers ? size_t(cpus) : kMaxWorkers;
+                count = count < n ? count : n;
+            }
+#endif
+            // Divide the misses into contiguous runs of roughly equal weight, one per worker
+            size_t *divisions = divisionsRow.empty().alloc(count + 1), sum = 0;
+            for (divisions[0] = 0, i = 0, k = 1; k < count; k++) {
+                for (; i < n && sum < total * k / count; i++)
+                    sum += misses.base[i].weight;
+                divisions[k] = i;
+            }
+            divisions[count] = n, workerCount = count;
+            if (count == 1)
+                deriveRun(this, 0);
+#ifdef __APPLE__
+            else
+                dispatch_apply_f(count, DISPATCH_APPLY_AUTO, this, deriveRun);
+#endif
+        }
+        static void deriveRun(void *context, size_t k) {
+            GeometryCache& cache = *(GeometryCache *)context;
+            Worker& worker = cache.workers[k];
+            for (Miss *miss = cache.misses.base + cache.divisionsRow.base[k], *end = cache.misses.base + cache.divisionsRow.base[k + 1]; miss < end; miss++)
+                worker.derive(cache.entries[miss->slot], miss->slot, miss->isP16s);
+        }
+        // Allocates & copies every worker's staged data. A batch grows each arena at most once.
+        void storeStaged() {
+            size_t p16Size = 0, outlineSize = 0, k;     // Conservatively ignoring free ranges
+            for (k = 0; k < workerCount; k++)
+                for (Staged *s = workers[k].derived.base, *send = s + workers[k].derived.end; s < send; s++)
+                    if (s->isP16s)
+                        p16Size += Arena<Point16>::classSize(Arena<Point16>::sizeClass(entries[s->slot].p16Count));
+                    else
+                        outlineSize += Arena<Outline>::classSize(Arena<Outline>::sizeClass(entries[s->slot].outlineCount));
+            if (p16s.end + p16Size > p16s.capacity)
+                p16s.grow(p16s.end + p16Size, allocator);
+            if (outlines.end + outlineSize > outlines.capacity)
+                outlines.grow(outlines.end + outlineSize, allocator);
+            for (k = 0; k < workerCount; k++) {
+                Worker& worker = workers[k];
+                for (Staged *s = worker.derived.base, *send = s + worker.derived.end; s < send; s++) {
+                    Entry& entry = entries[s->slot];
+                    if (s->isP16s) {
+                        entry.p16Base = p16s.alloc(entry.p16Count, allocator);
+                        memcpy(p16s.base + entry.p16Base, worker.p16Staging.base + s->begin, entry.p16Count * sizeof(Point16));
+                    } else {
+                        entry.outlineBase = outlines.alloc(entry.outlineCount, allocator);
+                        memcpy(outlines.base + entry.outlineBase, worker.outlineStaging.base + s->begin, entry.outlineCount * sizeof(Outline));
+                    }
+                }
+                worker.p16Staging.empty(), worker.outlineStaging.empty(), worker.derived.empty();
+            }
+            workerCount = 0;
+        }
+        void mergeKeys(Row<Key>& dst, const Row<Key>& src) {
+            merged.empty();
+            Key *out = merged.alloc(dst.end + src.end);
+            std::merge(dst.base, dst.base + dst.end, src.base, src.base + src.end, out);
+            std::swap(dst, merged);
+        }
+        void removeFreedKeys(Row<Key>& keys) {
+            Key *k = keys.base, *kend = k + keys.end, *out = keys.base;
+            for (; k < kend; k++)
+                if (entries[k->slot].p.ptr)
+                    *out++ = *k;
+            keys.end = out - keys.base;
+        }
+
+        // Test support: checks the entries, arenas & index. Returns nullptr, or the first broken invariant.
+        const char *validate() {
+            std::lock_guard<std::mutex> lock(mutex);
+            size_t ne = entries.end(), i, retiring = 0;
+            std::vector<uint8_t> isFree(ne, 0);
+            for (i = 0; i < freeSlots.end; i++)
+                if (freeSlots.base[i] >= ne || isFree[freeSlots.base[i]]++ || entries[freeSlots.base[i]].p.ptr)
+                    return "free slot";
+            std::vector<std::pair<size_t, size_t>> ranges[2];
+            for (i = 0; i < ne; i++) {
+                Entry& entry = entries[i];
+                if ((entry.p.ptr == nullptr) != (isFree[i] != 0))
+                    return "slot is neither free nor occupied";
+                if (entry.p.ptr == nullptr)
+                    continue;
+                if (entry.hash != entry.p->hash())
+                    return "entry hash";
+                if (entry.refs == 0)
+                    retiring += bytes(entry);
+                if (entry.hasP16s)
+                    ranges[0].push_back(std::make_pair(entry.p16Base, entry.p16Base + entry.p16Count));
+                if (entry.hasOutlines)
+                    ranges[1].push_back(std::make_pair(entry.outlineBase, entry.outlineBase + entry.outlineCount));
+            }
+            if (retiring != retiringBytes)
+                return "retiring byte count";
+            // Live ranges & free ranges, each rounded to its size class, must exactly tile each arena
+            size_t ends[2] = { p16s.end, outlines.end }, freeTotals[2] = { p16s.freeTotal, outlines.freeTotal };
+            for (int a = 0; a < 2; a++) {
+                size_t used = 0, freed = 0;
+                for (auto& r : ranges[a]) {
+                    uint32_t n = uint32_t(r.second - r.first), size = a ? Arena<Outline>::classSize(Arena<Outline>::sizeClass(n)) : Arena<Point16>::classSize(Arena<Point16>::sizeClass(n));
+                    r.second = r.first + size, used += size;
+                }
+                for (uint32_t c = 0; c < Arena<Point16>::kClassCount; c++) {
+                    const Row<uint32_t>& f = a ? outlines.frees[c] : p16s.frees[c];
+                    uint32_t size = Arena<Point16>::classSize(c);
+                    for (i = 0; i < f.end; i++)
+                        freed += size, ranges[a].push_back(std::make_pair(f.base[i], f.base[i] + size));
+                }
+                if (freed != freeTotals[a])
+                    return "arena free total";
+                if (used + freed != ends[a])
+                    return "arena ranges don't tile the arena";
+                std::sort(ranges[a].begin(), ranges[a].end());
+                for (i = 0; i < ranges[a].size(); i++)
+                    if ((i && ranges[a][i - 1].second > ranges[a][i].first) || ranges[a][i].second > ends[a])
+                        return "arena ranges overlap";
+            }
+            std::vector<uint8_t> seen(ne, 0);
+            std::vector<size_t> hashes;
+            Row<Key> *rows[2] = { & index, & delta };
+            for (Row<Key> *row : rows)
+                for (i = 0; i < row->end; i++) {
+                    Key& key = row->base[i];
+                    if (i && row->base[i - 1].hash >= key.hash)
+                        return "index not sorted";
+                    if (key.slot >= ne || entries[key.slot].p.ptr == nullptr || entries[key.slot].hash != key.hash || seen[key.slot]++)
+                        return "index key";
+                    hashes.push_back(key.hash);
+                }
+            if (hashes.size() + freeSlots.end != ne)
+                return "entry missing from index";
+            std::sort(hashes.begin(), hashes.end());
+            if (std::adjacent_find(hashes.begin(), hashes.end()) != hashes.end())
+                return "duplicate entry hash";
+            return nullptr;
+        }
+
+        struct Staged {
+            uint32_t slot, begin;  bool isP16s;
+        };
+        struct Miss {
+            uint32_t slot, weight;  bool isP16s;
+        };
+        // A deriving thread's writers' scratch & staging
+        struct Worker {
+            void derive(Entry& entry, uint32_t slot, bool isP16s) {
+                Staged *staged = derived.alloc(1);
+                staged->slot = slot, staged->isP16s = isP16s;
+                if (isP16s) {
+                    P16Writer().writeGeometry(entry.p.ptr, & scratch.empty());
+                    staged->begin = uint32_t(p16Staging.end), entry.p16Count = uint32_t(scratch.end);
+                    memcpy(p16Staging.alloc(scratch.end), scratch.base, scratch.end * sizeof(Point16));
+                } else {
+                    // Flatten cubics relative to the path's bounds, not its units. Negative disables the absolute flatness early out.
+                    Geometry *g = entry.p.ptr;
+                    float size = fmaxf(g->bounds.ux - g->bounds.lx, g->bounds.uy - g->bounds.ly);
+                    Outliner outliner;
+                    outliner.iz = 0, outliner.outlines = & outlineScratch.empty(), outliner.cubicScale = -kCubicPrecision * (size / kOutlinesHeight);
+                    outliner.applyPath(g, Transform(), Bounds(), true, false);
+                    staged->begin = uint32_t(outlineStaging.end), entry.outlineCount = uint32_t(outlineScratch.end);
+                    Outline *dst = outlineStaging.alloc(outlineScratch.end);
+                    for (size_t i = 0; i < outlineScratch.end; i++)
+                        dst[i] = outlineScratch.base[i].outline;
+                }
+            }
+            Row<Point16> scratch, p16Staging;  Row<Instance> outlineScratch;  Row<Outline> outlineStaging;  Row<Staged> derived;
+        };
+        static const size_t kMaxWorkers = 32, kParallelWeight = 8192;      // Batches lighter than kParallelWeight path types derive serially
+        std::mutex mutex;
+        uint64_t frame = 0, retainFrames = 60;  std::atomic<uint64_t> completedFrame { 0 };
+        StorageAllocator allocator;
+        RefVector<Entry> entries;  Row<uint32_t> freeSlots;  Row<Retiree> retirees;  size_t retiringBytes = 0;
+        Row<Key> index, delta, added, merged;
+        Arena<Point16> p16s;  Arena<Outline> outlines;
+        Row<Miss> misses;  Row<size_t> divisionsRow;  Worker workers[kMaxWorkers];  size_t workerCount = 0;
+    };
+
+    // Scenes are prepared incrementally: prepare() only processes draws appended or replaced since the last prepare.
+    // Draws are edited whole: read one with draw(i), change it, and replace it with setDraw(i, draw).
+    // Scenes only grow: hide draws with Draw::kHidden, which releases their cache references until they are shown again.
+    // Each draw holds a GeometryCache slot for its fill P16s, or for its stroke's cached outlines, or kNone.
+    // Edits only record changes: besides copying references, prepare() & the destructor are the only places that touch the cache.
+    struct Scene {
+        typedef GeometryCache::Request Request;
+        static const uint32_t kNone = GeometryCache::kNone;
+
+        ~Scene() {
+            GeometryCache& cache = GeometryCache::shared();
+            std::lock_guard<std::mutex> lock(cache.mutex);
+            for (size_t i = 0; i < cacheRefs.end; i++)
+                cache.release(cacheRefs.base[i]);
+            for (size_t i = 0; i < released.end; i++)
+                cache.release(released.base[i]);
+        }
+        size_t count() const {
+            return draws.end();
+        }
+        const Draw& draw(size_t i) const {
+            assert(i < count());
+            return draws[i];
+        }
         void addPath(const Path& path, const Transform& ctm, const Paint& paint, float width, uint8_t flag, Bounds *clipBounds = nullptr, Path *clipPath = nullptr) {
             new (draws.memory->alloc(1)) Draw(path, ctm, paint, width, flag, clipBounds, clipPath);
             needPrepare = true;
@@ -586,64 +1046,138 @@ struct Rasterizer {
             draws.add(src, count);
             needPrepare = true;
         }
+        // Appends src's draws [i0, i1). When src is prepared and this scene has no unprepared appends, src's per-draw state is
+        // copied too, so the copies need no hashing, matching or derivation. Otherwise the copies are prepared like new draws.
+        // src is never prepared here, so an unrendered source, e.g. a parsed file, holds no cache references.
+        void addDraws(const Scene& src, size_t i0, size_t i1) {
+            i1 = i1 < src.count() ? i1 : src.count();
+            if (i0 >= i1)
+                return;
+            size_t n = i1 - i0, base = count(), k;
+            draws.memory->alloc(n);
+            for (k = 0; k < n; k++)
+                draws[base + k] = src.draws[i0 + k];     // Indexed, as src may be this scene
+            if (prepared != base || src.needPrepare) {
+                needPrepare = true;
+                return;
+            }
+            uint32_t *refs = cacheRefs.alloc(n);
+            size_t *drawWeight = drawWeights.alloc(n), *w = weights.alloc(n), sum = base ? weights.base[base - 1] : 0;
+            memcpy(refs, src.cacheRefs.base + i0, n * sizeof(uint32_t));
+            memcpy(drawWeight, src.drawWeights.base + i0, n * sizeof(size_t));
+            for (k = 0; k < n; k++)
+                w[k] = sum += drawWeight[k];
+            weight = sum, prepared = base + n;
+            GeometryCache& cache = GeometryCache::shared();
+            std::lock_guard<std::mutex> lock(cache.mutex);
+            for (k = 0; k < n; k++)
+                if (refs[k] != kNone)
+                    cache.entries[refs[k]].refs++;     // src holds a reference, so the entry is live
+        }
+        void setDraw(size_t i, const Draw& draw) {
+            assert(i < count());
+            draws[i] = draw, draws[i].validate();
+            if (i < prepared)
+                *dirty.alloc(1) = uint32_t(i);
+            needPrepare = true;
+        }
         Bounds bounds() const {
             Bounds b;
             for (int i = 0; i < draws.end(); i++)
-                if ((draws[i].flags & Draw::kInvisible) == 0)
+                if ((draws[i].flags & Draw::kInvalid) == 0)
                     b.extend(draws[i].bounds());
             return b;
-        }
-        size_t count() const {
-            return draws.end();
         }
         void prepare() {
             if (!needPrepare)
                 return;
             needPrepare = false;
-            
-            Row<Index> indices;  indices.prealloc(count());
-            Index *index0 = indices.base, *index1 = indices.base;
-            size_t *cumulative = weights.empty().alloc(count());
-            weight = 0;
-            
-            for (size_t i = 0; i < count(); i++) {
-                Draw& draw = draws[i];
-                bool isValid = draw.validate();
-                if (isValid && draw.width == 0)
-                    new (index1++) Index(draw.path->hash(), i);
-                weight += isValid ? draw.path->types.end + 16 : 0;    // Estimated drawList cost: per-draw overhead + per-type work
-                cumulative[i] = weight;
-            }
-            std::sort(index0, index1);
-            p16bases.empty(), p16entries.resize(0);
-            uint32_t *bases = p16bases.alloc(count());
-            
-            size_t lastHash = 0, count = 0, total = 0, srcIndex = 0;
-            for (Index *index = index0; index < index1; index++) {
-                if (index == index0 || lastHash != index->hash) {
-                    lastHash = index->hash;
-                    srcIndex = index->i;
-                    total += count;
 
-                    const Path p = draws[index->i].path;
-                    new (p16entries.memory->alloc(1)) Entry(p, total);
-                    
-                    if (kMoleculesHeight && p->p16s.end == 0)
-                        P16Writer().writeGeometry(p.ptr);
-                    count = p->p16s.end;
+            GeometryCache& cache = GeometryCache::shared();
+            std::lock_guard<std::mutex> lock(cache.mutex);
+            size_t n = count(), i, *w, *wend, w0;
+            memset(cacheRefs.alloc(n - prepared), 0xFF, (n - prepared) * sizeof(uint32_t));
+            bzero(drawWeights.alloc(n - prepared), (n - prepared) * sizeof(size_t));
+            weights.alloc(n - prepared);
+
+            requests.empty();
+            std::sort(dirty.base, dirty.base + dirty.end);
+            for (uint32_t *u = dirty.base, *uend = std::unique(dirty.base, dirty.base + dirty.end); u < uend; u++)
+                update(*u, true);
+            for (i = prepared; i < n; i++)
+                update(i, false);
+
+            cache.acquire(requests.base, requests.base + requests.end);
+            for (Request *r = requests.base, *rend = r + requests.end; r < rend; r++)
+                cacheRefs.base[r->i] = r->slot, draws[r->i].path = cache.entries[r->slot].p;     // Share identical geometries
+            // Releasing after acquiring keeps geometry that was replaced or removed, then added again, live instead of retiring it
+            for (uint32_t *s = released.base, *send = s + released.end; s < send; s++)
+                cache.release(*s);
+            released.empty();
+
+            // Weights only balance drawList() divisions, so edits leave them inexact until the drift exceeds 1/16 of the total
+            w0 = weightDrift * 16 > weight ? 0 : prepared;
+            for (w = weights.base + w0, wend = weights.base + n, i = w0; w < wend; w++, i++)
+                *w = (i ? w[-1] : 0) + drawWeights.base[i];
+            weight = n ? weights.base[n - 1] : 0, weightDrift = w0 == 0 ? 0 : weightDrift;
+            prepared = n, dirty.empty();
+        }
+
+        void update(size_t i, bool isEdit) {
+            Draw& draw = draws[i];
+            if (cacheRefs.base[i] != kNone)
+                *released.alloc(1) = cacheRefs.base[i], cacheRefs.base[i] = kNone;
+            bool isValid = draw.validate();
+            if (isValid && (draw.width == 0 || GeometryCache::cachesOutlines(draw.path.ptr)))
+                new (requests.alloc(1)) Request(draw.path->hash(), & draw.path, i, draw.width == 0);
+            size_t w = isValid ? draw.path->types.end + 16 : 0;    // Estimated drawList cost: per-draw overhead + per-type work
+            if (isEdit)
+                weightDrift += w > drawWeights.base[i] ? w - drawWeights.base[i] : drawWeights.base[i] - w;
+            drawWeights.base[i] = w;
+        }
+        // Test support: prepares, then checks each draw's cache reference & weight. GeometryCache::validate() checks the cache itself.
+        // Returns nullptr, or the first broken invariant.
+        const char *validate() {
+            prepare();
+            GeometryCache& cache = GeometryCache::shared();
+            std::lock_guard<std::mutex> lock(cache.mutex);
+            size_t n = count(), ne = cache.entries.end(), i, exact = 0;
+            if (cacheRefs.end != n || drawWeights.end != n || weights.end != n)
+                return "per-draw state size";
+            std::vector<uint32_t> refs(ne, 0);
+            for (i = 0; i < n; i++) {
+                Draw& draw = draws[i];
+                bool isVisible = (draw.flags & Draw::kInvalid) == 0, isFill = draw.width == 0;
+                bool isCached = isVisible && (isFill || GeometryCache::cachesOutlines(draw.path.ptr));
+                uint32_t slot = cacheRefs.base[i];
+                if (isCached != (slot != kNone))
+                    return "draw cache reference";
+                if (slot != kNone) {
+                    if (slot >= ne)
+                        return "cache slot out of range";
+                    GeometryCache::Entry& entry = cache.entries[slot];
+                    if (entry.hash != draw.path->hash() || entry.p.ptr != draw.path.ptr)
+                        return "draw path differs from its cache entry";
+                    if (isFill ? kMoleculesHeight && !entry.hasP16s : !entry.hasOutlines)
+                        return "cache entry missing derived data";
+                    if (++refs[slot] > entry.refs)
+                        return "cache entry reference count";
                 }
-                bases[index->i] = uint32_t(total);
-                if (srcIndex != index->i)
-                    draws[index->i].path = draws[srcIndex].path;
+                exact += isVisible ? draw.path->types.end + 16 : 0;
+                size_t w = weights.base[i];
+                if ((w > exact ? w - exact : exact - w) > weightDrift)
+                    return "weight error exceeds drift";
+                if (i && weights.base[i - 1] > w)
+                    return "weights not monotonic";
             }
-            total += count;
-            p16total = uint32_t(total);
+            return nullptr;
         }
         size_t refCount;
         RefVector<Draw> draws;
         bool needPrepare = false;
-        Row<uint32_t> p16bases;  RefVector<Entry> p16entries;  uint32_t p16total = 0;
-        Row<size_t> weights;  size_t weight = 0;
+        size_t prepared = 0, weightDrift = 0;   // Draws [0, prepared) have per-draw state; weightDrift bounds the error of each cumulative weight
+        Row<uint32_t> dirty, cacheRefs, released;  Row<Request> requests;     // released: slots to release at the next prepare()
+        Row<size_t> drawWeights, weights;  size_t weight = 0;
     };
     typedef Ref<Scene> SceneRef;
     
@@ -678,8 +1212,11 @@ struct Rasterizer {
             return count;
         }
         void prepare() const {
+            GeometryCache& cache = GeometryCache::shared();
             for (auto scene: scenes)
                 scene->prepare();
+            std::lock_guard<std::mutex> lock(cache.mutex);     // After the scenes, so their releases & acquires revive retiring entries
+            cache.reclaim();
         }
         Transform ctm;  Params params;
         std::vector<SceneRef> scenes;  std::vector<Transform> ctms;  std::vector<Bounds> clips;
@@ -688,37 +1225,6 @@ struct Rasterizer {
     struct Segment {
         inline Segment(float x0, float y0, float x1, float y1, bool curve) : ix0((*((uint32_t *)& x0) & ~1) | curve), y0(y0), x1(x1), y1(y1) {}
         union { float x0; uint32_t ix0; };  float y0, x1, y1;
-    };
-    struct Cell {
-        uint16_t lx, ly, ux, uy, ox, oy;
-    };
-    struct Quad {
-        Cell cell;  short cover;  int base, biid, molsbase;
-    };
-    struct Quadratic {
-        float x0, y0, x1, y1, x2, y2;
-    };
-    struct Outline {
-        Quadratic quad;
-        short prev, next;
-    };
-    struct Instance {
-        enum Flags {
-            kRoundJoin = 1 << 21,   kStencil = 1 << 21,
-            kIsRadial = 1 << 22,    kDisableImage = 1 << 22,
-            kIsGradient = 1 << 23,  kNextImage = 1 << 23,
-            kIsImage = 1 << 24,     kIsCurve = 1 << 24,
-            kMolecule = 1 << 25,    kPCap = 1 << 25,
-            kFastEdges = 1 << 26,   kNCap = 1 << 26,
-            kEdge = 1 << 27,        kF0 = 1 << 27,
-            kRoundCap = 1 << 28,    kF1 = 1 << 28,
-            kOutlines = 1 << 29,
-            kSquareCap = 1 << 30,
-            kEvenOdd = 1 << 31,
-            kFragmentMask = (kOutlines | kSquareCap | kEvenOdd)
-        };
-        Instance(size_t iz) : iz(uint32_t(iz)) {}
-        uint32_t iz;  union { Quad quad;  Outline outline; };
     };
     struct Opaque {
         uint32_t iz;  union { Cell cell;  Quadratic quad; };
@@ -757,7 +1263,7 @@ struct Rasterizer {
         uint8_t *base = nullptr;  Row<Entry> entries;
         RefVector<Paint> images;
         Params params;
-        size_t colors, ctms, clips, widths, bounds, texCtms, texIdxs, texStrips, p16s;
+        size_t colors, ctms, clips, widths, bounds, texCtms, texIdxs, texStrips;
         size_t idxs, pathsCount, texCount, headerSize;
     };
     struct Allocator {
@@ -823,11 +1329,12 @@ struct Rasterizer {
             bool clipActive = false;
             
             Color black(0, 0, 0, 255), red(0, 0, 255, 255);
-            size_t lz, uz, i, clz, cuz, iz, is, cnt; uint32_t p16total = 0;
+            size_t lz, uz, i, clz, cuz, iz, is, cnt;
+            GeometryCache& cache = GeometryCache::shared();
             Geometry *lastClipPath = nullptr, *currentClipPath = nullptr;  Transform lastClipCtm, currentClipCtm;
             float det, width, softclipMargin = 0.5f;
             
-            for (lz = uz = i = 0; i < list.scenes.size(); p16total += list.scenes[i]->p16total, i++, lz = uz ) {
+            for (lz = uz = i = 0; i < list.scenes.size(); i++, lz = uz) {
                 const Scene *scn = list.scenes[i].ptr;
                 uz = lz + scn->count(), clz = lz < slz ? slz : lz > suz ? suz : lz, cuz = uz < slz ? slz : uz > suz ? suz : uz;
                 Transform ctm = list.ctms[i].concat(view), clipquad, m, quad, invclip;
@@ -836,7 +1343,7 @@ struct Rasterizer {
 
                 for (is = clz - lz, iz = clz; iz < cuz; iz++, is++) {
                     Draw& draw = scn->draws[is];
-                    if (draw.flags & Draw::kInvisible)
+                    if (draw.flags & Draw::kInvalid)
                         continue;
                     
                     if (list.params.useClips) {
@@ -910,23 +1417,49 @@ struct Rasterizer {
                             widths[iz] = width;
                             Blend *inst = new (blends.alloc(1)) Blend(iz | colorFlags | Instance::kOutlines | bool(draw.flags & Draw::kRoundCap) * Instance::kRoundCap | bool(draw.flags & Draw::kSquareCap) * Instance::kSquareCap | bool(draw.flags & Draw::kRoundJoin) * Instance::kRoundJoin);
                             
-                            Bounds outlineClip = unclipped ? Bounds::huge() : clip.inset(-width, -width);
-                            uint32_t i0 = uint32_t(outlines.idx), i1;
-                            Outliner outliner;
-                            outliner.iz = inst->iz, outliner.outlines = & outlines;
-                            if (width > 4.f && softUnclipped())
-                                outliner.opaques = & opaques;
-                            outliner.applyPath(g, m, outlineClip, unclipped, false);
-                            i1 = uint32_t(outlines.idx);
-                            inst->data.idx = i0, inst->data.count = i1 - i0;
+                            uint32_t slot = scn->cacheRefs.base[is];
+                            const GeometryCache::Entry *entry = slot == GeometryCache::kNone ? nullptr : & cache.entries[slot];
+                            if (kCacheOutlines && unclipped && entry && entry->hasOutlines) {
+                                // Cached outlines stay in the GeometryCache's storage, in path space. writeContextToBuffer() writes an index per
+                                // segment, and the shader reads the segment & its neighbours from that storage, transformed by ctms[iz].
+                                ctms[iz] = m;
+                                size_t count = entry->outlineCount;
+                                const Outline *src = cache.outlines.base + entry->outlineBase;
+                                uint32_t opaqueIz = inst->iz;      // kCachedOutline shares its bit with an opaque's kPCap
+                                inst->iz |= Instance::kCachedOutline, inst->g = nullptr;
+                                inst->data.idx = int(entry->outlineBase), inst->data.count = int(count);
+                                cachedOutlines += count;
+                                
+                                if (width > 4.f && softUnclipped()) {
+                                    Opaque *opaque = opaques.alloc(count);
+                                    for (const Outline *out = src, *end = out + count; out < end; out++, opaque++) {
+                                        const Quadratic& q = out->quad;
+                                        opaque->iz = opaqueIz | (out->prev == 0) * Instance::kPCap | (out->next == 0) * Instance::kNCap;
+                                        opaque->quad.x0 = q.x0 * m.a + q.y0 * m.c + m.tx, opaque->quad.y0 = q.x0 * m.b + q.y0 * m.d + m.ty;
+                                        opaque->quad.x1 = q.x1 == FLT_MAX ? FLT_MAX : q.x1 * m.a + q.y1 * m.c + m.tx, opaque->quad.y1 = q.x1 == FLT_MAX ? q.y1 : q.x1 * m.b + q.y1 * m.d + m.ty;
+                                        opaque->quad.x2 = q.x2 * m.a + q.y2 * m.c + m.tx, opaque->quad.y2 = q.x2 * m.b + q.y2 * m.d + m.ty;
+                                    }
+                                }
+                            } else {
+                                ctms[iz] = Transform();
+                                Bounds outlineClip = unclipped ? Bounds::huge() : clip.inset(-width, -width);
+                                uint32_t i0 = uint32_t(outlines.idx), i1;
+                                Outliner outliner;
+                                outliner.iz = inst->iz, outliner.outlines = & outlines;
+                                if (width > 4.f && softUnclipped())
+                                    outliner.opaques = & opaques;
+                                outliner.applyPath(g, m, outlineClip, unclipped, false);
+                                i1 = uint32_t(outlines.idx);
+                                inst->g = nullptr, inst->data.idx = i0, inst->data.count = i1 - i0;
+                            }
                         } else if (kMoleculesHeight && clip.width() * clip.height() / g->types.end < kMoleculesPixelsPerEdge) {
                             ctms[iz] = m, bounds[iz] = draw.bnds;
                             bool fast = !buffer->params.useCurves || g->maxCurve * det < 16.f;
                             Blend *inst = new (blends.alloc(1)) Blend(iz | colorFlags | Instance::kMolecule | bool(draw.flags & Draw::kFillEvenOdd) * Instance::kEvenOdd | fast * Instance::kFastEdges);
                             inst->g = g, inst->quad.cover = 0;
-                            inst->quad.base = int(p16total + scn->p16bases.base[is]);
-                            inst->quad.molsbase = int(g->p16s.idx / 2);
-                            cnt = fast ? g->p16s.idx / kFastSegments : g->atoms.end;
+                            inst->quad.base = int(cache.entries[scn->cacheRefs.base[is]].p16Base);
+                            inst->quad.molsbase = int(g->p16Idx / 2);
+                            cnt = fast ? g->p16Idx / kFastSegments : g->atoms.end;
                             int type = fast ? Allocator::kFastMolecules : Allocator::kQuadMolecules;
                             allocator.alloc(clip.lx, clip.ly, clip.ux, clip.uy, blends.end - 1, & inst->quad.cell, type, cnt);
                         } else {
@@ -945,17 +1478,17 @@ struct Rasterizer {
             }
         }
         void empty() {
-            texTotal = 0, blends.empty(), opaques.empty(), stencils.empty(), outlines.empty(), segments.empty(), segmentsIndices.empty(), indices.empty(), texs.resize(0), images.resize(0);
+            texTotal = 0, cachedOutlines = 0, blends.empty(), opaques.empty(), stencils.empty(), outlines.empty(), segments.empty(), segmentsIndices.empty(), indices.empty(), texs.resize(0), images.resize(0);
             for (int i = 0; i < samples.end(); i++)
                 samples[i].empty();
             entries = Vector<Buffer::Entry>();
         }
         void reset() {
-            blends.reset(), opaques.reset(), stencils.reset(), outlines.reset(), segments.reset(), segmentsIndices.reset(), indices.reset(), entries = Vector<Buffer::Entry>(), texs.resize(0), images.resize(0);
+            cachedOutlines = 0, blends.reset(), opaques.reset(), stencils.reset(), outlines.reset(), segments.reset(), segmentsIndices.reset(), indices.reset(), entries = Vector<Buffer::Entry>(), texs.resize(0), images.resize(0);
             samples.resize(0);
         }
         
-        size_t texTotal;
+        size_t texTotal, cachedOutlines = 0;
         Allocator allocator;  Vector<Buffer::Entry> entries;
         Vector<TexRef> texs;
         Vector<Paint *> images;
@@ -1517,15 +2050,17 @@ struct Rasterizer {
     struct P16Writer: GeometryWriter {
         static const uint8_t isMoveTo = 0x80;
         
-        void writeGeometry(Geometry *g) {
+        // Writes g's P16s to dst, which must be empty, and its CPU side molecule data (atoms, p16cnts & p16Idx) to g
+        void writeGeometry(Geometry *g, Row<Point16> *dst) {
             float s = kMoleculesRange / fmaxf(g->bounds.ux - g->bounds.lx, g->bounds.uy - g->bounds.ly);
             m = Transform(s, 0.f, 0.f, s, s * -g->bounds.lx, s * -g->bounds.ly);
             cubicScale = -kCubicPrecision * (kMoleculesRange / kMoleculesHeight);
             
-            p16s = & g->p16s, p16cnts = & g->p16cnts, atoms = & g->atoms;
+            p16s = dst, p16cnts = & g->p16cnts.empty(), atoms = & g->atoms.empty();
             size_t count = g->points.end / 2;
             p16s->prealloc(count), p16cnts->prealloc(count / kFastSegments), atoms->prealloc(count);
             applyPath(g, m, Bounds(), true, true);
+            g->p16Idx = p16s->idx;
             
             Bounds *b = g->molecules.base;
             Point16 *bnd16 = p16s->alloc(g->molecules.end * 2);
@@ -1722,8 +2257,6 @@ struct Rasterizer {
         buffer.texCount = sz;
         size += sz * kColorTextureWidth * sizeof(Color);
         
-        for (auto& scene: list.scenes)
-            size += scene->p16total * sizeof(Point16);
         
         Context *ctx = contexts;   Allocator::Pass *pass;
         for (ctx = contexts, i = 0; i < count; i++, ctx++) {
@@ -1731,7 +2264,7 @@ struct Rasterizer {
                 buffer.images.add(*ctx->images[j]);
             for (instances = 0, pass = ctx->allocator.passes.base, j = 0; j < ctx->allocator.passes.end; j++, pass++)
                 instances += pass->count();
-            begins[i] = size, size += instances * sizeof(Edge) + (ctx->outlines.end + ctx->blends.end) * sizeof(Instance) + ctx->segments.end * sizeof(Segment) + ctx->stencils.end * sizeof(Opaque);
+            begins[i] = size, size += instances * sizeof(Edge) + (ctx->outlines.end + ctx->cachedOutlines + ctx->blends.end) * sizeof(Instance) + ctx->segments.end * sizeof(Segment) + ctx->stencils.end * sizeof(Opaque);
         }
         return size;
     }
@@ -1753,29 +2286,10 @@ struct Rasterizer {
                 texIdxs[ref.iz] = texIdx++;
                 memcpy(buffer.base + end, ref.strip, sz), end += sz;
             }
-        buffer.p16s = end;
     }
     
     static void writeContextToBuffer(const SceneList& list, Context *ctx, size_t begin, size_t index, size_t contextCount, Buffer& buffer) {
         size_t i, j, count, size, ip, iz, ic, end, instbegin, passsize, stencilBegin = 0;
-        {
-            auto p16s = (Point16 *)(buffer.base + buffer.p16s);
-            size_t p16paths = 0, p16total = 0, m0 = 0, m1 = 0, i0, i1, c0, c1;
-            for (auto& scene: list.scenes)
-                p16paths += scene->p16entries.end();
-            i0 = index * p16paths / contextCount;
-            i1 = (index + 1) * p16paths / contextCount;
-            for (auto& scene: list.scenes) {
-                m1 = m0 + scene->p16entries.end();
-                c0 = m0 < i0 ? i0 : m0 > i1 ? i1 : m0;
-                c1 = m1 < i0 ? i0 : m1 > i1 ? i1 : m1;
-                for (; c0 < c1; c0++) {
-                    auto& entry = scene->p16entries[c0 - m0];
-                    memcpy(p16s + p16total + entry.idx, entry.p->p16s.base, entry.p->p16s.end * sizeof(Point16));
-                }
-                m0 = m1, p16total += scene->p16total;
-            }
-        }
         if (ctx->segments.end || ctx->stencils.end) {
             size = ctx->segments.end * sizeof(Segment), end = begin + size;
             ctx->entries.add(Buffer::Entry(Buffer::kSegmentsBase, begin, end));
@@ -1818,8 +2332,13 @@ struct Rasterizer {
                 Geometry *g = inst->g;
                 
                 if (inst->iz & Instance::kOutlines) {
-                    memcpy(dst, ctx->outlines.base + inst->data.idx, inst->data.count * sizeof(Instance));
-                    dst += inst->data.count;
+                    if (inst->iz & Instance::kCachedOutline) {
+                        for (uint32_t src = inst->data.idx, end = src + inst->data.count; src < end; src++, dst++)
+                            dst->iz = inst->iz, dst->store.src = src;
+                    } else {
+                        memcpy(dst, ctx->outlines.base + inst->data.idx, inst->data.count * sizeof(Instance));
+                        dst += inst->data.count;
+                    }
                 } else {
                     dst->iz = inst->iz, dst->quad = inst->quad;
                     ic = dst - dst0, dst++;
@@ -1838,7 +2357,7 @@ struct Rasterizer {
                         size_t molidx = 0;
                         if (fast) {
                             uint8_t *p16cnt = g->p16cnts.base;
-                            for (j = 0, size = g->p16s.idx / kFastSegments; j < size; j++, p16cnt++, molecule++) {
+                            for (j = 0, size = g->p16Idx / kFastSegments; j < size; j++, p16cnt++, molecule++) {
                                 molidx += (*p16cnt & P16Writer::isMoveTo) && j != 0;
                                 molecule->ic = uint32_t(ic), molecule->i0 = *p16cnt & 0xF, molecule->ux = molidx;
                             }

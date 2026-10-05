@@ -265,7 +265,152 @@
 
 #pragma mark - RAScene
 
+@implementation RADraw: NSObject
+
+- (id)init {
+    self = [super init];
+    if (!self)
+        return nil;
+    _draw.clip = Ra::Bounds::huge();
+    return self;
+}
+
+- (id)initWithPath:(RAPath *)path ctm:(CGAffineTransform)ctm color:(RAPaint *)color {
+    self = [self init];
+    if (!self)
+        return nil;
+    _draw = Ra::Draw(path.path, RaCG::transformFromCG(ctm), color.paint, 0.f, 0);
+    return self;
+}
+
+- (RAPath *)path {
+    RAPath *path = [RAPath new];
+    path.path = _draw.path;
+    return path;
+}
+- (void)setPath:(RAPath *)path {
+    _draw.path = path.path, _draw.validate();
+}
+- (CGAffineTransform)ctm {
+    return RaCG::CGFromTransform(_draw.ctm);
+}
+- (void)setCtm:(CGAffineTransform)ctm {
+    _draw.ctm = RaCG::transformFromCG(ctm);
+}
+- (RAPaint *)color {
+    RAPaint *color = [RAPaint new];
+    color.paint = _draw.paint;
+    return color;
+}
+- (void)setColor:(RAPaint *)color {
+    _draw.paint = color.paint, _draw.validate();
+}
+- (double)width {
+    return _draw.width;
+}
+- (void)setWidth:(double)width {
+    _draw.width = width;
+}
+- (BOOL)hidden {
+    return (_draw.flags & Ra::Draw::kHidden) != 0;
+}
+- (void)setHidden:(BOOL)hidden {
+    _draw.flags = (_draw.flags & ~Ra::Draw::kHidden) | (hidden ? Ra::Draw::kHidden : 0), _draw.validate();
+}
+- (BOOL)evenOdd {
+    return (_draw.flags & Ra::Draw::kFillEvenOdd) != 0;
+}
+- (void)setEvenOdd:(BOOL)evenOdd {
+    _draw.flags = (_draw.flags & ~Ra::Draw::kFillEvenOdd) | (evenOdd ? Ra::Draw::kFillEvenOdd : 0);
+}
+- (RACapStyle)capStyle {
+    return _draw.flags & Ra::Draw::kSquareCap ? kCapSquare : _draw.flags & Ra::Draw::kRoundCap ? kCapRound : kCapButt;
+}
+- (void)setCapStyle:(RACapStyle)capStyle {
+    uint8_t cap = capStyle == kCapSquare ? Ra::Draw::kSquareCap : capStyle == kCapRound ? Ra::Draw::kRoundCap : 0;
+    _draw.flags = (_draw.flags & ~(Ra::Draw::kSquareCap | Ra::Draw::kRoundCap)) | cap;
+}
+- (RAJoinStyle)joinStyle {
+    return _draw.flags & Ra::Draw::kRoundJoin ? kJoinRound : kJoinMiter;
+}
+- (void)setJoinStyle:(RAJoinStyle)joinStyle {
+    _draw.flags = (_draw.flags & ~Ra::Draw::kRoundJoin) | (joinStyle == kJoinRound ? Ra::Draw::kRoundJoin : 0);
+}
+- (CGRect)clip {
+    return _draw.clip.isHuge() ? CGRectInfinite : RaCG::CGRectFromBounds(_draw.clip);
+}
+- (void)setClip:(CGRect)clip {
+    _draw.clip = CGRectIsNull(clip) || CGRectIsEmpty(clip) || CGRectIsInfinite(clip) ? Ra::Bounds::huge() : RaCG::BoundsFromCGRect(clip);
+}
+- (RAPath *)clipPath {
+    if (_draw.clipPath.ptr == nullptr)
+        return nil;
+    RAPath *path = [RAPath new];
+    path.path = _draw.clipPath;
+    return path;
+}
+- (void)setClipPath:(RAPath *)clipPath {
+    _draw.clipPath = clipPath ? clipPath.path : Ra::Path(nullptr), _draw.validate();
+}
+
+@end
+
+
+#pragma mark - RAScene
+
 @implementation RAScene: NSObject
+
+- (NSUInteger)count {
+    return _scene->count();
+}
+
+- (RADraw *)drawAtIndex:(NSUInteger)index {
+    RADraw *draw = [RADraw new];
+    if (index < _scene->count())
+        draw.draw = _scene->draw(index);
+    return draw;
+}
+
+- (void)setDraw:(RADraw *)draw atIndex:(NSUInteger)index {
+    if (index < _scene->count())
+        _scene->setDraw(index, draw.draw);
+}
+
+- (void)addDraw:(RADraw *)draw {
+    Ra::Draw d = draw.draw;
+    d.validate(), _scene->addDraws(& d, 1);
+}
+
+- (void)addDrawsFromScene:(RAScene *)scene {
+    _scene->addDraws(*scene.scene.ptr, 0, scene.scene->count());
+}
+
+- (void)addDrawsFromScene:(RAScene *)scene range:(NSRange)range {
+    _scene->addDraws(*scene.scene.ptr, range.location, range.location + range.length);
+}
+
+- (NSString *)validate {
+    const char *error = _scene->validate();
+    return error ? [NSString stringWithUTF8String:error] : nil;
+}
+
++ (NSString *)validateCache {
+    const char *error = Ra::GeometryCache::shared().validate();
+    return error ? [NSString stringWithUTF8String:error] : nil;
+}
+
++ (NSDictionary<NSString *, NSNumber *> *)cacheStatistics {
+    Ra::GeometryCache& cache = Ra::GeometryCache::shared();
+    std::lock_guard<std::mutex> lock(cache.mutex);
+    size_t p16 = sizeof(Ra::Point16), outline = sizeof(Ra::Outline);
+    return @{
+        @"entries": @(cache.entries.end() - cache.freeSlots.end), @"retiringBytes": @(cache.retiringBytes),
+        @"p16Capacity": @(cache.p16s.capacity * p16), @"p16End": @(cache.p16s.end * p16), @"p16Used": @(cache.p16s.used * p16),
+        @"p16Waste": @((cache.p16s.allocated - cache.p16s.used) * p16), @"p16Free": @(cache.p16s.freeTotal * p16), @"p16Grows": @(cache.p16s.grows),
+        @"outlineCapacity": @(cache.outlines.capacity * outline), @"outlineEnd": @(cache.outlines.end * outline), @"outlineUsed": @(cache.outlines.used * outline),
+        @"outlineWaste": @((cache.outlines.allocated - cache.outlines.used) * outline), @"outlineFree": @(cache.outlines.freeTotal * outline), @"outlineGrows": @(cache.outlines.grows),
+    };
+}
 
 - (CGRect)bounds {
     return RaCG::CGRectFromBounds(_scene->bounds());

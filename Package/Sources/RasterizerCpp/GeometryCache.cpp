@@ -18,25 +18,15 @@
 //  3. This notice may not be removed or altered from any source distribution.
 //
 
-#define kTau 6.283185307179586f
-#define kCubicPrecision 0.25f
-#define kCubicMultiplier 10.3923048454f      // 18/sqrt(3);
-#define kQuadraticFlatness 1e-2f
-#define kFatMask 0xFFFFFFF0
-#define kfh 16.f
-#define krfh 0.0625f
-#define kStripHeight 8.f
-#define kStripCount 12
-#define kMoleculesHeight 256
-#define kMoleculesRange 32767.f
-#define kMoleculesPixelsPerEdge 256
-#define kFastSegments 4
-#define kNullIndex 0xFFFF
-#define kPathIndexMask 0xFFFFF
-#define kMiterLimit -0.866025403784439
-#define kCubicSolverLimit 5e-2f
-#define kDepthRange 0.1f
-#define kColorTextureWidth 64
-#define kCacheOutlines 1
-#define kOutlinesHeight 1024.f          // Cached outlines flatten cubics as if the path's larger dimension were this many pixels
-#define kOutlinesMinTypes 32            // Cost gate: strokes of geometry with cubics, or at least this many path types, cache their outlines
+#include <cassert>
+#include <cfloat>
+#include <cmath>
+#include <cstring>
+#include <algorithm>
+#include "Rasterizer.hpp"
+
+// The one GeometryCache for the process. Never destroyed, so scenes may outlive static destruction.
+Rasterizer::GeometryCache& Rasterizer::GeometryCache::shared() {
+    static GeometryCache *cache = new GeometryCache();
+    return *cache;
+}

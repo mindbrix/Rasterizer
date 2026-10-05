@@ -69,7 +69,7 @@ struct Instance {
         kIsRadial = 1 << 22,    kDisableImage = 1 << 22,
         kIsGradient = 1 << 23,  kNextImage = 1 << 23,
         kIsImage = 1 << 24,     kIsCurve = 1 << 24,
-        kMolecule = 1 << 25,    kPCap = 1 << 25,
+        kMolecule = 1 << 25,    kPCap = 1 << 25,    kCachedOutline = 1 << 25,
         kFastEdges = 1 << 26,   kNCap = 1 << 26,
         kEdge = 1 << 27,        kF0 = 1 << 27,
         kRoundCap = 1 << 28,    kF1 = 1 << 28,
@@ -78,7 +78,7 @@ struct Instance {
         kEvenOdd = 1 << 31,
         kFragmentMask = (kOutlines | kSquareCap | kEvenOdd)
     };
-    uint32_t iz;  union { Quad quad;  Outline outline; };
+    uint32_t iz;  union { Quad quad;  Outline outline;  struct { uint32_t src; } store; };
 };
 
 struct Opaque {
@@ -549,6 +549,7 @@ struct InstancesVertex
 
 vertex InstancesVertex instances_vertex_main(
             const device Instance *instances [[buffer(1)]],
+            const device Outline *store [[buffer(3)]],
             const device Transform *ctms [[buffer(4)]],
             const device Transform *clips [[buffer(5)]],
             const device float *widths [[buffer(6)]],
@@ -571,6 +572,10 @@ vertex InstancesVertex instances_vertex_main(
     const bool isRadial = inst.iz & Instance::kIsRadial;
     const bool isImage = inst.iz & Instance::kIsImage;
     
+#if kCacheOutlines
+    const device Transform& m = ctms[iz];
+#endif
+    
     const device Transform& clip = clips[iz];
     const device Transform& texCtm = texCtms[iz];
     
@@ -590,15 +595,30 @@ vertex InstancesVertex instances_vertex_main(
         float ow = 0;
         
         
-        const short prevIndex = inst.outline.prev, nextIndex = inst.outline.next;
-        const device Instance & pinst = instances[iid + prevIndex], & ninst = instances[iid + nextIndex];
-        const device Quadratic& p = pinst.outline.quad, & o = inst.outline.quad, & n = ninst.outline.quad;
+        // Cached outlines are read from the GeometryCache's storage, with prev & next relative to the store index
+        const bool isCached = inst.iz & Instance::kCachedOutline;
+        const uint src = inst.store.src;
+        const device Outline& oo = isCached ? store[src] : inst.outline;
+        const short prevIndex = oo.prev, nextIndex = oo.next;
+        const device Outline& po = isCached ? store[src + prevIndex] : instances[iid + prevIndex].outline;
+        const device Outline& nxo = isCached ? store[src + nextIndex] : instances[iid + nextIndex].outline;
+        const device Quadratic& p = po.quad, & o = oo.quad, & n = nxo.quad;
         const bool pcurve = params->useCurves && p.x1 != FLT_MAX;
         const bool ncurve = params->useCurves && n.x1 != FLT_MAX;
         
         pcap = prevIndex == 0 || p.x2 != o.x0 || p.y2 != o.y0;
         ncap = nextIndex == 0 || n.x0 != o.x2 || n.y0 != o.y2;
+        
+#if kCacheOutlines
+        x0 = o.x0 * m.a + o.y0 * m.c + m.tx;
+        y0 = o.x0 * m.b + o.y0 * m.d + m.ty;
+        x1 = o.x1 == FLT_MAX ? FLT_MAX : o.x1 * m.a + o.y1 * m.c + m.tx;
+        y1 = o.x1 == FLT_MAX ? FLT_MAX : o.x1 * m.b + o.y1 * m.d + m.ty;
+        x2 = o.x2 * m.a + o.y2 * m.c + m.tx;
+        y2 = o.x2 * m.b + o.y2 * m.d + m.ty;
+#else
         x0 = o.x0, y0 = o.y0, x1 = o.x1, y1 = o.y1, x2 = o.x2, y2 = o.y2;
+#endif
         
         float ax, bx, cx, ay, by, cy;
         ax = x1 - x2, bx = x1 - x0, cx = x2 - x0;
@@ -612,10 +632,23 @@ vertex InstancesVertex instances_vertex_main(
         float caplimit = dw == 1.0 ? 0.0 : kMiterLimit;
         
         float px0, py0, pdot, nx1, ny1, ndot;
+
+#if kCacheOutlines
+        float x, y;
+        x = pcurve ? p.x1 : p.x0, y = pcurve ? p.y1 : p.y0;
+        px0 = x0 - (x * m.a + y * m.c + m.tx);
+        py0 = y0 - (x * m.b + y * m.d + m.ty);
+        
+        x = ncurve ? n.x1 : n.x2, y = ncurve ? n.y1 : n.y2;
+        nx1 = (x * m.a + y * m.c + m.tx) - x2;
+        ny1 = (x * m.b + y * m.d + m.ty) - y2;
+#else
         px0 = x0 - (pcurve ? p.x1 : p.x0);
         py0 = y0 - (pcurve ? p.y1 : p.y0);
         nx1 = (ncurve ? n.x1 : n.x2) - x2;
         ny1 = (ncurve ? n.y1 : n.y2) - y2;
+#endif
+        
         pdot = px0 * px0 + py0 * py0;
         ndot = nx1 * nx1 + ny1 * ny1;
         
