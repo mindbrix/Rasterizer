@@ -22,6 +22,10 @@
 #import "xxhash.h"
 #import <map>
 #import <vector>
+#ifdef __APPLE__
+#import <dispatch/dispatch.h>
+#import <unistd.h>
+#endif
 #pragma clang diagnostic ignored "-Wcomma"
 
 struct Rasterizer {
@@ -596,48 +600,162 @@ struct Rasterizer {
         size_t count() const {
             return draws.end();
         }
-        void prepare() {
+        // prepare() scratch, shared by the scenes of a SceneList::prepare(), so scenes don't each keep peak-sized buffers
+        struct Scratch {
+            Scratch() {
+#ifdef __APPLE__
+                static const long online = sysconf(_SC_NPROCESSORS_ONLN);     // Queried once per process
+                cpus = online < 1 ? 1 : size_t(online) < kMaxChunks ? size_t(online) : kMaxChunks;
+#endif
+            }
+            void run(void (*function)(void *, size_t)) {
+#ifdef __APPLE__
+                if (chunks > 1)
+                    return dispatch_apply_f(chunks, DISPATCH_APPLY_AUTO, this, function);
+#endif
+                for (size_t t = 0; t < chunks; t++)
+                    function(this, t);
+            }
+            size_t bucket(size_t hash) const {
+                return bucketBits ? hash >> (sizeof(size_t) * 8 - bucketBits) : 0;
+            }
+            // Chunk t's share [i0, i1) of n draws or buckets
+            void range(size_t n, size_t t, size_t& i0, size_t& i1) const {
+                i0 = n * t / chunks, i1 = n * (t + 1) / chunks;
+            }
+            // The first of bucket b's indices, & so the end of bucket b - 1's
+            Index *bucketIndices(size_t b) const {
+                return indices.base + bucketBegin.base[b];
+            }
+            // Whether index begins a run of equal hashes in its sorted bucket, i.e. a unique geometry
+            static bool isFirst(const Index *index, const Index *index0) {
+                return index == index0 || index[-1].hash != index->hash;
+            }
+            // Validates the draws, & writes their cumulative weights and the P16 bases that dedupe identical fills. Each chunk of draws
+            // counts its fills' hashes into buckets by their top bits, then scatters them; each bucket then sorts, dedupes & writes its
+            // P16s alone. Equal hashes share a bucket, so all the draws of a Geometry are handled by one thread, the only one to write
+            // it or repoint to it. Large scenes run the chunks & buckets in parallel. The result is the same as a single sorted pass.
+            void prepare(Scene *s) {
+                size_t n = s->count(), b, t, sum, offset, p16, entries, buckets;
+                scene = s;
+                for (bucketBits = 0; bucketBits < kMaxBucketBits && (size_t(64) << bucketBits) < n; bucketBits++)
+                    ;     // About 64 fills a bucket, so small scenes don't pay for many buckets
+                buckets = size_t(1) << bucketBits, chunks = n >= kParallelDraws ? cpus : 1;
+                bzero(hist.empty().alloc(chunks * buckets), chunks * buckets * sizeof(size_t));
+                chunkWeights.empty().alloc(chunks), s->weights.empty().alloc(n);
+                run(scanChunk);
+                for (sum = t = 0; t < chunks; t++)
+                    sum += chunkWeights.base[t], chunkWeights.base[t] = sum - chunkWeights.base[t];
+                s->weight = sum;
+                // Scatter offsets, bucket by bucket, so each bucket's indices are contiguous & in draw order
+                size_t *begin = bucketBegin.empty().alloc(buckets + 1);
+                for (offset = b = 0; b < buckets; b++) {
+                    begin[b] = offset;
+                    for (t = 0; t < chunks; t++) {
+                        size_t& h = hist.base[t * buckets + b];
+                        offset += h, h = offset - h;
+                    }
+                }
+                begin[buckets] = offset;
+                indices.empty().alloc(offset);
+                run(scatterChunk);
+                s->p16bases.empty().alloc(n), bucketP16.empty().alloc(buckets), bucketEntries.empty().alloc(buckets);
+                run(dedupeBuckets);
+                for (p16 = entries = b = 0; b < buckets; b++) {
+                    p16 += bucketP16.base[b], bucketP16.base[b] = p16 - bucketP16.base[b];
+                    entries += bucketEntries.base[b], bucketEntries.base[b] = entries - bucketEntries.base[b];
+                }
+                s->p16total = uint32_t(p16);
+                run(releaseEntries);
+                s->p16entries.memory->end = 0, s->p16entries.memory->alloc(entries);      // Released slots, refilled by offsetBuckets
+                run(offsetBuckets);
+            }
+            // Validates chunk t's draws, writes their chunk-relative cumulative weights, & counts their fills by bucket
+            static void scanChunk(void *context, size_t t) {
+                Scratch& x = *(Scratch *)context;  Scene& s = *x.scene;
+                size_t i0, i1, w = 0, *hist = x.hist.base + (t << x.bucketBits);
+                x.range(s.count(), t, i0, i1);
+                for (size_t i = i0; i < i1; i++) {
+                    Draw& draw = s.draws[i];
+                    bool isValid = draw.validate();
+                    if (isValid && draw.width == 0)
+                        hist[x.bucket(draw.path->hash())]++;
+                    w += isValid ? draw.path->types.end + 16 : 0;    // Estimated drawList cost: per-draw overhead + per-type work
+                    s.weights.base[i] = w;
+                }
+                x.chunkWeights.base[t] = w;
+            }
+            // Offsets chunk t's weights, & scatters its fills into their buckets
+            static void scatterChunk(void *context, size_t t) {
+                Scratch& x = *(Scratch *)context;  Scene& s = *x.scene;
+                size_t i0, i1, w = x.chunkWeights.base[t], *hist = x.hist.base + (t << x.bucketBits);
+                x.range(s.count(), t, i0, i1);
+                for (size_t i = i0; i < i1; i++) {
+                    s.weights.base[i] += w;
+                    Draw& draw = s.draws[i];
+                    if ((draw.flags & Draw::kInvisible) == 0 && draw.width == 0) {
+                        size_t hash = draw.path->hash();
+                        new (x.indices.base + hist[x.bucket(hash)]++) Index(hash, i);
+                    }
+                }
+            }
+            // Sorts & dedupes chunk t's buckets, writing P16s for unseen geometry, bucket-relative bases, & each bucket's totals
+            static void dedupeBuckets(void *context, size_t t) {
+                Scratch& x = *(Scratch *)context;  Scene& s = *x.scene;
+                size_t b0, b1;
+                x.range(size_t(1) << x.bucketBits, t, b0, b1);
+                for (size_t b = b0; b < b1; b++) {
+                    Index *index0 = x.bucketIndices(b), *index1 = x.bucketIndices(b + 1);
+                    std::sort(index0, index1);
+                    size_t count = 0, total = 0, srcIndex = 0, entries = 0;
+                    for (Index *index = index0; index < index1; index++) {
+                        if (isFirst(index, index0)) {
+                            srcIndex = index->i, total += count, entries++;
+                            Geometry *g = s.draws[index->i].path.ptr;
+                            if (kMoleculesHeight && g->p16s.end == 0)
+                                P16Writer().writeGeometry(g);
+                            count = g->p16s.end;
+                        }
+                        s.p16bases.base[index->i] = uint32_t(total);
+                        if (srcIndex != index->i)
+                            s.draws[index->i].path = s.draws[srcIndex].path;
+                    }
+                    x.bucketP16.base[b] = total + count, x.bucketEntries.base[b] = entries;
+                }
+            }
+            // Releases chunk t's share of the last prepare's entries. Each holds a unique geometry, so no other thread touches its refCount
+            static void releaseEntries(void *context, size_t t) {
+                Scratch& x = *(Scratch *)context;  Scene& s = *x.scene;
+                size_t e0, e1;
+                x.range(s.p16entries.end(), t, e0, e1);
+                for (size_t e = e0; e < e1; e++)
+                    s.p16entries[e].~Entry();
+            }
+            // Offsets chunk t's buckets' bases, & writes their entries
+            static void offsetBuckets(void *context, size_t t) {
+                Scratch& x = *(Scratch *)context;  Scene& s = *x.scene;
+                size_t b0, b1;
+                x.range(size_t(1) << x.bucketBits, t, b0, b1);
+                for (size_t b = b0; b < b1; b++) {
+                    Index *index0 = x.bucketIndices(b), *index1 = x.bucketIndices(b + 1);
+                    size_t base = x.bucketP16.base[b], e = x.bucketEntries.base[b];
+                    for (Index *index = index0; index < index1; index++) {
+                        uint32_t& p16base = s.p16bases.base[index->i];
+                        if (isFirst(index, index0))
+                            new (& s.p16entries[e++]) Entry(s.draws[index->i].path, p16base + base);
+                        p16base += base;
+                    }
+                }
+            }
+            Scene *scene = nullptr;  size_t cpus = 1, chunks = 1, bucketBits = 0;
+            Row<size_t> hist, chunkWeights, bucketBegin, bucketP16, bucketEntries;  Row<Index> indices;
+            static const size_t kMaxBucketBits = 10, kParallelDraws = 2048, kMaxChunks = 32;
+        };
+        void prepare(Scratch& scratch) {
             if (!needPrepare)
                 return;
             needPrepare = false;
-            
-            Row<Index> indices;  indices.prealloc(count());
-            Index *index0 = indices.base, *index1 = indices.base;
-            size_t *cumulative = weights.empty().alloc(count());
-            weight = 0;
-            
-            for (size_t i = 0; i < count(); i++) {
-                Draw& draw = draws[i];
-                bool isValid = draw.validate();
-                if (isValid && draw.width == 0)
-                    new (index1++) Index(draw.path->hash(), i);
-                weight += isValid ? draw.path->types.end + 16 : 0;    // Estimated drawList cost: per-draw overhead + per-type work
-                cumulative[i] = weight;
-            }
-            std::sort(index0, index1);
-            p16bases.empty(), p16entries.resize(0);
-            uint32_t *bases = p16bases.alloc(count());
-            
-            size_t lastHash = 0, count = 0, total = 0, srcIndex = 0;
-            for (Index *index = index0; index < index1; index++) {
-                if (index == index0 || lastHash != index->hash) {
-                    lastHash = index->hash;
-                    srcIndex = index->i;
-                    total += count;
-
-                    const Path p = draws[index->i].path;
-                    new (p16entries.memory->alloc(1)) Entry(p, total);
-                    
-                    if (kMoleculesHeight && p->p16s.end == 0)
-                        P16Writer().writeGeometry(p.ptr);
-                    count = p->p16s.end;
-                }
-                bases[index->i] = uint32_t(total);
-                if (srcIndex != index->i)
-                    draws[index->i].path = draws[srcIndex].path;
-            }
-            total += count;
-            p16total = uint32_t(total);
+            scratch.prepare(this);
         }
         size_t refCount;
         RefVector<Draw> draws;
@@ -678,8 +796,13 @@ struct Rasterizer {
             return count;
         }
         void prepare() const {
-            for (auto scene: scenes)
-                scene->prepare();
+            for (auto& scene: scenes)
+                if (scene->needPrepare) {
+                    Scene::Scratch scratch;
+                    for (auto& s: scenes)
+                        s->prepare(scratch);
+                    return;
+                }
         }
         Transform ctm;  Params params;
         std::vector<SceneRef> scenes;  std::vector<Transform> ctms;  std::vector<Bounds> clips;
