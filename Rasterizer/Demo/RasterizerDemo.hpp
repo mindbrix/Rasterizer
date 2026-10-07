@@ -166,8 +166,13 @@ struct RasterizerDemo {
         resetMouse();
         list = Ra::SceneList();
     }
-    Ra::Draw& lockedDraw() const {
+    const Ra::Draw& lockedDraw() const {
         return list.scenes[mouse.i0]->draws[mouse.i1];
+    }
+    // Edits the draw at pair with Scene::update(), which only re-prepares the scene for a new path, width or visibility
+    template<typename F>
+    void updateDraw(RaWnd::Pair pair, F f) {
+        list.scenes[pair.i0]->update(pair.i1, pair.i1 + 1, [&](size_t i, Ra::Draw& draw) { f(draw); return true; });
     }
     Ra::Transform lockedCTM() const {
         return lockedDraw().ctm.concat(list.ctms[mouse.i0]).concat(ctm);
@@ -179,20 +184,20 @@ struct RasterizerDemo {
     }
     void concat(Ra::Transform transform) {
         if (locked) {
-            Ra::Draw& draw = lockedDraw();
+            const Ra::Draw& draw = lockedDraw();
             Ra::Transform m = shift ? list.ctms[mouse.i0].concat(ctm).invert() : draw.ctm;
             float bx = shift ? mx : draw.path->bounds.cx(), by = shift ? my : draw.path->bounds.cy();
-            draw.ctm = draw.ctm.concatAroundCenter(transform, bx * m.a + by * m.c + m.tx, bx * m.b + by * m.d + m.ty);
+            Ra::Transform moved = draw.ctm.concatAroundCenter(transform, bx * m.a + by * m.c + m.tx, bx * m.b + by * m.d + m.ty);
+            updateDraw(mouse, [&](Ra::Draw& d) { d.ctm = moved; });
         } else
             ctm = ctm.concatAroundCenter(transform, shift ? mx : bounds.cx(), shift ? my : bounds.cy());
         redraw = true;
     }
     void translate(float dx, float dy) {
         if (locked) {
-            Ra::Draw& draw = lockedDraw();
             Ra::Transform m = lockedCTM().invert();
             Ra::Transform translate = Ra::Transform(1, 0, 0, 1, m.a * dx + m.c * dy, m.b * dx + m.d * dy);
-            draw.ctm = translate.concat(draw.ctm);
+            updateDraw(mouse, [&](Ra::Draw& d) { d.ctm = translate.concat(d.ctm); });
         } else
             ctm.tx += dx, ctm.ty += dy;
         redraw = true;
@@ -212,7 +217,7 @@ struct RasterizerDemo {
     }
     void restore(RaWnd::Pair pair) {
         if (pair.i0 != INT_MAX)
-            list.scenes[pair.i0]->draws[pair.i1] = mouseDraw, list.scenes[pair.i0]->needPrepare = true;
+            updateDraw(pair, [&](Ra::Draw& d) { d = mouseDraw; });
     }
     
     void setFont(const char *url, const char *name, float size) {
@@ -338,9 +343,9 @@ struct RasterizerDemo {
             draw.addScene(rectScene);
         }
         if (0 && mouse.i0 != INT_MAX) {
-            Ra::Draw& drw = list.scenes[mouse.i0]->draws[mouse.i1];
+            const Ra::Draw& drw = lockedDraw();
             if (drw.width != 0)
-                drw.paint = Ra::Color(0, 0, 224, 255);
+                updateDraw(mouse, [](Ra::Draw& d) { d.paint = Ra::Color(0, 0, 224, 255); });
             draw.addScene(mouseScene, drw.ctm.concat(list.ctms[mouse.i0]), list.clips[mouse.i0]);
         }
         
