@@ -39,7 +39,6 @@ struct RasterizerCG {
         CGAffineTransform m = CGContextGetCTM(ctx);
         CGFloat scale = sqrt(abs(m.a * m.d - m.b * m.c));
         
-        list.prepare();
         CGContextConcatCTM(ctx, CGFromTransform(list.ctm));
         
         for (int j = 0; j < list.scenes.size(); j++) {
