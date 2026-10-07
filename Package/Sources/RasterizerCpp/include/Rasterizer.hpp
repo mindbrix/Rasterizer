@@ -585,10 +585,8 @@ struct Rasterizer {
             new (draws.memory->alloc(1)) Draw(path, ctm, paint, width, flag, clipBounds, clipPath);
             needPrepare = true;
         }
-        void addDraws(const Draw *src, size_t count) {
-            if (src == nullptr || count == 0)
-                return;
-            draws.add(src, count);
+        void addDraw(Draw& draw) {
+            draw.validate(), draws.add(draw);
             needPrepare = true;
         }
         // Calls bool f(size_t i, Draw& draw) for the draws in [i0, i1), which returns true if it changed the draw. A changed draw is

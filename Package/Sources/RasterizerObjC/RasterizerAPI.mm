@@ -388,7 +388,7 @@ static uint8_t joinFlags(RAJoinStyle joinStyle) {
 
 - (void)addDraw:(RADraw *)draw {
     Ra::Draw d = draw.draw;
-    d.validate(), _scene->addDraws(& d, 1);
+    _scene->addDraw(d);
 }
 
 - (void)addFill:(RAPath *)path

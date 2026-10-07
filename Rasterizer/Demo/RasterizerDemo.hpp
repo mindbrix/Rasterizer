@@ -402,17 +402,17 @@ struct RasterizerDemo {
         if (width == 0.f) {
             mouseDraw.paint = Ra::Color(255, 255, 255, 192);
             mouseDraw.width = -4.f;
-            mouseScene->addDraws(& mouseDraw, 1);
+            mouseScene->addDraw(mouseDraw);
             
             mouseDraw.paint = Ra::Color(0, 0, 224, 255);
             mouseDraw.width = -2.f;
-            mouseScene->addDraws(& mouseDraw, 1);
+            mouseScene->addDraw(mouseDraw);
         }
         
         if (width > 0.f) {
             mouseDraw.paint = Ra::Color(0, 0, 0, 255);
             mouseDraw.width = -1.f;
-            mouseScene->addDraws(& mouseDraw, 1);
+            mouseScene->addDraw(mouseDraw);
         }
         Ra::Huller hull(mouseDraw.path);
         mouseScene->addPath(hull.hull, mouseDraw.ctm, Ra::Color(255, 255, 255, 192), -4.f, 0);
