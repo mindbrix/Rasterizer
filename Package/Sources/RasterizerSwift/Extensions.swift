@@ -51,8 +51,8 @@ extension CGRect {
     }
 }
 
-public func CounterRotatingCircles(_ time: Double, width: Double, height: Double) -> RASceneList {
-    let scene = RAScene()
+// The circles of CounterRotatingCircles at time, in a width x height view, mapped by transform. Fill it even-odd
+public func CounterRotatingCirclesPath(_ time: Double, width: Double, height: Double, transform: CGAffineTransform = .identity) -> RAPath {
     let count = 60
     let dim = min(width, height)
     let radius = 0.25 * dim
@@ -63,10 +63,38 @@ public func CounterRotatingCircles(_ time: Double, width: Double, height: Double
         let ts = 2 * time / Double(count) + ti
         let t = ts - floor(ts)
         let origin = CGPoint(center: center, r: radius, theta: (i % 2 == 0 ? 1 : -1) * t * 2 * Double.pi)
-        path.addEllipse(CGRect(x: origin.x - radius, y: origin.y - radius, width: 2 * radius, height: 2 * radius))
+        path.addEllipse(CGRect(x: origin.x - radius, y: origin.y - radius, width: 2 * radius, height: 2 * radius), transform: transform)
     }
-    scene.addFill(path, ctm: .identity, color: RAPaint(), evenOdd: true)
+    return path
+}
+
+public func CounterRotatingCircles(_ time: Double, width: Double, height: Double) -> RASceneList {
+    let scene = RAScene()
+    scene.addFill(CounterRotatingCirclesPath(time, width: width, height: height), ctm: .identity, color: RAPaint(), evenOdd: true)
     return RASceneList(scene: scene)
+}
+
+extension RAPath {
+    // The 4 cubics of Ra::Geometry::addEllipse, with their control points mapped by transform, which maps them exactly
+    public func addEllipse(_ rect: CGRect, transform: CGAffineTransform) {
+        guard rect.width > 0, rect.height > 0 else {
+            return
+        }
+        let t = 0.5 - 2.0 / 3.0 * (sqrt(2.0) - 1), s = 1 - t
+        let lx = rect.minX, ly = rect.minY, ux = rect.maxX, uy = rect.maxY, mx = rect.midX, my = rect.midY
+        func p(_ x: Double, _ y: Double) -> CGPoint {
+            CGPoint(x: x, y: y).applying(transform)
+        }
+        let p0 = p(ux, my)
+        move(to: p0.x, y: p0.y)
+        for (c1, c2, e) in [(p(ux, t * ly + s * uy), p(t * lx + s * ux, uy), p(mx, uy)),
+                            (p(s * lx + t * ux, uy), p(lx, t * ly + s * uy), p(lx, my)),
+                            (p(lx, s * ly + t * uy), p(s * lx + t * ux, ly), p(mx, ly)),
+                            (p(t * lx + s * ux, ly), p(ux, s * ly + t * uy), p(ux, my))] {
+            cubic(to: c1.x, y1: c1.y, x2: c2.x, y2: c2.y, x3: e.x, y3: e.y)
+        }
+        close()
+    }
 }
 
 extension RAScene {

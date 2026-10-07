@@ -34,6 +34,14 @@ class ViewController: UIViewController {
         }
     }
     var svgScene: RAScene?
+    var svgCtm = CGAffineTransform.identity
+    // The global clip: a long press toggles clipping every draw by the animated CounterRotatingCircles path, fixed to the view
+    var clipping = false {
+        didSet {
+            redraw = true
+        }
+    }
+    var clipped: RAScene?       // The scene whose draws hold the clip
     // The grid animation: each draw's original & grid cell transforms, & progress from 0 (original) to 1 (grid)
     let gridButton = UIButton(configuration: .filled())
     var homes: [CGAffineTransform] = [], cells: [CGAffineTransform] = []
@@ -77,7 +85,7 @@ class ViewController: UIViewController {
         let ctm = scene.addSvg(from: url)
         let list = RASceneList()
         list.add(scene, ctm: ctm, clip: .zero)
-        svgScene = scene
+        (svgScene, svgCtm) = (scene, ctm)
         return list
     }
 
@@ -134,8 +142,33 @@ class ViewController: UIViewController {
         }
     }
 
+    // Sets every draw's clip path to the circles at time, mapped from the view to the scene, or clears it when clipping stops.
+    // A clip path change needs no re-prepare, & the draws share one path, so it's one clip mask per frame. Grid steps only move
+    // the draws' transforms, so the two animate together
+    func stepClip(_ time: Double, width: Double, height: Double) {
+        let scene = clipping && svgList != nil ? svgScene : nil
+        if let old = clipped, old !== scene {
+            old.updateDraws(in: NSRange(location: 0, length: old.count)) { _, draw in
+                draw.clipPath = nil
+                return true
+            }
+        }
+        clipped = scene
+        guard let scene else {
+            return
+        }
+        let toScene = svgCtm.concatenating(ctm).inverted()
+        let path = CounterRotatingCirclesPath(time, width: width, height: height, transform: toScene)
+        scene.updateDraws(in: NSRange(location: 0, length: scene.count)) { _, draw in
+            draw.clipPath = path
+            return true
+        }
+    }
+
     @objc func onLongPress(_ recognizer: UILongPressGestureRecognizer) {
-        svgList = nil
+        if recognizer.state == .began {
+            clipping.toggle()
+        }
     }
         
     @objc func onTap(_ recognizer: UITapGestureRecognizer) {
@@ -164,16 +197,17 @@ class ViewController: UIViewController {
 
 extension ViewController: RASceneListDelegate {
     func shouldRedraw(atTime time: Double, scale: Double, width: Double, height: Double) -> Bool {
-        redraw = redraw || svgList == nil || animating
+        redraw = redraw || svgList == nil || animating || clipping || clipped != nil
         return redraw
     }
     
     func getListAtTime(_ time: Double, scale: Double, width: Double, height: Double) -> RASceneList {
         redraw = false;
         stepGrid(time)
+        stepClip(time, width: width, height: height)
         let list = svgList ?? CounterRotatingCircles(time, width: width, height: height)
         list.ctm = ctm
-        list.useClips = gridProgress == 0     // Clip bounds don't move with the draws
+        list.useClips = gridProgress == 0 || clipped != nil     // Clip bounds don't move with the draws, but the global clip is fixed to the view
         list.clearColor = RAPaint(gray: 0.66, alpha: 1)
         return list
     }
