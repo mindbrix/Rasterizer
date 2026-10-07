@@ -255,11 +255,24 @@ struct TextureCache {
     }
 };
 
+// RA_CLIP_MASK, set by bench.sh when Rasterizer.hpp has Buffer::kClipMask, selects RasterizerLayer's anti-aliased clip mask & lazy
+// render passes; otherwise it's the stencil clipping & eager passes of earlier revisions, so --rev can benchmark either
+#if RA_CLIP_MASK
+static const MTLPixelFormat kDepthFormat = MTLPixelFormatDepth32Float;
+#else
+static const MTLPixelFormat kDepthFormat = MTLPixelFormatDepth32Float_Stencil8;
+#endif
+
 struct Offscreen {
     id<MTLDevice> device;  id<MTLCommandQueue> queue;  id<MTLLibrary> library;
-    id<MTLRenderPipelineState> quadEdges, fastEdges, fastMolecules, quadMolecules, opaques, stencil, instances;
-    id<MTLDepthStencilState> stencilDepthState, instancesDepthState, opaquesDepthState, instancesClipDepthState, opaquesClipDepthState;
+    id<MTLRenderPipelineState> quadEdges, fastEdges, fastMolecules, quadMolecules, opaques, instances;
+    id<MTLDepthStencilState> instancesDepthState, opaquesDepthState;
     id<MTLTexture> target, depthTexture, accumulationTexture;
+#if RA_CLIP_MASK
+    id<MTLRenderPipelineState> instancesClip, clipMask, clipClear;  id<MTLTexture> clipMaskTexture;
+#else
+    id<MTLRenderPipelineState> stencil;  id<MTLDepthStencilState> stencilDepthState, instancesClipDepthState, opaquesClipDepthState;
+#endif
     TextureCache textureCache;
     MTLPixelFormat pixelFormat = MTLPixelFormatBGRA8Unorm;
 
@@ -269,32 +282,36 @@ struct Offscreen {
         library = [device newLibraryWithURL:[NSURL fileURLWithPath:@(metallib)] error:& error];
         if (!library)
             return fprintf(stderr, "metallib: %s\n", error.localizedDescription.UTF8String), false;
+        auto fn = [&](const char *name) { return name ? [library newFunctionWithName:@(name)] : nil; };
 
-        MTLDepthStencilDescriptor *s = [MTLDepthStencilDescriptor new];
-        s.depthWriteEnabled = NO, s.depthCompareFunction = MTLCompareFunctionAlways;
-        s.frontFaceStencil.stencilCompareFunction = MTLCompareFunctionAlways, s.frontFaceStencil.depthStencilPassOperation = MTLStencilOperationIncrementWrap;
-        s.backFaceStencil.stencilCompareFunction = MTLCompareFunctionAlways, s.backFaceStencil.depthStencilPassOperation = MTLStencilOperationDecrementWrap;
-        stencilDepthState = [device newDepthStencilStateWithDescriptor:s];
         MTLDepthStencilDescriptor *d = [MTLDepthStencilDescriptor new];
         d.depthWriteEnabled = YES, d.depthCompareFunction = MTLCompareFunctionGreater;
         opaquesDepthState = [device newDepthStencilStateWithDescriptor:d];
         d.depthWriteEnabled = NO;
         instancesDepthState = [device newDepthStencilStateWithDescriptor:d];
+#if !RA_CLIP_MASK
         d.frontFaceStencil.stencilCompareFunction = MTLCompareFunctionNotEqual, d.frontFaceStencil.depthStencilPassOperation = MTLStencilOperationKeep, d.frontFaceStencil.readMask = 0x01;
         d.backFaceStencil = d.frontFaceStencil;
         instancesClipDepthState = [device newDepthStencilStateWithDescriptor:d];
         d.depthWriteEnabled = YES;
         opaquesClipDepthState = [device newDepthStencilStateWithDescriptor:d];
-
-        auto fn = [&](const char *name) { return name ? [library newFunctionWithName:@(name)] : nil; };
+        MTLDepthStencilDescriptor *s = [MTLDepthStencilDescriptor new];
+        s.depthWriteEnabled = NO, s.depthCompareFunction = MTLCompareFunctionAlways;
+        s.frontFaceStencil.stencilCompareFunction = MTLCompareFunctionAlways, s.frontFaceStencil.depthStencilPassOperation = MTLStencilOperationIncrementWrap;
+        s.backFaceStencil.stencilCompareFunction = MTLCompareFunctionAlways, s.backFaceStencil.depthStencilPassOperation = MTLStencilOperationDecrementWrap;
+        stencilDepthState = [device newDepthStencilStateWithDescriptor:s];
         MTLRenderPipelineDescriptor *sd = [MTLRenderPipelineDescriptor new];
         sd.colorAttachments[0].pixelFormat = MTLPixelFormatInvalid, sd.depthAttachmentPixelFormat = MTLPixelFormatInvalid;
         sd.stencilAttachmentPixelFormat = MTLPixelFormatDepth32Float_Stencil8, sd.vertexFunction = fn("stencil_vertex_main");
         stencil = [device newRenderPipelineStateWithDescriptor:sd error:nil];
+#endif
 
         MTLRenderPipelineDescriptor *p = [MTLRenderPipelineDescriptor new];
         p.colorAttachments[0].pixelFormat = pixelFormat;
-        p.depthAttachmentPixelFormat = MTLPixelFormatDepth32Float_Stencil8, p.stencilAttachmentPixelFormat = MTLPixelFormatDepth32Float_Stencil8;
+        p.depthAttachmentPixelFormat = kDepthFormat;
+#if !RA_CLIP_MASK
+        p.stencilAttachmentPixelFormat = kDepthFormat;
+#endif
         p.colorAttachments[0].blendingEnabled = NO;
         p.vertexFunction = fn("opaques_vertex_main"), p.fragmentFunction = fn("opaques_fragment_main");
         opaques = [device newRenderPipelineStateWithDescriptor:p error:nil];
@@ -304,6 +321,10 @@ struct Offscreen {
         p.colorAttachments[0].destinationRGBBlendFactor = MTLBlendFactorOneMinusSourceAlpha, p.colorAttachments[0].destinationAlphaBlendFactor = MTLBlendFactorOneMinusSourceAlpha;
         p.vertexFunction = fn("instances_vertex_main"), p.fragmentFunction = fn("instances_fragment_main");
         instances = [device newRenderPipelineStateWithDescriptor:p error:nil];
+#if RA_CLIP_MASK
+        p.fragmentFunction = fn("instances_clip_fragment_main");
+        instancesClip = [device newRenderPipelineStateWithDescriptor:p error:nil];
+#endif
         p.colorAttachments[0].pixelFormat = MTLPixelFormatR32Float;
         p.colorAttachments[0].destinationRGBBlendFactor = MTLBlendFactorOne, p.colorAttachments[0].destinationAlphaBlendFactor = MTLBlendFactorOne;
         p.depthAttachmentPixelFormat = MTLPixelFormatInvalid, p.stencilAttachmentPixelFormat = MTLPixelFormatInvalid;
@@ -315,16 +336,33 @@ struct Offscreen {
         fastMolecules = [device newRenderPipelineStateWithDescriptor:p error:nil];
         p.vertexFunction = fn("quad_molecules_vertex_main"), p.fragmentFunction = fn("quad_molecules_fragment_main");
         quadMolecules = [device newRenderPipelineStateWithDescriptor:p error:nil];
-        if (!(stencil && opaques && instances && quadEdges && fastEdges && fastMolecules && quadMolecules))
-            return fprintf(stderr, "pipeline creation failed\n"), false;
+#if RA_CLIP_MASK
+        MTLRenderPipelineDescriptor *m = [MTLRenderPipelineDescriptor new];
+        m.colorAttachments[0].pixelFormat = MTLPixelFormatR8Unorm;
+        m.vertexFunction = fn("clip_clear_vertex_main"), m.fragmentFunction = fn("clip_clear_fragment_main");
+        clipClear = [device newRenderPipelineStateWithDescriptor:m error:nil];
+        m.colorAttachments[0].blendingEnabled = YES;
+        m.colorAttachments[0].rgbBlendOperation = MTLBlendOperationMax, m.colorAttachments[0].alphaBlendOperation = MTLBlendOperationMax;
+        m.vertexFunction = fn("instances_vertex_main"), m.fragmentFunction = fn("clip_mask_fragment_main");
+        clipMask = [device newRenderPipelineStateWithDescriptor:m error:nil];
+        bool clipping = instancesClip && clipMask && clipClear;
+#else
+        bool clipping = stencil;
+#endif
+        if (!(clipping && opaques && instances && quadEdges && fastEdges && fastMolecules && quadMolecules))
+            return fprintf(stderr, "pipeline creation failed: does the metallib match the Rasterizer sources?\n"), false;
 
         MTLTextureDescriptor *t = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:pixelFormat width:w height:h mipmapped:NO];
         t.storageMode = MTLStorageModePrivate, t.usage = MTLTextureUsageRenderTarget | MTLTextureUsageShaderRead;
         target = [device newTextureWithDescriptor:t];
-        t.pixelFormat = MTLPixelFormatDepth32Float_Stencil8, t.usage = MTLTextureUsageRenderTarget;
+        t.pixelFormat = kDepthFormat, t.usage = MTLTextureUsageRenderTarget;
         depthTexture = [device newTextureWithDescriptor:t];
         t.pixelFormat = MTLPixelFormatR32Float, t.usage = MTLTextureUsageRenderTarget | MTLTextureUsageShaderRead;
         accumulationTexture = [device newTextureWithDescriptor:t];
+#if RA_CLIP_MASK
+        t.pixelFormat = MTLPixelFormatR8Unorm;
+        clipMaskTexture = [device newTextureWithDescriptor:t];
+#endif
         return true;
     }
 
@@ -353,16 +391,27 @@ struct Offscreen {
         drawableDescriptor.depthAttachment.loadAction = MTLLoadActionClear;
         drawableDescriptor.depthAttachment.storeAction = MTLStoreActionStore;
         drawableDescriptor.depthAttachment.clearDepth = 0;
+#if RA_CLIP_MASK
+        // The clip mask holds the current clip's coverage within its bounds, which each clip zeroes first; clipped instances ignore it outside them
+        MTLRenderPassDescriptor *maskDescriptor = [MTLRenderPassDescriptor renderPassDescriptor];
+        maskDescriptor.colorAttachments[0].texture = clipMaskTexture;
+        maskDescriptor.colorAttachments[0].storeAction = MTLStoreActionStore;
+        MTLScissorRect maskBounds = { 0, 0, 0, 0 };
+        size_t maskID = 0;    // The identity of the mask the clip mask holds, as contexts beginning with the last one's clip repeat it
+        bool skipMask = false;
+        const bool lazyPasses = true;
+#else
         drawableDescriptor.stencilAttachment.texture = depthTexture;
         drawableDescriptor.stencilAttachment.loadAction = MTLLoadActionLoad;
         drawableDescriptor.stencilAttachment.storeAction = MTLStoreActionStore;
-
         MTLRenderPassDescriptor *clipDescriptor = [MTLRenderPassDescriptor renderPassDescriptor];
         clipDescriptor.stencilAttachment.texture = depthTexture;
         clipDescriptor.stencilAttachment.loadAction = MTLLoadActionClear;
         clipDescriptor.stencilAttachment.storeAction = MTLStoreActionStore;
         clipDescriptor.stencilAttachment.clearStencil = 0;
-
+        MTLRenderPassDescriptor *maskDescriptor = nil;
+        const bool lazyPasses = false;
+#endif
         id<MTLRenderCommandEncoder> commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:drawableDescriptor];
         drawableDescriptor.colorAttachments[0].loadAction = MTLLoadActionLoad;
         drawableDescriptor.depthAttachment.loadAction = MTLLoadActionLoad;
@@ -373,7 +422,15 @@ struct Offscreen {
         edgesDescriptor.colorAttachments[0].loadAction = MTLLoadActionClear;
         edgesDescriptor.colorAttachments[0].clearColor = MTLClearColorMake(0, 0, 0, 0);
 
-        bool useClip = false, useImage = false;
+        bool useClip = false, useImage = false, inMask = false;
+        enum PassKind { kDrawablePass, kEdgesPass, kMaskPass } passKind = kDrawablePass;
+        auto beginPass = [&](PassKind kind) {
+            if (lazyPasses && passKind == kind && kind != kEdgesPass)
+                return;
+            [commandEncoder endEncoding];
+            commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:kind == kMaskPass ? maskDescriptor : kind == kEdgesPass ? edgesDescriptor : drawableDescriptor];
+            passKind = kind;
+        };
         uint32_t reverse, pathsCount = uint32_t(buffer->pathsCount), texCount = uint32_t(th);
         float width = target.width, height = target.height;
         NSUInteger imgIndex = 0;
@@ -384,13 +441,36 @@ struct Offscreen {
             switch (entry.type) {
                 case Ra::Buffer::kSegmentsBase:  segbase = entry.begin;  break;
                 case Ra::Buffer::kInstancesBase:  instbase = entry.begin;  break;
-                case Ra::Buffer::kDisableClip:  useClip = false;  break;
-                case Ra::Buffer::kEnableClip:  useClip = true;  break;
+                case Ra::Buffer::kDisableClip:
+                case Ra::Buffer::kEnableClip:
+                    inMask = skipMask = false, useClip = entry.type == Ra::Buffer::kEnableClip;
+                    break;
                 case Ra::Buffer::kDisableImage:  useImage = false;  break;
                 case Ra::Buffer::kNextImage:
                     imageTexture = textureCache.entryFor(buffer->images[imgIndex++], device);
                     useImage = true;
                     break;
+#if RA_CLIP_MASK
+                case Ra::Buffer::kClipMask: {
+                    inMask = true;
+                    if ((skipMask = entry.end == maskID))
+                        break;
+                    maskID = entry.end;
+                    NSUInteger lx = entry.begin & 0xFFFF, ly = (entry.begin >> 16) & 0xFFFF, ux = (entry.begin >> 32) & 0xFFFF, uy = (entry.begin >> 48) & 0xFFFF;
+                    ux = MIN(ux, NSUInteger(width)), uy = MIN(uy, NSUInteger(height)), lx = MIN(lx, ux), ly = MIN(ly, uy);
+                    maskBounds = { lx, NSUInteger(height) - uy, ux - lx, uy - ly };
+                    maskDescriptor.colorAttachments[0].loadAction = MTLLoadActionDontCare;
+                    beginPass(kMaskPass);
+                    maskDescriptor.colorAttachments[0].loadAction = MTLLoadActionLoad;
+                    if (maskBounds.width && maskBounds.height) {
+                        [commandEncoder setScissorRect:maskBounds];
+                        [commandEncoder setRenderPipelineState:clipClear];
+                        [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip vertexStart:0 vertexCount:4];
+                        [commandEncoder setScissorRect:(MTLScissorRect){ 0, 0, NSUInteger(width), NSUInteger(height) }];
+                    }
+                    break;
+                }
+#else
                 case Ra::Buffer::kStencils:
                     [commandEncoder endEncoding];
                     commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:clipDescriptor];
@@ -403,9 +483,16 @@ struct Offscreen {
                     [commandEncoder endEncoding];
                     commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:drawableDescriptor];
                     break;
+#endif
                 case Ra::Buffer::kOpaques:
+                    if (lazyPasses)
+                        beginPass(kDrawablePass);
+#if RA_CLIP_MASK
+                    [commandEncoder setDepthStencilState:opaquesDepthState];
+#else
                     [commandEncoder setDepthStencilState:useClip ? opaquesClipDepthState : opaquesDepthState];
                     [commandEncoder setStencilReferenceValue:0];
+#endif
                     [commandEncoder setRenderPipelineState:opaques];
                     [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
                     [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->widths atIndex:6];
@@ -426,8 +513,7 @@ struct Offscreen {
                 case Ra::Buffer::kFastMolecules:
                 case Ra::Buffer::kQuadMolecules:
                     if (entry.type == Ra::Buffer::kQuadEdges) {
-                        [commandEncoder endEncoding];
-                        commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:edgesDescriptor];
+                        beginPass(kEdgesPass);
                         [commandEncoder setRenderPipelineState:quadEdges];
                     } else if (entry.type == Ra::Buffer::kFastEdges)
                         [commandEncoder setRenderPipelineState:fastEdges];
@@ -451,10 +537,24 @@ struct Offscreen {
                     }
                     break;
                 case Ra::Buffer::kInstances:
-                    [commandEncoder endEncoding];
-                    commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:drawableDescriptor];
+                    if (skipMask)
+                        break;
+                    beginPass(inMask ? kMaskPass : kDrawablePass);
+#if RA_CLIP_MASK
+                    if (inMask)
+                        [commandEncoder setRenderPipelineState:clipMask];
+                    else {
+                        [commandEncoder setDepthStencilState:instancesDepthState];
+                        [commandEncoder setRenderPipelineState:useClip ? instancesClip : instances];
+                        [commandEncoder setFragmentTexture:clipMaskTexture atIndex:2];
+                        uint32_t bounds[4] = { uint32_t(maskBounds.x), uint32_t(maskBounds.y), uint32_t(maskBounds.width), uint32_t(maskBounds.height) };
+                        [commandEncoder setFragmentBytes:bounds length:sizeof(bounds) atIndex:0];
+                    }
+#else
                     [commandEncoder setDepthStencilState:useClip ? instancesClipDepthState : instancesDepthState];
                     [commandEncoder setStencilReferenceValue:0];
+                    [commandEncoder setRenderPipelineState:instances];
+#endif
                     [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
                     [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->ctms atIndex:4];
                     [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->clips atIndex:5];
@@ -469,8 +569,9 @@ struct Offscreen {
                     [commandEncoder setVertexBytes:& buffer->params length:sizeof(Ra::Params) atIndex:15];
                     [commandEncoder setFragmentTexture:accumulationTexture atIndex:0];
                     [commandEncoder setFragmentTexture:useImage ? imageTexture : colorTexture atIndex:1];
-                    [commandEncoder setRenderPipelineState:instances];
                     [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip vertexStart:0 vertexCount:4 instanceCount:(entry.end - entry.begin) / sizeof(Ra::Instance) baseInstance:0];
+                    break;
+                default:
                     break;
             }
         }
@@ -1805,7 +1906,8 @@ if [[ ! -x $B/rabench || $S/ra/rabench.mm -nt $B/rabench || -n $(find $INC $RA/R
   step "Building rabench"
   clang -O3 -c $RA/Package/Sources/RasterizerCpp/xxhash.c -I$INC -o $W/obj/xxhash.o
   clang++ -O3 -std=c++17 -c -x objective-c++ $RA/Package/Sources/RasterizerCpp/nanosvg.cc -I$INC -o $W/obj/nanosvg.o
-  clang++ -O3 -std=c++17 -fobjc-arc -x objective-c++ $S/ra/rabench.mm -x none $W/obj/xxhash.o $W/obj/nanosvg.o \
+  CLIP=0; grep -q kClipMask $INC/Rasterizer.hpp && CLIP=1    # Rasterizer's anti-aliased clip mask, else its stencil clipping
+  clang++ -O3 -std=c++17 -fobjc-arc -DRA_CLIP_MASK=$CLIP -x objective-c++ $S/ra/rabench.mm -x none $W/obj/xxhash.o $W/obj/nanosvg.o \
     -I$INC -I$RA/Rasterizer/Demo -I$PDFIUM/Headers -L$PDFIUM -lpdfium -Wl,-rpath,$PDFIUM \
     -framework Foundation -framework Metal -framework QuartzCore -framework CoreGraphics -framework ImageIO -framework CoreServices \
     -Wno-deprecated-declarations -o $B/rabench

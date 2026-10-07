@@ -65,7 +65,7 @@ struct Outline {
 
 struct Instance {
     enum Flags {
-        kRoundJoin = 1 << 21,   kStencil = 1 << 21,
+        kRoundJoin = 1 << 21,   kClip = 1 << 21,
         kIsRadial = 1 << 22,    kDisableImage = 1 << 22,
         kIsGradient = 1 << 23,  kNextImage = 1 << 23,
         kIsImage = 1 << 24,     kIsCurve = 1 << 24,
@@ -191,32 +191,6 @@ float quadraticWinding(float x0, float y0, float x1, float y1, float x2, float y
     }
     return w;
 }
-
-#pragma mark - Stencil
-
-struct StencilVertex
-{
-    float4 position [[position]];
-};
-
-vertex StencilVertex stencil_vertex_main(const device Opaque *stencils [[buffer(1)]],
-                                         constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
-                                         uint vid [[vertex_id]], uint iid [[instance_id]])
-{
-    const device Opaque& inst = stencils[iid];
-    const device Quadratic& quad = inst.quad;
-    float x = vid == 0 ? quad.x0 : vid == 1 ? quad.x1 : quad.x2;
-    float y = vid == 0 ? quad.y0 : vid == 1 ? quad.y1 : quad.y2;
-    StencilVertex vert;
-    vert.position = {
-        x / *width * 2.0 - 1.0,
-        y / *height * 2.0 - 1.0,
-        1.0,
-        1.0
-    };
-    return vert;
-}
-
 
 #pragma mark - Opaques
 
@@ -701,10 +675,15 @@ vertex InstancesVertex instances_vertex_main(
     return vert;
 }
 
-fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
-                                        texture2d<float> accumulation [[texture(0)]],
-                                        texture2d<float> colorTexture [[texture(1)]]
-)
+// A fill's coverage of its edge cell from the accumulated winding, or 1 for its solid cells
+inline float fillCoverage(InstancesVertex vert, texture2d<float> accumulation) {
+    if (vert.u == FLT_MAX)
+        return 1.0;
+    float cover = abs(vert.cover + accumulation.sample(s, float2(vert.u, vert.v)).x);
+    return vert.iz & Instance::kEvenOdd ? 1.0 - abs(fmod(cover, 2.0) - 1.0) : min(1.0, cover);
+}
+
+inline float4 instanceColor(InstancesVertex vert, texture2d<float> accumulation, texture2d<float> colorTexture)
 {
     float alpha = 1.0;
     if (vert.iz & Instance::kOutlines) {
@@ -744,14 +723,58 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
             alpha = cap0 * (1.0 - sd0) + cap1 * (1.0 - sd1) + (sd0 + sd1 - 1.0) * outline;
         }
     } else
-    if (vert.u != FLT_MAX) {
-        float cover = abs(vert.cover + accumulation.sample(s, float2(vert.u, vert.v)).x);
-        alpha = vert.iz & Instance::kEvenOdd ? 1.0 - abs(fmod(cover, 2.0) - 1.0) : min(1.0, cover);
-    }
+        alpha = fillCoverage(vert, accumulation);
     float clx = vert.clip.x, cly = vert.clip.y, a = dfdx(clx), b = dfdy(clx), c = dfdx(cly), d = dfdy(cly);
     float sx = rsqrt(a * a + b * b), sy = rsqrt(c * c + d * d);
     float clip = saturate(0.5 + clx * sx) * saturate(0.5 + (1.0 - clx) * sx) * saturate(0.5 + cly * sy) * saturate(0.5 + (1.0 - cly) * sy);
     
     float x = vert.tex.x, y = vert.tex.y, z = vert.tex.z;
     return alpha * vert.alpha * clip * colorTexture.sample(cs, float2(z == 0.0 ? x : sqrt(x * x + z * z), y));
+}
+
+fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
+                                        texture2d<float> accumulation [[texture(0)]],
+                                        texture2d<float> colorTexture [[texture(1)]])
+{
+    return instanceColor(vert, accumulation, colorTexture);
+}
+
+// Clipped by the clip mask, which is the same size as the drawable. Only the current clip's bounds (x, y, width, height in
+// framebuffer pixels) hold its coverage, so the mask is zero outside them
+fragment float4 instances_clip_fragment_main(InstancesVertex vert [[stage_in]],
+                                             texture2d<float> accumulation [[texture(0)]],
+                                             texture2d<float> colorTexture [[texture(1)]],
+                                             texture2d<float> clipMask [[texture(2)]],
+                                             constant uint4 *maskBounds [[buffer(0)]])
+{
+    uint2 p = uint2(vert.position.xy), b0 = maskBounds->xy, b1 = b0 + maskBounds->zw;
+    float mask = all(p >= b0) && all(p < b1) ? clipMask.read(p).x : 0.0;
+    return instanceColor(vert, accumulation, colorTexture) * mask;
+}
+
+#pragma mark - Clip mask
+
+// A clip path's coverage, written by its fill instances
+fragment float clip_mask_fragment_main(InstancesVertex vert [[stage_in]],
+                                       texture2d<float> accumulation [[texture(0)]])
+{
+    return fillCoverage(vert, accumulation);
+}
+
+struct ClipClearVertex
+{
+    float4 position [[position]];
+};
+
+// A full screen quad, scissored to the region of the clip mask to zero
+vertex ClipClearVertex clip_clear_vertex_main(uint vid [[vertex_id]])
+{
+    ClipClearVertex vert;
+    vert.position = float4(vid & 1 ? 1.0 : -1.0, vid & 2 ? 1.0 : -1.0, 0.0, 1.0);
+    return vert;
+}
+
+fragment float clip_clear_fragment_main()
+{
+    return 0.0;
 }

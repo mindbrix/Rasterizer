@@ -844,7 +844,7 @@ struct Rasterizer {
     };
     struct Instance {
         enum Flags {
-            kRoundJoin = 1 << 21,   kStencil = 1 << 21,
+            kRoundJoin = 1 << 21,   kClip = 1 << 21,
             kIsRadial = 1 << 22,    kDisableImage = 1 << 22,
             kIsGradient = 1 << 23,  kNextImage = 1 << 23,
             kIsImage = 1 << 24,     kIsCurve = 1 << 24,
@@ -873,7 +873,9 @@ struct Rasterizer {
         uint16_t i0, ux;
     };
     struct Buffer {
-        enum Type { kQuadEdges, kFastEdges, kFastMolecules, kQuadMolecules, kOpaques, kInstances, kSegmentsBase, kInstancesBase, kStencils, kDisableClip, kEnableClip, kNextImage, kDisableImage };
+        // kClipMask begins rendering a clip path's coverage into the clip mask, within the device bounds packed in begin, until kEnableClip.
+        // Its end identifies the mask, so an encoder can skip rendering one the mask already holds
+        enum Type { kQuadEdges, kFastEdges, kFastMolecules, kQuadMolecules, kOpaques, kInstances, kSegmentsBase, kInstancesBase, kDisableClip, kEnableClip, kNextImage, kDisableImage, kClipMask };
         struct Entry {
             Entry(Type type, size_t begin, size_t end) : type(type), begin(begin), end(end) {}
             Type type;  size_t begin, end;
@@ -964,7 +966,8 @@ struct Rasterizer {
             
             Color black(0, 0, 0, 255), red(0, 0, 255, 255);
             size_t lz, uz, i, clz, cuz, iz, is, cnt; uint32_t p16total = 0;
-            Geometry *lastClipPath = nullptr, *currentClipPath = nullptr;  Transform lastClipCtm, currentClipCtm;
+            Geometry *lastClipPath = nullptr;  Transform lastClipCtm;
+            currentClipPath = nullptr, maskBounds = device;
             float det, width, softclipMargin = 0.5f;
             
             for (lz = uz = i = 0; i < list.scenes.size(); p16total += list.scenes[i]->p16total, i++, lz = uz ) {
@@ -991,28 +994,21 @@ struct Rasterizer {
                         Geometry *clipPath = draw.clipPath.ptr;
                         if (lastClipPath != clipPath || (clipPath && clipCtmChanged)) {
                             lastClipPath = clipPath, lastClipCtm = ctm, clipCtmChanged = false;
-                            Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kStencil);
-                            inst->data.count = 0, inst->g = nullptr;
                             if (clipPath) {
                                 if (currentClipPath != clipPath || memcmp(& currentClipCtm, & ctm, sizeof(Transform)) != 0) {
                                     currentClipPath = clipPath, currentClipCtm = ctm;
-                                    size_t i0, i1;
-                                    i0 = stencils.end;
-                                    Stenciler stenciler(clipPath, device, ctm, & stencils);
-                                    stenciler.applyPath(clipPath, ctm, device, true, true);
-                                    i1 = stencils.end;
-                                    inst->data.idx = int(i0), inst->data.count = int(i1 - i0);
-                                } else
-                                    inst->data.idx = 1;
-                            } else {
-                                inst->data.idx = 0;
-                            }
+                                    writeClipMask(clipPath, ctm, device, iz, buffer->params.useCurves);
+                                }
+                                addClipCommand(iz, kClipEnable);
+                                maskBounds = currentMaskBounds;
+                            } else
+                                addClipCommand(iz, kClipDisable), maskBounds = device;
                         }
                     }
                     m = draw.ctm.concat(ctm), det = fabsf(m.a * m.d - m.b * m.c);
                     width = list.params.showOutlines ? 0.5f * scale : draw.width * (draw.width > 0.f ? sqrtf(det) : -scale);
                     quad = draw.bnds.quad(m), dev = Bounds(quad).inset(-width, -width);
-                    clip = dev.integral().intersect(clipBounds);
+                    clip = dev.integral().intersect(clipBounds).intersect(maskBounds);
                     
                     if ((det || draw.width < 0.f) && clip.lx < clip.ux && clip.ly < clip.uy) {
                         bool unclipped = clip.contains(dev);
@@ -1084,22 +1080,49 @@ struct Rasterizer {
                 }
             }
         }
+        // Clip commands are kClip blends, which split the instance batches. kClipMaskBegin's cell holds the clip mask's device bounds,
+        // & the instances after it, up to the next kClipEnable, render the clip path's coverage into the clip mask. Its g & quad.base
+        // identify the mask, so a context beginning with the clip the last context ended with can reuse it
+        enum ClipCommand { kClipDisable = 0, kClipEnable = 1, kClipMaskBegin = 2 };
+        void addClipCommand(size_t iz, int command, Bounds b = Bounds(0.f, 0.f, 0.f, 0.f), Geometry *g = nullptr, uint32_t ctmHash = 0) {
+            Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kClip);
+            inst->data.idx = command, inst->data.count = 0, inst->g = g, inst->quad.base = int(ctmHash);
+            Cell& cell = inst->quad.cell;
+            cell.lx = b.lx, cell.ly = b.ly, cell.ux = b.ux, cell.uy = b.uy;
+        }
+        // Writes the instances of clip path g's even-odd coverage, & sets currentMaskBounds to their device bounds
+        void writeClipMask(Geometry *g, Transform ctm, Bounds device, size_t iz, bool useCurves) {
+            Bounds dev = Bounds(g->bounds.quad(ctm)), clip = dev.integral().intersect(device);
+            currentMaskBounds = clip;
+            addClipCommand(iz, kClipMaskBegin, clip, g, uint32_t(XXH32(& ctm, sizeof(ctm), 0)));
+            if (clip.lx < clip.ux && clip.ly < clip.uy) {
+                float det = fabsf(ctm.det());
+                bool fast = !useCurves || g->maxCurve * det < 4.f;
+                CurveIndexer idxr;
+                idxr.clip = clip, idxr.samples = & samples[0], idxr.fast = fast;
+                idxr.dst = idxr.dst0 = segments.alloc(3 * g->upperBound(det));
+                idxr.applyPath(g, ctm, clip, clip.contains(dev), true);
+                writeSegmentInstances(clip, true, iz, false, fast, 0, *this);
+                segments.idx = segments.end = idxr.dst - segments.base;
+            }
+        }
         void empty() {
-            texTotal = 0, blends.empty(), opaques.empty(), stencils.empty(), outlines.empty(), segments.empty(), segmentsIndices.empty(), indices.empty(), texs.resize(0), images.resize(0);
+            texTotal = 0, blends.empty(), opaques.empty(), outlines.empty(), segments.empty(), segmentsIndices.empty(), indices.empty(), texs.resize(0), images.resize(0);
             for (int i = 0; i < samples.end(); i++)
                 samples[i].empty();
             entries = Vector<Buffer::Entry>();
         }
         void reset() {
-            blends.reset(), opaques.reset(), stencils.reset(), outlines.reset(), segments.reset(), segmentsIndices.reset(), indices.reset(), entries = Vector<Buffer::Entry>(), texs.resize(0), images.resize(0);
+            blends.reset(), opaques.reset(), outlines.reset(), segments.reset(), segmentsIndices.reset(), indices.reset(), entries = Vector<Buffer::Entry>(), texs.resize(0), images.resize(0);
             samples.resize(0);
         }
         
         size_t texTotal;
+        Geometry *currentClipPath = nullptr;  Transform currentClipCtm;  Bounds currentMaskBounds, maskBounds;
         Allocator allocator;  Vector<Buffer::Entry> entries;
         Vector<TexRef> texs;
         Vector<Paint *> images;
-        Row<Opaque> opaques, stencils;  Row<Blend> blends;  Row<Instance> outlines;  Row<Segment> segments;
+        Row<Opaque> opaques;  Row<Blend> blends;  Row<Instance> outlines;  Row<Segment> segments;
         Row<Sample::Index> indices;  RefVector<Row<Sample>> samples;  Row<uint32_t> segmentsIndices;
     };
     
@@ -1764,43 +1787,6 @@ struct Rasterizer {
         uint32_t iz;  Row<Instance> *outlines = nullptr;  Row<Opaque> *opaques = nullptr;
     };
     
-    struct Stenciler: GeometryWriter {
-        Stenciler(const Geometry *g, Bounds device, Transform m, Row<Opaque> *stencils) : device(device), molecule(g->molecules.base), m(m), stencils(stencils) {}
-        
-        void writeSegment(float x0, float y0, float x1, float y1) {
-            Opaque *stencil = stencils->alloc(1);
-            struct Quadratic& quad = stencil->quad;
-            float cx = molecule->cx(), cy = molecule->cy();
-            quad.x0 = m.a * cx + m.c * cy + m.tx;
-            quad.y0 = m.b * cx + m.d * cy + m.ty;
-            quad.x1 = x0, quad.y1 = y0;
-            quad.x2 = x1, quad.y2 = y1;
-        }
-        void Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
-            Bounds quad, clip;
-            quad.extend(x0, y0), quad.extend(x1, y1), quad.extend(x2, y2);
-            clip = quad.intersect(device);
-            bool offscreen = clip.lx == clip.ux || clip.ly == clip.uy;
-            float ax, ay, a, count, dt, f2x, f1x, f2y, f1y;
-            ax = x0 + x2 - x1 - x1, ay = y0 + y2 - y1 - y1, a = quadraticScale * (ax * ax + ay * ay);
-            count = offscreen || a < quadraticScale ? 1.f : a < 8.f ? 2.f : 2.f + floorf(sqrtf(sqrtf(a))), dt = 1.f / count;
-            ax *= dt * dt, f2x = 2.f * ax, f1x = ax + 2.f * (x1 - x0) * dt, x1 = x0;
-            ay *= dt * dt, f2y = 2.f * ay, f1y = ay + 2.f * (y1 - y0) * dt, y1 = y0;
-            while (--count) {
-                x1 += f1x, f1x += f2x, y1 += f1y, f1y += f2y;
-                writeSegment(x0, y0, x1, y1);
-                x0 = x1, y0 = y1;
-            }
-            writeSegment(x0, y0, x2, y2);
-        }
-        
-        void EndSubpath(float x0, float y0, float x1, float y1, bool closed) {
-            molecule++;
-        }
-        Transform m;
-        Bounds device, *molecule;
-        Row<Opaque> *stencils;
-    };
     
     struct Bounder: GeometryWriter {
         static Bounds GetBounds(Path& path, Transform ctm) {
@@ -1871,7 +1857,7 @@ struct Rasterizer {
                 buffer.images.add(*ctx->images[j]);
             for (instances = 0, pass = ctx->allocator.passes.base, j = 0; j < ctx->allocator.passes.end; j++, pass++)
                 instances += pass->count();
-            begins[i] = size, size += instances * sizeof(Edge) + (ctx->outlines.end + ctx->blends.end) * sizeof(Instance) + ctx->segments.end * sizeof(Segment) + ctx->stencils.end * sizeof(Opaque);
+            begins[i] = size, size += instances * sizeof(Edge) + (ctx->outlines.end + ctx->blends.end) * sizeof(Instance) + ctx->segments.end * sizeof(Segment);
         }
         return size;
     }
@@ -1897,7 +1883,7 @@ struct Rasterizer {
     }
     
     static void writeContextToBuffer(const SceneList& list, Context *ctx, size_t begin, size_t index, size_t contextCount, Buffer& buffer) {
-        size_t i, j, count, size, ip, iz, ic, end, instbegin, passsize, stencilBegin = 0;
+        size_t i, j, count, size, ip, iz, ic, end, instbegin, passsize;
         {
             auto p16s = (Point16 *)(buffer.base + buffer.p16s);
             size_t p16paths = 0, p16total = 0, m0 = 0, m1 = 0, i0, i1, c0, c1;
@@ -1916,15 +1902,10 @@ struct Rasterizer {
                 m0 = m1, p16total += scene->p16total;
             }
         }
-        if (ctx->segments.end || ctx->stencils.end) {
+        if (ctx->segments.end) {
             size = ctx->segments.end * sizeof(Segment), end = begin + size;
             ctx->entries.add(Buffer::Entry(Buffer::kSegmentsBase, begin, end));
             memcpy(buffer.base + begin, ctx->segments.base, size), begin = end;
-                        
-            stencilBegin = begin;
-            end = begin + ctx->stencils.end * sizeof(Opaque);
-            memcpy(buffer.base + stencilBegin, ctx->stencils.base, end - begin);
-            begin = end;
         }
         
         Edge *quadEdge = nullptr, *fastEdge = nullptr, *fastMolecule = nullptr, *fastMolecule0 = nullptr, *quadMolecule = nullptr, *quadMolecule0 = nullptr;
@@ -1966,8 +1947,8 @@ struct Rasterizer {
                     bool fast = inst->iz & Instance::kFastEdges;
                     
                     bool isImage = (inst->iz & Instance::kIsImage) && ((inst->iz & Instance::kNextImage) || (inst->iz & Instance::kDisableImage));
-                    bool isStencil = inst->iz & Instance::kStencil;
-                    if (isImage || isStencil) {
+                    bool isClip = inst->iz & Instance::kClip;
+                    if (isImage || isClip) {
                         dst--;
                         batchBegins.add(begin + (dst - dst0) * sizeof(Instance));
                         batchCommands.add(*inst);
@@ -2013,13 +1994,12 @@ struct Rasterizer {
                         ctx->entries.add(Buffer::Entry(Buffer::kInstances, i0, i1));
                     if (i != batchBegins.end()) {
                         const Blend& cmd = batchCommands[i];
-                        if (cmd.iz & Instance::kStencil) {
-                            if (cmd.data.count) {
-                                size_t s0 = stencilBegin + cmd.data.idx * sizeof(Opaque);
-                                size_t s1 = s0 + cmd.data.count * sizeof(Opaque);
-                                ctx->entries.add(Buffer::Entry(Buffer::kStencils, s0, s1));
-                                ctx->entries.add(Buffer::Entry(Buffer::kEnableClip, 0, 0));
-                            } else if (cmd.data.idx == 0)
+                        if (cmd.iz & Instance::kClip) {
+                            const Cell& cell = cmd.quad.cell;
+                            if (cmd.data.idx == Context::kClipMaskBegin)     // The mask's device bounds, packed as lx, ly, ux, uy, & its identity
+                                ctx->entries.add(Buffer::Entry(Buffer::kClipMask, size_t(cell.lx) | size_t(cell.ly) << 16 | size_t(cell.ux) << 32 | size_t(cell.uy) << 48,
+                                                               XXH64(& cmd.quad.base, sizeof(cmd.quad.base), size_t(cmd.g)) ?: 1));
+                            else if (cmd.data.idx == Context::kClipDisable)
                                 ctx->entries.add(Buffer::Entry(Buffer::kDisableClip, 0, 0));
                             else
                                 ctx->entries.add(Buffer::Entry(Buffer::kEnableClip, 0, 0));
