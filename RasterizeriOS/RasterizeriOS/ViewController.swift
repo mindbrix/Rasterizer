@@ -26,8 +26,19 @@ class ViewController: UIViewController {
             } else {
                 ctm = .identity
             }
+            if svgList !== oldValue {
+                (homes, cells, gridProgress, toGrid, animating) = ([], [], 0, false, false)
+                gridButton.configuration?.title = "Grid"
+                gridButton.isHidden = svgList == nil
+            }
         }
     }
+    var svgScene: RAScene?
+    // The grid animation: each draw's original & grid cell transforms, & progress from 0 (original) to 1 (grid)
+    let gridButton = UIButton(configuration: .filled())
+    var homes: [CGAffineTransform] = [], cells: [CGAffineTransform] = []
+    var gridProgress = 0.0, gridFrom = 0.0, gridStart = 0.0, toGrid = false, animating = false
+    let gridDuration = 0.5
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -41,6 +52,15 @@ class ViewController: UIViewController {
             view.addGestureRecognizer(UIPinchGestureRecognizer(target: self, action: #selector(onGesture)))
             view.addGestureRecognizer(UIRotationGestureRecognizer(target: self, action: #selector(onGesture)))
         }
+        gridButton.configuration?.title = "Grid"
+        gridButton.configuration?.cornerStyle = .capsule
+        gridButton.addTarget(self, action: #selector(onGrid), for: .touchUpInside)
+        gridButton.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(gridButton)
+        NSLayoutConstraint.activate([
+            gridButton.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -16),
+            gridButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -16),
+        ])
         svgList = makeSvgList()
     }
     
@@ -57,7 +77,61 @@ class ViewController: UIViewController {
         let ctm = scene.addSvg(from: url)
         let list = RASceneList()
         list.add(scene, ctm: ctm, clip: .zero)
+        svgScene = scene
         return list
+    }
+
+    // Lays out a grid cell for each draw over the scene's bounds, & records each draw's original transform
+    func makeGrid(_ scene: RAScene) {
+        let count = scene.count, area = scene.bounds
+        guard count > 0, !area.isNull, area.width > 0, area.height > 0 else {
+            return
+        }
+        let cols = max(1, Int(ceil(sqrt(Double(count) * area.width / area.height))))
+        let rows = (count + cols - 1) / cols
+        let w = area.width / CGFloat(cols), h = area.height / CGFloat(rows)
+        homes = Array(repeating: .identity, count: count)
+        cells = homes
+        scene.updateDraws(in: NSRange(location: 0, length: count)) { i, draw in
+            homes[i] = draw.ctm
+            cells[i] = draw.ctm
+            let path = draw.path.bounds     // An empty path's bounds are infinite
+            if !draw.hidden, path.width.isFinite, path.height.isFinite, path.width > 0 || path.height > 0 {
+                let outset = 0.5 * max(0, draw.width)       // Positive stroke widths scale with ctm
+                let cell = CGRect(x: area.minX + CGFloat(i % cols) * w, y: area.minY + CGFloat(i / cols) * h, width: w, height: h)
+                cells[i] = cell.insetBy(dx: 0.05 * w, dy: 0.05 * h).fitTransform(b: path.insetBy(dx: -outset, dy: -outset))
+            }
+            return false
+        }
+    }
+
+    @objc func onGrid() {
+        guard let scene = svgScene else {
+            return
+        }
+        if homes.isEmpty {
+            makeGrid(scene)
+        }
+        toGrid.toggle()
+        gridFrom = gridProgress
+        gridStart = CACurrentMediaTime()
+        animating = true
+        gridButton.configuration?.title = toGrid ? "Restore" : "Grid"
+    }
+
+    // Moves the draws gridProgress of the way from their original transforms to their grid cells
+    func stepGrid(_ time: Double) {
+        guard animating, let scene = svgScene, !homes.isEmpty else {
+            return
+        }
+        let t = min(1, max(0, (time - gridStart) / gridDuration)), eased = t * t * (3 - 2 * t)
+        gridProgress = gridFrom + ((toGrid ? 1 : 0) - gridFrom) * eased
+        animating = t < 1
+        let homes = self.homes, cells = self.cells, u = gridProgress
+        scene.updateDraws(in: NSRange(location: 0, length: homes.count)) { i, draw in
+            draw.ctm = homes[i].interpolated(to: cells[i], by: u)
+            return true
+        }
     }
 
     @objc func onLongPress(_ recognizer: UILongPressGestureRecognizer) {
@@ -90,14 +164,24 @@ class ViewController: UIViewController {
 
 extension ViewController: RASceneListDelegate {
     func shouldRedraw(atTime time: Double, scale: Double, width: Double, height: Double) -> Bool {
-        redraw = redraw || svgList == nil
+        redraw = redraw || svgList == nil || animating
         return redraw
     }
     
     func getListAtTime(_ time: Double, scale: Double, width: Double, height: Double) -> RASceneList {
         redraw = false;
+        stepGrid(time)
         let list = svgList ?? CounterRotatingCircles(time, width: width, height: height)
         list.ctm = ctm
+        list.useClips = gridProgress == 0     // Clip bounds don't move with the draws
+        list.clearColor = RAPaint(gray: 0.66, alpha: 1)
         return list
+    }
+}
+
+private extension CGAffineTransform {
+    func interpolated(to t: CGAffineTransform, by u: Double) -> CGAffineTransform {
+        let v = 1 - u
+        return CGAffineTransform(a: v * a + u * t.a, b: v * b + u * t.b, c: v * c + u * t.c, d: v * d + u * t.d, tx: v * tx + u * t.tx, ty: v * ty + u * t.ty)
     }
 }

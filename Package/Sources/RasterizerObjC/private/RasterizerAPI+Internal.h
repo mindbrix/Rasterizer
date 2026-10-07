@@ -24,6 +24,11 @@
 @property(nonatomic) CTFrameRef frame;
 @end
 
+@interface RADraw ()
+@property(nonatomic) Ra::Draw draw;
+- (void)setTarget:(Ra::Draw *)target;      // Edits *target in place, or the draw's own Ra::Draw if null
+@end
+
 @interface RAScene ()
 @property(nonatomic) Ra::SceneRef scene;
 @end

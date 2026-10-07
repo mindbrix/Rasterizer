@@ -548,7 +548,8 @@ struct Rasterizer {
     };
     
     struct Draw {
-        enum Flags { kFillEvenOdd = 1 << 1, kRoundCap = 1 << 2, kSquareCap = 1 << 3, kRoundJoin = 1 << 4, kInvisible = 1 << 7 };
+        // kHidden is set by callers to keep a draw's index without drawing it. validate() sets kInvisible for a hidden draw, or an invalid path or paint
+        enum Flags { kFillEvenOdd = 1 << 1, kRoundCap = 1 << 2, kSquareCap = 1 << 3, kRoundJoin = 1 << 4, kHidden = 1 << 6, kInvisible = 1 << 7 };
 
         Draw() {}
         Draw(const Path& path, const Transform& ctm, const Paint& paint, float width, uint8_t flags, Bounds *clipBounds = nullptr, Path *clipPath = nullptr)
@@ -560,13 +561,13 @@ struct Rasterizer {
             return Bounds(bnds.inset(-0.5f * fmax(0.f, width), -0.5f * fmax(0.f, width)).quad(ctm)).intersect(clip);
         }
         bool validate() {
-            bool isValid = path->isValid() && paint.isValid();
+            bool isValid = path->isValid() && paint.isValid(), isVisible = isValid && (flags & kHidden) == 0;
             if (isValid)
                 bnds = path->bounds;
             if (clipPath.ptr && !clipPath->isValid())
                 clipPath = nullptr;
-            flags = (flags & ~kInvisible) | (isValid ? 0 : kInvisible);
-            return isValid;
+            flags = (flags & ~kInvisible) | (isVisible ? 0 : kInvisible);
+            return isVisible;
         }
         Path path;  Transform ctm;  Paint paint;  float width = 0.f;  uint8_t flags = kInvisible;  Bounds clip, bnds;  Path clipPath = nullptr;
     };
@@ -589,6 +590,22 @@ struct Rasterizer {
                 return;
             draws.add(src, count);
             needPrepare = true;
+        }
+        // Calls bool f(size_t i, Draw& draw) for the draws in [i0, i1), which returns true if it changed the draw. A changed draw is
+        // revalidated, & only changes to what prepare() depends on need a prepare: a new path or visibility, or a stroke becoming a fill,
+        // which needs a P16 base. Transform, color & stroke width animation doesn't, & a fill becoming a stroke leaves an unused entry.
+        // Paints should be assigned whole, e.g. Paint(color), so their alpha range stays right.
+        template<typename F>
+        void update(size_t i0, size_t i1, F f) {
+            for (size_t i = i0, end = i1 < count() ? i1 : count(); i < end; i++) {
+                Draw& draw = draws[i];
+                Geometry *path = draw.path.ptr;  bool isStroke = draw.width != 0;  uint8_t invisible = draw.flags & Draw::kInvisible;
+                if (f(i, draw)) {
+                    draw.validate();
+                    if (draw.path.ptr != path || (isStroke && draw.width == 0) || (draw.flags & Draw::kInvisible) != invisible)
+                        needPrepare = true;
+                }
+            }
         }
         Bounds bounds() const {
             Bounds b;

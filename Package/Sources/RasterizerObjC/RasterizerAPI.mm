@@ -263,12 +263,132 @@
 }
 @end
 
+#pragma mark - RADraw
+
+static uint8_t capFlags(RACapStyle capStyle) {
+    return capStyle == kCapButt ? 0 : capStyle == kCapSquare ? Ra::Draw::kSquareCap : Ra::Draw::kRoundCap;
+}
+static uint8_t joinFlags(RAJoinStyle joinStyle) {
+    return joinStyle == kJoinMiter ? 0 : Ra::Draw::kRoundJoin;
+}
+
+@implementation RADraw {
+    Ra::Draw *_d;      // The draw edited: _draw, or a scene's draw during -[RAScene updateDrawsInRange:usingBlock:]
+}
+@synthesize draw = _draw;
+
+- (id)init {
+    self = [super init];
+    if (!self)
+        return nil;
+    _d = & _draw, _draw.clip = Ra::Bounds::huge();
+    return self;
+}
+
+- (id)initWithPath:(RAPath *)path ctm:(CGAffineTransform)ctm color:(RAPaint *)color {
+    self = [super init];
+    if (!self)
+        return nil;
+    _d = & _draw, _draw = Ra::Draw(path.path, RaCG::transformFromCG(ctm), color.paint, 0.f, 0);
+    return self;
+}
+
+- (Ra::Draw)draw {
+    return *_d;
+}
+- (void)setDraw:(Ra::Draw)draw {
+    *_d = draw;
+}
+- (void)setTarget:(Ra::Draw *)target {
+    _d = target ?: & _draw;
+}
+
+- (RAPath *)path {
+    RAPath *path = [RAPath new];
+    path.path = _d->path;
+    return path;
+}
+- (void)setPath:(RAPath *)path {
+    _d->path = path.path, _d->validate();
+}
+- (CGAffineTransform)ctm {
+    return RaCG::CGFromTransform(_d->ctm);
+}
+- (void)setCtm:(CGAffineTransform)ctm {
+    _d->ctm = RaCG::transformFromCG(ctm);
+}
+- (RAPaint *)color {
+    RAPaint *color = [RAPaint new];
+    color.paint = _d->paint;
+    return color;
+}
+- (void)setColor:(RAPaint *)color {
+    _d->paint = color.paint, _d->validate();
+}
+- (double)width {
+    return _d->width;
+}
+- (void)setWidth:(double)width {
+    _d->width = width;
+}
+- (BOOL)evenOdd {
+    return (_d->flags & Ra::Draw::kFillEvenOdd) != 0;
+}
+- (void)setEvenOdd:(BOOL)evenOdd {
+    _d->flags = (_d->flags & ~Ra::Draw::kFillEvenOdd) | (evenOdd ? Ra::Draw::kFillEvenOdd : 0);
+}
+- (RACapStyle)capStyle {
+    return _d->flags & Ra::Draw::kSquareCap ? kCapSquare : _d->flags & Ra::Draw::kRoundCap ? kCapRound : kCapButt;
+}
+- (void)setCapStyle:(RACapStyle)capStyle {
+    _d->flags = (_d->flags & ~(Ra::Draw::kSquareCap | Ra::Draw::kRoundCap)) | capFlags(capStyle);
+}
+- (RAJoinStyle)joinStyle {
+    return _d->flags & Ra::Draw::kRoundJoin ? kJoinRound : kJoinMiter;
+}
+- (void)setJoinStyle:(RAJoinStyle)joinStyle {
+    _d->flags = (_d->flags & ~Ra::Draw::kRoundJoin) | joinFlags(joinStyle);
+}
+- (CGRect)clip {
+    return _d->clip.isHuge() ? CGRectInfinite : RaCG::CGRectFromBounds(_d->clip);
+}
+- (void)setClip:(CGRect)clip {
+    _d->clip = CGRectIsNull(clip) || CGRectIsEmpty(clip) || CGRectIsInfinite(clip) ? Ra::Bounds::huge() : RaCG::BoundsFromCGRect(clip);
+}
+- (RAPath *)clipPath {
+    if (_d->clipPath.ptr == nullptr)
+        return nil;
+    RAPath *path = [RAPath new];
+    path.path = _d->clipPath;
+    return path;
+}
+- (void)setClipPath:(RAPath *)clipPath {
+    _d->clipPath = clipPath ? clipPath.path : Ra::Path(nullptr), _d->validate();
+}
+- (BOOL)hidden {
+    return (_d->flags & Ra::Draw::kHidden) != 0;
+}
+- (void)setHidden:(BOOL)hidden {
+    _d->flags = (_d->flags & ~Ra::Draw::kHidden) | (hidden ? Ra::Draw::kHidden : 0), _d->validate();
+}
+
+@end
+
+
 #pragma mark - RAScene
 
 @implementation RAScene: NSObject
 
 - (CGRect)bounds {
     return RaCG::CGRectFromBounds(_scene->bounds());
+}
+- (NSInteger)count {
+    return _scene->count();
+}
+
+- (void)addDraw:(RADraw *)draw {
+    Ra::Draw d = draw.draw;
+    d.validate(), _scene->addDraws(& d, 1);
 }
 
 - (void)addFill:(RAPath *)path
@@ -320,10 +440,8 @@
     Ra::Path p = path.path;
     Ra::Bounds clipBounds = CGRectIsNull(clip) || CGRectIsEmpty(clip) || CGRectIsInfinite(clip) ? Ra::Bounds::huge() : RaCG::BoundsFromCGRect(clip);
     auto m = RaCG::transformFromCG(ctm);
-    uint8_t capFlags = capStyle == kCapButt ? 0 : capStyle == kCapSquare ? Ra::Draw::kSquareCap : Ra::Draw::kRoundCap;
-    uint8_t joinFlags = joinStyle == kJoinMiter ? 0 : Ra::Draw::kRoundJoin;
     Ra::Path clp = clipPath != nil ? clipPath.path : Ra::Path(nullptr);
-    _scene->addPath(p, m, color.paint, width, capFlags | joinFlags, & clipBounds, clipPath != nil ? & clp : nullptr);
+    _scene->addPath(p, m, color.paint, width, capFlags(capStyle) | joinFlags(joinStyle), & clipBounds, clipPath != nil ? & clp : nullptr);
 }
 
 - (CGRect)addFrame:(RAFrame *)frame
@@ -340,6 +458,18 @@
 }
 - (CGAffineTransform)addSvgFromUrl:(NSURL *)url {
     return RaCG::CGFromTransform(RaSVG::addSvgToScene(url.path.UTF8String, _scene));
+}
+
+- (void)updateDrawsInRange:(NSRange)range usingBlock:(RADrawUpdateBlock __attribute__((noescape)))block {
+    size_t count = _scene->count(), i0 = range.location;
+    if (i0 >= count)
+        return;
+    RADraw *alias = [RADraw new];
+    _scene->update(i0, range.length > count - i0 ? count : i0 + range.length, [&](size_t i, Ra::Draw& draw) {
+        [alias setTarget:& draw];
+        return bool(block(NSInteger(i), alias));
+    });
+    [alias setTarget:nullptr];
 }
 
 @end
