@@ -158,7 +158,7 @@ class ViewController: UIViewController {
             return
         }
         let toScene = svgCtm.concatenating(ctm).inverted()
-        let path = CounterRotatingCirclesPath(time, width: width, height: height, transform: toScene)
+        let path = CounterRotatingCirclesPath(0.33 * time, width: width, height: height, transform: toScene)
         scene.updateDraws(in: NSRange(location: 0, length: scene.count)) { _, draw in
             draw.clipPath = path
             return true
