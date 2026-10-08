@@ -240,20 +240,32 @@ static int exportList(const Ra::SceneList& list, const char *out) {
 
 #pragma mark - Offscreen Metal renderer: RasterizerLayer's pipelines & encode loop, drawing to a texture
 
+// As RasterizerLayer's MetalCache, whose entries expire after 10 s unused, flushed once per frame
 struct TextureCache {
-    std::map<size_t, id<MTLTexture>> map;
+    struct Entry { id<MTLTexture> texture;  double timestamp; };
+    std::map<size_t, Entry> map;
     id<MTLTexture> entryFor(const Ra::Paint& image, id<MTLDevice> device) {
         auto it = map.find(image.hash());
         if (it != map.end())
-            return it->second;
+            return it->second.timestamp = CACurrentMediaTime(), it->second.texture;
         MTLTextureDescriptor *desc = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatBGRA8Unorm width:image.bitmap->w height:image.bitmap->h mipmapped:NO];
         desc.storageMode = MTLStorageModeShared, desc.usage = MTLTextureUsageShaderRead;
         id<MTLTexture> texture = [device newTextureWithDescriptor:desc];
         [texture replaceRegion:MTLRegionMake2D(0, 0, image.bitmap->w, image.bitmap->h) mipmapLevel:0 withBytes:& image.bitmap->colors[0] bytesPerRow:image.bitmap->w * sizeof(Ra::Color)];
-        map.emplace(image.hash(), texture);
+        map.emplace(image.hash(), Entry{ texture, CACurrentMediaTime() });
         return texture;
     }
+    void flush() {
+        double t = CACurrentMediaTime();
+        std::vector<size_t> expired;
+        for (const auto& entry : map)
+            if (t - entry.second.timestamp > 10)
+                expired.emplace_back(entry.first);
+        for (auto key : expired)
+            map.erase(key);
+    }
 };
+
 
 // RA_CLIP_MASK, set by bench.sh when Rasterizer.hpp has Buffer::kClipMask, selects RasterizerLayer's anti-aliased clip mask & lazy
 // render passes; otherwise it's the stencil clipping & eager passes of earlier revisions, so --rev can benchmark either.
@@ -281,6 +293,9 @@ struct Offscreen {
 #if RA_IMAGES
     id<MTLArgumentEncoder> imageEncoder;
     id<MTLBuffer> noImagesBuffer;    // Bound for frames without images, as the image functions need a buffer
+    // The argument buffer of the last frame's images, kept while they're the same, with their hashes, the first draw of each
+    // distinct one, & their textures
+    id<MTLBuffer> imagesBuffer;  std::vector<size_t> imageHashes, imageFirsts;  NSArray<id<MTLTexture>> *imageTextures = @[];
 #endif
     id<MTLTexture> target, depthTexture, accumulationTexture;
 #if RA_CLIP_MASK
@@ -502,23 +517,39 @@ struct Offscreen {
         id<MTLRenderCommandEncoder> commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:drawableDescriptor];
 #if RA_IMAGES
         // The frame's image textures, in an argument buffer bound once per drawable pass
-        NSMutableArray<id<MTLTexture>> *images = [NSMutableArray array];
-        id<MTLBuffer> imagesBuffer = nil;
-        if (imageEncoder && buffer->images.end()) {
-            NSUInteger stride = imageEncoder.encodedLength;
-            imagesBuffer = [device newBufferWithLength:buffer->images.end() * stride options:MTLResourceStorageModeShared];
-            for (size_t k = 0; k < buffer->images.end(); k++) {
-                id<MTLTexture> texture = textureCache.entryFor(buffer->images[k], device);
-                [images addObject:texture];
-                [imageEncoder setArgumentBuffer:imagesBuffer offset:k * stride];
-                [imageEncoder setTexture:texture atIndex:0];
-            }
+        size_t imageCount = imageEncoder ? buffer->images.end() : 0;
+        if (imageCount) {
+            textureCache.flush();
+            std::vector<size_t> hashes(imageCount);
+            for (size_t k = 0; k < imageCount; k++)
+                hashes[k] = buffer->images[k].hash();
+            if (hashes != imageHashes) {     // Each distinct image is looked up once, & made resident once per pass
+                NSUInteger stride = imageEncoder.encodedLength;
+                imagesBuffer = [device newBufferWithLength:imageCount * stride options:MTLResourceStorageModeShared];
+                NSMutableArray<id<MTLTexture>> *textures = [NSMutableArray array];
+                std::map<size_t, id<MTLTexture>> distinct;
+                imageFirsts.resize(0);
+                for (size_t k = 0; k < imageCount; k++) {
+                    auto it = distinct.find(hashes[k]);
+                    if (it == distinct.end()) {
+                        it = distinct.emplace(hashes[k], textureCache.entryFor(buffer->images[k], device)).first;
+                        [textures addObject:it->second], imageFirsts.emplace_back(k);
+                    }
+                    [imageEncoder setArgumentBuffer:imagesBuffer offset:k * stride];
+                    [imageEncoder setTexture:it->second atIndex:0];
+                }
+                imageHashes.swap(hashes), imageTextures = textures;
+            } else
+                for (size_t k : imageFirsts)     // So they don't expire
+                    textureCache.entryFor(buffer->images[k], device);
         }
+        NSArray<id<MTLTexture>> *images = imageCount ? imageTextures : @[];
+        id<MTLBuffer> frameImages = imageCount ? imagesBuffer : nil;
         auto bindImages = [&]() {
             if (imageEncoder) {
                 for (id<MTLTexture> texture in images)
                     [commandEncoder useResource:texture usage:MTLResourceUsageRead stages:MTLRenderStageFragment];
-                [commandEncoder setFragmentBuffer:imagesBuffer ?: noImagesBuffer offset:0 atIndex:2];
+                [commandEncoder setFragmentBuffer:frameImages ?: noImagesBuffer offset:0 atIndex:2];
             }
         };
         bindImages();

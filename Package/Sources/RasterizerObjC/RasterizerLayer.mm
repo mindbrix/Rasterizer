@@ -33,8 +33,7 @@ struct MetalCache {
     
     virtual T createPayload(S src, id <MTLDevice> device) = 0;
     
-    T entryFor(S src, id <MTLDevice> device) {
-        flush();
+    T entryFor(S src, id <MTLDevice> device) {     // Expired entries are flushed once per frame, with flush()
         auto key = src.hash();
         auto it = map.find(key);
         if (it == map.end()) {
@@ -86,6 +85,11 @@ struct TextureCache : MetalCache<id <MTLTexture>, const Ra::Paint &> {
 {
     RenderBuffer _buffer0, _buffer1;
     TextureCache _textureCache;
+    // The argument buffer of the last frame's images, kept while they're the same, with their hashes, the first draw of each
+    // distinct one, & their textures
+    id <MTLBuffer> _imagesBuffer;
+    std::vector<size_t> _imageHashes, _imageFirsts;
+    NSArray<id <MTLTexture>> *_imageTextures;
 }
 
 @property (nonatomic) dispatch_semaphore_t inflight_semaphore;
@@ -345,20 +349,36 @@ struct TextureCache : MetalCache<id <MTLTexture>, const Ra::Paint &> {
         : hasMasks ? _instancesMaskedPipelineState : _instancesPipelineState;
     id <MTLRenderPipelineState> instancesClipPipelineState = hasBlends ? _instancesClipBlendPipelineState : _instancesClipPipelineState;
     
-    // The frame's image textures, in an argument buffer, which draws index, so they're bound once per drawable pass. Without an image
-    // encoder images aren't drawn
-    NSMutableArray<id <MTLTexture>> *images = [NSMutableArray array];
-    id <MTLBuffer> imagesBuffer = nil;
-    if (_imageEncoder && buffer->images.end()) {
-        NSUInteger stride = _imageEncoder.encodedLength;
-        imagesBuffer = [self.device newBufferWithLength:buffer->images.end() * stride options:MTLResourceStorageModeShared];
-        for (size_t i = 0; i < buffer->images.end(); i++) {
-            id <MTLTexture> texture = _textureCache.entryFor(buffer->images[i], self.device);
-            [images addObject:texture];
-            [_imageEncoder setArgumentBuffer:imagesBuffer offset:i * stride];
-            [_imageEncoder setTexture:texture atIndex:0];
-        }
+    // The frame's image textures, in an argument buffer, which draws index, so they're bound once per drawable pass. It's rebuilt only
+    // when the images change, & each distinct texture is looked up & made resident once. Without an image encoder images aren't drawn
+    _textureCache.flush();
+    size_t imageCount = _imageEncoder ? buffer->images.end() : 0;
+    if (imageCount) {
+        std::vector<size_t> hashes(imageCount);
+        for (size_t i = 0; i < imageCount; i++)
+            hashes[i] = buffer->images[i].hash();
+        if (hashes != _imageHashes) {
+            NSUInteger stride = _imageEncoder.encodedLength;
+            _imagesBuffer = [self.device newBufferWithLength:imageCount * stride options:MTLResourceStorageModeShared];
+            NSMutableArray<id <MTLTexture>> *textures = [NSMutableArray array];
+            std::map<size_t, id <MTLTexture>> distinct;
+            _imageFirsts.resize(0);
+            for (size_t i = 0; i < imageCount; i++) {
+                auto it = distinct.find(hashes[i]);
+                if (it == distinct.end()) {
+                    it = distinct.emplace(hashes[i], _textureCache.entryFor(buffer->images[i], self.device)).first;
+                    [textures addObject:it->second], _imageFirsts.emplace_back(i);
+                }
+                [_imageEncoder setArgumentBuffer:_imagesBuffer offset:i * stride];
+                [_imageEncoder setTexture:it->second atIndex:0];
+            }
+            _imageHashes.swap(hashes), _imageTextures = textures;
+        } else
+            for (size_t i : _imageFirsts)     // So they don't expire
+                _textureCache.entryFor(buffer->images[i], self.device);
     }
+    NSArray<id <MTLTexture>> *images = imageCount ? _imageTextures : @[];
+    id <MTLBuffer> imagesBuffer = imageCount ? _imagesBuffer : nil;
     id <MTLRenderCommandEncoder> commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:drawableDescriptor];
     auto bindImages = [&]() {
         if (_imageEncoder) {
@@ -515,7 +535,7 @@ struct TextureCache : MetalCache<id <MTLTexture>, const Ra::Paint &> {
     [commandEncoder endEncoding];
     __block dispatch_semaphore_t block_sema = _inflight_semaphore;
     [commandBuffer addCompletedHandler:^(id <MTLCommandBuffer> buffer) {
-        (void)images;      // Argument buffers don't retain their textures
+        (void)images;      // Argument buffers don't retain their textures, & a later frame's images can replace these
         dispatch_semaphore_signal(block_sema);
     }];
     [commandBuffer presentDrawable:drawable];
