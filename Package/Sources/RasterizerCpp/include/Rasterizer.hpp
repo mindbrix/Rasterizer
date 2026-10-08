@@ -1014,9 +1014,9 @@ struct Rasterizer {
                     if ((det || draw.width < 0.f) && clip.lx < clip.ux && clip.ly < clip.uy) {
                         bool unclipped = clip.contains(dev);
                         Paint *color = & draw.paint;
-                        bool isOpaque = color->isOpaque() && draw.blendMode == kBlendNormal;     // Opaques are drawn before what's beneath them
+                        bool isOpaque = color->isOpaque();
                         auto softUnclipped = [&]() {
-                            if (!isOpaque || lastClipPath != nullptr)
+                            if (!isOpaque || lastClipPath != nullptr || draw.blendMode != kBlendNormal)     // Opaques are drawn before what's beneath them
                                 return false;
                             if (!clipActive)
                                 return true;
