@@ -42,7 +42,9 @@ let package = Package(
             cxxSettings: [
                 .headerSearchPath("private"),
             ],
-            linkerSettings: []
+            linkerSettings: [
+                .linkedFramework("IOSurface", .when(platforms: [.macOS])),
+            ]
         ),
         .target(
             name: "RasterizerSwift",

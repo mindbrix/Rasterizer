@@ -22,6 +22,32 @@
 #import "RasterizerLayer.h"
 #import "RasterizerCG.hpp"
 #import "RasterizerAPI+Internal.h"
+#if TARGET_OS_OSX
+#import <IOSurface/IOSurface.h>
+#import <memory>
+#import <vector>
+
+// A DeviceRGB IOSurface, tagged so CA color matches it as it does a DeviceRGB image, with a context drawing into it
+struct CGSurface {
+    CGSurface(size_t w, size_t h, CGColorSpaceRef rgb) {
+        NSDictionary *props = @{ (id)kIOSurfaceWidth: @(w), (id)kIOSurfaceHeight: @(h), (id)kIOSurfaceBytesPerElement: @4,
+                                 (id)kIOSurfacePixelFormat: @((uint32_t)'BGRA') };
+        if ((surface = IOSurfaceCreate((__bridge CFDictionaryRef)props))) {
+            CFPropertyListRef colorspace = CGColorSpaceCopyPropertyList(rgb);
+            if (colorspace)
+                IOSurfaceSetValue(surface, kIOSurfaceColorSpace, colorspace), CFRelease(colorspace);
+            ctx = CGBitmapContextCreate(IOSurfaceGetBaseAddress(surface), w, h, 8, IOSurfaceGetBytesPerRow(surface), rgb,
+                                        kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little);
+        }
+    }
+    CGSurface(const CGSurface&) = delete;
+    ~CGSurface() {
+        if (ctx) CGContextRelease(ctx);
+        if (surface) CFRelease(surface);
+    }
+    IOSurfaceRef surface = nullptr;  CGContextRef ctx = nullptr;
+};
+#endif
 
 
 @interface RasterizerView () <CALayerDelegate, LayerDelegate>
@@ -37,6 +63,15 @@
 - (void)handleTimerTick:(id)sender;
 
 @end
+
+#if TARGET_OS_OSX
+@interface RasterizerView ()
+{
+    std::vector<std::unique_ptr<CGSurface>> _cgSurfaces;    // CG mode's surfaces, at the layer's size, reused unless CA is using them
+    size_t _cgWidth, _cgHeight;
+}
+@end
+#endif
 
 #if TARGET_OS_OSX
 static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink, const CVTimeStamp *now, const CVTimeStamp *outputTime,
@@ -152,13 +187,45 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
                                                        scale:scale
                                                        width:w
                                                       height:h];
+#if TARGET_OS_OSX
+        // A surface CA isn't using, as setting a CGImage as contents makes CA copy & color match it at each commit, & a new bitmap
+        // each display faults in its pages
+        if (pw != _cgWidth || ph != _cgHeight)
+            _cgSurfaces.clear(), _cgWidth = pw, _cgHeight = ph;
+        CGSurface *surface = nullptr;
+        for (auto& s : _cgSurfaces)
+            if (!IOSurfaceIsInUse(s->surface)) {
+                surface = s.get();
+                break;
+            }
+        if (surface == nullptr) {
+            CGColorSpaceRef rgb = CGColorSpaceCreateDeviceRGB();
+            std::unique_ptr<CGSurface> s(new CGSurface(pw, ph, rgb));
+            CGColorSpaceRelease(rgb);
+            if (s->ctx == nullptr)
+                return;
+            _cgSurfaces.push_back(std::move(s)), surface = _cgSurfaces.back().get();
+        }
+        IOSurfaceLock(surface->surface, 0, nullptr);
+        CGContextClearRect(surface->ctx, CGRectMake(0, 0, pw, ph));     // As the clear color can be transparent
+        CGContextSaveGState(surface->ctx);
+        CGContextScaleCTM(surface->ctx, scale, scale);
+        RaCG::renderListWithClear(list.list, scale, w, h, surface->ctx);
+        CGContextRestoreGState(surface->ctx);
+        IOSurfaceUnlock(surface->surface, 0, nullptr);
+        layer.contents = (__bridge id)surface->surface;
+#else
         CGColorSpaceRef rgb = CGColorSpaceCreateDeviceRGB();
         CGContextRef ctx = CGBitmapContextCreate(nullptr, pw, ph, 8, pw * 4, rgb, kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little);
+        CGColorSpaceRelease(rgb);
+        if (ctx == nullptr)
+            return;
         CGContextScaleCTM(ctx, scale, scale);
         RaCG::renderListWithClear(list.list, scale, w, h, ctx);
         CGImageRef image = CGBitmapContextCreateImage(ctx);
         layer.contents = (__bridge id)image;
-        CGImageRelease(image), CGContextRelease(ctx), CGColorSpaceRelease(rgb);
+        CGImageRelease(image), CGContextRelease(ctx);
+#endif
     }
 }
 
