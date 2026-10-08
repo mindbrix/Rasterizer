@@ -140,14 +140,25 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 
 #pragma mark - CALayerDelegate
 
-- (void)drawLayer:(CALayer *)layer inContext:(CGContextRef)ctx {
+// CG renders into a DeviceRGB bitmap, the layer's contents, as the Metal layer's colorspace is DeviceRGB, so both draw & blend the
+// same device values. The context a layer draws in is color matched to the window's color space, e.g. Display P3
+- (void)displayLayer:(CALayer *)layer {
     if ([self.listDelegate respondsToSelector:@selector(getListAtTime:scale:width:height:)]) {
-        double scale = self.layer.contentsScale, w = self.bounds.size.width, h = self.bounds.size.height;
+        double scale = layer.contentsScale, w = self.bounds.size.width, h = self.bounds.size.height;
+        size_t pw = ceil(w * scale), ph = ceil(h * scale);
+        if (pw == 0 || ph == 0)
+            return;
         RASceneList *list = [self.listDelegate getListAtTime:CACurrentMediaTime()
                                                        scale:scale
                                                        width:w
                                                       height:h];
+        CGColorSpaceRef rgb = CGColorSpaceCreateDeviceRGB();
+        CGContextRef ctx = CGBitmapContextCreate(nullptr, pw, ph, 8, pw * 4, rgb, kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little);
+        CGContextScaleCTM(ctx, scale, scale);
         RaCG::renderListWithClear(list.list, scale, w, h, ctx);
+        CGImageRef image = CGBitmapContextCreateImage(ctx);
+        layer.contents = (__bridge id)image;
+        CGImageRelease(image), CGContextRelease(ctx), CGColorSpaceRelease(rgb);
     }
 }
 
@@ -169,7 +180,6 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     CGFloat scale = self.layer.contentsScale ?: [self convertSizeToBacking:NSMakeSize(1.f, 1.f)].width;
     if (self.useCG) {
         self.layer = [CALayer layer];
-        self.layer.contentsFormat = kCAContentsFormatRGBA8Uint;
         self.layer.delegate = self;
         self.layer.magnificationFilter = kCAFilterNearest;
     } else {
