@@ -522,7 +522,7 @@ struct Rasterizer {
             return maxAlpha != 0;
         }
         inline bool isOpaque() const {
-            return !isImage() && minAlpha == 255;
+            return minAlpha == 255;
         }
         inline bool isGradient() const {
             return type == kLinear || type == kRadial;
@@ -844,8 +844,8 @@ struct Rasterizer {
         enum Flags {
             kBlend = 1 << 20,       // A draw with a blend mode, whose instances read it
             kRoundJoin = 1 << 21,   kClip = 1 << 21,
-            kIsRadial = 1 << 22,    kDisableImage = 1 << 22,
-            kIsGradient = 1 << 23,  kNextImage = 1 << 23,
+            kIsRadial = 1 << 22,
+            kIsGradient = 1 << 23,
             kIsImage = 1 << 24,     kIsCurve = 1 << 24,
             kMolecule = 1 << 25,    kPCap = 1 << 25,
             kFastEdges = 1 << 26,   kNCap = 1 << 26,
@@ -874,7 +874,7 @@ struct Rasterizer {
     struct Buffer {
         // kClipMask begins rendering a clip path's coverage into the clip mask, within the device bounds packed in begin, until kEnableClip.
         // Its end identifies the mask, so an encoder can skip rendering one the mask already holds
-        enum Type { kQuadEdges, kFastEdges, kFastMolecules, kQuadMolecules, kOpaques, kInstances, kSegmentsBase, kInstancesBase, kDisableClip, kEnableClip, kNextImage, kDisableImage, kClipMask };
+        enum Type { kQuadEdges, kFastEdges, kFastMolecules, kQuadMolecules, kOpaques, kInstances, kSegmentsBase, kInstancesBase, kDisableClip, kEnableClip, kClipMask };
         struct Entry {
             Entry(Type type, size_t begin, size_t end) : type(type), begin(begin), end(end) {}
             Type type;  size_t begin, end;
@@ -896,7 +896,7 @@ struct Rasterizer {
             headerSize = (base + 15) & ~15, entries.empty();
         }
         uint8_t *base = nullptr;  Row<Entry> entries;
-        RefVector<Paint> images;
+        RefVector<Paint> images;    // The frame's images, which draws index with texIdxs
         Params params;
         size_t colors, ctms, clips, widths, bounds, texCtms, texIdxs, modes, texStrips, p16s;
         size_t idxs, pathsCount, texCount, headerSize;
@@ -943,6 +943,10 @@ struct Rasterizer {
     struct TexRef {
         TexRef(size_t iz, Color *strip) : iz(uint32_t(iz)), strip(strip) {}
         uint32_t iz;  Color *strip;
+    };
+    struct ImageRef {
+        ImageRef(size_t iz, Paint *image) : iz(uint32_t(iz)), image(image) {}
+        uint32_t iz;  Paint *image;
     };
     struct Context {
         void drawList(const SceneList& list, float scale, float w, float h, size_t slz, size_t suz, Buffer *buffer) {
@@ -1032,8 +1036,7 @@ struct Rasterizer {
                             texs.add(TexRef(iz, & color->bitmap->strip[0]));
                         } else if (isImage) {
                             texCtms[iz] = quad.invert();
-                            new (blends.alloc(1)) Blend(iz | Instance::kIsImage | Instance::kNextImage);
-                            images.add(color);
+                            images.add(ImageRef(iz, color));
                         }
                         
                         if (list.params.showOutlines)
@@ -1077,8 +1080,6 @@ struct Rasterizer {
                             writeSegmentInstances(clip, draw.flags & Draw::kFillEvenOdd, iz, softUnclipped(), fast, colorFlags, *this);
                             segments.idx = segments.end = idxr.dst - segments.base;
                         }
-                        if (isImage)
-                            new (blends.alloc(1)) Blend(iz | Instance::kIsImage | Instance::kDisableImage);
                     }
                 }
             }
@@ -1127,7 +1128,7 @@ struct Rasterizer {
         Geometry *currentClipPath = nullptr;  Transform currentClipCtm;  Bounds currentMaskBounds, maskBounds;
         Allocator allocator;  Vector<Buffer::Entry> entries;
         Vector<TexRef> texs;
-        Vector<Paint *> images;
+        Vector<ImageRef> images;
         Row<Opaque> opaques;  Row<Blend> blends;  Row<Instance> outlines;  Row<Segment> segments;
         Row<Sample::Index> indices;  RefVector<Row<Sample>> samples;  Row<uint32_t> segmentsIndices;
     };
@@ -1861,7 +1862,7 @@ struct Rasterizer {
         Context *ctx = contexts;   Allocator::Pass *pass;
         for (ctx = contexts, i = 0; i < count; i++, ctx++) {
             for (j = 0; j < ctx->images.end(); j++)
-                buffer.images.add(*ctx->images[j]);
+                buffer.images.add(*ctx->images[j].image);
             for (instances = 0, pass = ctx->allocator.passes.base, j = 0; j < ctx->allocator.passes.end; j++, pass++)
                 instances += pass->count();
             begins[i] = size, size += instances * sizeof(Edge) + (ctx->outlines.end + ctx->blends.end) * sizeof(Instance) + ctx->segments.end * sizeof(Segment);
@@ -1886,6 +1887,9 @@ struct Rasterizer {
                 texIdxs[ref.iz] = texIdx++;
                 memcpy(buffer.base + end, ref.strip, sz), end += sz;
             }
+        for (texIdx = 0, i = 0; i < count; i++)     // Image draws index buffer.images, in the same order
+            for (j = 0; j < contexts[i].images.end(); j++)
+                texIdxs[contexts[i].images[j].iz] = texIdx++;
         buffer.p16s = end;
     }
     
@@ -1953,9 +1957,7 @@ struct Rasterizer {
                     ic = dst - dst0, dst++;
                     bool fast = inst->iz & Instance::kFastEdges;
                     
-                    bool isImage = (inst->iz & Instance::kIsImage) && ((inst->iz & Instance::kNextImage) || (inst->iz & Instance::kDisableImage));
-                    bool isClip = inst->iz & Instance::kClip;
-                    if (isImage || isClip) {
+                    if (inst->iz & Instance::kClip) {
                         dst--;
                         batchBegins.add(begin + (dst - dst0) * sizeof(Instance));
                         batchCommands.add(*inst);
@@ -1999,23 +2001,16 @@ struct Rasterizer {
                     i1 = i == batchBegins.end() ? end : batchBegins[i];
                     if (i0 != i1)
                         ctx->entries.add(Buffer::Entry(Buffer::kInstances, i0, i1));
-                    if (i != batchBegins.end()) {
+                    if (i != batchBegins.end()) {     // A clip command
                         const Blend& cmd = batchCommands[i];
-                        if (cmd.iz & Instance::kClip) {
-                            const Cell& cell = cmd.quad.cell;
-                            if (cmd.data.idx == Context::kClipMaskBegin)     // The mask's device bounds, packed as lx, ly, ux, uy, & its identity
-                                ctx->entries.add(Buffer::Entry(Buffer::kClipMask, size_t(cell.lx) | size_t(cell.ly) << 16 | size_t(cell.ux) << 32 | size_t(cell.uy) << 48,
-                                                               XXH64(& cmd.quad.base, sizeof(cmd.quad.base), size_t(cmd.g)) ?: 1));
-                            else if (cmd.data.idx == Context::kClipDisable)
-                                ctx->entries.add(Buffer::Entry(Buffer::kDisableClip, 0, 0));
-                            else
-                                ctx->entries.add(Buffer::Entry(Buffer::kEnableClip, 0, 0));
-                        } else if (cmd.iz & Instance::kIsImage) {
-                            if (cmd.iz & Instance::kNextImage)
-                                ctx->entries.add(Buffer::Entry(Buffer::kNextImage, 0, 0));
-                            else if (cmd.iz & Instance::kDisableImage)
-                                ctx->entries.add(Buffer::Entry(Buffer::kDisableImage, 0, 0));
-                        }
+                        const Cell& cell = cmd.quad.cell;
+                        if (cmd.data.idx == Context::kClipMaskBegin)     // The mask's device bounds, packed as lx, ly, ux, uy, & its identity
+                            ctx->entries.add(Buffer::Entry(Buffer::kClipMask, size_t(cell.lx) | size_t(cell.ly) << 16 | size_t(cell.ux) << 32 | size_t(cell.uy) << 48,
+                                                           XXH64(& cmd.quad.base, sizeof(cmd.quad.base), size_t(cmd.g)) ?: 1));
+                        else if (cmd.data.idx == Context::kClipDisable)
+                            ctx->entries.add(Buffer::Entry(Buffer::kDisableClip, 0, 0));
+                        else
+                            ctx->entries.add(Buffer::Entry(Buffer::kEnableClip, 0, 0));
                     }
                 }
                 begin = end;

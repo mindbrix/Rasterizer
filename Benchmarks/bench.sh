@@ -260,7 +260,8 @@ struct TextureCache {
 // RA_CLIP_CLEAR_CELLS, set when Rasterizer.hpp has Instance::kClipClear, zeroes each mask with a cell among its instances; earlier
 // clip mask revisions zero it with a scissored clear pass. RA_CLIP_IN_PASS, set when Shaders.metal reads the mask with framebuffer
 // fetch, renders each mask in the drawable pass as its color attachment 1, so a frame with clip masks has no mask passes.
-// RA_BLEND, set when Rasterizer.h has blend modes, draws a frame with them using the instance pipelines that blend in the shader
+// RA_BLEND, set when Rasterizer.h has blend modes, draws a frame with them using the instance pipelines that blend in the shader.
+// RA_IMAGES, set when Shaders.metal samples images from an argument buffer, binds the frame's images once per drawable pass
 #if RA_CLIP_MASK
 static const MTLPixelFormat kDepthFormat = MTLPixelFormatDepth32Float;
 #else
@@ -276,6 +277,10 @@ struct Offscreen {
 #endif
 #if RA_BLEND
     id<MTLRenderPipelineState> instancesBlend, instancesBlendMasked, instancesClipBlend;
+#endif
+#if RA_IMAGES
+    id<MTLArgumentEncoder> imageEncoder;
+    id<MTLBuffer> noImagesBuffer;    // Bound for frames without images, as the image functions need a buffer
 #endif
     id<MTLTexture> target, depthTexture, accumulationTexture;
 #if RA_CLIP_MASK
@@ -295,7 +300,15 @@ struct Offscreen {
         library = [device newLibraryWithURL:[NSURL fileURLWithPath:@(metallib)] error:& error];
         if (!library)
             return fprintf(stderr, "metallib: %s\n", error.localizedDescription.UTF8String), false;
+#if RA_IMAGES
+        // Images need tier 2 argument buffers, else the fragment functions are made without image sampling
+        bool hasImages = device.argumentBuffersSupport == MTLArgumentBuffersTier2;
+        MTLFunctionConstantValues *constants = [MTLFunctionConstantValues new];
+        [constants setConstantValue:& hasImages type:MTLDataTypeBool atIndex:0];
+        auto fn = [&](const char *name) { return name ? [library newFunctionWithName:@(name) constantValues:constants error:nil] : nil; };
+#else
         auto fn = [&](const char *name) { return name ? [library newFunctionWithName:@(name)] : nil; };
+#endif
 
         MTLDepthStencilDescriptor *d = [MTLDepthStencilDescriptor new];
         d.depthWriteEnabled = YES, d.depthCompareFunction = MTLCompareFunctionGreater;
@@ -339,6 +352,12 @@ struct Offscreen {
         p.colorAttachments[0].destinationRGBBlendFactor = MTLBlendFactorOneMinusSourceAlpha, p.colorAttachments[0].destinationAlphaBlendFactor = MTLBlendFactorOneMinusSourceAlpha;
         p.vertexFunction = fn("instances_vertex_main"), p.fragmentFunction = fn("instances_fragment_main");
         instances = [device newRenderPipelineStateWithDescriptor:p error:nil];
+#if RA_IMAGES
+        if (hasImages) {
+            imageEncoder = [p.fragmentFunction newArgumentEncoderWithBufferIndex:2];
+            noImagesBuffer = [device newBufferWithLength:imageEncoder.encodedLength options:MTLResourceStorageModeShared];
+        }
+#endif
 #if RA_BLEND
         // Frames with blend modes blend in the shader, reading the target with framebuffer fetch
         auto blendPipeline = [&](const char *name) {
@@ -481,6 +500,29 @@ struct Offscreen {
         const bool lazyPasses = false;
 #endif
         id<MTLRenderCommandEncoder> commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:drawableDescriptor];
+#if RA_IMAGES
+        // The frame's image textures, in an argument buffer bound once per drawable pass
+        NSMutableArray<id<MTLTexture>> *images = [NSMutableArray array];
+        id<MTLBuffer> imagesBuffer = nil;
+        if (imageEncoder && buffer->images.end()) {
+            NSUInteger stride = imageEncoder.encodedLength;
+            imagesBuffer = [device newBufferWithLength:buffer->images.end() * stride options:MTLResourceStorageModeShared];
+            for (size_t k = 0; k < buffer->images.end(); k++) {
+                id<MTLTexture> texture = textureCache.entryFor(buffer->images[k], device);
+                [images addObject:texture];
+                [imageEncoder setArgumentBuffer:imagesBuffer offset:k * stride];
+                [imageEncoder setTexture:texture atIndex:0];
+            }
+        }
+        auto bindImages = [&]() {
+            if (imageEncoder) {
+                for (id<MTLTexture> texture in images)
+                    [commandEncoder useResource:texture usage:MTLResourceUsageRead stages:MTLRenderStageFragment];
+                [commandEncoder setFragmentBuffer:imagesBuffer ?: noImagesBuffer offset:0 atIndex:2];
+            }
+        };
+        bindImages();
+#endif
         drawableDescriptor.colorAttachments[0].loadAction = MTLLoadActionLoad;
         drawableDescriptor.depthAttachment.loadAction = MTLLoadActionLoad;
 #if RA_CLIP_IN_PASS
@@ -501,6 +543,10 @@ struct Offscreen {
             [commandEncoder endEncoding];
             commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:kind == kMaskPass ? maskDescriptor : kind == kEdgesPass ? edgesDescriptor : drawableDescriptor];
             passKind = kind;
+#if RA_IMAGES
+            if (kind == kDrawablePass)
+                bindImages();
+#endif
         };
         uint32_t reverse, pathsCount = uint32_t(buffer->pathsCount), texCount = uint32_t(th);
         float width = target.width, height = target.height;
@@ -516,11 +562,13 @@ struct Offscreen {
                 case Ra::Buffer::kEnableClip:
                     inMask = skipMask = false, useClip = entry.type == Ra::Buffer::kEnableClip;
                     break;
+#if !RA_IMAGES
                 case Ra::Buffer::kDisableImage:  useImage = false;  break;
                 case Ra::Buffer::kNextImage:
                     imageTexture = textureCache.entryFor(buffer->images[imgIndex++], device);
                     useImage = true;
                     break;
+#endif
 #if RA_CLIP_MASK
                 case Ra::Buffer::kClipMask: {
                     inMask = true;
@@ -2001,7 +2049,8 @@ if [[ ! -x $B/rabench || $S/ra/rabench.mm -nt $B/rabench || -n $(find $INC $RA/R
   CLEAR=0; grep -q kClipClear $INC/Rasterizer.hpp && CLEAR=1    # Its clear cells, else a clear pass
   INPASS=0; grep -q '\[\[color(1)\]\]' $INC/Shaders.metal && INPASS=1    # Its in-pass mask, read with framebuffer fetch, else mask passes
   BLEND=0; grep -q kBlendNormal $INC/Rasterizer.h && BLEND=1    # Its blend modes, blended in the shader
-  clang++ -O3 -std=c++17 -fobjc-arc -DRA_CLIP_MASK=$CLIP -DRA_CLIP_CLEAR_CELLS=$CLEAR -DRA_CLIP_IN_PASS=$INPASS -DRA_BLEND=$BLEND -x objective-c++ $S/ra/rabench.mm -x none $W/obj/xxhash.o $W/obj/nanosvg.o \
+  IMAGES=0; grep -q 'function_constant(kImages)' $INC/Shaders.metal && IMAGES=1    # Its images, from an argument buffer
+  clang++ -O3 -std=c++17 -fobjc-arc -DRA_CLIP_MASK=$CLIP -DRA_CLIP_CLEAR_CELLS=$CLEAR -DRA_CLIP_IN_PASS=$INPASS -DRA_BLEND=$BLEND -DRA_IMAGES=$IMAGES -x objective-c++ $S/ra/rabench.mm -x none $W/obj/xxhash.o $W/obj/nanosvg.o \
     -I$INC -I$RA/Rasterizer/Demo -I$PDFIUM/Headers -L$PDFIUM -lpdfium -Wl,-rpath,$PDFIUM \
     -framework Foundation -framework Metal -framework QuartzCore -framework CoreGraphics -framework ImageIO -framework CoreServices \
     -Wno-deprecated-declarations -o $B/rabench

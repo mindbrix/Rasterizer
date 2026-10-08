@@ -104,6 +104,8 @@ struct TextureCache : MetalCache<id <MTLTexture>, const Ra::Paint &> {
 @property (nonatomic) id <MTLRenderPipelineState> instancesBlendPipelineState;
 @property (nonatomic) id <MTLRenderPipelineState> instancesBlendMaskedPipelineState;
 @property (nonatomic) id <MTLRenderPipelineState> instancesClipBlendPipelineState;
+@property (nonatomic) id <MTLArgumentEncoder> imageEncoder;     // For an argument buffer of the frame's images, or nil without them
+@property (nonatomic) id <MTLBuffer> noImagesBuffer;            // Bound for frames without images, as the image functions need a buffer
 @property (nonatomic) id <MTLRenderPipelineState> clipMaskPipelineState;
 @property (nonatomic) id <MTLDepthStencilState> instancesDepthState;
 @property (nonatomic) id <MTLDepthStencilState> opaquesDepthState;
@@ -149,6 +151,15 @@ struct TextureCache : MetalCache<id <MTLTexture>, const Ra::Paint &> {
     depthStencilDescriptor.depthCompareFunction = MTLCompareFunctionAlways;    // Clip mask cells are always written, & never write depth
     self.clipMaskDepthState = [self.device newDepthStencilStateWithDescriptor:depthStencilDescriptor];
     
+    // Images are sampled from an argument buffer of the frame's image textures, which needs tier 2 argument buffers. Without them,
+    // e.g. in the iOS Simulator, the fragment functions are made without image sampling, & images aren't drawn
+    bool hasImages = self.device.argumentBuffersSupport == MTLArgumentBuffersTier2;
+    MTLFunctionConstantValues *constants = [MTLFunctionConstantValues new];
+    [constants setConstantValue:& hasImages type:MTLDataTypeBool atIndex:0];
+    auto fragmentFunction = [&](NSString *name) {
+        return [self.defaultLibrary newFunctionWithName:name constantValues:constants error:nil];
+    };
+    
     // A frame with clip masks renders them in its drawable passes, into the clip mask as color attachment 1, so its pipelines have
     // that attachment, which only clip mask instances write. Clipped instances read it with framebuffer fetch
     MTLRenderPipelineDescriptor *descriptor = [MTLRenderPipelineDescriptor new];
@@ -159,7 +170,7 @@ struct TextureCache : MetalCache<id <MTLTexture>, const Ra::Paint &> {
         descriptor.colorAttachments[1].pixelFormat = masked ? MTLPixelFormatR8Unorm : MTLPixelFormatInvalid;
         descriptor.colorAttachments[0].blendingEnabled = NO;
         descriptor.vertexFunction = [self.defaultLibrary newFunctionWithName:@"opaques_vertex_main"];
-        descriptor.fragmentFunction = [self.defaultLibrary newFunctionWithName:@"opaques_fragment_main"];
+        descriptor.fragmentFunction = fragmentFunction(@"opaques_fragment_main");
         descriptor.label = masked ? @"opaques masked" : @"opaques";
         id <MTLRenderPipelineState> opaques = [self.device newRenderPipelineStateWithDescriptor:descriptor error:nil];
         
@@ -171,13 +182,17 @@ struct TextureCache : MetalCache<id <MTLTexture>, const Ra::Paint &> {
         descriptor.colorAttachments[0].destinationRGBBlendFactor = MTLBlendFactorOneMinusSourceAlpha;
         descriptor.colorAttachments[0].destinationAlphaBlendFactor = MTLBlendFactorOneMinusSourceAlpha;
         descriptor.vertexFunction = [self.defaultLibrary newFunctionWithName:@"instances_vertex_main"];
-        descriptor.fragmentFunction = [self.defaultLibrary newFunctionWithName:@"instances_fragment_main"];
+        descriptor.fragmentFunction = fragmentFunction(@"instances_fragment_main");
+        if (hasImages && !masked) {
+            self.imageEncoder = [descriptor.fragmentFunction newArgumentEncoderWithBufferIndex:2];
+            self.noImagesBuffer = [self.device newBufferWithLength:self.imageEncoder.encodedLength options:MTLResourceStorageModeShared];
+        }
         descriptor.label = masked ? @"instances masked" : @"instances";
         id <MTLRenderPipelineState> instances = [self.device newRenderPipelineStateWithDescriptor:descriptor error:nil];
         
         // Frames with blend modes blend in the shader, reading the drawable with framebuffer fetch
         descriptor.colorAttachments[0].blendingEnabled = NO;
-        descriptor.fragmentFunction = [self.defaultLibrary newFunctionWithName:@"instances_blend_fragment_main"];
+        descriptor.fragmentFunction = fragmentFunction(@"instances_blend_fragment_main");
         descriptor.label = masked ? @"instances blend masked" : @"instances blend";
         id <MTLRenderPipelineState> blend = [self.device newRenderPipelineStateWithDescriptor:descriptor error:nil];
         descriptor.colorAttachments[0].blendingEnabled = YES;
@@ -186,12 +201,12 @@ struct TextureCache : MetalCache<id <MTLTexture>, const Ra::Paint &> {
         else
             self.opaquesPipelineState = opaques, self.instancesPipelineState = instances, self.instancesBlendPipelineState = blend;
     }
-    descriptor.fragmentFunction = [self.defaultLibrary newFunctionWithName:@"instances_clip_fragment_main"];
+    descriptor.fragmentFunction = fragmentFunction(@"instances_clip_fragment_main");
     descriptor.label = @"instances clip";
     self.instancesClipPipelineState = [self.device newRenderPipelineStateWithDescriptor:descriptor error:nil];
     
     descriptor.colorAttachments[0].blendingEnabled = NO;
-    descriptor.fragmentFunction = [self.defaultLibrary newFunctionWithName:@"instances_clip_blend_fragment_main"];
+    descriptor.fragmentFunction = fragmentFunction(@"instances_clip_blend_fragment_main");
     descriptor.label = @"instances clip blend";
     self.instancesClipBlendPipelineState = [self.device newRenderPipelineStateWithDescriptor:descriptor error:nil];
     descriptor.colorAttachments[0].blendingEnabled = YES;
@@ -330,7 +345,29 @@ struct TextureCache : MetalCache<id <MTLTexture>, const Ra::Paint &> {
         : hasMasks ? _instancesMaskedPipelineState : _instancesPipelineState;
     id <MTLRenderPipelineState> instancesClipPipelineState = hasBlends ? _instancesClipBlendPipelineState : _instancesClipPipelineState;
     
+    // The frame's image textures, in an argument buffer, which draws index, so they're bound once per drawable pass. Without an image
+    // encoder images aren't drawn
+    NSMutableArray<id <MTLTexture>> *images = [NSMutableArray array];
+    id <MTLBuffer> imagesBuffer = nil;
+    if (_imageEncoder && buffer->images.end()) {
+        NSUInteger stride = _imageEncoder.encodedLength;
+        imagesBuffer = [self.device newBufferWithLength:buffer->images.end() * stride options:MTLResourceStorageModeShared];
+        for (size_t i = 0; i < buffer->images.end(); i++) {
+            id <MTLTexture> texture = _textureCache.entryFor(buffer->images[i], self.device);
+            [images addObject:texture];
+            [_imageEncoder setArgumentBuffer:imagesBuffer offset:i * stride];
+            [_imageEncoder setTexture:texture atIndex:0];
+        }
+    }
     id <MTLRenderCommandEncoder> commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:drawableDescriptor];
+    auto bindImages = [&]() {
+        if (_imageEncoder) {
+            for (id <MTLTexture> texture in images)
+                [commandEncoder useResource:texture usage:MTLResourceUsageRead stages:MTLRenderStageFragment];
+            [commandEncoder setFragmentBuffer:imagesBuffer ?: _noImagesBuffer offset:0 atIndex:2];
+        }
+    };
+    bindImages();
     
     drawableDescriptor.colorAttachments[0].loadAction = MTLLoadActionLoad;
     drawableDescriptor.colorAttachments[1].loadAction = MTLLoadActionLoad;
@@ -346,7 +383,7 @@ struct TextureCache : MetalCache<id <MTLTexture>, const Ra::Paint &> {
     size_t maskID = 0;    // The identity of the mask the clip mask holds, as contexts beginning with the last one's clip repeat it
     bool skipMask = false;
     
-    bool useClip = false, useImage = false, inMask = false;
+    bool useClip = false, inMask = false;
     // Render passes switch only when their kind changes, as each switch stores & reloads its attachments. Edges always begin a pass
     enum PassKind { kDrawablePass, kEdgesPass } passKind = kDrawablePass;
     auto beginPass = [&](PassKind kind) {
@@ -355,12 +392,11 @@ struct TextureCache : MetalCache<id <MTLTexture>, const Ra::Paint &> {
         [commandEncoder endEncoding];
         commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:kind == kEdgesPass ? edgesDescriptor : drawableDescriptor];
         passKind = kind;
+        if (kind == kDrawablePass)
+            bindImages();
     };
     uint32_t reverse, pathsCount = uint32_t(buffer->pathsCount), texCount = uint32_t(th);
     float width = drawable.texture.width, height = drawable.texture.height;
-    
-    NSUInteger imgIndex = 0;
-    id <MTLTexture> imageTexture = nil;
     
     for (size_t segbase = 0, instbase = 0, i = 0; i < buffer->entries.end; i++) {
         Ra::Buffer::Entry& entry = buffer->entries.base[i];
@@ -385,13 +421,6 @@ struct TextureCache : MetalCache<id <MTLTexture>, const Ra::Paint &> {
                 maskBounds = { lx, NSUInteger(height) - uy, ux - lx, uy - ly };    // Device space is y up
                 break;
             }
-            case Ra::Buffer::kDisableImage:
-                useImage = false;
-                break;
-            case Ra::Buffer::kNextImage:
-                imageTexture = _textureCache.entryFor(buffer->images[imgIndex++], self.device);
-                useImage = true;
-                break;
             case Ra::Buffer::kOpaques:
                 beginPass(kDrawablePass);
                 [commandEncoder setDepthStencilState:_opaquesDepthState];
@@ -407,7 +436,7 @@ struct TextureCache : MetalCache<id <MTLTexture>, const Ra::Paint &> {
                 [commandEncoder setVertexBytes:& pathsCount length:sizeof(pathsCount) atIndex:13];
                 [commandEncoder setVertexBytes:& texCount length:sizeof(texCount) atIndex:14];
                 [commandEncoder setVertexBytes:& buffer->params length:sizeof(Ra::Params) atIndex:15];
-                [commandEncoder setFragmentTexture:useImage ? imageTexture : colorTexture atIndex:1];
+                [commandEncoder setFragmentTexture:colorTexture atIndex:1];
                 [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip
                                    vertexStart:0
                                    vertexCount:4
@@ -474,7 +503,7 @@ struct TextureCache : MetalCache<id <MTLTexture>, const Ra::Paint &> {
                 [commandEncoder setVertexBytes:& texCount length:sizeof(texCount) atIndex:14];
                 [commandEncoder setVertexBytes:& buffer->params length:sizeof(Ra::Params) atIndex:15];
                 [commandEncoder setFragmentTexture:_accumulationTexture atIndex:0];
-                [commandEncoder setFragmentTexture:useImage ? imageTexture : colorTexture atIndex:1];
+                [commandEncoder setFragmentTexture:colorTexture atIndex:1];
                 [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip
                                    vertexStart:0
                                    vertexCount:4
@@ -486,6 +515,7 @@ struct TextureCache : MetalCache<id <MTLTexture>, const Ra::Paint &> {
     [commandEncoder endEncoding];
     __block dispatch_semaphore_t block_sema = _inflight_semaphore;
     [commandBuffer addCompletedHandler:^(id <MTLCommandBuffer> buffer) {
+        (void)images;      // Argument buffers don't retain their textures
         dispatch_semaphore_signal(block_sema);
     }];
     [commandBuffer presentDrawable:drawable];

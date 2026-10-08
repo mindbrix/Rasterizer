@@ -25,6 +25,20 @@ using namespace metal;
 constexpr sampler s = sampler(coord::normalized, address::clamp_to_zero, mag_filter::nearest, min_filter::nearest, mip_filter::linear);
 constexpr sampler cs = sampler(coord::normalized, address::clamp_to_edge, mag_filter::linear, min_filter::linear, mip_filter::linear);
 
+// Images are sampled from an argument buffer of the frame's image textures, indexed per draw, which needs tier 2 argument buffers.
+// Without them, e.g. in the iOS Simulator, kImages is false, & images aren't drawn
+constant bool kImages [[function_constant(0)]];
+constant uint kNoImage = 0xFFFFFFFF;
+struct Image {
+    texture2d<float> texture;
+};
+// A draw's color texture sample, or its image's
+inline float4 paintColor(float3 tex, uint image, texture2d<float> colorTexture, const device Image *images) {
+    if (image != kNoImage)
+        return kImages ? images[image].texture.sample(cs, tex.xy) : float4(0.0);
+    return colorTexture.sample(cs, float2(tex.z == 0.0 ? tex.x : sqrt(tex.x * tex.x + tex.z * tex.z), tex.y));
+}
+
 struct Transform {
     float a, b, c, d, tx, ty;
 };
@@ -67,8 +81,8 @@ struct Instance {
     enum Flags {
         kBlend = 1 << 20,       // A draw with a blend mode, whose instances read it
         kRoundJoin = 1 << 21,   kClip = 1 << 21,
-        kIsRadial = 1 << 22,    kDisableImage = 1 << 22,
-        kIsGradient = 1 << 23,  kNextImage = 1 << 23,
+        kIsRadial = 1 << 22,
+        kIsGradient = 1 << 23,
         kIsImage = 1 << 24,     kIsCurve = 1 << 24,
         kMolecule = 1 << 25,    kPCap = 1 << 25,
         kFastEdges = 1 << 26,   kNCap = 1 << 26,
@@ -199,6 +213,7 @@ struct OpaquesVertex
 {
     float4 position [[position]];
     float3 tex;
+    uint image [[flat]];
 };
 
 vertex OpaquesVertex opaques_vertex_main(const device Colorant *colors [[buffer(0)]],
@@ -217,6 +232,7 @@ vertex OpaquesVertex opaques_vertex_main(const device Colorant *colors [[buffer(
     const uint iz = inst.iz & kPathIndexMask;
     const bool isGradient = inst.iz & Instance::kIsGradient;
     const bool isRadial = inst.iz & Instance::kIsRadial;
+    const bool isImage = inst.iz & Instance::kIsImage;
     const device Transform& texCtm = texCtms[iz];
     const device Cell& cell = inst.cell;
     const device Quadratic& quad = inst.quad;
@@ -262,19 +278,27 @@ vertex OpaquesVertex opaques_vertex_main(const device Colorant *colors [[buffer(
     vert.tex.x = (0.5 + (tiz % tw)) / float(tw);
     vert.tex.y = (0.5 + (tiz / tw)) / float(th + *texCount);
     vert.tex.z = 0.0;
+    vert.image = kNoImage;
     
     if (params->showOpaques && isGradient) {
         vert.tex.x = x * texCtm.b + y * texCtm.d + texCtm.ty;
         vert.tex.y = (0.5 + (th + texIdxs[iz])) / float(th + *texCount);
         vert.tex.z = isRadial ? x * texCtm.a + y * texCtm.c + texCtm.tx : 0;
+    } else if (params->showOpaques && isImage) {
+        vert.tex.x = x * texCtm.a + y * texCtm.c + texCtm.tx;
+        vert.tex.y = 1.0 - (x * texCtm.b + y * texCtm.d + texCtm.ty);
+        vert.image = texIdxs[iz];
     }
     return vert;
 }
 
-fragment float4 opaques_fragment_main(OpaquesVertex vert [[stage_in]], texture2d<float> colorTexture [[texture(1)]])
+fragment float4 opaques_fragment_main(OpaquesVertex vert [[stage_in]],
+                                      texture2d<float> colorTexture [[texture(1)]],
+                                      const device Image *images [[buffer(2), function_constant(kImages)]])
 {
-    float x = vert.tex.x, y = vert.tex.y, z = vert.tex.z;
-    return colorTexture.sample(cs, float2(z == 0.0 ? x : sqrt(x * x + z * z), y));
+    if (!kImages && vert.image != kNoImage)
+        discard_fragment();
+    return paintColor(vert.tex, vert.image, colorTexture, images);
 }
 
 #pragma mark - Fast Molecules
@@ -520,6 +544,7 @@ struct InstancesVertex
     float u, v, w, cover, alpha;
     float x, y, z;
     uint32_t iz;
+    uint image [[flat]];
 };
 
 vertex InstancesVertex instances_vertex_main(
@@ -657,6 +682,7 @@ vertex InstancesVertex instances_vertex_main(
     vert.clip = params->useClips ? float2(dx * clip.a + dy * clip.c + clip.tx, dx * clip.b + dy * clip.d + clip.ty) : 0.5;
     vert.alpha = alpha;
     vert.iz = iz | flags;
+    vert.image = isImage ? texIdxs[iz] : kNoImage;
     
     int tw = kColorTextureWidth, th = (*pathCount + tw - 0) / tw;
     if (isGradient) {
@@ -684,7 +710,7 @@ inline float fillCoverage(InstancesVertex vert, texture2d<float> accumulation) {
     return vert.iz & Instance::kEvenOdd ? 1.0 - abs(fmod(cover, 2.0) - 1.0) : min(1.0, cover);
 }
 
-inline float4 instanceColor(InstancesVertex vert, texture2d<float> accumulation, texture2d<float> colorTexture)
+inline float4 instanceColor(InstancesVertex vert, texture2d<float> accumulation, texture2d<float> colorTexture, const device Image *images)
 {
     float alpha = 1.0;
     if (vert.iz & Instance::kOutlines) {
@@ -729,15 +755,15 @@ inline float4 instanceColor(InstancesVertex vert, texture2d<float> accumulation,
     float sx = rsqrt(a * a + b * b), sy = rsqrt(c * c + d * d);
     float clip = saturate(0.5 + clx * sx) * saturate(0.5 + (1.0 - clx) * sx) * saturate(0.5 + cly * sy) * saturate(0.5 + (1.0 - cly) * sy);
     
-    float x = vert.tex.x, y = vert.tex.y, z = vert.tex.z;
-    return alpha * vert.alpha * clip * colorTexture.sample(cs, float2(z == 0.0 ? x : sqrt(x * x + z * z), y));
+    return alpha * vert.alpha * clip * paintColor(vert.tex, vert.image, colorTexture, images);
 }
 
 fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
                                         texture2d<float> accumulation [[texture(0)]],
-                                        texture2d<float> colorTexture [[texture(1)]])
+                                        texture2d<float> colorTexture [[texture(1)]],
+                                        const device Image *images [[buffer(2), function_constant(kImages)]])
 {
-    return instanceColor(vert, accumulation, colorTexture);
+    return instanceColor(vert, accumulation, colorTexture, images);
 }
 
 // Clipped by the clip mask, the drawable pass's color attachment 1, read with framebuffer fetch. Only the current clip's bounds
@@ -746,10 +772,11 @@ fragment float4 instances_clip_fragment_main(InstancesVertex vert [[stage_in]],
                                              texture2d<float> accumulation [[texture(0)]],
                                              texture2d<float> colorTexture [[texture(1)]],
                                              float clipMask [[color(1)]],
-                                             constant uint4 *maskBounds [[buffer(0)]])
+                                             constant uint4 *maskBounds [[buffer(0)]],
+                                             const device Image *images [[buffer(2), function_constant(kImages)]])
 {
     uint2 p = uint2(vert.position.xy), b0 = maskBounds->xy, b1 = b0 + maskBounds->zw;
-    return instanceColor(vert, accumulation, colorTexture) * (all(p >= b0) && all(p < b1) ? clipMask : 0.0);
+    return instanceColor(vert, accumulation, colorTexture, images) * (all(p >= b0) && all(p < b1) ? clipMask : 0.0);
 }
 
 #pragma mark - Blend modes
@@ -820,9 +847,10 @@ fragment float4 instances_blend_fragment_main(InstancesVertex vert [[stage_in]],
                                               texture2d<float> accumulation [[texture(0)]],
                                               texture2d<float> colorTexture [[texture(1)]],
                                               float4 dst [[color(0)]],
-                                              const device uint8_t *modes [[buffer(1)]])
+                                              const device uint8_t *modes [[buffer(1)]],
+                                              const device Image *images [[buffer(2), function_constant(kImages)]])
 {
-    return blendColor(instanceColor(vert, accumulation, colorTexture), dst, blendMode(vert, modes));
+    return blendColor(instanceColor(vert, accumulation, colorTexture, images), dst, blendMode(vert, modes));
 }
 
 fragment float4 instances_clip_blend_fragment_main(InstancesVertex vert [[stage_in]],
@@ -831,10 +859,11 @@ fragment float4 instances_clip_blend_fragment_main(InstancesVertex vert [[stage_
                                                    float4 dst [[color(0)]],
                                                    float clipMask [[color(1)]],
                                                    constant uint4 *maskBounds [[buffer(0)]],
-                                                   const device uint8_t *modes [[buffer(1)]])
+                                                   const device uint8_t *modes [[buffer(1)]],
+                                                   const device Image *images [[buffer(2), function_constant(kImages)]])
 {
     uint2 p = uint2(vert.position.xy), b0 = maskBounds->xy, b1 = b0 + maskBounds->zw;
-    float4 src = instanceColor(vert, accumulation, colorTexture) * (all(p >= b0) && all(p < b1) ? clipMask : 0.0);
+    float4 src = instanceColor(vert, accumulation, colorTexture, images) * (all(p >= b0) && all(p < b1) ? clipMask : 0.0);
     return blendColor(src, dst, blendMode(vert, modes));
 }
 
