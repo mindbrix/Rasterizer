@@ -24,6 +24,8 @@
 #import "fpdf_edit.h"
 #import "fpdf_transformpage.h"
 #import "fpdf_text.h"
+#import <CoreGraphics/CoreGraphics.h>
+#import <algorithm>
 #import <map>
 #import <vector>
 
@@ -75,6 +77,345 @@ struct RasterizerPDF {
         }
     };
     
+    static bool readNumbers(CGPDFDictionaryRef dict, const char *key, std::vector<float>& numbers) {
+        CGPDFArrayRef array;  CGPDFReal number;
+        if (!CGPDFDictionaryGetArray(dict, key, & array))
+            return false;
+        numbers.resize(0);
+        for (size_t i = 0, count = CGPDFArrayGetCount(array); i < count; i++) {
+            if (!CGPDFArrayGetNumber(array, i, & number))
+                return false;
+            numbers.emplace_back(number);
+        }
+        return true;
+    }
+    
+    // A function of one input, read with CGPDF: sampled (type 0), exponential (type 2) or stitching (type 3)
+    struct Function {
+        static constexpr int kCurveSteps = 16;      // Pieces for an exponential with N != 1
+        int type = -1;
+        float d0 = 0.f, d1 = 1.f, N = 1.f;
+        size_t outputs = 0, size = 0;
+        std::vector<float> range, c0, c1, bounds, encode, decode, samples;
+        std::vector<Function> fns;
+        
+        bool read(CGPDFObjectRef obj) {
+            CGPDFDictionaryRef dict = nullptr;  CGPDFStreamRef stream = nullptr;  CGPDFInteger t;  std::vector<float> domain;
+            if (CGPDFObjectGetValue(obj, kCGPDFObjectTypeStream, & stream))
+                dict = CGPDFStreamGetDictionary(stream);
+            else
+                CGPDFObjectGetValue(obj, kCGPDFObjectTypeDictionary, & dict);
+            if (dict == nullptr || !CGPDFDictionaryGetInteger(dict, "FunctionType", & t) || !readNumbers(dict, "Domain", domain) || domain.size() < 2 || domain[0] > domain[1])
+                return false;
+            type = int(t), d0 = domain[0], d1 = domain[1];
+            readNumbers(dict, "Range", range);
+            if (type == 0)
+                return readSampled(dict, stream);
+            if (type == 2) {
+                CGPDFReal n;
+                if (!CGPDFDictionaryGetNumber(dict, "N", & n))
+                    return false;
+                N = n;
+                if (!readNumbers(dict, "C0", c0))
+                    c0 = { 0.f };
+                if (!readNumbers(dict, "C1", c1))
+                    c1 = { 1.f };
+                outputs = c0.size();
+                return c1.size() == outputs;
+            }
+            if (type == 3) {
+                CGPDFArrayRef array;  CGPDFObjectRef fn;
+                if (!CGPDFDictionaryGetArray(dict, "Functions", & array) || !readNumbers(dict, "Bounds", bounds) || !readNumbers(dict, "Encode", encode))
+                    return false;
+                size_t k = CGPDFArrayGetCount(array);
+                if (k == 0 || bounds.size() != k - 1 || encode.size() != 2 * k)
+                    return false;
+                for (size_t i = 0; i < k; i++)
+                    if (!CGPDFArrayGetObject(array, i, & fn) || !(fns.emplace_back(), fns.back().read(fn)) || fns[i].outputs != fns[0].outputs)
+                        return false;
+                outputs = fns[0].outputs;
+                return true;
+            }
+            return false;
+        }
+        bool readSampled(CGPDFDictionaryRef dict, CGPDFStreamRef stream) {
+            std::vector<float> sizes;  CGPDFInteger bps;  CGPDFDataFormat format;
+            if (stream == nullptr || !readNumbers(dict, "Size", sizes) || sizes.size() != 1 || sizes[0] < 1.f || !CGPDFDictionaryGetInteger(dict, "BitsPerSample", & bps) || bps < 1 || bps > 32 || range.size() < 2 || range.size() % 2)
+                return false;
+            size = sizes[0], outputs = range.size() / 2;
+            if (!readNumbers(dict, "Encode", encode))
+                encode = { 0.f, float(size - 1) };
+            if (!readNumbers(dict, "Decode", decode))
+                decode = range;
+            if (encode.size() != 2 || decode.size() != range.size())
+                return false;
+            CFDataRef data = CGPDFStreamCopyData(stream, & format);
+            if (data == nullptr)
+                return false;
+            size_t count = size * outputs;
+            bool ok = format == CGPDFDataFormatRaw && size_t(CFDataGetLength(data)) * 8 >= count * bps;
+            if (ok) {
+                // Samples are packed big-endian bits, the outputs of each in turn, & are stored decoded
+                const uint8_t *bytes = CFDataGetBytePtr(data);
+                double scale = 1.0 / (exp2(double(bps)) - 1.0);
+                samples.resize(count);
+                for (size_t i = 0, bit = 0; i < count; i++) {
+                    uint64_t v = 0;
+                    for (int b = 0; b < bps; b++, bit++)
+                        v = v << 1 | (bytes[bit >> 3] >> (7 - (bit & 7)) & 1);
+                    float lo = decode[2 * (i % outputs)], hi = decode[2 * (i % outputs) + 1];
+                    samples[i] = lo + float(v * scale) * (hi - lo);
+                }
+            }
+            CFRelease(data);
+            return ok;
+        }
+        // Writes the outputs at x, or at its left limit, which only differs at a stitching bound
+        void eval(float x, bool left, float *out) const {
+            x = fmaxf(d0, fminf(d1, x));
+            if (type == 0) {
+                float e = d1 == d0 ? encode[0] : encode[0] + (x - d0) * (encode[1] - encode[0]) / (d1 - d0);
+                e = fmaxf(0.f, fminf(float(size - 1), e));
+                size_t i0 = size_t(e), i1 = i0 + 1 < size ? i0 + 1 : i0;
+                float u = e - float(i0);
+                const float *s0 = & samples[i0 * outputs], *s1 = & samples[i1 * outputs];
+                for (size_t j = 0; j < outputs; j++)
+                    out[j] = s0[j] + u * (s1[j] - s0[j]);
+            } else if (type == 2) {
+                float p = N == 1.f ? x : powf(x, N);
+                for (size_t j = 0; j < outputs; j++)
+                    out[j] = c0[j] + p * (c1[j] - c0[j]);
+            } else {
+                size_t i = 0, k = fns.size();
+                float tol = 1e-5f * (d1 - d0);      // Mapped breaks can miss a bound by float error
+                while (i < k - 1 && (left ? x > bounds[i] + tol : x >= bounds[i] - tol))
+                    i++;
+                float a = i == 0 ? d0 : bounds[i - 1], b = i == k - 1 ? d1 : bounds[i], e0 = encode[2 * i], e1 = encode[2 * i + 1];
+                fns[i].eval(b == a ? e0 : e0 + (x - a) * (e1 - e0) / (b - a), left != (e1 < e0), out);
+            }
+            for (size_t j = 0; j < outputs && 2 * j + 1 < range.size(); j++)
+                out[j] = fmaxf(range[2 * j], fminf(range[2 * j + 1], out[j]));
+        }
+        // Appends the inputs in [lo, hi] where the function's linear pieces start & end, mapped to the caller's as m * x + c
+        void breaks(float lo, float hi, float m, float c, std::vector<float>& xs) const {
+            lo = fmaxf(lo, d0), hi = fminf(hi, d1);
+            if (lo > hi)
+                return;
+            xs.emplace_back(m * lo + c), xs.emplace_back(m * hi + c);
+            if (type == 0) {
+                float s = d1 == d0 ? 0.f : (encode[1] - encode[0]) / (d1 - d0);        // e = encode0 + (x - d0) * s
+                for (size_t i = 0; s != 0.f && i < size; i++) {
+                    float x = d0 + (float(i) - encode[0]) / s;
+                    if (x > lo && x < hi)
+                        xs.emplace_back(m * x + c);
+                }
+            } else if (type == 2) {
+                for (int i = 1; N != 1.f && i < kCurveSteps; i++)
+                    xs.emplace_back(m * (lo + (hi - lo) * i / kCurveSteps) + c);
+            } else {
+                for (size_t i = 0, k = fns.size(); i < k; i++) {
+                    float a = i == 0 ? d0 : bounds[i - 1], b = i == k - 1 ? d1 : bounds[i], e0 = encode[2 * i], e1 = encode[2 * i + 1];
+                    float ia = fmaxf(a, lo), ib = fminf(b, hi);
+                    if (ia > ib)
+                        continue;
+                    xs.emplace_back(m * ia + c), xs.emplace_back(m * ib + c);
+                    if (b > a && e1 != e0) {
+                        float s = (e1 - e0) / (b - a), sa = e0 + (ia - a) * s, sb = e0 + (ib - a) * s;     // x' = e0 + (x - a) * s
+                        fns[i].breaks(fminf(sa, sb), fmaxf(sa, sb), m / s, m * (a - e0 / s) + c, xs);
+                    }
+                }
+            }
+        }
+    };
+    
+    // An axial or concentric radial shading, read with CGPDF as pdfium doesn't expose shadings, so it can be drawn as a gradient.
+    // unit maps Rasterizer's gradient space to shading space: linear gradients run up y from 0 to 1, & radial ones out from the
+    // origin to radius 1. Unextended ends are drawn with geometry, as gradient colors extend
+    struct Shading {
+        Ra::Transform ctm, unit;        // ctm & alpha are the sh operator's, as pdfium can't get a shading object's matrix or color
+        bool isValid = false, isRadial = false, extendLo = false, extendHi = false;
+        float alpha = 1.f, lo = 0.f;    // lo is the gradient's start, the inner radius for a radial
+        std::vector<Ra::Color> colors;
+        std::vector<float> locations;
+        
+        static size_t colorSpaceComponents(CGPDFObjectRef obj, CGPDFContentStreamRef cs, bool isResource = false) {
+            const char *name;  CGPDFArrayRef array;  CGPDFStreamRef stream;  CGPDFInteger n;
+            if (CGPDFObjectGetValue(obj, kCGPDFObjectTypeName, & name)) {
+                if (!strcmp(name, "DeviceGray") || !strcmp(name, "G"))
+                    return 1;
+                if (!strcmp(name, "DeviceRGB") || !strcmp(name, "RGB"))
+                    return 3;
+                if (!strcmp(name, "DeviceCMYK") || !strcmp(name, "CMYK"))
+                    return 4;
+                CGPDFObjectRef resource = isResource ? nullptr : CGPDFContentStreamGetResource(cs, "ColorSpace", name);
+                return resource ? colorSpaceComponents(resource, cs, true) : 0;
+            }
+            if (CGPDFObjectGetValue(obj, kCGPDFObjectTypeArray, & array) && CGPDFArrayGetName(array, 0, & name)) {
+                if (!strcmp(name, "ICCBased") && CGPDFArrayGetStream(array, 1, & stream) && CGPDFDictionaryGetInteger(CGPDFStreamGetDictionary(stream), "N", & n))
+                    return n == 1 || n == 3 || n == 4 ? n : 0;
+                if (!strcmp(name, "CalGray"))
+                    return 1;
+                if (!strcmp(name, "CalRGB"))
+                    return 3;
+            }
+            return 0;
+        }
+        bool read(CGPDFDictionaryRef dict, CGPDFContentStreamRef cs) {
+            CGPDFInteger type;  CGPDFArrayRef array;  CGPDFObjectRef obj;  CGPDFBoolean e0 = false, e1 = false;
+            std::vector<float> coords, domain;  std::vector<Function> fns;
+            if (!CGPDFDictionaryGetInteger(dict, "ShadingType", & type) || (type != 2 && type != 3) || CGPDFDictionaryGetArray(dict, "BBox", & array))
+                return false;
+            if (!readNumbers(dict, "Coords", coords) || coords.size() != (type == 2 ? 4 : 6))
+                return false;
+            if (!readNumbers(dict, "Domain", domain))
+                domain = { 0.f, 1.f };
+            if (domain.size() != 2 || domain[0] == domain[1])
+                return false;
+            if (CGPDFDictionaryGetArray(dict, "Extend", & array))
+                CGPDFArrayGetBoolean(array, 0, & e0), CGPDFArrayGetBoolean(array, 1, & e1);
+            size_t components = CGPDFDictionaryGetObject(dict, "ColorSpace", & obj) ? colorSpaceComponents(obj, cs) : 0;
+            if (components == 0 || !CGPDFDictionaryGetObject(dict, "Function", & obj))
+                return false;
+            if (CGPDFObjectGetValue(obj, kCGPDFObjectTypeArray, & array)) {
+                for (size_t i = 0; i < CGPDFArrayGetCount(array); i++)
+                    if (!CGPDFArrayGetObject(array, i, & obj) || !(fns.emplace_back(), fns.back().read(obj)) || fns.back().outputs != 1)
+                        return false;
+                if (fns.size() != components)
+                    return false;
+            } else if (!(fns.emplace_back(), fns.back().read(obj)) || fns[0].outputs != components)
+                return false;
+                
+            // Where the gradient is, as a unit transform & the stops' positions u = a + b * s for s in [0, 1] from (x0, y0, r0) to (x1, y1, r1)
+            float a = 0.f, b = 1.f;
+            if (type == 2) {
+                float dx = coords[2] - coords[0], dy = coords[3] - coords[1];
+                if (dx == 0.f && dy == 0.f)
+                    return false;
+                unit = Ra::Transform(-dy, dx, dx, dy, coords[0], coords[1]);
+                extendLo = e0, extendHi = e1;
+            } else {
+                float r0 = coords[2], r1 = coords[5], r = fmaxf(r0, r1);
+                if (r0 < 0.f || r1 < 0.f || r0 == r1 || fabsf(coords[3] - coords[0]) > 1e-3f * r || fabsf(coords[4] - coords[1]) > 1e-3f * r)
+                    return false;       // Not concentric
+                isRadial = true, unit = Ra::Transform(r, 0.f, 0.f, r, coords[0], coords[1]);
+                a = r0 / r, b = (r1 - r0) / r, lo = fminf(r0, r1) / r;
+                extendLo = r0 < r1 ? e0 : e1, extendHi = r0 < r1 ? e1 : e0;
+            }
+            
+            // Stops where the functions' pieces start & end, with both limits at a stitching bound so its edge stays hard
+            float t0 = domain[0], t1 = domain[1], tmin = fminf(t0, t1), tmax = fmaxf(t0, t1), eps = 1e-6f * (tmax - tmin);
+            std::vector<float> ts = { tmin, tmax };
+            for (auto& fn : fns)
+                fn.breaks(tmin, tmax, 1.f, 0.f, ts);
+            for (auto& t : ts)
+                t = fmaxf(tmin, fminf(tmax, t));
+            std::sort(ts.begin(), ts.end());
+            ts.erase(std::unique(ts.begin(), ts.end(), [eps](float x, float y) { return y - x <= eps; }), ts.end());
+            ts.back() = tmax;
+            if (ts.size() < 2)
+                return false;
+            for (size_t k = 0; k < ts.size(); k++) {
+                Ra::Color l = color(fns, components, ts[k], true), r = color(fns, components, ts[k], false);
+                float u = a + b * (ts[k] - t0) / (t1 - t0);
+                if (k > 0)
+                    colors.emplace_back(l), locations.emplace_back(u);
+                if (k == 0 || (k < ts.size() - 1 && memcmp(& l, & r, sizeof(l))))
+                    colors.emplace_back(r), locations.emplace_back(u);
+            }
+            if (locations.front() > locations.back())
+                std::reverse(colors.begin(), colors.end()), std::reverse(locations.begin(), locations.end());
+            return true;
+        }
+        static Ra::Color color(const std::vector<Function>& fns, size_t components, float t, bool left) {
+            float c[4] = { 0.f, 0.f, 0.f, 0.f }, *out = c;
+            for (auto& fn : fns)
+                fn.eval(t, left, out), out += fn.outputs;
+            for (auto& v : c)
+                v = fmaxf(0.f, fminf(1.f, v));
+            float r = c[0], g = c[0], b = c[0];
+            if (components == 3)
+                g = c[1], b = c[2];
+            else if (components == 4)
+                r = (1.f - c[0]) * (1.f - c[3]), g = (1.f - c[1]) * (1.f - c[3]), b = (1.f - c[2]) * (1.f - c[3]);
+            return Ra::Color(uint8_t(b * 255.f + 0.5f), uint8_t(g * 255.f + 0.5f), uint8_t(r * 255.f + 0.5f), 255);
+        }
+    };
+    
+    // The page's shadings, from its content stream's sh operators in order with their ctms. pdfium makes a shading object for
+    // each, in the same order, so they're matched by index while the counts agree
+    struct Shadings {
+        std::vector<Shading> shadings;
+        size_t index = 0;
+        
+        struct State {
+            Ra::Transform ctm;
+            float alpha = 1.f;      // The fill alpha, ca
+        };
+        struct Scan {
+            State state;
+            std::vector<State> stack;
+            std::vector<Shading> *shadings;
+        };
+        void read(const char *filename, size_t pageIndex) {
+            CFURLRef url = CFURLCreateFromFileSystemRepresentation(nullptr, (const UInt8 *)filename, strlen(filename), false);
+            CGPDFDocumentRef doc = url ? CGPDFDocumentCreateWithURL(url) : nullptr;
+            CGPDFPageRef page = doc ? CGPDFDocumentGetPage(doc, pageIndex + 1) : nullptr;
+            if (page) {
+                Scan scan;  scan.shadings = & shadings;
+                CGPDFContentStreamRef cs = CGPDFContentStreamCreateWithPage(page);
+                CGPDFOperatorTableRef table = CGPDFOperatorTableCreate();
+                CGPDFOperatorTableSetCallback(table, "q", [](CGPDFScannerRef scanner, void *info) {
+                    Scan& scan = *(Scan *)info;
+                    scan.stack.emplace_back(scan.state);
+                });
+                CGPDFOperatorTableSetCallback(table, "Q", [](CGPDFScannerRef scanner, void *info) {
+                    Scan& scan = *(Scan *)info;
+                    if (scan.stack.size())
+                        scan.state = scan.stack.back(), scan.stack.pop_back();
+                });
+                CGPDFOperatorTableSetCallback(table, "cm", [](CGPDFScannerRef scanner, void *info) {
+                    Scan& scan = *(Scan *)info;  CGPDFReal m[6];
+                    for (int i = 5; i >= 0; i--)
+                        if (!CGPDFScannerPopNumber(scanner, & m[i]))
+                            return;
+                    scan.state.ctm = Ra::Transform(m[0], m[1], m[2], m[3], m[4], m[5]).concat(scan.state.ctm);
+                });
+                CGPDFOperatorTableSetCallback(table, "gs", [](CGPDFScannerRef scanner, void *info) {
+                    Scan& scan = *(Scan *)info;  const char *name;  CGPDFDictionaryRef dict;  CGPDFReal ca;
+                    if (!CGPDFScannerPopName(scanner, & name))
+                        return;
+                    CGPDFObjectRef obj = CGPDFContentStreamGetResource(CGPDFScannerGetContentStream(scanner), "ExtGState", name);
+                    if (obj && CGPDFObjectGetValue(obj, kCGPDFObjectTypeDictionary, & dict) && CGPDFDictionaryGetNumber(dict, "ca", & ca))
+                        scan.state.alpha = fmaxf(0.f, fminf(1.f, ca));
+                });
+                CGPDFOperatorTableSetCallback(table, "sh", [](CGPDFScannerRef scanner, void *info) {
+                    Scan& scan = *(Scan *)info;  const char *name;  CGPDFDictionaryRef dict;
+                    if (!CGPDFScannerPopName(scanner, & name))
+                        return;
+                    CGPDFContentStreamRef cs = CGPDFScannerGetContentStream(scanner);
+                    CGPDFObjectRef obj = CGPDFContentStreamGetResource(cs, "Shading", name);
+                    scan.shadings->emplace_back();
+                    Shading& shading = scan.shadings->back();
+                    shading.ctm = scan.state.ctm, shading.alpha = scan.state.alpha;
+                    shading.isValid = obj && CGPDFObjectGetValue(obj, kCGPDFObjectTypeDictionary, & dict) && shading.read(dict, cs);
+                });
+                CGPDFScannerRef scanner = CGPDFScannerCreate(cs, table, & scan);
+                CGPDFScannerScan(scanner);
+                CGPDFScannerRelease(scanner);
+                CGPDFOperatorTableRelease(table);
+                CGPDFContentStreamRelease(cs);
+            }
+            CGPDFDocumentRelease(doc);
+            if (url)
+                CFRelease(url);
+        }
+        // The shading for pdfium's next shading object, if it could be read
+        const Shading *next() {
+            size_t i = index++;
+            return i < shadings.size() && shadings[i].isValid ? & shadings[i] : nullptr;
+        }
+    };
+    
     static int getPageCount(const char *filename) {
         Ra::SceneList list;
         FPDF_LIBRARY_CONFIG config;
@@ -109,6 +450,8 @@ struct RasterizerPDF {
             if (count > 0) {
                 pageIndex = pageIndex > count - 1 ? count - 1 : pageIndex;
                 FPDF_PAGE page = FPDF_LoadPage(doc, int(pageIndex));
+                Shadings shadings;
+                shadings.read(filename, pageIndex);
                 
                 ctm = transformForPage(page);
                 if (0) {
@@ -119,7 +462,7 @@ struct RasterizerPDF {
                         scene->addPath(path, Ra::Transform(), paint, 0, 0);
                     }
                 } else
-                    writePageToScene(doc, page, scene);
+                    writePageToScene(doc, page, shadings, scene);
                 
                 FPDF_ClosePage(page);
             }
@@ -129,7 +472,7 @@ struct RasterizerPDF {
         return ctm;
     }
     
-    static void writePageToScene(FPDF_DOCUMENT doc, FPDF_PAGE page, Ra::SceneRef& scene) {
+    static void writePageToScene(FPDF_DOCUMENT doc, FPDF_PAGE page, Shadings& shadings, Ra::SceneRef& scene) {
         FPDF_TEXTPAGE text_page = FPDFText_LoadPage(page);
         CharMap charMap;
         writeCharMap(text_page, charMap);
@@ -138,7 +481,11 @@ struct RasterizerPDF {
         
         FS_MATRIX m;
         Ra::Transform ctm;
-        int objectCount = FPDFPage_CountObjects(page);
+        int objectCount = FPDFPage_CountObjects(page), shadingCount = 0;
+        for (int i = 0; i < objectCount; i++)
+            shadingCount += FPDFPageObj_GetType(FPDFPage_GetObject(page, i)) == FPDF_PAGEOBJ_SHADING;
+        if (shadingCount != shadings.shadings.size())
+            shadings.shadings.resize(0);    // They can't be matched, so are drawn as bitmaps
 
         for (int i = 0; i < objectCount; i++) {
             FPDF_PAGEOBJECT page_object = FPDFPage_GetObject(page, i);
@@ -158,7 +505,9 @@ struct RasterizerPDF {
                     writeImageToScene(doc, page, page_object, ctm, clipState.clipPtr, clipState.clipPaths, scene);
                     break;
                 case FPDF_PAGEOBJ_SHADING:
-                    writeShadingToScene(page, page_object, clipState.clipPtr, clipState.clipPaths, scene);
+                    writeShadingToScene(page, page_object, shadings.next(), clipState.clipPtr, clipState.clipPaths, scene);
+                    if (FPDFPage_CountObjects(page) < objectCount)      // The bitmap fallback takes the object from the page
+                        i--, objectCount--;
                     break;
                 default:
                     break;
@@ -281,12 +630,58 @@ struct RasterizerPDF {
         scene->addPath(unitRectPath, ctm, image, 0, 0, clipBounds);
     }
     
-    static void writeShadingToScene(FPDF_PAGE page, FPDF_PAGEOBJECT page_object, Ra::Bounds* clipBounds, std::vector<Ra::Path>& clipPaths, Ra::SceneRef& scene) {
-        if (clipPaths.size()) {
+    static void writeShadingToScene(FPDF_PAGE page, FPDF_PAGEOBJECT page_object, const Shading *shading, Ra::Bounds* clipBounds, std::vector<Ra::Path>& clipPaths, Ra::SceneRef& scene) {
+        if (clipPaths.size() == 0)
+            return;
+        if (shading && clipPaths[0]->isValid() && shading->ctm.det() != 0.f)
+            writeGradientToScene(*shading, clipBounds, clipPaths[0], scene);
+        else {
             auto paint = paintFromPageObject(page, page_object);
             if (paint.isValid())
                 scene->addPath(clipPaths[0], Ra::Transform(), paint, 0, 0, clipBounds);
         }
+    }
+    
+    // Fills the clip with the gradient, or where an unextended end is inside the clip, the gradient's extent clipped by it
+    static void writeGradientToScene(const Shading& shading, Ra::Bounds* clipBounds, Ra::Path& clip, Ra::SceneRef& scene) {
+        if (shading.alpha == 0.f)
+            return;
+        std::vector<Ra::Color> colors = shading.colors;
+        std::vector<float> locations = shading.locations;
+        for (auto& color : colors)
+            color.a = uint8_t(shading.alpha * 255.f + 0.5f);
+        Ra::Transform unit = shading.unit.concat(shading.ctm);
+        Ra::Bounds g = Ra::Bounds(clipBounds->quad(unit.invert()));     // The clip's extent in gradient space
+        bool clipLo, clipHi;
+        if (shading.isRadial) {
+            float nx = fmaxf(0.f, fmaxf(g.lx, -g.ux)), ny = fmaxf(0.f, fmaxf(g.ly, -g.uy));
+            float fx = fmaxf(fabsf(g.lx), fabsf(g.ux)), fy = fmaxf(fabsf(g.ly), fabsf(g.uy));
+            clipLo = !shading.extendLo && nx * nx + ny * ny < shading.lo * shading.lo;
+            clipHi = !shading.extendHi && fx * fx + fy * fy > 1.f;
+        } else
+            clipLo = !shading.extendLo && g.ly < 0.f, clipHi = !shading.extendHi && g.uy > 1.f;
+            
+        if (!clipLo && !clipHi) {
+            Ra::Paint paint(colors.data(), locations.data(), colors.size(), unit, shading.isRadial);
+            scene->addPath(clip, Ra::Transform(), paint, 0.f, 0, clipBounds);
+            return;
+        }
+        Ra::Path path;  uint8_t flags = 0;
+        if (shading.isRadial) {
+            if (clipHi)
+                path->addEllipse(Ra::Bounds(-1.f, -1.f, 1.f, 1.f));
+            else
+                path->addBounds(g);
+            if (clipLo)
+                path->addEllipse(Ra::Bounds(-shading.lo, -shading.lo, shading.lo, shading.lo)), flags = Ra::Draw::kFillEvenOdd;
+        } else {
+            Ra::Bounds band(g.lx, clipLo ? 0.f : g.ly, g.ux, clipHi ? 1.f : g.uy);
+            if (band.ly >= band.uy)
+                return;
+            path->addBounds(band);
+        }
+        Ra::Paint paint(colors.data(), locations.data(), colors.size(), Ra::Transform(), shading.isRadial);
+        scene->addPath(path, unit, paint, 0.f, flags, clipBounds, clip->isRect() ? nullptr : & clip);
     }
     
     static Ra::Paint paintFromPage(FPDF_PAGE page) {
