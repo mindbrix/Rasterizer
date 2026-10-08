@@ -851,7 +851,7 @@ struct Rasterizer {
             kEdge = 1 << 27,        kF0 = 1 << 27,
             kRoundCap = 1 << 28,    kF1 = 1 << 28,
             kOutlines = 1 << 29,
-            kSquareCap = 1 << 30,
+            kSquareCap = 1 << 30,   kClipClear = 1 << 30,
             kEvenOdd = 1 << 31,
             kFragmentMask = (kOutlines | kSquareCap | kEvenOdd)
         };
@@ -1088,12 +1088,15 @@ struct Rasterizer {
             Cell& cell = inst->quad.cell;
             cell.lx = b.lx, cell.ly = b.ly, cell.ux = b.ux, cell.uy = b.uy;
         }
-        // Writes the instances of clip path g's even-odd coverage, & sets currentMaskBounds to their device bounds
+        // Writes the instances of clip path g's even-odd coverage, & sets currentMaskBounds to their device bounds. A kClipClear cell
+        // over those bounds comes first, zeroing the mask beneath the coverage cells that follow it
         void writeClipMask(Geometry *g, Transform ctm, Bounds device, size_t iz, bool useCurves) {
             Bounds dev = Bounds(g->bounds.quad(ctm)), clip = dev.integral().intersect(device);
             currentMaskBounds = clip;
             addClipCommand(iz, kClipMaskBegin, clip, g, uint32_t(XXH32(& ctm, sizeof(ctm), 0)));
             if (clip.lx < clip.ux && clip.ly < clip.uy) {
+                Cell *cell = & (new (blends.alloc(1)) Blend(iz | Instance::kClipClear))->quad.cell;
+                cell->lx = clip.lx, cell->ly = clip.ly, cell->ux = clip.ux, cell->uy = clip.uy, cell->ox = kNullIndex;
                 float det = fabsf(ctm.det());
                 bool fast = !useCurves || g->maxCurve * det < 4.f;
                 CurveIndexer idxr;

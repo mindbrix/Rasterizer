@@ -74,7 +74,7 @@ struct Instance {
         kEdge = 1 << 27,        kF0 = 1 << 27,
         kRoundCap = 1 << 28,    kF1 = 1 << 28,
         kOutlines = 1 << 29,
-        kSquareCap = 1 << 30,
+        kSquareCap = 1 << 30,   kClipClear = 1 << 30,
         kEvenOdd = 1 << 31,
         kFragmentMask = (kOutlines | kSquareCap | kEvenOdd)
     };
@@ -739,42 +739,27 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
     return instanceColor(vert, accumulation, colorTexture);
 }
 
-// Clipped by the clip mask, which is the same size as the drawable. Only the current clip's bounds (x, y, width, height in
-// framebuffer pixels) hold its coverage, so the mask is zero outside them
+// Clipped by the clip mask, the drawable pass's color attachment 1, read with framebuffer fetch. Only the current clip's bounds
+// (x, y, width, height in framebuffer pixels) hold its coverage, so the mask is zero outside them
 fragment float4 instances_clip_fragment_main(InstancesVertex vert [[stage_in]],
                                              texture2d<float> accumulation [[texture(0)]],
                                              texture2d<float> colorTexture [[texture(1)]],
-                                             texture2d<float> clipMask [[texture(2)]],
+                                             float clipMask [[color(1)]],
                                              constant uint4 *maskBounds [[buffer(0)]])
 {
     uint2 p = uint2(vert.position.xy), b0 = maskBounds->xy, b1 = b0 + maskBounds->zw;
-    float mask = all(p >= b0) && all(p < b1) ? clipMask.read(p).x : 0.0;
-    return instanceColor(vert, accumulation, colorTexture) * mask;
+    return instanceColor(vert, accumulation, colorTexture) * (all(p >= b0) && all(p < b1) ? clipMask : 0.0);
 }
 
 #pragma mark - Clip mask
 
-// A clip path's coverage, written by its fill instances
-fragment float clip_mask_fragment_main(InstancesVertex vert [[stage_in]],
-                                       texture2d<float> accumulation [[texture(0)]])
-{
-    return fillCoverage(vert, accumulation);
-}
-
-struct ClipClearVertex
-{
-    float4 position [[position]];
+struct ClipMaskFragment {
+    float mask [[color(1)]];
 };
 
-// A full screen quad, scissored to the region of the clip mask to zero
-vertex ClipClearVertex clip_clear_vertex_main(uint vid [[vertex_id]])
+// A clip path's coverage, written to the clip mask by its fill instances after its kClipClear cell zeroes the mask's bounds
+fragment ClipMaskFragment clip_mask_fragment_main(InstancesVertex vert [[stage_in]],
+                                                  texture2d<float> accumulation [[texture(0)]])
 {
-    ClipClearVertex vert;
-    vert.position = float4(vid & 1 ? 1.0 : -1.0, vid & 2 ? 1.0 : -1.0, 0.0, 1.0);
-    return vert;
-}
-
-fragment float clip_clear_fragment_main()
-{
-    return 0.0;
+    return { vert.iz & Instance::kClipClear ? 0.0 : fillCoverage(vert, accumulation) };
 }
