@@ -552,8 +552,8 @@ struct Rasterizer {
         enum Flags { kFillEvenOdd = 1 << 1, kRoundCap = 1 << 2, kSquareCap = 1 << 3, kRoundJoin = 1 << 4, kHidden = 1 << 6, kInvisible = 1 << 7 };
 
         Draw() {}
-        Draw(const Path& path, const Transform& ctm, const Paint& paint, float width, uint8_t flags, Bounds *clipBounds = nullptr, Path *clipPath = nullptr)
-        : path(path), ctm(ctm), paint(paint), width(width), flags(flags), clip(clipBounds ? *clipBounds : Bounds::huge()), clipPath(clipPath ? *clipPath : nullptr) {
+        Draw(const Path& path, const Transform& ctm, const Paint& paint, float width, uint8_t flags, Bounds *clipBounds = nullptr, Path *clipPath = nullptr, uint8_t blendMode = kBlendNormal)
+        : path(path), ctm(ctm), paint(paint), width(width), flags(flags), blendMode(blendMode), clip(clipBounds ? *clipBounds : Bounds::huge()), clipPath(clipPath ? *clipPath : nullptr) {
               validate();
           }
         
@@ -569,7 +569,7 @@ struct Rasterizer {
             flags = (flags & ~kInvisible) | (isVisible ? 0 : kInvisible);
             return isVisible;
         }
-        Path path;  Transform ctm;  Paint paint;  float width = 0.f;  uint8_t flags = kInvisible;  Bounds clip, bnds;  Path clipPath = nullptr;
+        Path path;  Transform ctm;  Paint paint;  float width = 0.f;  uint8_t flags = kInvisible, blendMode = kBlendNormal;  Bounds clip, bnds;  Path clipPath = nullptr;
     };
     struct Scene {
         struct Entry {
@@ -581,8 +581,8 @@ struct Rasterizer {
             inline bool operator< (const Index& other) const  { return hash < other.hash; }
             size_t hash, i;
         };
-        void addPath(const Path& path, const Transform& ctm, const Paint& paint, float width, uint8_t flag, Bounds *clipBounds = nullptr, Path *clipPath = nullptr) {
-            new (draws.memory->alloc(1)) Draw(path, ctm, paint, width, flag, clipBounds, clipPath);
+        void addPath(const Path& path, const Transform& ctm, const Paint& paint, float width, uint8_t flag, Bounds *clipBounds = nullptr, Path *clipPath = nullptr, uint8_t blendMode = kBlendNormal) {
+            new (draws.memory->alloc(1)) Draw(path, ctm, paint, width, flag, clipBounds, clipPath, blendMode);
             needPrepare = true;
         }
         void addDraw(Draw& draw) {
@@ -591,7 +591,7 @@ struct Rasterizer {
         }
         // Calls bool f(size_t i, Draw& draw) for the draws in [i0, i1), which returns true if it changed the draw. A changed draw is
         // revalidated, & only changes to what prepare() depends on need a prepare: a new path or visibility, or a stroke becoming a fill,
-        // which needs a P16 base. Transform, color & stroke width animation doesn't, & a fill becoming a stroke leaves an unused entry.
+        // which needs a P16 base. Transform, color, stroke width & blend mode changes don't, & a fill becoming a stroke leaves an unused entry.
         // Paints should be assigned whole, e.g. Paint(color), so their alpha range stays right.
         template<typename F>
         void update(size_t i0, size_t i1, F f) {
@@ -842,6 +842,7 @@ struct Rasterizer {
     };
     struct Instance {
         enum Flags {
+            kBlend = 1 << 20,       // A draw with a blend mode, whose instances read it
             kRoundJoin = 1 << 21,   kClip = 1 << 21,
             kIsRadial = 1 << 22,    kDisableImage = 1 << 22,
             kIsGradient = 1 << 23,  kNextImage = 1 << 23,
@@ -853,7 +854,7 @@ struct Rasterizer {
             kOutlines = 1 << 29,
             kSquareCap = 1 << 30,   kClipClear = 1 << 30,
             kEvenOdd = 1 << 31,
-            kFragmentMask = (kOutlines | kSquareCap | kEvenOdd)
+            kFragmentMask = (kBlend | kOutlines | kSquareCap | kEvenOdd)
         };
         Instance(size_t iz) : iz(uint32_t(iz)) {}
         uint32_t iz;  union { Quad quad;  Outline outline; };
@@ -885,20 +886,21 @@ struct Rasterizer {
             texCount = 0;
             images.resize(0);
         
-            size_t i, sizes[] = { sizeof(Color), sizeof(Transform), sizeof(Transform), sizeof(float), sizeof(Bounds), sizeof(Transform), sizeof(uint32_t) };
+            size_t i, sizes[] = { sizeof(Color), sizeof(Transform), sizeof(Transform), sizeof(float), sizeof(Bounds), sizeof(Transform), sizeof(uint32_t), sizeof(uint8_t) };
             size_t count = sizeof(sizes) / sizeof(*sizes), base = 0;
             size_t colorsCount = (pathsCount / kColorTextureWidth + 1) * kColorTextureWidth;    // Whole color texture rows
             Vector<size_t> bases(count);
             for (i = 0; i < count; i++)
                 bases[i] = base, base += (i == 0 ? colorsCount : pathsCount + 1) * sizes[i];
-            colors = bases[0], ctms = bases[1], clips = bases[2], widths = bases[3], bounds = bases[4], texCtms = bases[5], texIdxs = bases[6];
+            colors = bases[0], ctms = bases[1], clips = bases[2], widths = bases[3], bounds = bases[4], texCtms = bases[5], texIdxs = bases[6], modes = bases[7];
             headerSize = (base + 15) & ~15, entries.empty();
         }
         uint8_t *base = nullptr;  Row<Entry> entries;
         RefVector<Paint> images;
         Params params;
-        size_t colors, ctms, clips, widths, bounds, texCtms, texIdxs, texStrips, p16s;
+        size_t colors, ctms, clips, widths, bounds, texCtms, texIdxs, modes, texStrips, p16s;
         size_t idxs, pathsCount, texCount, headerSize;
+        bool hasBlends = false;     // Whether any draw's blend mode isn't Normal, so its instances need framebuffer fetch
     };
     struct Allocator {
         enum CountType { kFastEdges, kQuadEdges, kFastMolecules, kQuadMolecules };
@@ -960,6 +962,7 @@ struct Rasterizer {
             float *widths = (float *)(buffer->base + buffer->widths);
             Bounds *bounds = (Bounds *)(buffer->base + buffer->bounds);
             Transform *texCtms = (Transform *)(buffer->base + buffer->texCtms);
+            uint8_t *modes = buffer->base + buffer->modes;
             bool clipActive = false;
             
             Color black(0, 0, 0, 255), red(0, 0, 255, 255);
@@ -1011,7 +1014,7 @@ struct Rasterizer {
                     if ((det || draw.width < 0.f) && clip.lx < clip.ux && clip.ly < clip.uy) {
                         bool unclipped = clip.contains(dev);
                         Paint *color = & draw.paint;
-                        bool isOpaque = color->isOpaque();
+                        bool isOpaque = color->isOpaque() && draw.blendMode == kBlendNormal;     // Opaques are drawn before what's beneath them
                         auto softUnclipped = [&]() {
                             if (!isOpaque || lastClipPath != nullptr)
                                 return false;
@@ -1039,6 +1042,8 @@ struct Rasterizer {
                             colors[iz] = draw.paint.color.premultiplied();
                         
                         clips[iz] = invclip;
+                        if (draw.blendMode != kBlendNormal)     // Only blended draws write their mode
+                            modes[iz] = draw.blendMode, hasBlends = true, colorFlags |= Instance::kBlend;
                         Geometry *g = draw.path.ptr;
                         if (width) {
                             widths[iz] = width;
@@ -1108,7 +1113,7 @@ struct Rasterizer {
             }
         }
         void empty() {
-            texTotal = 0, blends.empty(), opaques.empty(), outlines.empty(), segments.empty(), segmentsIndices.empty(), indices.empty(), texs.resize(0), images.resize(0);
+            texTotal = 0, hasBlends = false, blends.empty(), opaques.empty(), outlines.empty(), segments.empty(), segmentsIndices.empty(), indices.empty(), texs.resize(0), images.resize(0);
             for (int i = 0; i < samples.end(); i++)
                 samples[i].empty();
             entries = Vector<Buffer::Entry>();
@@ -1118,7 +1123,7 @@ struct Rasterizer {
             samples.resize(0);
         }
         
-        size_t texTotal;
+        size_t texTotal;  bool hasBlends = false;
         Geometry *currentClipPath = nullptr;  Transform currentClipCtm;  Bounds currentMaskBounds, maskBounds;
         Allocator allocator;  Vector<Buffer::Entry> entries;
         Vector<TexRef> texs;
@@ -1841,8 +1846,9 @@ struct Rasterizer {
     
     static size_t resizeBuffer(const SceneList& list, Context *contexts, size_t count, size_t *begins, Buffer& buffer) {
         size_t size = buffer.headerSize, sz, i, j, instances;
+        buffer.hasBlends = false;
         for (i = 0; i < count; i++)
-            size += contexts[i].opaques.end * sizeof(Opaque);
+            size += contexts[i].opaques.end * sizeof(Opaque), buffer.hasBlends |= contexts[i].hasBlends;
         
         for (sz = i = 0; i < count; i++)
             sz += contexts[i].texs.end();

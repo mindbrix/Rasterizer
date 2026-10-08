@@ -65,6 +65,7 @@ struct Outline {
 
 struct Instance {
     enum Flags {
+        kBlend = 1 << 20,       // A draw with a blend mode, whose instances read it
         kRoundJoin = 1 << 21,   kClip = 1 << 21,
         kIsRadial = 1 << 22,    kDisableImage = 1 << 22,
         kIsGradient = 1 << 23,  kNextImage = 1 << 23,
@@ -76,7 +77,7 @@ struct Instance {
         kOutlines = 1 << 29,
         kSquareCap = 1 << 30,   kClipClear = 1 << 30,
         kEvenOdd = 1 << 31,
-        kFragmentMask = (kOutlines | kSquareCap | kEvenOdd)
+        kFragmentMask = (kBlend | kOutlines | kSquareCap | kEvenOdd)
     };
     uint32_t iz;  union { Quad quad;  Outline outline; };
 };
@@ -749,6 +750,92 @@ fragment float4 instances_clip_fragment_main(InstancesVertex vert [[stage_in]],
 {
     uint2 p = uint2(vert.position.xy), b0 = maskBounds->xy, b1 = b0 + maskBounds->zw;
     return instanceColor(vert, accumulation, colorTexture) * (all(p >= b0) && all(p < b1) ? clipMask : 0.0);
+}
+
+#pragma mark - Blend modes
+
+inline float lum(float3 c) {
+    return dot(c, float3(0.3, 0.59, 0.11));
+}
+inline float3 clipColor(float3 c) {
+    float l = lum(c), n = min(c.r, min(c.g, c.b)), x = max(c.r, max(c.g, c.b));
+    c = n < 0.0 ? l + (c - l) * l / (l - n) : c;
+    return x > 1.0 ? l + (c - l) * (1.0 - l) / (x - l) : c;
+}
+inline float3 setLum(float3 c, float l) {
+    return clipColor(c + (l - lum(c)));
+}
+inline float sat(float3 c) {
+    return max(c.r, max(c.g, c.b)) - min(c.r, min(c.g, c.b));
+}
+inline float3 setSat(float3 c, float s) {
+    float n = min(c.r, min(c.g, c.b)), x = max(c.r, max(c.g, c.b));
+    return x > n ? (c - n) * s / (x - n) : float3(0.0);
+}
+inline float3 hardLight(float3 cb, float3 cs) {
+    float3 s2 = 2.0 * cs, multiply = cb * s2, screen = cb + (s2 - 1.0) - cb * (s2 - 1.0);
+    return select(screen, multiply, cs <= 0.5);
+}
+
+// The W3C compositing spec's blend function of unpremultiplied backdrop cb & source cs
+inline float3 blendFunction(float3 cb, float3 cs, uint mode) {
+    switch (mode) {
+        case kBlendMultiply:    return cb * cs;
+        case kBlendScreen:      return cb + cs - cb * cs;
+        case kBlendOverlay:     return hardLight(cs, cb);
+        case kBlendDarken:      return min(cb, cs);
+        case kBlendLighten:     return max(cb, cs);
+        case kBlendColorDodge:  return select(select(min(1.0, cb / (1.0 - cs)), float3(1.0), cs >= 1.0), float3(0.0), cb <= 0.0);
+        case kBlendColorBurn:   return select(select(1.0 - min(1.0, (1.0 - cb) / cs), float3(0.0), cs <= 0.0), float3(1.0), cb >= 1.0);
+        case kBlendSoftLight: {
+            float3 d = select(sqrt(cb), ((16.0 * cb - 12.0) * cb + 4.0) * cb, cb <= 0.25);
+            return select(cb + (2.0 * cs - 1.0) * (d - cb), cb - (1.0 - 2.0 * cs) * cb * (1.0 - cb), cs <= 0.5);
+        }
+        case kBlendHardLight:   return hardLight(cb, cs);
+        case kBlendDifference:  return abs(cb - cs);
+        case kBlendExclusion:   return cb + cs - 2.0 * cb * cs;
+        case kBlendHue:         return setLum(setSat(cs, sat(cb)), lum(cb));
+        case kBlendSaturation:  return setLum(setSat(cb, sat(cs)), lum(cb));
+        case kBlendColor:       return setLum(cs, lum(cb));
+        case kBlendLuminosity:  return setLum(cb, lum(cs));
+        default:                return cs;
+    }
+}
+// Composites premultiplied src over dst with the blend mode
+inline float4 blendColor(float4 src, float4 dst, uint mode) {
+    if (mode == kBlendNormal || src.a == 0.0)
+        return src + dst * (1.0 - src.a);
+    float3 cs = src.rgb / src.a, cb = dst.a == 0.0 ? float3(0.0) : dst.rgb / dst.a;
+    float3 rgb = (1.0 - dst.a) * src.rgb + (1.0 - src.a) * dst.rgb + src.a * dst.a * saturate(blendFunction(cb, cs, mode));
+    return float4(rgb, src.a + dst.a - src.a * dst.a);
+}
+
+// Only blended draws write their mode
+inline uint blendMode(InstancesVertex vert, const device uint8_t *modes) {
+    return vert.iz & Instance::kBlend ? modes[vert.iz & kPathIndexMask] : kBlendNormal;
+}
+
+// Instances in frames with blend modes blend in the shader, with the drawable, color attachment 0, read with framebuffer fetch
+fragment float4 instances_blend_fragment_main(InstancesVertex vert [[stage_in]],
+                                              texture2d<float> accumulation [[texture(0)]],
+                                              texture2d<float> colorTexture [[texture(1)]],
+                                              float4 dst [[color(0)]],
+                                              const device uint8_t *modes [[buffer(1)]])
+{
+    return blendColor(instanceColor(vert, accumulation, colorTexture), dst, blendMode(vert, modes));
+}
+
+fragment float4 instances_clip_blend_fragment_main(InstancesVertex vert [[stage_in]],
+                                                   texture2d<float> accumulation [[texture(0)]],
+                                                   texture2d<float> colorTexture [[texture(1)]],
+                                                   float4 dst [[color(0)]],
+                                                   float clipMask [[color(1)]],
+                                                   constant uint4 *maskBounds [[buffer(0)]],
+                                                   const device uint8_t *modes [[buffer(1)]])
+{
+    uint2 p = uint2(vert.position.xy), b0 = maskBounds->xy, b1 = b0 + maskBounds->zw;
+    float4 src = instanceColor(vert, accumulation, colorTexture) * (all(p >= b0) && all(p < b1) ? clipMask : 0.0);
+    return blendColor(src, dst, blendMode(vert, modes));
 }
 
 #pragma mark - Clip mask

@@ -259,7 +259,8 @@ struct TextureCache {
 // render passes; otherwise it's the stencil clipping & eager passes of earlier revisions, so --rev can benchmark either.
 // RA_CLIP_CLEAR_CELLS, set when Rasterizer.hpp has Instance::kClipClear, zeroes each mask with a cell among its instances; earlier
 // clip mask revisions zero it with a scissored clear pass. RA_CLIP_IN_PASS, set when Shaders.metal reads the mask with framebuffer
-// fetch, renders each mask in the drawable pass as its color attachment 1, so a frame with clip masks has no mask passes
+// fetch, renders each mask in the drawable pass as its color attachment 1, so a frame with clip masks has no mask passes.
+// RA_BLEND, set when Rasterizer.h has blend modes, draws a frame with them using the instance pipelines that blend in the shader
 #if RA_CLIP_MASK
 static const MTLPixelFormat kDepthFormat = MTLPixelFormatDepth32Float;
 #else
@@ -272,6 +273,9 @@ struct Offscreen {
     id<MTLDepthStencilState> instancesDepthState, opaquesDepthState;
 #if RA_CLIP_IN_PASS
     id<MTLRenderPipelineState> opaquesMasked, instancesMasked;  id<MTLDepthStencilState> clipMaskDepthState;
+#endif
+#if RA_BLEND
+    id<MTLRenderPipelineState> instancesBlend, instancesBlendMasked, instancesClipBlend;
 #endif
     id<MTLTexture> target, depthTexture, accumulationTexture;
 #if RA_CLIP_MASK
@@ -335,10 +339,24 @@ struct Offscreen {
         p.colorAttachments[0].destinationRGBBlendFactor = MTLBlendFactorOneMinusSourceAlpha, p.colorAttachments[0].destinationAlphaBlendFactor = MTLBlendFactorOneMinusSourceAlpha;
         p.vertexFunction = fn("instances_vertex_main"), p.fragmentFunction = fn("instances_fragment_main");
         instances = [device newRenderPipelineStateWithDescriptor:p error:nil];
+#if RA_BLEND
+        // Frames with blend modes blend in the shader, reading the target with framebuffer fetch
+        auto blendPipeline = [&](const char *name) {
+            p.colorAttachments[0].blendingEnabled = NO, p.fragmentFunction = fn(name);
+            id<MTLRenderPipelineState> state = [device newRenderPipelineStateWithDescriptor:p error:nil];
+            p.colorAttachments[0].blendingEnabled = YES, p.fragmentFunction = fn("instances_fragment_main");
+            return state;
+        };
+        instancesBlend = blendPipeline("instances_blend_fragment_main");
+#endif
 #if RA_CLIP_IN_PASS
         // Frames with clip masks render them into the drawable pass's color attachment 1, which only clip mask instances write
         p.colorAttachments[1].pixelFormat = MTLPixelFormatR8Unorm, p.colorAttachments[1].writeMask = MTLColorWriteMaskNone;
         instancesMasked = [device newRenderPipelineStateWithDescriptor:p error:nil];
+#if RA_BLEND
+        instancesBlendMasked = blendPipeline("instances_blend_fragment_main");
+        instancesClipBlend = blendPipeline("instances_clip_blend_fragment_main");
+#endif
         p.colorAttachments[0].blendingEnabled = NO, p.vertexFunction = fn("opaques_vertex_main"), p.fragmentFunction = fn("opaques_fragment_main");
         opaquesMasked = [device newRenderPipelineStateWithDescriptor:p error:nil];
         p.colorAttachments[0].blendingEnabled = YES, p.vertexFunction = fn("instances_vertex_main");
@@ -433,6 +451,12 @@ struct Offscreen {
             drawableDescriptor.colorAttachments[1].storeAction = MTLStoreActionStore;
         }
         id<MTLRenderPipelineState> opaquesState = hasMasks ? opaquesMasked : opaques, instancesState = hasMasks ? instancesMasked : instances;
+        id<MTLRenderPipelineState> instancesClipState = instancesClip;
+#if RA_BLEND
+        bool hasBlends = buffer->hasBlends && instancesBlend && instancesClipBlend;
+        if (hasBlends)
+            instancesState = hasMasks ? instancesBlendMasked : instancesBlend, instancesClipState = instancesClipBlend;
+#endif
 #else
         id<MTLRenderPipelineState> opaquesState = opaques, instancesState = instances;
 #endif
@@ -597,9 +621,13 @@ struct Offscreen {
                         [commandEncoder setRenderPipelineState:clipMask];
                     } else {
                         [commandEncoder setDepthStencilState:instancesDepthState];
-                        [commandEncoder setRenderPipelineState:useClip ? instancesClip : instancesState];
+                        [commandEncoder setRenderPipelineState:useClip ? instancesClipState : instancesState];
                         uint32_t bounds[4] = { uint32_t(maskBounds.x), uint32_t(maskBounds.y), uint32_t(maskBounds.width), uint32_t(maskBounds.height) };
                         [commandEncoder setFragmentBytes:bounds length:sizeof(bounds) atIndex:0];
+#if RA_BLEND
+                        if (hasBlends)
+                            [commandEncoder setFragmentBuffer:mtlBuffer offset:buffer->modes atIndex:1];
+#endif
                     }
 #elif RA_CLIP_MASK
                     beginPass(inMask ? kMaskPass : kDrawablePass);
@@ -1972,7 +2000,8 @@ if [[ ! -x $B/rabench || $S/ra/rabench.mm -nt $B/rabench || -n $(find $INC $RA/R
   CLIP=0; grep -q kClipMask $INC/Rasterizer.hpp && CLIP=1    # Rasterizer's anti-aliased clip mask, else its stencil clipping
   CLEAR=0; grep -q kClipClear $INC/Rasterizer.hpp && CLEAR=1    # Its clear cells, else a clear pass
   INPASS=0; grep -q '\[\[color(1)\]\]' $INC/Shaders.metal && INPASS=1    # Its in-pass mask, read with framebuffer fetch, else mask passes
-  clang++ -O3 -std=c++17 -fobjc-arc -DRA_CLIP_MASK=$CLIP -DRA_CLIP_CLEAR_CELLS=$CLEAR -DRA_CLIP_IN_PASS=$INPASS -x objective-c++ $S/ra/rabench.mm -x none $W/obj/xxhash.o $W/obj/nanosvg.o \
+  BLEND=0; grep -q kBlendNormal $INC/Rasterizer.h && BLEND=1    # Its blend modes, blended in the shader
+  clang++ -O3 -std=c++17 -fobjc-arc -DRA_CLIP_MASK=$CLIP -DRA_CLIP_CLEAR_CELLS=$CLEAR -DRA_CLIP_IN_PASS=$INPASS -DRA_BLEND=$BLEND -x objective-c++ $S/ra/rabench.mm -x none $W/obj/xxhash.o $W/obj/nanosvg.o \
     -I$INC -I$RA/Rasterizer/Demo -I$PDFIUM/Headers -L$PDFIUM -lpdfium -Wl,-rpath,$PDFIUM \
     -framework Foundation -framework Metal -framework QuartzCore -framework CoreGraphics -framework ImageIO -framework CoreServices \
     -Wno-deprecated-declarations -o $B/rabench

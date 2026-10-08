@@ -68,6 +68,7 @@ struct RasterizerCG {
                 
                 if (!list.params.useClips || isVisible(g->bounds, draw.ctm.concat(ctm), clip, bounds, draw.width)) {
                     CGContextSaveGState(ctx);
+                    CGContextSetBlendMode(ctx, CGBlendMode(draw.blendMode));     // BlendMode is in CGBlendMode's order
                     if (list.params.useClips && draw.clipPath.ptr) {
                         writePathToCGContext(draw.clipPath.ptr, ctx);
                         CGContextEOClip(ctx);

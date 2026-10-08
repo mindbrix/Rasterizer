@@ -371,6 +371,12 @@ static uint8_t joinFlags(RAJoinStyle joinStyle) {
 - (void)setHidden:(BOOL)hidden {
     _d->flags = (_d->flags & ~Ra::Draw::kHidden) | (hidden ? Ra::Draw::kHidden : 0), _d->validate();
 }
+- (RABlendMode)blendMode {
+    return RABlendMode(_d->blendMode);
+}
+- (void)setBlendMode:(RABlendMode)blendMode {
+    _d->blendMode = blendMode < kBlendModeCount ? uint8_t(blendMode) : kBlendNormal;
+}
 
 @end
 

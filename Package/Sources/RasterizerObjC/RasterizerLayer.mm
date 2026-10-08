@@ -101,6 +101,9 @@ struct TextureCache : MetalCache<id <MTLTexture>, const Ra::Paint &> {
 @property (nonatomic) id <MTLRenderPipelineState> opaquesMaskedPipelineState;
 @property (nonatomic) id <MTLRenderPipelineState> instancesMaskedPipelineState;
 @property (nonatomic) id <MTLRenderPipelineState> instancesClipPipelineState;
+@property (nonatomic) id <MTLRenderPipelineState> instancesBlendPipelineState;
+@property (nonatomic) id <MTLRenderPipelineState> instancesBlendMaskedPipelineState;
+@property (nonatomic) id <MTLRenderPipelineState> instancesClipBlendPipelineState;
 @property (nonatomic) id <MTLRenderPipelineState> clipMaskPipelineState;
 @property (nonatomic) id <MTLDepthStencilState> instancesDepthState;
 @property (nonatomic) id <MTLDepthStencilState> opaquesDepthState;
@@ -171,14 +174,27 @@ struct TextureCache : MetalCache<id <MTLTexture>, const Ra::Paint &> {
         descriptor.fragmentFunction = [self.defaultLibrary newFunctionWithName:@"instances_fragment_main"];
         descriptor.label = masked ? @"instances masked" : @"instances";
         id <MTLRenderPipelineState> instances = [self.device newRenderPipelineStateWithDescriptor:descriptor error:nil];
+        
+        // Frames with blend modes blend in the shader, reading the drawable with framebuffer fetch
+        descriptor.colorAttachments[0].blendingEnabled = NO;
+        descriptor.fragmentFunction = [self.defaultLibrary newFunctionWithName:@"instances_blend_fragment_main"];
+        descriptor.label = masked ? @"instances blend masked" : @"instances blend";
+        id <MTLRenderPipelineState> blend = [self.device newRenderPipelineStateWithDescriptor:descriptor error:nil];
+        descriptor.colorAttachments[0].blendingEnabled = YES;
         if (masked)
-            self.opaquesMaskedPipelineState = opaques, self.instancesMaskedPipelineState = instances;
+            self.opaquesMaskedPipelineState = opaques, self.instancesMaskedPipelineState = instances, self.instancesBlendMaskedPipelineState = blend;
         else
-            self.opaquesPipelineState = opaques, self.instancesPipelineState = instances;
+            self.opaquesPipelineState = opaques, self.instancesPipelineState = instances, self.instancesBlendPipelineState = blend;
     }
     descriptor.fragmentFunction = [self.defaultLibrary newFunctionWithName:@"instances_clip_fragment_main"];
     descriptor.label = @"instances clip";
     self.instancesClipPipelineState = [self.device newRenderPipelineStateWithDescriptor:descriptor error:nil];
+    
+    descriptor.colorAttachments[0].blendingEnabled = NO;
+    descriptor.fragmentFunction = [self.defaultLibrary newFunctionWithName:@"instances_clip_blend_fragment_main"];
+    descriptor.label = @"instances clip blend";
+    self.instancesClipBlendPipelineState = [self.device newRenderPipelineStateWithDescriptor:descriptor error:nil];
+    descriptor.colorAttachments[0].blendingEnabled = YES;
     
     // A clip path's cells don't overlap, so each mask pixel is written once, without blending, after its kClipClear cell zeroes it
     MTLRenderPipelineDescriptor *maskDescriptor = [MTLRenderPipelineDescriptor new];
@@ -306,8 +322,13 @@ struct TextureCache : MetalCache<id <MTLTexture>, const Ra::Paint &> {
         drawableDescriptor.colorAttachments[1].loadAction = MTLLoadActionDontCare;
         drawableDescriptor.colorAttachments[1].storeAction = MTLStoreActionStore;    // Edges passes interrupt the drawable passes
     }
+    // Frames with blend modes use the instance pipelines that blend in the shader. Without framebuffer fetch they're nil, so blend
+    // modes are drawn as Normal
+    bool hasBlends = buffer->hasBlends && _instancesBlendPipelineState != nil && _instancesClipBlendPipelineState != nil;
     id <MTLRenderPipelineState> opaquesPipelineState = hasMasks ? _opaquesMaskedPipelineState : _opaquesPipelineState;
-    id <MTLRenderPipelineState> instancesPipelineState = hasMasks ? _instancesMaskedPipelineState : _instancesPipelineState;
+    id <MTLRenderPipelineState> instancesPipelineState = hasBlends ? (hasMasks ? _instancesBlendMaskedPipelineState : _instancesBlendPipelineState)
+        : hasMasks ? _instancesMaskedPipelineState : _instancesPipelineState;
+    id <MTLRenderPipelineState> instancesClipPipelineState = hasBlends ? _instancesClipBlendPipelineState : _instancesClipPipelineState;
     
     id <MTLRenderCommandEncoder> commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:drawableDescriptor];
     
@@ -434,9 +455,11 @@ struct TextureCache : MetalCache<id <MTLTexture>, const Ra::Paint &> {
                     [commandEncoder setRenderPipelineState:_clipMaskPipelineState];
                 } else {
                     [commandEncoder setDepthStencilState:_instancesDepthState];
-                    [commandEncoder setRenderPipelineState:useClip ? _instancesClipPipelineState : instancesPipelineState];
+                    [commandEncoder setRenderPipelineState:useClip ? instancesClipPipelineState : instancesPipelineState];
                     uint32_t bounds[4] = { uint32_t(maskBounds.x), uint32_t(maskBounds.y), uint32_t(maskBounds.width), uint32_t(maskBounds.height) };
                     [commandEncoder setFragmentBytes:bounds length:sizeof(bounds) atIndex:0];
+                    if (hasBlends)
+                        [commandEncoder setFragmentBuffer:mtlBuffer offset:buffer->modes atIndex:1];
                 }
                 [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->ctms atIndex:4];

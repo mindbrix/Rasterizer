@@ -76,6 +76,13 @@ typedef NS_ENUM(NSUInteger, RAJoinStyle) {
     kJoinMiter = 0, kJoinRound
 };
 
+// As CGBlendMode's separable & non-separable modes. Without framebuffer fetch, e.g. in the iOS Simulator, all draw as Normal
+typedef NS_ENUM(NSUInteger, RABlendMode) {
+    kRABlendNormal = 0, kRABlendMultiply, kRABlendScreen, kRABlendOverlay, kRABlendDarken, kRABlendLighten, kRABlendColorDodge,
+    kRABlendColorBurn, kRABlendSoftLight, kRABlendHardLight, kRABlendDifference, kRABlendExclusion, kRABlendHue, kRABlendSaturation,
+    kRABlendColor, kRABlendLuminosity
+};
+
 // A draw: make one to add with -[RAScene addDraw:], or edit a scene's draws in place with -[RAScene updateDrawsInRange:usingBlock:]
 @interface RADraw: NSObject
 @property(nonnull, nonatomic) RAPath *path;
@@ -88,6 +95,7 @@ typedef NS_ENUM(NSUInteger, RAJoinStyle) {
 @property(nonatomic) CGRect clip;       // Empty, null or infinite clips nothing
 @property(nullable, nonatomic) RAPath *clipPath;
 @property(nonatomic) BOOL hidden;       // Hidden draws keep their index, but are not drawn
+@property(nonatomic) RABlendMode blendMode;
 
 - (nonnull id)initWithPath:(nonnull RAPath *)path ctm:(CGAffineTransform)ctm color:(nonnull RAPaint *)color;
 @end
