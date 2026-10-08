@@ -114,7 +114,8 @@
 }
 - (void)scrollWheel:(NSEvent *)event {
     CGFloat inversion = ([event respondsToSelector:@selector(isDirectionInvertedFromDevice)] && [event isDirectionInvertedFromDevice]) ? 1.0f : -1.0f;
-    _demo.onTranslate(float(event.deltaX * inversion), float(-event.deltaY * inversion));
+    CGFloat dx = event.hasPreciseScrollingDeltas ? event.scrollingDeltaX : event.deltaX, dy = event.hasPreciseScrollingDeltas ? event.scrollingDeltaY : event.deltaY;
+    _demo.onTranslate(float(dx * inversion), float(-dy * inversion));
 }
 - (void)mouseDown:(NSEvent *)event {
     _demo.onMouseDown(float(event.locationInWindow.x), float(event.locationInWindow.y));
