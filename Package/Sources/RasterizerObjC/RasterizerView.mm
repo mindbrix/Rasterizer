@@ -27,10 +27,6 @@
 @interface RasterizerView () <CALayerDelegate, LayerDelegate>
 
 @property(nonatomic) CADisplayLink *displayLink;
-#if TARGET_OS_IPHONE
-@property(nonatomic) dispatch_semaphore_t inflight_semaphore;
-- (void)handleTimerTick:(id)sender;
-#endif
 @property(nonatomic) RasterizerRenderer renderer;
 
 @end
@@ -70,47 +66,22 @@
 
 #pragma mark - Timer
 
+// The display link calls back on the main thread, in step with the display, so frames are drawn in its callback. On macOS, a view's
+// display link follows the display the view is on
 - (void)startTimer {
 #if TARGET_OS_OSX
-    // A view's display link calls back on the main thread, in step with the display the view is on, which it follows
     _displayLink = [self displayLinkWithTarget:self selector:@selector(onDisplayLink:)];
-    [_displayLink addToRunLoop:[NSRunLoop mainRunLoop] forMode:NSRunLoopCommonModes];
 #elif TARGET_OS_IPHONE
-    _inflight_semaphore = dispatch_semaphore_create(1);
-    if ([CADisplayLink class]) {
-        _displayLink = [CADisplayLink displayLinkWithTarget:self selector:@selector(handleTimerTick:)];
-        [_displayLink addToRunLoop:[NSRunLoop currentRunLoop] forMode:NSRunLoopCommonModes];
-    }
+    _displayLink = [CADisplayLink displayLinkWithTarget:self selector:@selector(onDisplayLink:)];
 #endif
+    [_displayLink addToRunLoop:[NSRunLoop mainRunLoop] forMode:NSRunLoopCommonModes];
 }
 
 - (void)stopTimer {
-#if TARGET_OS_OSX
     [_displayLink invalidate], _displayLink = nil;
-#elif TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR
-    [_displayLink setPaused:YES];
-    [_displayLink invalidate];
-    _displayLink = nil;
-#endif
 }
 
-#if TARGET_OS_OSX
 - (void)onDisplayLink:(CADisplayLink *)link {
-    [self drawFrame];
-}
-#elif TARGET_OS_IPHONE
-- (void)handleTimerTick:(id)sender {
-    @autoreleasepool {
-        if (dispatch_semaphore_wait(_inflight_semaphore, DISPATCH_TIME_NOW) == 0)
-            dispatch_async(dispatch_get_main_queue(), ^{
-                [self drawFrame];
-                dispatch_semaphore_signal(_inflight_semaphore);
-            });
-    }
-}
-#endif
-
-- (void)drawFrame {
     if ([self.listDelegate respondsToSelector:@selector(shouldRedrawAtTime:scale:width:height:)]) {
         double scale = self.layer.contentsScale, w = self.bounds.size.width, h = self.bounds.size.height;
         if ([self.listDelegate shouldRedrawAtTime:CACurrentMediaTime()
