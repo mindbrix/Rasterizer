@@ -26,26 +26,14 @@
 
 @interface RasterizerView () <CALayerDelegate, LayerDelegate>
 
-#if TARGET_OS_OSX
-@property(nonatomic) CVDisplayLinkRef displayLink;
-#elif TARGET_OS_IPHONE
 @property(nonatomic) CADisplayLink *displayLink;
-#endif
-
+#if TARGET_OS_IPHONE
 @property(nonatomic) dispatch_semaphore_t inflight_semaphore;
-@property(nonatomic) RasterizerRenderer renderer;
 - (void)handleTimerTick:(id)sender;
+#endif
+@property(nonatomic) RasterizerRenderer renderer;
 
 @end
-
-#if TARGET_OS_OSX
-static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink, const CVTimeStamp *now, const CVTimeStamp *outputTime,
-CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
-    RasterizerView *view = (__bridge RasterizerView *)displayLinkContext;
-    [view handleTimerTick: nil];
-    return kCVReturnSuccess;
-}
-#endif
 
 @implementation RasterizerView
 
@@ -83,12 +71,12 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 #pragma mark - Timer
 
 - (void)startTimer {
-    _inflight_semaphore = dispatch_semaphore_create(1);
 #if TARGET_OS_OSX
-    CVReturn cvReturn = CVDisplayLinkCreateWithCGDisplay(CGMainDisplayID(), &_displayLink);
-    cvReturn = CVDisplayLinkSetOutputCallback(_displayLink, &OnDisplayLinkFrame, (__bridge void *)self);
-    CVDisplayLinkStart(_displayLink);
+    // A view's display link calls back on the main thread, in step with the display the view is on, which it follows
+    _displayLink = [self displayLinkWithTarget:self selector:@selector(onDisplayLink:)];
+    [_displayLink addToRunLoop:[NSRunLoop mainRunLoop] forMode:NSRunLoopCommonModes];
 #elif TARGET_OS_IPHONE
+    _inflight_semaphore = dispatch_semaphore_create(1);
     if ([CADisplayLink class]) {
         _displayLink = [CADisplayLink displayLinkWithTarget:self selector:@selector(handleTimerTick:)];
         [_displayLink addToRunLoop:[NSRunLoop currentRunLoop] forMode:NSRunLoopCommonModes];
@@ -98,8 +86,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 
 - (void)stopTimer {
 #if TARGET_OS_OSX
-    if (_displayLink)
-        CVDisplayLinkStop(_displayLink), CVDisplayLinkRelease(_displayLink), _displayLink = nil;
+    [_displayLink invalidate], _displayLink = nil;
 #elif TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR
     [_displayLink setPaused:YES];
     [_displayLink invalidate];
@@ -107,21 +94,31 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 #endif
 }
 
+#if TARGET_OS_OSX
+- (void)onDisplayLink:(CADisplayLink *)link {
+    [self drawFrame];
+}
+#elif TARGET_OS_IPHONE
 - (void)handleTimerTick:(id)sender {
     @autoreleasepool {
         if (dispatch_semaphore_wait(_inflight_semaphore, DISPATCH_TIME_NOW) == 0)
             dispatch_async(dispatch_get_main_queue(), ^{
-                if ([self.listDelegate respondsToSelector:@selector(shouldRedrawAtTime:scale:width:height:)]) {
-                    double scale = self.layer.contentsScale, w = self.bounds.size.width, h = self.bounds.size.height;
-                    if ([self.listDelegate shouldRedrawAtTime:CACurrentMediaTime()
-                                                        scale:scale
-                                                        width:w
-                                                       height:h]) {
-                        [self.layer setNeedsDisplay];
-                    }
-                }
+                [self drawFrame];
                 dispatch_semaphore_signal(_inflight_semaphore);
             });
+    }
+}
+#endif
+
+- (void)drawFrame {
+    if ([self.listDelegate respondsToSelector:@selector(shouldRedrawAtTime:scale:width:height:)]) {
+        double scale = self.layer.contentsScale, w = self.bounds.size.width, h = self.bounds.size.height;
+        if ([self.listDelegate shouldRedrawAtTime:CACurrentMediaTime()
+                                            scale:scale
+                                            width:w
+                                           height:h]) {
+            [self.layer setNeedsDisplay];
+        }
     }
 }
 

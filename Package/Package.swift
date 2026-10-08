@@ -6,7 +6,7 @@ import PackageDescription
 let package = Package(
     name: "RasterizerSwift",
     platforms: [
-        .macOS(.v12),
+        .macOS(.v14),
         .iOS(.v13)
     ],
     products: [
