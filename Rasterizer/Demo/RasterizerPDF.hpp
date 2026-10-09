@@ -19,6 +19,7 @@
 //
 
 #import "Rasterizer.hpp"
+#import "RasterizerCG.hpp"
 #import "xxhash.h"
 #import "fpdfview.h"
 #import "fpdf_edit.h"
@@ -1041,7 +1042,8 @@ struct RasterizerPDF {
     
     // A color space of fill & stroke colors, which converts them to RGB: device gray & RGB exactly, CalGray, CalRGB & Lab
     // as pdfium does, & CMYK & ICC spaces with CoreGraphics, as images' are, cached as it's slow. An Indexed space looks up
-    // its base's colors, & a Separation or DeviceN uses its tint transform. A space the scan can't convert has no colors, so
+    // its base's colors, & a Separation or DeviceN uses its tint transform, as does a Pattern space with a base, for uncolored
+    // tiling patterns. A space the scan can't convert has no colors, so
     // pdfium's are used
     struct ColorSpace {
         enum Family { kGray, kRGB, kCalRGB, kLab, kOther, kIndexed, kTint, kPattern, kUnsupported };
@@ -1130,6 +1132,8 @@ struct RasterizerPDF {
                         values[j] = lookup[i * m + j] / 255.f;
                     return (i + 1) * m <= lookup.size() && base->color(values.data(), m, out);
                 }
+                case kPattern:      // An uncolored tiling pattern's color, of its base space
+                    return base && base->color(c, n, out);
                 case kTint: {
                     std::vector<float> values(tint.outputs);
                     tint.eval(c, values.data());
@@ -1187,6 +1191,7 @@ struct RasterizerPDF {
             Ra::Path path = nullptr;
             Ra::Transform ctm;      // User space to page space
             int pattern = -1;       // The fill's shading pattern in patterns, or -1 for a color
+            int tiling = -1;        // Or its tiling pattern, in tilings
             int mask = kNoMask;     // In masks
             float alpha = 1.f, width = 1.f, dashPhase = 0.f;
             int dash = -1;          // In dashes, or -1 for a solid stroke
@@ -1208,6 +1213,18 @@ struct RasterizerPDF {
         std::vector<Clip> clips;
         std::map<size_t, Ra::Path> clipPaths;       // By hash, so draws with the same clip share its path, & so its clip mask
         std::vector<Shading> shadings, patterns, masks;
+        // A tiling pattern's cell's objects, scanned in pattern space, once for each pattern, & its tiles, from pattern space to page
+        // space, & a scene of the cell's objects, written when it's first drawn
+        struct Tiling {
+            std::shared_ptr<Shadings> cell;
+            Ra::Bounds bbox;
+            float xStep = 0.f, yStep = 0.f;
+            Ra::Transform ctm;
+            bool isColored = true, hasScene = false;
+            Ra::SceneRef scene;
+        };
+        std::vector<Tiling> tilings;
+        std::map<CGPDFStreamRef, std::shared_ptr<Shadings>> cells;
         struct Group {              // A transparency group form's soft mask, opacity & blend mode, which its contents start without
             int mask = kNoMask;
             float alpha = 1.f;
@@ -1243,7 +1260,7 @@ struct RasterizerPDF {
             const ColorSpace *fillSpace = nullptr, *strokeSpace = nullptr;     // Null for DeviceGray
             Colors colors;              // Without their alphas
             bool isPatternSpace = false;
-            int pattern = -1, mask = kNoMask, clip = -1;
+            int pattern = -1, tiling = -1, mask = kNoMask, clip = -1;
             uint8_t blend = kBlendNormal;
             float lineWidth = 1.f, dashPhase = 0.f;     // The stroke state
             int dash = -1;
@@ -1789,15 +1806,21 @@ struct RasterizerPDF {
                 size_t n = !strcmp(name, "Separation") ? 1 : CGPDFArrayGetCount(names);
                 if (base->family <= ColorSpace::kOther && space->tint.outputs == base->components && space->tint.inputs == n)
                     space->family = ColorSpace::kTint, space->base = base, space->components = n;
-            } else if (!strcmp(name, "Pattern"))
-                return & patternSpace;
+            } else if (!strcmp(name, "Pattern")) {
+                space->family = ColorSpace::kPattern;
+                if (CGPDFArrayGetObject(array, 1, & object)) {
+                    const ColorSpace *base = colorSpace(object, cs, depth + 1);
+                    if (base->family <= ColorSpace::kOther || base->family == ColorSpace::kIndexed || base->family == ColorSpace::kTint)
+                        space->base = base, space->components = base->components;
+                }
+            }
             return space;
         }
         // pdfium keeps the color until sc or scn, & doesn't set the space's initial color
         static void setColorSpace(CGPDFScannerRef scanner, Scan& scan, bool isStroke) {
             State& st = scan.state;  const char *name;
             if (!isStroke)
-                st.isPatternSpace = false, st.pattern = -1;
+                st.isPatternSpace = false, st.pattern = -1, st.tiling = -1;
             if (!CGPDFScannerPopName(scanner, & name))
                 return;
             const ColorSpace *space = scan.shadings->colorSpace(name, CGPDFScannerGetContentStream(scanner));
@@ -1818,20 +1841,52 @@ struct RasterizerPDF {
             if (!isStroke && st.isPatternSpace && name) {
                 CGPDFContentStreamRef cs = CGPDFScannerGetContentStream(scanner);
                 CGPDFObjectRef pattern = CGPDFContentStreamGetResource(cs, "Pattern", name);
-                std::vector<Shading>& patterns = scan.shadings->patterns;
-                patterns.emplace_back();
-                Shading& shading = patterns.back();
-                shading.isValid = pattern && readPattern(pattern, cs, shading);
-                shading.ctm = shading.ctm.concat(st.space);
-                st.pattern = int(patterns.size() - 1);
+                CGPDFStreamRef stream;  CGPDFInteger type = 0;
+                st.pattern = -1, st.tiling = -1;
+                if (pattern && CGPDFObjectGetValue(pattern, kCGPDFObjectTypeStream, & stream) && CGPDFDictionaryGetInteger(CGPDFStreamGetDictionary(stream), "PatternType", & type) && type == 1)
+                    st.tiling = scan.shadings->addTiling(stream, cs, st.space, scan);
+                else {
+                    std::vector<Shading>& patterns = scan.shadings->patterns;
+                    patterns.emplace_back();
+                    Shading& shading = patterns.back();
+                    shading.isValid = pattern && readPattern(pattern, cs, shading);
+                    shading.ctm = shading.ctm.concat(st.space);
+                    st.pattern = int(patterns.size() - 1);
+                }
             }
             setColor(scan, isStroke, components.data(), components.size());
+        }
+        // A tiling pattern used at space, the default space of the content stream, whose cell is scanned once
+        int addTiling(CGPDFStreamRef stream, CGPDFContentStreamRef cs, Ra::Transform space, const Scan& scan) {
+            CGPDFDictionaryRef dict = CGPDFStreamGetDictionary(stream), resources = nullptr;
+            std::vector<float> bbox, m;  CGPDFReal xStep, yStep;  CGPDFInteger paintType = 1;
+            if (!readNumbers(dict, "BBox", bbox) || bbox.size() != 4 || !CGPDFDictionaryGetNumber(dict, "XStep", & xStep) || !CGPDFDictionaryGetNumber(dict, "YStep", & yStep)
+                || xStep == 0.0 || yStep == 0.0 || scan.depth >= kMaxDepth)
+                return -1;
+            Tiling tiling;
+            CGPDFDictionaryGetInteger(dict, "PaintType", & paintType);
+            tiling.bbox = Ra::Bounds(fminf(bbox[0], bbox[2]), fminf(bbox[1], bbox[3]), fmaxf(bbox[0], bbox[2]), fmaxf(bbox[1], bbox[3]));
+            tiling.xStep = xStep, tiling.yStep = yStep, tiling.isColored = paintType != 2;
+            tiling.ctm = readNumbers(dict, "Matrix", m) && m.size() == 6 ? Ra::Transform(m[0], m[1], m[2], m[3], m[4], m[5]).concat(space) : space;
+            auto it = cells.find(stream);
+            if (it == cells.end()) {
+                std::shared_ptr<Shadings> cell = std::make_shared<Shadings>();
+                cell->readsImages = readsImages;
+                CGPDFDictionaryGetDictionary(dict, "Resources", & resources);
+                CGPDFContentStreamRef content = CGPDFContentStreamCreateWithStream(stream, resources, cs);
+                cell->scan(content, scan.table, State(), scan.depth + 1);
+                CGPDFContentStreamRelease(content);
+                it = cells.emplace(stream, cell).first;
+            }
+            tiling.cell = it->second;
+            tilings.emplace_back(tiling);
+            return int(tilings.size() - 1);
         }
         static void setDeviceColor(CGPDFScannerRef scanner, Scan& scan, bool isStroke, const ColorSpace *space) {
             float c[4];
             size_t n = space ? space->components : 1;
             if (!isStroke)
-                scan.state.isPatternSpace = false, scan.state.pattern = -1;
+                scan.state.isPatternSpace = false, scan.state.pattern = -1, scan.state.tiling = -1;
             if (popNumbers(scanner, c, int(n)))
                 (isStroke ? scan.state.strokeSpace : scan.state.fillSpace) = space, setColor(scan, isStroke, c, n);
         }
@@ -1921,11 +1976,13 @@ struct RasterizerPDF {
                 PathObject object;
                 object.path = path, object.ctm = st.ctm, object.mode = mode;
                 object.pattern = (mode & 3) && st.isPatternSpace ? st.pattern : -1, object.mask = st.mask, object.alpha = st.alpha, object.blend = st.blend;
+                object.tiling = (mode & 3) && st.isPatternSpace ? st.tiling : -1;
                 object.width = st.lineWidth, object.cap = st.cap, object.join = st.join, object.dash = st.dash, object.dashPhase = st.dashPhase;
                 object.colors = objectColors(st);
                 object.bounds = Ra::Bounds(bounds.quad(st.ctm.concat(scan.baseInverse)));
                 bool fills = mode & 3, strokes = mode & kStroke, isPattern = fills && st.isPatternSpace;
-                s.needsPdfium = s.needsPdfium || (isPattern && (st.pattern < 0 || !s.patterns[st.pattern].isValid))
+                bool isTiling = isPattern && st.tiling >= 0, needsTiling = isTiling && (s.tilings[st.tiling].cell->needsPdfium || (!s.tilings[st.tiling].isColored && !object.colors.hasFill));
+                s.needsPdfium = s.needsPdfium || needsTiling || (isPattern && !isTiling && (st.pattern < 0 || !s.patterns[st.pattern].isValid))
                     || (fills && !isPattern && !object.colors.hasFill) || (strokes && !object.colors.hasStroke);
                 addObject(scan, kPathObject, s.paths.size());
                 s.paths.emplace_back(object);
@@ -2340,7 +2397,8 @@ struct RasterizerPDF {
         int fillmode = object.mode & ~Shadings::kStroke;
         bool stroke = object.mode & Shadings::kStroke;
         const Shading *pattern = shadings.pattern(object);
-        bool isPattern = object.pattern >= 0;
+        Shadings::Tiling *tiling = object.tiling >= 0 ? & shadings.tilings[object.tiling] : nullptr;
+        bool isPattern = object.pattern >= 0 || tiling;
         float alpha = object.alpha * opacity;
         mask = object.mask != kNoMask ? object.mask : mask;
         blend = object.blend != kBlendNormal ? object.blend : blend;
@@ -2372,6 +2430,8 @@ struct RasterizerPDF {
                         writeGradientToScene(masked, pattern ? alpha : 1.f, blend, fill, fillCTM, flags, clipBounds, fillClipPath, scene);
                 } else if (pattern && isGradient)
                     writeGradientToScene(*pattern, alpha, blend, fill, fillCTM, flags, clipBounds, fillClipPath, scene);
+                else if (tiling && isGradient && (tiling->isColored || object.colors.hasFill))
+                    writeTilingToScene(*tiling, color, alpha, blend, fill, fillCTM, flags, clipBounds, fillClipPath, scene);
                 else if (isPattern && !stroke && pageObject) {
                     // An unsupported pattern fill is drawn as a bitmap of its page bounds, which takes the object from the page
                     Ra::Bounds bounds;  Ra::Path rect;
@@ -2567,6 +2627,50 @@ struct RasterizerPDF {
             scene->addPath(path, ctm, Ra::Paint(pixels.data(), w, h, w * sizeof(Ra::Color)), 0.f, flags, clipBounds, clipPath, blend);
         }
         CGGradientRelease(gradient), CGContextRelease(ctx), CGColorSpaceRelease(rgb);
+    }
+    
+    // Fills path, in ctm space, with a tiling pattern. RasterizerCG draws its cell's objects into an image of its bounding box,
+    // which a CGPattern tiles into an image of the path's bounds, at 2 pixels per unit, up to kMaxGradientSize, which an image
+    // paint covers, as Rasterizer's can't tile. An uncolored pattern's cell is painted with color
+    static void writeTilingToScene(Shadings::Tiling& tiling, Ra::Color color, float alpha, uint8_t blend, Ra::Path& path, Ra::Transform ctm, uint8_t flags, Ra::Bounds* clipBounds, Ra::Path *clipPath, Ra::SceneRef& scene) {
+        path->validate();
+        Ra::Bounds b = path->bounds, cb = tiling.bbox;
+        float bw = b.ux - b.lx, bh = b.uy - b.ly, cw = cb.ux - cb.lx, ch = cb.uy - cb.ly;
+        if (b.isNull() || bw <= 0.f || bh <= 0.f || cw <= 0.f || ch <= 0.f || ctm.det() == 0.f || tiling.ctm.det() == 0.f)
+            return;
+        if (!tiling.hasScene) {
+            TextPage textPage(nullptr);
+            writeStreamToScene(nullptr, nullptr, -1, kNoMask, 1.f, kBlendNormal, textPage, *tiling.cell, tiling.scene), tiling.hasScene = true;
+        }
+        size_t w = fmaxf(1.f, fminf(kMaxGradientSize, ceilf(2.f * hypotf(ctm.a, ctm.b) * bw)));
+        size_t h = fmaxf(1.f, fminf(kMaxGradientSize, ceilf(2.f * hypotf(ctm.c, ctm.d) * bh)));
+        Ra::Transform m = tiling.ctm.concat(ctm.invert()).concat(Ra::Transform(w / bw, 0.f, 0.f, h / bh, -b.lx * w / bw, -b.ly * h / bh));    // Pattern space to the image
+        // The cell's image, at the image's scale
+        float scale = sqrtf(fabsf(m.det()));
+        size_t iw = fmaxf(1.f, fminf(kMaxGradientSize, ceilf(cw * scale))), ih = fmaxf(1.f, fminf(kMaxGradientSize, ceilf(ch * scale)));
+        std::vector<Ra::Color> cell(iw * ih, Ra::Color(0, 0, 0, 0)), pixels(w * h, Ra::Color(0, 0, 0, 0));
+        CGColorSpaceRef rgb = CGColorSpaceCreateDeviceRGB();
+        CGContextRef cellCtx = CGBitmapContextCreate(cell.data(), iw, ih, 8, iw * sizeof(Ra::Color), rgb, kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little);
+        CGContextRef ctx = CGBitmapContextCreate(pixels.data(), w, h, 8, w * sizeof(Ra::Color), rgb, kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little);
+        if (cellCtx && ctx) {
+            Ra::SceneList list;
+            list.addScene(tiling.scene);
+            list.ctm = Ra::Transform(iw / cw, 0.f, 0.f, ih / ch, -cb.lx * iw / cw, -cb.ly * ih / ch);
+            RasterizerCG::renderList(list, Ra::Bounds(0.f, 0.f, iw, ih), cellCtx);
+            if (!tiling.isColored)
+                for (auto& p : cell)
+                    p = Ra::Color(color.b * p.a / 255, color.g * p.a / 255, color.r * p.a / 255, p.a);
+            struct Info { CGImageRef image;  CGRect rect; } info = { CGBitmapContextCreateImage(cellCtx), CGRectMake(cb.lx, cb.ly, cw, ch) };
+            CGPatternCallbacks callbacks = { 0, [](void *info, CGContextRef c) { CGContextDrawImage(c, ((Info *)info)->rect, ((Info *)info)->image); }, nullptr };
+            CGPatternRef cgPattern = CGPatternCreate(& info, info.rect, CGAffineTransformMake(m.a, m.b, m.c, m.d, m.tx, m.ty), tiling.xStep, tiling.yStep, kCGPatternTilingConstantSpacing, true, & callbacks);
+            CGColorSpaceRef patternSpace = CGColorSpaceCreatePattern(nullptr);
+            CGFloat one = 1.0;
+            CGContextSetFillColorSpace(ctx, patternSpace), CGContextSetFillPattern(ctx, cgPattern, & one), CGContextSetAlpha(ctx, alpha);
+            CGContextFillRect(ctx, CGRectMake(0, 0, w, h));
+            CGColorSpaceRelease(patternSpace), CGPatternRelease(cgPattern), CGImageRelease(info.image);
+            scene->addPath(path, ctm, Ra::Paint(pixels.data(), w, h, w * sizeof(Ra::Color)), 0.f, flags, clipBounds, clipPath, blend);
+        }
+        CGContextRelease(ctx), CGContextRelease(cellCtx), CGColorSpaceRelease(rgb);
     }
     
     static constexpr float kFlatness = 1e-2f;      // The page space error of flattened clip paths
