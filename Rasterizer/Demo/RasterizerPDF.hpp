@@ -1168,6 +1168,11 @@ struct RasterizerPDF {
         std::map<std::tuple<int, float, uint32_t, int, std::array<float, 6>>, Ra::Paint> imagePaints;
         static constexpr float kMaxMaskSize = 4096.f;       // Of a masked image enlarged for its mask
         bool readsImages = true;                            // Not for a soft mask's group
+        // Whether pdfium is needed, for an object the scan can't draw, or a content stream it couldn't scan, so its object might
+        // be missing. pdfium's objects the scan doesn't have are otherwise unknown
+        bool needsPdfium = false;
+        size_t pageIndex = 0;
+        Ra::Transform pageCTM;                              // The page's media box & rotation to the scene's space
         // A path painting operator's path, in user space, & its paint, but for its colors
         struct PathObject {
             Ra::Path path = nullptr;
@@ -1264,11 +1269,15 @@ struct RasterizerPDF {
             size_t clipTexts = 0;
             bool hasClipGlyphs = true;
         };
-        void read(const char *filename, size_t pageIndex) {
+        // Scans a page, the last if there are fewer, & returns whether there is one
+        bool read(const char *filename, size_t index) {
             CFURLRef url = CFURLCreateFromFileSystemRepresentation(nullptr, (const UInt8 *)filename, strlen(filename), false);
             CGPDFDocumentRef doc = url ? CGPDFDocumentCreateWithURL(url) : nullptr;
+            size_t count = doc ? CGPDFDocumentGetNumberOfPages(doc) : 0;
+            pageIndex = count && index > count - 1 ? count - 1 : index;
             CGPDFPageRef page = doc ? CGPDFDocumentGetPage(doc, pageIndex + 1) : nullptr;
             if (page) {
+                pageCTM = transformForPage(CGPDFPageGetBoxRect(page, kCGPDFMediaBox), CGPDFPageGetRotationAngle(page));
                 CGPDFContentStreamRef cs = CGPDFContentStreamCreateWithPage(page);
                 CGPDFOperatorTableRef table = createTable();
                 scan(cs, table, State(), 0);
@@ -1278,13 +1287,14 @@ struct RasterizerPDF {
             CGPDFDocumentRelease(doc);
             if (url)
                 CFRelease(url);
+            return page != nullptr;
         }
         void scan(CGPDFContentStreamRef cs, CGPDFOperatorTableRef table, State state, size_t depth, int container = -1, Ra::Transform base = Ra::Transform(), int entryClip = -1) {
             Scan scan;  scan.shadings = this, scan.table = table, scan.state = state, scan.depth = depth, scan.container = container, scan.baseInverse = base.invert(), scan.entryClip = entryClip;
             if (streams.size() < size_t(container + 2))
                 streams.resize(container + 2);
             CGPDFScannerRef scanner = CGPDFScannerCreate(cs, table, & scan);
-            CGPDFScannerScan(scanner);
+            needsPdfium = !CGPDFScannerScan(scanner) || needsPdfium;
             CGPDFScannerRelease(scanner);
         }
         static void addObject(Scan& scan, uint8_t kind, size_t index = 0) {
@@ -1310,6 +1320,7 @@ struct RasterizerPDF {
                         s.imageIndices[stream] = object.image;
                 }
             }
+            s.needsPdfium = s.needsPdfium || (s.readsImages && (object.image < 0 || (s.images[object.image].isMask && !object.colors.hasFill)));
             addObject(scan, kImageObject, s.imageObjects.size());
             s.imageObjects.emplace_back(object);
         }
@@ -1427,6 +1438,7 @@ struct RasterizerPDF {
                 Shading& shading = scan.shadings->shadings.back();
                 shading.ctm = scan.state.ctm, shading.alpha = scan.state.alpha, shading.mask = scan.state.mask, shading.blend = scan.state.blend;
                 shading.isValid = obj && CGPDFObjectGetValue(obj, kCGPDFObjectTypeDictionary, & dict) && shading.read(dict, cs);
+                scan.shadings->needsPdfium = scan.shadings->needsPdfium || !shading.isValid;
             });
             CGPDFOperatorTableSetCallback(table, "Do", [](CGPDFScannerRef scanner, void *info) {
                 Scan& scan = *(Scan *)info;  const char *name;  CGPDFStreamRef stream;  CGPDFDictionaryRef dict, resources = nullptr;
@@ -1462,6 +1474,7 @@ struct RasterizerPDF {
                 }
                 group.clip = state.clip;
                 scan.shadings->forms.emplace_back(group);
+                scan.shadings->needsPdfium = scan.shadings->needsPdfium || scan.depth >= kMaxDepth;
                 if (scan.depth < kMaxDepth) {
                     if (isGroup)
                         state.alpha = 1.f, state.mask = kNoMask, state.blend = kBlendNormal;
@@ -1580,13 +1593,14 @@ struct RasterizerPDF {
                 }
             if (!st.hasFont || !hasStrings)
                 return;
+            TextFont *font = st.font;
             addObject(scan, kTextObject, s.texts.size());
             s.texts.emplace_back();
             TextRun& run = s.texts.back();
             run.mode = st.textMode, run.colors = objectColors(st);
-            bool clips = st.textMode >= 4 && st.textMode <= 7;
+            bool clips = st.textMode >= 4 && st.textMode <= 7, fills = run.mode % 4 == 0 || run.mode % 4 == 2, strokes = run.mode % 4 == 1 || run.mode % 4 == 2;
+            s.needsPdfium = s.needsPdfium || (fills && !run.colors.hasFill) || (strokes && !run.colors.hasStroke) || font == nullptr || !font->isValid;
             scan.clipTexts += clips;
-            TextFont *font = st.font;
             if (font == nullptr || !font->isValid) {
                 run.isValid = false, scan.hasClipGlyphs = scan.hasClipGlyphs && !clips;
                 return;
@@ -1901,6 +1915,9 @@ struct RasterizerPDF {
                 object.width = st.lineWidth, object.cap = st.cap, object.join = st.join, object.dash = st.dash, object.dashPhase = st.dashPhase;
                 object.colors = objectColors(st);
                 object.bounds = Ra::Bounds(bounds.quad(st.ctm.concat(scan.baseInverse)));
+                bool fills = mode & 3, strokes = mode & kStroke, isPattern = fills && st.isPatternSpace;
+                s.needsPdfium = s.needsPdfium || (isPattern && (st.pattern < 0 || !s.patterns[st.pattern].isValid))
+                    || (fills && !isPattern && !object.colors.hasFill) || (strokes && !object.colors.hasStroke);
                 addObject(scan, kPathObject, s.paths.size());
                 s.paths.emplace_back(object);
             }
@@ -2002,64 +2019,46 @@ struct RasterizerPDF {
     };
     
     static int getPageCount(const char *filename) {
-        Ra::SceneList list;
+        CFURLRef url = CFURLCreateFromFileSystemRepresentation(nullptr, (const UInt8 *)filename, strlen(filename), false);
+        CGPDFDocumentRef doc = url ? CGPDFDocumentCreateWithURL(url) : nullptr;
+        int count = doc ? int(CGPDFDocumentGetNumberOfPages(doc)) : 0;
+        CGPDFDocumentRelease(doc);
+        if (url)
+            CFRelease(url);
+        return count;
+    }
+    
+    // Writes a page from the CGPDF scan, & loads it with pdfium only if the scan needs it for fallbacks
+    static Ra::Transform addPdfPageToScene(const char *filename, size_t pageIndex, Ra::SceneRef& scene) {
+        Shadings shadings;
+        if (!shadings.read(filename, pageIndex))
+            return Ra::Transform();
+        if (!shadings.needsPdfium) {
+            writePageToScene(nullptr, nullptr, shadings, scene);
+            return shadings.pageCTM;
+        }
         FPDF_LIBRARY_CONFIG config;
         config.version = 3;
         config.m_pUserFontPaths = nullptr;
         config.m_pIsolate = nullptr;
         config.m_v8EmbedderSlot = 0;
         config.m_pPlatform = nullptr;
-        FPDF_InitLibraryWithConfig(&config);
-        
+        FPDF_InitLibraryWithConfig(& config);
         FPDF_DOCUMENT doc = FPDF_LoadDocument(filename, NULL);
-        int count = doc ? FPDF_GetPageCount(doc) : 0;
-        FPDF_CloseDocument(doc);
-        FPDF_DestroyLibrary();
-        
-        return count;
-    }
-    
-    static Ra::Transform addPdfPageToScene(const char *filename, size_t pageIndex, Ra::SceneRef& scene) {
-        Ra::Transform ctm;
-        FPDF_LIBRARY_CONFIG config;
-            config.version = 3;
-            config.m_pUserFontPaths = nullptr;
-            config.m_pIsolate = nullptr;
-            config.m_v8EmbedderSlot = 0;
-            config.m_pPlatform = nullptr;
-        FPDF_InitLibraryWithConfig(&config);
-        
-        FPDF_DOCUMENT doc = FPDF_LoadDocument(filename, NULL);
-        if (doc) {
-            int count = FPDF_GetPageCount(doc);
-            if (count > 0) {
-                pageIndex = pageIndex > count - 1 ? count - 1 : pageIndex;
-                FPDF_PAGE page = FPDF_LoadPage(doc, int(pageIndex));
-                Shadings shadings;
-                shadings.read(filename, pageIndex);
-                
-                ctm = transformForPage(page);
-                if (0) {
-                    Ra::Paint paint = paintFromPage(page);
-                    if (paint.isImage()) {
-                        Ra::Bounds bounds(0, 0, paint.bitmap->w, paint.bitmap->h);
-                        Ra::Path path;  path->addBounds(bounds);
-                        scene->addPath(path, Ra::Transform(), paint, 0, 0);
-                    }
-                } else
-                    writePageToScene(doc, page, shadings, scene);
-                
-                FPDF_ClosePage(page);
-            }
+        FPDF_PAGE page = doc ? FPDF_LoadPage(doc, int(shadings.pageIndex)) : nullptr;
+        writePageToScene(doc, page, shadings, scene);
+        if (page)
+            FPDF_ClosePage(page);
+        if (doc)
             FPDF_CloseDocument(doc);
-        }
         FPDF_DestroyLibrary();
-        return ctm;
+        return shadings.pageCTM;
     }
     
     static void writePageToScene(FPDF_DOCUMENT doc, FPDF_PAGE page, Shadings& shadings, Ra::SceneRef& scene) {
         TextPage textPage(page);
-        matchObjects(page, nullptr, -1, shadings);
+        if (page)
+            matchObjects(page, nullptr, -1, shadings);
         writeStreamToScene(doc, page, -1, kNoMask, 1.f, kBlendNormal, textPage, shadings, scene);
     }
     
@@ -2127,7 +2126,7 @@ struct RasterizerPDF {
             const Shadings::Object& object = objects[k];
             FPDF_PAGEOBJECT page_object = object.pdfium;
             clip = object.clip;
-            int clipIndex = object.kind == Shadings::kShadingObject || object.kind == Shadings::kFormObject ? clip : objectClip(page_object, clip, formCTM, shadings);
+            int clipIndex = object.kind == Shadings::kShadingObject || object.kind == Shadings::kFormObject ? clip : objectClip(nullptr, & object, clip, formCTM, shadings);
             Shadings::Clip& objectClip = shadings.clip(clipIndex);
             Ra::Bounds *clipBounds = clipIndex < 0 ? nullptr : & objectClip.bounds;
             std::vector<Ra::Path>& clipPaths = objectClip.sorted;
@@ -2171,7 +2170,7 @@ struct RasterizerPDF {
     // An object of pdfium's the scan doesn't have, drawn by pdfium with the clip of the scan's object before it. A form's
     // objects are too, but for paths, & soft masks & opacities, which the scan has
     static void writeOrphanToScene(FPDF_DOCUMENT doc, FPDF_PAGE page, Shadings::Orphan orphan, Ra::Transform formCTM, int clip, int mask, float opacity, uint8_t blend, TextPage& textPage, Shadings& shadings, Ra::SceneRef& scene) {
-        int type = FPDFPageObj_GetType(orphan.object), clipIndex = type == FPDF_PAGEOBJ_SHADING || type == FPDF_PAGEOBJ_FORM ? clip : objectClip(orphan.object, clip, formCTM, shadings);
+        int type = FPDFPageObj_GetType(orphan.object), clipIndex = type == FPDF_PAGEOBJ_SHADING || type == FPDF_PAGEOBJ_FORM ? clip : objectClip(orphan.object, nullptr, clip, formCTM, shadings);
         if (type == FPDF_PAGEOBJ_FORM) {
             Ra::Transform ctm = objectCTM(orphan.object, formCTM);
             for (int i = 0, count = FPDFFormObj_CountObjects(orphan.object); i < count; i++) {
@@ -2196,17 +2195,50 @@ struct RasterizerPDF {
         FPDFPageObj_GetMatrix(page_object, & m);
         return Ra::Transform(m.a, m.b, m.c, m.d, m.e, m.f).concat(formCTM);
     }
-    // An object's clip: pdfium drops it if it's one rect of the object's stream's that contains the object, as pdfium's
-    // bounds say, but for a shading or form
-    static int objectClip(FPDF_PAGEOBJECT page_object, int clip, Ra::Transform formCTM, Shadings& shadings) {
+    // An object's clip: pdfium drops it if it's one rect of the object's stream's that contains the object, but for a shading
+    // or form. A scan object's bounds are the scan's, which only differ from pdfium's in how a stroke outsets a path's, so
+    // which clips at an object's edge are dropped, & an orphan's are pdfium's
+    static int objectClip(FPDF_PAGEOBJECT page_object, const Shadings::Object *object, int clip, Ra::Transform formCTM, Shadings& shadings) {
         float l, b, r, t;
-        if (clip < 0 || page_object == nullptr)
+        Ra::Bounds bounds;
+        if (clip < 0)
             return clip;
         Shadings::Clip& c = shadings.clips[clip];
-        if (c.own == 1 && c.paths[0]->isRect() && FPDFPageObj_GetBounds(page_object, & l, & b, & r, & t)
-            && c.paths[0]->bounds.contains(Ra::Bounds(Ra::Bounds(l, b, r, t).quad(formCTM))))
-            return c.inherited;
-        return clip;
+        if (c.own != 1 || !c.paths[0]->isRect())
+            return clip;
+        if (object)
+            bounds = objectBounds(*object, shadings);
+        else if (page_object && FPDFPageObj_GetBounds(page_object, & l, & b, & r, & t))
+            bounds = Ra::Bounds(Ra::Bounds(l, b, r, t).quad(formCTM));
+        return !bounds.isNull() && c.paths[0]->bounds.contains(bounds) ? c.inherited : clip;
+    }
+    // A scan object's bounds in page space, as pdfium's: of a path's points, outset by half a stroke's width, or for a hairline
+    // by half a unit in page space, a text run's glyphs, or an image's unit square
+    static Ra::Bounds objectBounds(const Shadings::Object& object, Shadings& shadings) {
+        Ra::Bounds bounds;
+        if (object.kind == Shadings::kPathObject) {
+            const Shadings::PathObject& p = shadings.paths[object.index];
+            Ra::Path path = p.path;
+            path->validate();
+            Ra::Bounds b = path->bounds;
+            bool stroke = p.mode & Shadings::kStroke;
+            if (b.isNull())
+                return bounds;
+            if (stroke && p.width != 0.f)
+                b = Ra::Bounds(b.lx - p.width, b.ly - p.width, b.ux + p.width, b.uy + p.width);
+            bounds = Ra::Bounds(b.quad(p.ctm));
+            if (stroke && p.width == 0.f)
+                bounds = Ra::Bounds(bounds.lx - 0.5f, bounds.ly - 0.5f, bounds.ux + 0.5f, bounds.uy + 0.5f);
+        } else if (object.kind == Shadings::kTextObject) {
+            for (const Shadings::Glyph& glyph : shadings.texts[object.index].glyphs) {
+                Ra::Path path = glyph.path;
+                path->validate();
+                if (!path->bounds.isNull())
+                    bounds.extend(Ra::Bounds(path->bounds.quad(glyph.ctm)));
+            }
+        } else if (object.kind == Shadings::kImageObject)
+            bounds = Ra::Bounds(Ra::Bounds(0.f, 0.f, 1.f, 1.f).quad(shadings.imageObjects[object.index].ctm));
+        return bounds;
     }
     
     static void writeCharMap(FPDF_TEXTPAGE text_page, CharMap& charMap) {
@@ -2225,10 +2257,10 @@ struct RasterizerPDF {
         }
     }
     
-    static inline Ra::Transform transformForPage(FPDF_PAGE page) {
-        float left = 0.f, bottom = 0.f, right = 0.f, top = 0.f, tx = 0.f, ty = 0.f, sine, cosine;
-        FPDFPage_GetMediaBox(page, & left, & bottom, & right, & top);
-        int rot = FPDFPage_GetRotation(page);
+    // The media box's origin, & its rotation, in quarter turns clockwise, as pdfium's
+    static inline Ra::Transform transformForPage(CGRect box, int degrees) {
+        float left = box.origin.x, bottom = box.origin.y, right = left + box.size.width, top = bottom + box.size.height, tx = 0.f, ty = 0.f, sine, cosine;
+        int rot = ((degrees / 90) % 4 + 4) % 4;
         __sincosf(-rot * 0.5f * M_PI, & sine, & cosine);
         tx = rot == 2 ? right - left : rot == 3 ? top - bottom : tx;
         ty = rot == 1 ? right - left : rot == 2 ? top - bottom : ty;
@@ -2605,16 +2637,6 @@ struct RasterizerPDF {
         return p;
     }
     
-    static Ra::Paint paintFromPage(FPDF_PAGE page) {
-        int width = FPDF_GetPageWidth(page);
-        int height = FPDF_GetPageHeight(page);
-        FPDF_BITMAP bitmap = FPDFBitmap_Create(width, height, 1);
-        FPDF_RenderPageBitmap(bitmap, page, 0, 0, width, height, 0, 0);
-        Ra::Paint paint = paintFromBitmap(bitmap);
-        FPDFBitmap_Destroy(bitmap);
-        return paint;
-    }
-   
     static Ra::Paint paintFromBitmap(FPDF_BITMAP bitmap, float opacity = 1.f) {
         int format = FPDFBitmap_GetFormat(bitmap);
         if (format != 4)
