@@ -25,10 +25,13 @@
 #import "fpdf_transformpage.h"
 #import "fpdf_text.h"
 #import <CoreGraphics/CoreGraphics.h>
+#import <CoreText/CoreText.h>
 #import <algorithm>
 #import <array>
 #import <map>
+#import <memory>
 #import <set>
+#import <string>
 #import <vector>
 
 
@@ -404,6 +407,315 @@ struct RasterizerPDF {
     // The page's shadings, shading pattern fills, forms & soft masks, from its content stream's sh, path painting & Do operators
     // in order, recursing into forms, with their ctms. pdfium makes a shading, path or form object for each, in the same order,
     // so they're matched by index while the counts agree
+    // A font's glyphs, as CoreText paths in text space, & widths, read with CGPDF, as pdfium can only find glyphs from Unicode, which
+    // loses ligatures & contextual forms. Simple fonts map codes to glyphs by their Differences' names, else by Unicode from their
+    // encoding. Type 0 fonts need an Identity CMap, & map CIDs to glyphs with their CIDToGIDMap. Type 3 fonts & other CMaps are invalid
+    struct TextFont {
+        TextFont(const TextFont&) = delete;
+        TextFont(CGPDFDictionaryRef dict) {
+            const char *subtype, *name;  CGPDFDictionaryRef font = dict, desc = nullptr, enc;  CGPDFArrayRef array;  CGPDFReal number;
+            if (!CGPDFDictionaryGetName(dict, "Subtype", & subtype) || !strcmp(subtype, "Type3"))
+                return;
+            if ((isType0 = !strcmp(subtype, "Type0"))) {
+                if (!CGPDFDictionaryGetName(dict, "Encoding", & name) || (strcmp(name, "Identity-H") && strcmp(name, "Identity-V"))
+                    || !CGPDFDictionaryGetArray(dict, "DescendantFonts", & array) || !CGPDFArrayGetDictionary(array, 0, & font))
+                    return;
+                if (CGPDFDictionaryGetNumber(font, "DW", & number))
+                    defaultWidth = number;
+                if (CGPDFDictionaryGetArray(font, "W", & array))
+                    readCIDWidths(array);
+                CGPDFStreamRef map;
+                if (CGPDFDictionaryGetStream(font, "CIDToGIDMap", & map)) {
+                    CGPDFDataFormat format;  CFDataRef data = CGPDFStreamCopyData(map, & format);
+                    if (data) {
+                        const uint8_t *bytes = CFDataGetBytePtr(data);
+                        for (CFIndex i = 0; i + 1 < CFDataGetLength(data); i += 2)
+                            cidToGid.emplace_back(bytes[i] << 8 | bytes[i + 1]);
+                        CFRelease(data), identityGid = false;
+                    }
+                }
+            }
+            CGPDFDictionaryGetDictionary(font, "FontDescriptor", & desc);
+            CGPDFStreamRef file = nullptr;
+            if (desc && (CGPDFDictionaryGetStream(desc, "FontFile3", & file) || CGPDFDictionaryGetStream(desc, "FontFile2", & file) || CGPDFDictionaryGetStream(desc, "FontFile", & file))) {
+                CGPDFDataFormat format;  CFDataRef data = CGPDFStreamCopyData(file, & format);  const char *fileType;
+                if (data && isType0 && identityGid && CGPDFDictionaryGetName(CGPDFStreamGetDictionary(file), "Subtype", & fileType) && !strcmp(fileType, "CIDFontType0C"))
+                    readCFFCharset(CFDataGetBytePtr(data), size_t(CFDataGetLength(data)));     // CID-keyed, so CIDs aren't glyphs
+                if (data) {
+                    CGDataProviderRef provider = CGDataProviderCreateWithCFData(data);
+                    cgFont = CGFontCreateWithDataProvider(provider);
+                    CGDataProviderRelease(provider), CFRelease(data);
+                }
+                if (cgFont)
+                    ctFont = CTFontCreateWithGraphicsFont(cgFont, 1.0, nullptr, nullptr);
+            }
+            if (ctFont == nullptr && (CGPDFDictionaryGetName(font, "BaseFont", & name) || CGPDFDictionaryGetName(dict, "BaseFont", & name))) {
+                CFStringRef system = systemFontName(name);
+                ctFont = CTFontCreateWithName(system, 1.0, nullptr), CFRelease(system);
+                cgFont = CTFontCopyGraphicsFont(ctFont, nullptr);
+            }
+            if (ctFont == nullptr || cgFont == nullptr)
+                return;
+            if (!isType0) {
+                CGPDFInteger first = 0;
+                CGPDFDictionaryGetInteger(dict, "FirstChar", & first), firstChar = int(first);
+                if (CGPDFDictionaryGetArray(dict, "Widths", & array))
+                    for (size_t i = 0; i < CGPDFArrayGetCount(array); i++)
+                        widths.emplace_back(CGPDFArrayGetNumber(array, i, & number) ? float(number) : 0.f);
+                if (desc && CGPDFDictionaryGetNumber(desc, "MissingWidth", & number))
+                    missingWidth = number, hasMissingWidth = true;
+                CGPDFInteger flags = 0;
+                if (desc)
+                    CGPDFDictionaryGetInteger(desc, "Flags", & flags);
+                base = flags & 4 ? kSymbolic : kStandard;
+                if (CGPDFDictionaryGetName(dict, "Encoding", & name))
+                    base = encodingFor(name, base);
+                else if (CGPDFDictionaryGetDictionary(dict, "Encoding", & enc)) {
+                    if (CGPDFDictionaryGetName(enc, "BaseEncoding", & name))
+                        base = encodingFor(name, base);
+                    if (CGPDFDictionaryGetArray(enc, "Differences", & array))
+                        for (size_t i = 0, code = 0; i < CGPDFArrayGetCount(array); i++) {
+                            CGPDFInteger c;
+                            if (CGPDFArrayGetInteger(array, i, & c))
+                                code = size_t(c);
+                            else if (CGPDFArrayGetName(array, i, & name) && code < 256)
+                                names[code++] = name;
+                        }
+                }
+            }
+            isValid = true;
+        }
+        ~TextFont() {
+            if (ctFont) CFRelease(ctFont);
+            if (cgFont) CGFontRelease(cgFont);
+        }
+        // A code's glyph, or 0
+        CGGlyph glyph(uint32_t code) {
+            if (isType0)
+                return CGGlyph(identityGid ? code : code < cidToGid.size() ? cidToGid[code] : 0);
+            if (code > 255)
+                return 0;
+            if (!mapped[code]) {
+                mapped[code] = true, glyphs[code] = 0;
+                UniChar u = names[code].size() ? unicodeForName(names[code].c_str()) : unicodeForCode(code);
+                const char *name = names[code].size() ? names[code].c_str() : glyphName(u);     // A font without a cmap only has names
+                if (name) {
+                    CFStringRef string = CFStringCreateWithCString(nullptr, name, kCFStringEncodingASCII);
+                    glyphs[code] = string ? CGFontGetGlyphWithGlyphName(cgFont, string) : 0;
+                    if (string) CFRelease(string);
+                }
+                if (glyphs[code] == 0 && base == kSymbolic) {
+                    UniChar pua = UniChar(0xF000 + code);
+                    CTFontGetGlyphsForCharacters(ctFont, & pua, & glyphs[code], 1);
+                }
+                if (glyphs[code] == 0 && u)
+                    CTFontGetGlyphsForCharacters(ctFont, & u, & glyphs[code], 1);
+            }
+            return glyphs[code];
+        }
+        // A code's width, in thousandths of text space
+        float width(uint32_t code, CGGlyph g) {
+            if (isType0) {
+                auto it = cidWidths.find(code);
+                return it == cidWidths.end() ? defaultWidth : it->second;
+            }
+            if (int(code) >= firstChar && code - firstChar < widths.size())
+                return widths[code - firstChar];
+            if (hasMissingWidth)
+                return missingWidth;
+            CGSize advance = CGSizeZero;
+            CTFontGetAdvancesForGlyphs(ctFont, kCTFontOrientationHorizontal, & g, & advance, 1);
+            return float(advance.width * 1000.0);
+        }
+        // A glyph's outline in text space, where a unit is the font size
+        Ra::Path path(CGGlyph g) {
+            auto it = paths.find(g);
+            if (it != paths.end())
+                return it->second;
+            Ra::Path path;  Ra::Path *p = & path;
+            CGPathRef cgPath = CTFontCreatePathForGlyph(ctFont, g, nullptr);
+            if (cgPath) {
+                CGPathApplyWithBlock(cgPath, ^(const CGPathElement *e) {
+                    const CGPoint *q = e->points;
+                    switch (e->type) {
+                        case kCGPathElementMoveToPoint:         (*p)->moveTo(q[0].x, q[0].y);  break;
+                        case kCGPathElementAddLineToPoint:      (*p)->lineTo(q[0].x, q[0].y);  break;
+                        case kCGPathElementAddQuadCurveToPoint: (*p)->quadTo(q[0].x, q[0].y, q[1].x, q[1].y);  break;
+                        case kCGPathElementAddCurveToPoint:     (*p)->cubicTo(q[0].x, q[0].y, q[1].x, q[1].y, q[2].x, q[2].y);  break;
+                        case kCGPathElementCloseSubpath:        (*p)->close();  break;
+                    }
+                });
+                CGPathRelease(cgPath);
+            }
+            return paths.emplace(g, path).first->second;
+        }
+        
+        enum Encoding { kStandard, kWinAnsi, kMacRoman, kSymbolic };
+        static Encoding encodingFor(const char *name, Encoding base) {
+            return !strcmp(name, "WinAnsiEncoding") ? kWinAnsi : !strcmp(name, "MacRomanEncoding") ? kMacRoman : !strcmp(name, "StandardEncoding") ? kStandard : base;
+        }
+        UniChar unicodeForCode(uint32_t code) const {
+            uint8_t byte = code;
+            if (base == kStandard && (code == 0x27 || code == 0x60))
+                return code == 0x27 ? 0x2019 : 0x2018;
+            CFStringRef s = CFStringCreateWithBytes(nullptr, & byte, 1, base == kMacRoman ? kCFStringEncodingMacRoman : base == kWinAnsi ? kCFStringEncodingWindowsLatin1 : kCFStringEncodingISOLatin1, false);
+            UniChar u = s && CFStringGetLength(s) ? CFStringGetCharacterAtIndex(s, 0) : 0;
+            if (s) CFRelease(s);
+            return u;
+        }
+        // The standard glyph name of a Latin-1 or Windows-1252 character, or null
+        static const char *glyphName(UniChar u) {
+            static const char *ascii[] = { "space", "exclam", "quotedbl", "numbersign", "dollar", "percent", "ampersand", "quotesingle",
+                "parenleft", "parenright", "asterisk", "plus", "comma", "hyphen", "period", "slash", "zero", "one", "two", "three", "four",
+                "five", "six", "seven", "eight", "nine", "colon", "semicolon", "less", "equal", "greater", "question", "at" };
+            static const char *ascii2[] = { "bracketleft", "backslash", "bracketright", "asciicircum", "underscore", "grave" };
+            static const char *ascii3[] = { "braceleft", "bar", "braceright", "asciitilde" };
+            static const char *latin1[] = { "space", "exclamdown", "cent", "sterling", "currency", "yen", "brokenbar", "section", "dieresis",
+                "copyright", "ordfeminine", "guillemotleft", "logicalnot", "hyphen", "registered", "macron", "degree", "plusminus",
+                "twosuperior", "threesuperior", "acute", "mu", "paragraph", "periodcentered", "cedilla", "onesuperior", "ordmasculine",
+                "guillemotright", "onequarter", "onehalf", "threequarters", "questiondown", "Agrave", "Aacute", "Acircumflex", "Atilde",
+                "Adieresis", "Aring", "AE", "Ccedilla", "Egrave", "Eacute", "Ecircumflex", "Edieresis", "Igrave", "Iacute", "Icircumflex",
+                "Idieresis", "Eth", "Ntilde", "Ograve", "Oacute", "Ocircumflex", "Otilde", "Odieresis", "multiply", "Oslash", "Ugrave",
+                "Uacute", "Ucircumflex", "Udieresis", "Yacute", "Thorn", "germandbls", "agrave", "aacute", "acircumflex", "atilde",
+                "adieresis", "aring", "ae", "ccedilla", "egrave", "eacute", "ecircumflex", "edieresis", "igrave", "iacute", "icircumflex",
+                "idieresis", "eth", "ntilde", "ograve", "oacute", "ocircumflex", "otilde", "odieresis", "divide", "oslash", "ugrave",
+                "uacute", "ucircumflex", "udieresis", "yacute", "thorn", "ydieresis" };
+            static const struct { UniChar u;  const char *name; } extras[] = { { 0x20AC, "Euro" }, { 0x201A, "quotesinglbase" },
+                { 0x0192, "florin" }, { 0x201E, "quotedblbase" }, { 0x2026, "ellipsis" }, { 0x2020, "dagger" }, { 0x2021, "daggerdbl" },
+                { 0x02C6, "circumflex" }, { 0x2030, "perthousand" }, { 0x0160, "Scaron" }, { 0x2039, "guilsinglleft" }, { 0x0152, "OE" },
+                { 0x017D, "Zcaron" }, { 0x2018, "quoteleft" }, { 0x2019, "quoteright" }, { 0x201C, "quotedblleft" }, { 0x201D, "quotedblright" },
+                { 0x2022, "bullet" }, { 0x2013, "endash" }, { 0x2014, "emdash" }, { 0x02DC, "tilde" }, { 0x2122, "trademark" },
+                { 0x0161, "scaron" }, { 0x203A, "guilsinglright" }, { 0x0153, "oe" }, { 0x017E, "zcaron" }, { 0x0178, "Ydieresis" },
+                { 0xFB01, "fi" }, { 0xFB02, "fl" } };
+            static char letter[2];
+            if ((u >= 'A' && u <= 'Z') || (u >= 'a' && u <= 'z'))
+                return letter[0] = char(u), letter[1] = 0, letter;
+            if (u >= 0x20 && u <= 0x40)
+                return ascii[u - 0x20];
+            if (u >= 0x5B && u <= 0x60)
+                return ascii2[u - 0x5B];
+            if (u >= 0x7B && u <= 0x7E)
+                return ascii3[u - 0x7B];
+            if (u >= 0xA0 && u <= 0xFF)
+                return latin1[u - 0xA0];
+            for (auto& e : extras)
+                if (e.u == u)
+                    return e.name;
+            return nullptr;
+        }
+        // The Unicode of a glyph name: uniXXXX, uXXXX, or one ASCII character
+        static UniChar unicodeForName(const char *name) {
+            unsigned u = 0;
+            if (strlen(name) == 1)
+                return UniChar(name[0]);
+            if ((sscanf(name, "uni%4x", & u) == 1 && strlen(name) == 7) || (sscanf(name, "u%x", & u) == 1 && strlen(name) <= 7))
+                return u <= 0xFFFF ? UniChar(u) : 0;
+            return 0;
+        }
+        // A font's PostScript name, without a subset prefix, as the standard fonts' system names
+        static CFStringRef systemFontName(const char *base) {
+            const char *plus = strchr(base, '+');
+            std::string name = plus && plus - base == 6 ? plus + 1 : base;
+            std::replace(name.begin(), name.end(), ',', '-');
+            if (name == "ZapfDingbats")
+                name = "ZapfDingbatsITC";
+            return CFStringCreateWithCString(nullptr, name.c_str(), kCFStringEncodingASCII);
+        }
+        // A CID-keyed CFF font's charset, which lists its glyphs' CIDs, as cidToGid, if its Top DICT has ROS
+        void readCFFCharset(const uint8_t *d, size_t n) {
+            auto u16 = [&](size_t o) { return o + 2 <= n ? uint32_t(d[o] << 8 | d[o + 1]) : 0u; };
+            auto offsetAt = [&](size_t o, int size) { uint32_t v = 0;  for (int i = 0; i < size && o + i < n; i++) v = v << 8 | d[o + i];  return v; };
+            // An INDEX at o: its data's range for item i, & where it ends
+            auto item = [&](size_t o, uint32_t i, size_t& begin, size_t& end) {
+                uint32_t count = u16(o);  int size = o + 2 < n ? d[o + 2] : 0;
+                if (count == 0) {
+                    begin = end = o + 2;
+                    return o + 2;
+                }
+                size_t offsets = o + 3, data = offsets + (count + 1) * size - 1;
+                begin = data + offsetAt(offsets + i * size, size), end = data + offsetAt(offsets + (i + 1) * size, size);
+                return data + offsetAt(offsets + count * size, size);
+            };
+            if (n < 4)
+                return;
+            size_t begin, end, topBegin, topEnd;
+            size_t top = item(d[2], 0, begin, end);     // Past the Name INDEX
+            item(top, 0, topBegin, topEnd);
+            bool isCID = false;  uint32_t charset = 0, charStrings = 0;  std::vector<int32_t> operands;
+            for (size_t i = topBegin; i < topEnd && topEnd <= n; ) {     // The Top DICT
+                uint8_t b = d[i];
+                if (b >= 32 && b <= 246)
+                    operands.push_back(b - 139), i += 1;
+                else if (b >= 247 && b <= 250 && i + 1 < n)
+                    operands.push_back((b - 247) * 256 + d[i + 1] + 108), i += 2;
+                else if (b >= 251 && b <= 254 && i + 1 < n)
+                    operands.push_back(-(b - 251) * 256 - d[i + 1] - 108), i += 2;
+                else if (b == 28)
+                    operands.push_back(int16_t(u16(i + 1))), i += 3;
+                else if (b == 29)
+                    operands.push_back(int32_t(offsetAt(i + 1, 4))), i += 5;
+                else if (b == 30) {     // A real, of nibbles until 0xF
+                    for (i++; i < topEnd && (d[i] & 0xF) != 0xF && (d[i] >> 4) != 0xF; i++) {}
+                    operands.push_back(0), i++;
+                } else {
+                    int op = b == 12 && i + 1 < n ? 1200 + d[i + 1] : b;
+                    i += b == 12 ? 2 : 1;
+                    if (op == 1230)
+                        isCID = true;
+                    else if (op == 15 && operands.size())
+                        charset = uint32_t(operands.back());
+                    else if (op == 17 && operands.size())
+                        charStrings = uint32_t(operands.back());
+                    operands.clear();
+                }
+            }
+            if (!isCID || charset == 0 || charStrings == 0 || charStrings >= n)
+                return;
+            uint32_t glyphCount = u16(charStrings);
+            std::vector<uint32_t> cids(1, 0);     // GID 0, .notdef, is CID 0
+            size_t o = charset + 1;
+            if (charset < n && d[charset] == 0)
+                for (; cids.size() < glyphCount && o + 2 <= n; o += 2)
+                    cids.push_back(u16(o));
+            else if (charset < n && (d[charset] == 1 || d[charset] == 2))
+                for (int big = d[charset] == 2; cids.size() < glyphCount && o + 3 + big <= n; o += 3 + big)
+                    for (uint32_t first = u16(o), left = big ? u16(o + 2) : d[o + 2], c = 0; c <= left && cids.size() < glyphCount; c++)
+                        cids.push_back(first + c);
+            for (size_t g = 0; g < cids.size(); g++) {
+                if (cids[g] >= cidToGid.size())
+                    cidToGid.resize(cids[g] + 1, 0);
+                cidToGid[cids[g]] = uint16_t(g);
+            }
+            identityGid = false;
+        }
+        void readCIDWidths(CGPDFArrayRef w) {
+            CGPDFInteger first, last;  CGPDFArrayRef array;  CGPDFReal number;
+            for (size_t i = 0, n = CGPDFArrayGetCount(w); i + 1 < n; ) {
+                if (!CGPDFArrayGetInteger(w, i, & first))
+                    return;
+                if (CGPDFArrayGetArray(w, i + 1, & array)) {
+                    for (size_t j = 0; j < CGPDFArrayGetCount(array); j++)
+                        if (CGPDFArrayGetNumber(array, j, & number))
+                            cidWidths[uint32_t(first + j)] = number;
+                    i += 2;
+                } else if (i + 2 < n && CGPDFArrayGetInteger(w, i + 1, & last) && CGPDFArrayGetNumber(w, i + 2, & number)) {
+                    for (CGPDFInteger c = first; c <= last && c - first < 65536; c++)
+                        cidWidths[uint32_t(c)] = number;
+                    i += 3;
+                } else
+                    return;
+            }
+        }
+        
+        bool isValid = false, isType0 = false, identityGid = true, hasMissingWidth = false;
+        CTFontRef ctFont = nullptr;  CGFontRef cgFont = nullptr;
+        Encoding base = kStandard;
+        int firstChar = 0;  std::vector<float> widths;  float missingWidth = 0.f, defaultWidth = 1000.f;
+        std::map<uint32_t, float> cidWidths;  std::vector<uint16_t> cidToGid;
+        std::array<std::string, 256> names;  std::array<CGGlyph, 256> glyphs = {};  std::array<bool, 256> mapped = {};
+        std::map<CGGlyph, Ra::Path> paths;
+    };
+    
     struct Shadings {
         static constexpr size_t kMaxDepth = 32;
         enum { kStroke = 4 };       // A path's draw mode is its FPDF_FILLMODE, & kStroke if it's stroked, as pdfium's
@@ -429,12 +741,28 @@ struct RasterizerPDF {
             Place place;            // Among the form's shadings & forms
         };
         std::vector<Place> shadingPlaces;       // Of shadings, among their form's shadings & forms
+        // A text showing operator's glyphs, as pdfium's text objects, each with its text rendering matrix, from text space to page space
+        struct Glyph { Ra::Path path;  Ra::Transform ctm; };
+        struct TextRun {
+            bool isValid = true;
+            std::vector<Glyph> glyphs;
+            float unitsPerEm = 1.f;     // User space units in text space's, for stroke widths
+        };
+        std::vector<TextRun> texts;
+        std::vector<Place> textPlaces;          // Of text runs, among their form's text objects
+        std::map<CGPDFDictionaryRef, std::unique_ptr<TextFont>> fonts;
+        TextFont *fontFor(CGPDFDictionaryRef dict) {
+            auto it = fonts.find(dict);
+            if (it == fonts.end())
+                it = fonts.emplace(dict, std::unique_ptr<TextFont>(new TextFont(dict))).first;
+            return it->second.get();
+        }
         std::vector<PathFill> paths;
         typedef std::pair<CGPDFDictionaryRef, std::array<float, 6>> MaskKey;     // A soft mask & the ctm it's set at
         std::map<MaskKey, int> maskIndices;
         std::map<CGPDFDictionaryRef, Shading> maskGroups;
         std::vector<Group> forms;
-        size_t index = 0, pathIndex = 0, formIndex = 0;
+        size_t index = 0, pathIndex = 0, formIndex = 0, textIndex = 0;
         
         struct State {
             Ra::Transform ctm, space;   // space is the content stream's default space, which pattern matrices map to
@@ -442,6 +770,8 @@ struct RasterizerPDF {
             bool isPatternSpace = false;
             int pattern = -1, mask = kNoMask;
             uint8_t blend = kBlendNormal;
+            TextFont *font = nullptr;   // The text state, which q & Q save & restore
+            float fontSize = 0.f, charSpace = 0.f, wordSpace = 0.f, hScale = 1.f, leading = 0.f, rise = 0.f;
         };
         struct Scan {
             State state;
@@ -452,7 +782,8 @@ struct RasterizerPDF {
             Ra::Bounds bounds;                 // Of the current path, in user space
             int container = -1;                // The form index of the content stream, or -1 for the page's
             Ra::Transform base;                // The ctm at the stream's form's Do, so pdfium's space for its objects
-            uint32_t others = 0;               // The stream's shadings & forms so far
+            uint32_t others = 0, texts = 0;    // The stream's shadings & forms, & text runs, so far
+            Ra::Transform tm, tlm;             // The text matrix & text line matrix
         };
         void read(const char *filename, size_t pageIndex) {
             CFURLRef url = CFURLCreateFromFileSystemRepresentation(nullptr, (const UInt8 *)filename, strlen(filename), false);
@@ -590,7 +921,116 @@ struct RasterizerPDF {
             });
             if (tracksPaths)
                 addPathCallbacks(table);
+            addTextCallbacks(table);
             return table;
+        }
+        // Tracks the text state, & records each text showing operator's glyphs as a text run
+        static void addTextCallbacks(CGPDFOperatorTableRef table) {
+            CGPDFOperatorTableSetCallback(table, "BT", [](CGPDFScannerRef scanner, void *info) {
+                Scan& scan = *(Scan *)info;
+                scan.tm = scan.tlm = Ra::Transform();
+            });
+            CGPDFOperatorTableSetCallback(table, "Tf", [](CGPDFScannerRef scanner, void *info) {
+                Scan& scan = *(Scan *)info;  CGPDFReal size;  const char *name;  CGPDFDictionaryRef dict;
+                if (!CGPDFScannerPopNumber(scanner, & size) || !CGPDFScannerPopName(scanner, & name))
+                    return;
+                CGPDFObjectRef obj = CGPDFContentStreamGetResource(CGPDFScannerGetContentStream(scanner), "Font", name);
+                scan.state.fontSize = size;
+                scan.state.font = obj && CGPDFObjectGetValue(obj, kCGPDFObjectTypeDictionary, & dict) ? scan.shadings->fontFor(dict) : nullptr;
+            });
+            CGPDFOperatorTableSetCallback(table, "Tc", [](CGPDFScannerRef scanner, void *info) { popNumber(scanner, ((Scan *)info)->state.charSpace); });
+            CGPDFOperatorTableSetCallback(table, "Tw", [](CGPDFScannerRef scanner, void *info) { popNumber(scanner, ((Scan *)info)->state.wordSpace); });
+            CGPDFOperatorTableSetCallback(table, "TL", [](CGPDFScannerRef scanner, void *info) { popNumber(scanner, ((Scan *)info)->state.leading); });
+            CGPDFOperatorTableSetCallback(table, "Ts", [](CGPDFScannerRef scanner, void *info) { popNumber(scanner, ((Scan *)info)->state.rise); });
+            CGPDFOperatorTableSetCallback(table, "Tz", [](CGPDFScannerRef scanner, void *info) {
+                Scan& scan = *(Scan *)info;  float scale;
+                if (popNumber(scanner, scale))
+                    scan.state.hScale = scale / 100.f;
+            });
+            CGPDFOperatorTableSetCallback(table, "Td", [](CGPDFScannerRef scanner, void *info) {
+                Scan& scan = *(Scan *)info;  CGPDFReal tx, ty;
+                if (CGPDFScannerPopNumber(scanner, & ty) && CGPDFScannerPopNumber(scanner, & tx))
+                    moveLine(scan, tx, ty);
+            });
+            CGPDFOperatorTableSetCallback(table, "TD", [](CGPDFScannerRef scanner, void *info) {
+                Scan& scan = *(Scan *)info;  CGPDFReal tx, ty;
+                if (CGPDFScannerPopNumber(scanner, & ty) && CGPDFScannerPopNumber(scanner, & tx))
+                    scan.state.leading = -ty, moveLine(scan, tx, ty);
+            });
+            CGPDFOperatorTableSetCallback(table, "Tm", [](CGPDFScannerRef scanner, void *info) {
+                Scan& scan = *(Scan *)info;  CGPDFReal m[6];
+                for (int i = 5; i >= 0; i--)
+                    if (!CGPDFScannerPopNumber(scanner, & m[i]))
+                        return;
+                scan.tm = scan.tlm = Ra::Transform(m[0], m[1], m[2], m[3], m[4], m[5]);
+            });
+            CGPDFOperatorTableSetCallback(table, "T*", [](CGPDFScannerRef scanner, void *info) {
+                Scan& scan = *(Scan *)info;
+                moveLine(scan, 0.f, -scan.state.leading);
+            });
+            CGPDFOperatorTableSetCallback(table, "Tj", [](CGPDFScannerRef scanner, void *info) {
+                Scan& scan = *(Scan *)info;  CGPDFStringRef string;
+                if (CGPDFScannerPopString(scanner, & string))
+                    showText(scan, & string, nullptr);
+            });
+            CGPDFOperatorTableSetCallback(table, "'", [](CGPDFScannerRef scanner, void *info) {
+                Scan& scan = *(Scan *)info;  CGPDFStringRef string;
+                if (CGPDFScannerPopString(scanner, & string))
+                    moveLine(scan, 0.f, -scan.state.leading), showText(scan, & string, nullptr);
+            });
+            CGPDFOperatorTableSetCallback(table, "\"", [](CGPDFScannerRef scanner, void *info) {
+                Scan& scan = *(Scan *)info;  CGPDFStringRef string;  CGPDFReal ac, aw;
+                if (CGPDFScannerPopString(scanner, & string) && CGPDFScannerPopNumber(scanner, & ac) && CGPDFScannerPopNumber(scanner, & aw))
+                    scan.state.wordSpace = aw, scan.state.charSpace = ac, moveLine(scan, 0.f, -scan.state.leading), showText(scan, & string, nullptr);
+            });
+            CGPDFOperatorTableSetCallback(table, "TJ", [](CGPDFScannerRef scanner, void *info) {
+                Scan& scan = *(Scan *)info;  CGPDFArrayRef array;
+                if (CGPDFScannerPopArray(scanner, & array))
+                    showText(scan, nullptr, array);
+            });
+        }
+        static bool popNumber(CGPDFScannerRef scanner, float& value) {
+            CGPDFReal number;
+            return CGPDFScannerPopNumber(scanner, & number) ? (value = number, true) : false;
+        }
+        static void moveLine(Scan& scan, float tx, float ty) {
+            scan.tm = scan.tlm = Ra::Transform(1.f, 0.f, 0.f, 1.f, tx, ty).concat(scan.tlm);
+        }
+        // Records a text run of a string, or a TJ array of strings & adjustments, advancing the text matrix
+        static void showText(Scan& scan, CGPDFStringRef *string, CGPDFArrayRef array) {
+            Shadings& s = *scan.shadings;  State& st = scan.state;
+            s.textPlaces.emplace_back(Place{ scan.container, scan.texts++ });
+            s.texts.emplace_back();
+            TextRun& run = s.texts.back();
+            TextFont *font = st.font;
+            if (font == nullptr || !font->isValid) {
+                run.isValid = false;
+                return;
+            }
+            Ra::Transform size(st.fontSize * st.hScale, 0.f, 0.f, st.fontSize, 0.f, st.rise);
+            run.unitsPerEm = sqrtf(fabsf(size.concat(scan.tm).det()));
+            auto show = [&](CGPDFStringRef str) {
+                const uint8_t *bytes = CGPDFStringGetBytePtr(str);  size_t length = CGPDFStringGetLength(str), step = font->isType0 ? 2 : 1;
+                for (size_t i = 0; i + step <= length; i += step) {
+                    uint32_t code = step == 2 ? bytes[i] << 8 | bytes[i + 1] : bytes[i];
+                    CGGlyph g = font->glyph(code);
+                    Ra::Path path = font->path(g);
+                    if (path->types.end)
+                        run.glyphs.push_back({ path, size.concat(scan.tm).concat(st.ctm) });
+                    float tx = (font->width(code, g) / 1000.f * st.fontSize + st.charSpace + (step == 1 && code == 32 ? st.wordSpace : 0.f)) * st.hScale;
+                    scan.tm = Ra::Transform(1.f, 0.f, 0.f, 1.f, tx, 0.f).concat(scan.tm);
+                }
+            };
+            if (string)
+                show(*string);
+            else
+                for (size_t i = 0; i < CGPDFArrayGetCount(array); i++) {
+                    CGPDFStringRef str;  CGPDFReal adjust;
+                    if (CGPDFArrayGetString(array, i, & str))
+                        show(str);
+                    else if (CGPDFArrayGetNumber(array, i, & adjust))
+                        scan.tm = Ra::Transform(1.f, 0.f, 0.f, 1.f, -adjust / 1000.f * st.fontSize * st.hScale, 0.f).concat(scan.tm);
+                }
         }
         // Tracks the fill color space & pattern, & records a path fill for each path painting operator
         static void addPathCallbacks(CGPDFOperatorTableRef table) {
@@ -757,6 +1197,11 @@ struct RasterizerPDF {
         const Shading *pattern(const PathFill *fill) const {
             return fill && fill->pattern >= 0 && patterns[fill->pattern].isValid ? & patterns[fill->pattern] : nullptr;
         }
+        // The run of pdfium's next text object, if it can be matched
+        const TextRun *nextText() {
+            size_t i = textIndex++;
+            return i < texts.size() && texts[i].isValid ? & texts[i] : nullptr;
+        }
         // The group of pdfium's next form object, if it can be matched
         const Group *nextForm() {
             size_t i = formIndex++;
@@ -831,6 +1276,8 @@ struct RasterizerPDF {
         matchObjects(page, nullptr, -1, shadings, match);
         if (!match.shadings || match.shading != shadings.shadings.size())
             shadings.shadings.resize(0);    // They can't be matched, so are drawn as bitmaps
+        if (!match.texts || match.text != shadings.texts.size())
+            shadings.texts.resize(0);       // They can't be matched, so are pdfium's glyphs for their Unicode
         if (!match.forms || match.form != shadings.forms.size())      // They can't be matched, so their soft masks & opacities are
             shadings.forms.resize(0), shadings.pathMatches.assign(shadings.pathMatches.size(), -1);    // ignored, & nor can their paths
         
@@ -843,13 +1290,13 @@ struct RasterizerPDF {
     // contain the scan's, so a path only one has is skipped
     struct Match {
         static constexpr size_t kWindow = 16;     // The scan's paths searched for each of pdfium's
-        bool shadings = true, forms = true;
-        size_t shading = 0, form = 0;
+        bool shadings = true, forms = true, texts = true;
+        size_t shading = 0, form = 0, text = 0;
         std::map<int, std::vector<size_t>> paths;   // The scan's paths in each form, in order
         std::map<int, size_t> next;                 // The next of them to match
     };
     static void matchObjects(FPDF_PAGE page, FPDF_PAGEOBJECT form, int container, Shadings& shadings, Match& match) {
-        uint32_t others = 0;
+        uint32_t others = 0, texts = 0;
         std::vector<size_t>& paths = match.paths[container];  size_t& next = match.next[container];
         int objectCount = form ? FPDFFormObj_CountObjects(form) : FPDFPage_CountObjects(page);
         for (int i = 0; i < objectCount; i++) {
@@ -864,6 +1311,10 @@ struct RasterizerPDF {
                             j = int(paths[k]), next = k + 1;
                     }
                 shadings.pathMatches.emplace_back(j);
+            } else if (type == FPDF_PAGEOBJ_TEXT) {
+                size_t j = match.text++;
+                match.texts = match.texts && j < shadings.textPlaces.size() && shadings.textPlaces[j] == Shadings::Place{ container, texts };
+                texts++;
             } else if (type == FPDF_PAGEOBJ_SHADING) {
                 size_t j = match.shading++;
                 match.shadings = match.shadings && j < shadings.shadingPlaces.size() && shadings.shadingPlaces[j] == Shadings::Place{ container, others };
@@ -884,14 +1335,14 @@ struct RasterizerPDF {
         return fabsf(pdf.lx - scan.lx) <= tol && fabsf(pdf.ly - scan.ly) <= tol && fabsf(pdf.ux - scan.ux) <= tol && fabsf(pdf.uy - scan.uy) <= tol;
     }
     
-    static void countObjects(FPDF_PAGE page, FPDF_PAGEOBJECT form, size_t& paths, size_t& shadings, size_t& forms) {
+    static void countObjects(FPDF_PAGE page, FPDF_PAGEOBJECT form, size_t& paths, size_t& shadings, size_t& forms, size_t& texts) {
         int objectCount = form ? FPDFFormObj_CountObjects(form) : FPDFPage_CountObjects(page);
         for (int i = 0; i < objectCount; i++) {
             FPDF_PAGEOBJECT page_object = form ? FPDFFormObj_GetObject(form, i) : FPDFPage_GetObject(page, i);
             int type = FPDFPageObj_GetType(page_object);
-            paths += type == FPDF_PAGEOBJ_PATH, shadings += type == FPDF_PAGEOBJ_SHADING;
+            paths += type == FPDF_PAGEOBJ_PATH, shadings += type == FPDF_PAGEOBJ_SHADING, texts += type == FPDF_PAGEOBJ_TEXT;
             if (type == FPDF_PAGEOBJ_FORM)
-                forms++, countObjects(page, page_object, paths, shadings, forms);
+                forms++, countObjects(page, page_object, paths, shadings, forms, texts);
         }
     }
     
@@ -912,10 +1363,16 @@ struct RasterizerPDF {
             clipState.update(page_object, formCTM, parentClip);
             
             switch (FPDFPageObj_GetType(page_object)) {
-                case FPDF_PAGEOBJ_TEXT:
-                    if (mask == kNoMask)
+                case FPDF_PAGEOBJ_TEXT: {
+                    const Shadings::TextRun *run = shadings.nextText();
+                    if (mask != kNoMask)
+                        break;
+                    if (run)
+                        writeTextRunToScene(*run, page_object, opacity, blend, clipState.clipPtr, clipState.clipPaths, scene);
+                    else
                         writeTextToScene(page_object, text_page, charMap, ctm, opacity, blend, clipState.clipPtr, scene);
                     break;
+                }
                 case FPDF_PAGEOBJ_PATH:
                     writePathToScene(page, form, page_object, ctm, formCTM, mask, opacity, blend, shadings, clipState.clipPtr, clipState.clipPaths, scene);
                     break;
@@ -932,9 +1389,9 @@ struct RasterizerPDF {
                     float formOpacity = opacity * (group ? group->alpha : 1.f);
                     uint8_t formBlend = group && group->blend != kBlendNormal ? group->blend : blend;
                     if (formMask == kUnsupportedMask || formOpacity == 0.f) {      // Skipped, & its contents
-                        size_t paths = 0, shadingCount = 0, forms = 0;
-                        countObjects(page, page_object, paths, shadingCount, forms);
-                        shadings.pathIndex += paths, shadings.index += shadingCount, shadings.formIndex += forms;
+                        size_t paths = 0, shadingCount = 0, forms = 0, texts = 0;
+                        countObjects(page, page_object, paths, shadingCount, forms, texts);
+                        shadings.pathIndex += paths, shadings.index += shadingCount, shadings.formIndex += forms, shadings.textIndex += texts;
                     } else
                         writeObjectsToScene(doc, page, page_object, ctm, & clipState, formMask, formOpacity, formBlend, text_page, charMap, shadings, scene);
                     break;
@@ -973,6 +1430,28 @@ struct RasterizerPDF {
         Ra::Transform originCTM(1.f, 0.f, 0.f, 1.f, -left, -bottom);
         Ra::Transform pageCTM(cosine, sine, -sine, cosine, tx, ty);
         return pageCTM.concat(originCTM);
+    }
+    
+    // Writes a text object's glyphs from the scan, filled and or stroked as its text rendering mode says, & not if it's invisible
+    static void writeTextRunToScene(const Shadings::TextRun& run, FPDF_PAGEOBJECT page_object, float opacity, uint8_t blend, Ra::Bounds *clipBounds, std::vector<Ra::Path>& clipPaths, Ra::SceneRef& scene) {
+        int mode = FPDFTextObj_GetTextRenderMode(page_object);
+        bool fills = mode < 0 || mode == FPDF_TEXTRENDERMODE_FILL || mode == FPDF_TEXTRENDERMODE_FILL_STROKE || mode == FPDF_TEXTRENDERMODE_FILL_CLIP || mode == FPDF_TEXTRENDERMODE_FILL_STROKE_CLIP;
+        bool strokes = mode == FPDF_TEXTRENDERMODE_STROKE || mode == FPDF_TEXTRENDERMODE_FILL_STROKE || mode == FPDF_TEXTRENDERMODE_STROKE_CLIP || mode == FPDF_TEXTRENDERMODE_FILL_STROKE_CLIP;
+        Ra::Path *clipPath = clipPaths.size() == 0 || clipPaths[0]->isRect() ? nullptr : & clipPaths[0];
+        unsigned int R = 0, G = 0, B = 0, A = 255;
+        float width = 0.f;
+        FPDFPageObj_GetFillColor(page_object, & R, & G, & B, & A);
+        Ra::Color fill(B, G, R, A * opacity + 0.5f);
+        FPDFPageObj_GetStrokeColor(page_object, & R, & G, & B, & A);
+        Ra::Color stroke(B, G, R, A * opacity + 0.5f);
+        FPDFPageObj_GetStrokeWidth(page_object, & width);
+        width = width == 0.f ? -1.f : width / run.unitsPerEm;     // In text space, which glyphs' paths are in
+        for (auto& glyph : run.glyphs) {
+            if (fills)
+                scene->addPath(glyph.path, glyph.ctm, fill, 0.f, 0, clipBounds, clipPath, blend);
+            if (strokes)
+                scene->addPath(glyph.path, glyph.ctm, stroke, width, 0, clipBounds, clipPath, blend);
+        }
     }
     
     static void writeTextToScene(FPDF_PAGEOBJECT page_object, FPDF_TEXTPAGE text_page, CharMap& charMap, Ra::Transform textCTM, float opacity, uint8_t blend, Ra::Bounds *clipBounds, Ra::SceneRef& scene) {
