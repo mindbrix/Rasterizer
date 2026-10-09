@@ -26,12 +26,14 @@
 #import "fpdf_text.h"
 #import <CoreGraphics/CoreGraphics.h>
 #import <CoreText/CoreText.h>
+#import <ImageIO/ImageIO.h>
 #import <algorithm>
 #import <array>
 #import <deque>
 #import <map>
 #import <memory>
 #import <string>
+#import <tuple>
 #import <vector>
 
 
@@ -679,6 +681,310 @@ struct RasterizerPDF {
         std::map<CGGlyph, Ra::Path> paths;
     };
     
+    // An image XObject or inline image, decoded with CGPDF, ImageIO & CoreGraphics, which converts its color space to RGB, as
+    // straight alpha BGRA. An image mask's pixels are its alpha, painted with the fill color. Images too large for a texture
+    // are drawn smaller
+    struct PDFImage {
+        static constexpr size_t kMaxSize = 16384;
+        bool isValid = false, isMask = false;
+        size_t width = 0, height = 0;
+        std::vector<Ra::Color> pixels;
+        
+        PDFImage(CGPDFStreamRef stream, CGPDFContentStreamRef cs) {
+            CGPDFDictionaryRef dict = CGPDFStreamGetDictionary(stream);
+            CGPDFBoolean imageMask = false;
+            CGPDFDictionaryGetBoolean(dict, "ImageMask", & imageMask) || CGPDFDictionaryGetBoolean(dict, "IM", & imageMask);
+            Samples samples;
+            CGImageRef image = createImage(stream, cs, imageMask, samples);
+            if (image == nullptr)
+                return;
+            float scale = fminf(1.f, float(kMaxSize) / fmaxf(CGImageGetWidth(image), CGImageGetHeight(image)));
+            width = fmaxf(1.f, roundf(CGImageGetWidth(image) * scale)), height = fmaxf(1.f, roundf(CGImageGetHeight(image) * scale));
+            pixels.resize(width * height);
+            isMask = imageMask, isValid = true;
+            if (isMask) {
+                std::vector<uint8_t> alpha = drawAlpha(image);
+                for (size_t i = 0; i < pixels.size(); i++)
+                    pixels[i] = Ra::Color(0, 0, 0, alpha[i]);
+            } else {
+                draw(image, pixels.data(), false);
+                CGImageAlphaInfo info = CGImageGetAlphaInfo(image);
+                if (info != kCGImageAlphaNone && info != kCGImageAlphaNoneSkipFirst && info != kCGImageAlphaNoneSkipLast)     // A JPX's own alpha
+                    for (auto& p : pixels)
+                        if (p.a != 0 && p.a != 255)
+                            p = Ra::Color(p.b * 255 / p.a, p.g * 255 / p.a, p.r * 255 / p.a, p.a);
+                CGPDFStreamRef mask;  CGPDFArrayRef key;
+                Samples maskSamples;
+                CGImageRef maskImage = nullptr;
+                if (CGPDFDictionaryGetStream(dict, "SMask", & mask))
+                    maskImage = createImage(mask, cs, false, maskSamples);
+                else if (CGPDFDictionaryGetStream(dict, "Mask", & mask))
+                    maskImage = createImage(mask, cs, true, maskSamples);
+                if (maskImage) {
+                    std::vector<uint8_t> alpha = drawAlpha(maskImage);
+                    for (size_t i = 0; i < pixels.size(); i++)
+                        pixels[i].a = alpha[i];
+                    CGImageRelease(maskImage);
+                } else if (CGPDFDictionaryGetArray(dict, "Mask", & key))
+                    applyColorKey(key, samples);
+            }
+            CGImageRelease(image);
+        }
+        // A stream's raw samples, for a color key mask, if they weren't a JPEG's
+        struct Samples {
+            CFDataRef data = nullptr;
+            size_t width = 0, height = 0, components = 0, bpc = 0, rowBytes = 0;
+            ~Samples() { if (data) CFRelease(data); }
+        };
+        static CGPDFObjectRef getObject(CGPDFDictionaryRef dict, const char *key, const char *abbreviation) {
+            CGPDFObjectRef obj = nullptr;
+            CGPDFDictionaryGetObject(dict, key, & obj) || CGPDFDictionaryGetObject(dict, abbreviation, & obj);
+            return obj;
+        }
+        static size_t getInteger(CGPDFDictionaryRef dict, const char *key, const char *abbreviation) {
+            CGPDFObjectRef obj = getObject(dict, key, abbreviation);  CGPDFInteger value = 0;  CGPDFReal real;
+            if (obj && !CGPDFObjectGetValue(obj, kCGPDFObjectTypeInteger, & value) && CGPDFObjectGetValue(obj, kCGPDFObjectTypeReal, & real))
+                value = CGPDFInteger(real);
+            return value > 0 ? size_t(value) : 0;
+        }
+        static bool hasFilter(CGPDFDictionaryRef dict, std::initializer_list<const char *> names) {
+            CGPDFObjectRef obj = getObject(dict, "Filter", "F");  CGPDFArrayRef array;  const char *name;
+            auto isOne = [&](const char *filter) { return std::any_of(names.begin(), names.end(), [&](const char *n) { return !strcmp(n, filter); }); };
+            if (obj && CGPDFObjectGetValue(obj, kCGPDFObjectTypeName, & name))
+                return isOne(name);
+            for (size_t i = 0; obj && CGPDFObjectGetValue(obj, kCGPDFObjectTypeArray, & array) && i < CGPDFArrayGetCount(array); i++)
+                if (CGPDFArrayGetName(array, i, & name) && isOne(name))
+                    return true;
+            return false;
+        }
+        static uint32_t sample(const uint8_t *row, size_t i, size_t bpc) {     // The ith sample of a row
+            if (bpc == 8)
+                return row[i];
+            if (bpc == 16)
+                return row[2 * i] << 8 | row[2 * i + 1];
+            size_t bit = i * bpc;
+            return (row[bit >> 3] >> (8 - bpc - (bit & 7))) & ((1 << bpc) - 1);
+        }
+        // The image of a stream, in its color space, with its decode array, or for a mask, gray, with 1 where it's painted
+        static CGImageRef createImage(CGPDFStreamRef stream, CGPDFContentStreamRef cs, bool isMask, Samples& samples) {
+            CGPDFDictionaryRef dict = CGPDFStreamGetDictionary(stream);
+            CGPDFDataFormat format;
+            CFDataRef data = CGPDFStreamCopyData(stream, & format);
+            if (data == nullptr)
+                return nullptr;
+            CGImageRef image = nullptr;
+            size_t width = getInteger(dict, "Width", "W"), height = getInteger(dict, "Height", "H"), bpc = isMask ? 1 : getInteger(dict, "BitsPerComponent", "BPC");
+            std::vector<CGFloat> decode;  CGPDFArrayRef array;  CGPDFObjectRef obj;  CGPDFReal number;
+            if ((obj = getObject(dict, "Decode", "D")) && CGPDFObjectGetValue(obj, kCGPDFObjectTypeArray, & array))
+                for (size_t i = 0; i < CGPDFArrayGetCount(array) && CGPDFArrayGetNumber(array, i, & number); i++)
+                    decode.emplace_back(number);
+            Function tint;
+            CGColorSpaceRef space = isMask ? CGColorSpaceCreateDeviceGray() : nullptr;
+            if (!isMask && (obj = getObject(dict, "ColorSpace", "CS")))
+                space = createColorSpace(obj, cs, & tint);
+            size_t components = isMask ? 1 : tint.type >= 0 ? 1 : space ? CGColorSpaceGetNumberOfComponents(space) : 0;
+            if (isMask)     // A mask's sample of 0 is painted, unless its decode array is [1 0]
+                decode = decode.size() == 2 && decode[0] > decode[1] ? std::vector<CGFloat>{ 0, 1 } : std::vector<CGFloat>{ 1, 0 };
+            if (format != CGPDFDataFormatRaw) {
+                CGImageSourceRef source = CGImageSourceCreateWithData(data, nullptr);
+                CGImageRef decoded = source ? CGImageSourceCreateImageAtIndex(source, 0, nullptr) : nullptr;
+                if (source)
+                    CFRelease(source);
+                if (decoded && space && tint.type < 0 && CGImageGetColorSpace(decoded) && components == CGColorSpaceGetNumberOfComponents(CGImageGetColorSpace(decoded))) {
+                    // Its stored samples in the PDF's color space, with its decode array, not ImageIO's, which inverts an Adobe
+                    // CMYK JPEG's, as a PDF's DCTDecode doesn't. Photoshop's PDFs invert them with a decode array instead
+                    size_t n = components, bpp = CGImageGetBitsPerPixel(decoded);
+                    CFDataRef pixels = CGImageGetBitsPerComponent(decoded) == 8 && bpp == 8 * n && CGImageGetAlphaInfo(decoded) == kCGImageAlphaNone
+                        ? CGDataProviderCopyData(CGImageGetDataProvider(decoded)) : nullptr;
+                    if (pixels) {
+                        CGDataProviderRef provider = CGDataProviderCreateWithCFData(pixels);
+                        image = CGImageCreate(CGImageGetWidth(decoded), CGImageGetHeight(decoded), 8, bpp, CGImageGetBytesPerRow(decoded), space, CGBitmapInfo(kCGImageAlphaNone), provider, decode.size() == 2 * n ? decode.data() : nullptr, false, kCGRenderingIntentDefault);
+                        CGDataProviderRelease(provider), CFRelease(pixels), CGImageRelease(decoded);
+                    } else if ((image = CGImageCreateCopyWithColorSpace(decoded, space)))
+                        CGImageRelease(decoded);
+                    else
+                        image = decoded;
+                } else
+                    image = decoded;
+            } else if (width && height && space && (bpc == 1 || bpc == 2 || bpc == 4 || bpc == 8 || bpc == 16) && components) {
+                size_t rowBytes = (width * components * bpc + 7) / 8;
+                if (size_t(CFDataGetLength(data)) < rowBytes * height) {
+                    // Short data is padded, as pdfium does, but CCITT & JBIG2 data CGPDF couldn't decode is pdfium's
+                    if (hasFilter(dict, { "CCITTFaxDecode", "CCF", "JBIG2Decode" })) {
+                        CGColorSpaceRelease(space), CFRelease(data);
+                        return nullptr;
+                    }
+                    CFMutableDataRef padded = CFDataCreateMutableCopy(nullptr, rowBytes * height, data);
+                    CFDataSetLength(padded, rowBytes * height), CFRelease(data), data = padded;
+                }
+                if (CGPDFDictionaryGetArray(dict, "Mask", & array)) {
+                    samples.width = width, samples.height = height, samples.components = components, samples.bpc = bpc, samples.rowBytes = rowBytes;
+                    samples.data = (CFDataRef)CFRetain(data);
+                }
+                CFDataRef pixels = tint.type >= 0 ? createTinted(data, width, height, bpc, rowBytes, decode, tint, CGColorSpaceGetNumberOfComponents(space)) : (CFDataRef)CFRetain(data);
+                if (pixels) {
+                    bool tinted = tint.type >= 0;
+                    size_t n = tinted ? CGColorSpaceGetNumberOfComponents(space) : components, depth = tinted ? 8 : bpc;
+                    CGDataProviderRef provider = CGDataProviderCreateWithCFData(pixels);
+                    image = CGImageCreate(width, height, depth, depth * n, tinted ? width * n : rowBytes, space, CGBitmapInfo(kCGImageAlphaNone), provider,
+                        !tinted && decode.size() == 2 * n ? decode.data() : nullptr, false, kCGRenderingIntentDefault);
+                    CGDataProviderRelease(provider), CFRelease(pixels);
+                }
+            }
+            CGColorSpaceRelease(space);
+            CFRelease(data);
+            return image;
+        }
+        // A Separation or DeviceN of one component's samples, as 8 bit samples of its alternate space, by its tint transform
+        static CFDataRef createTinted(CFDataRef data, size_t width, size_t height, size_t bpc, size_t rowBytes, std::vector<CGFloat>& decode, Function& tint, size_t n) {
+            if (tint.outputs != n)
+                return nullptr;
+            float d0 = decode.size() == 2 ? decode[0] : 0.f, d1 = decode.size() == 2 ? decode[1] : 1.f, max = float((1 << bpc) - 1);
+            std::vector<uint8_t> lut(n << bpc);         // Of each sample value, as bpc is at most 16
+            std::vector<float> out(n);
+            for (uint32_t s = 0; s < (1u << bpc); s++) {
+                tint.eval(d0 + s * (d1 - d0) / max, false, out.data());
+                for (size_t j = 0; j < n; j++)
+                    lut[s * n + j] = uint8_t(fmaxf(0.f, fminf(1.f, out[j])) * 255.f + 0.5f);
+            }
+            CFMutableDataRef tinted = CFDataCreateMutable(nullptr, width * height * n);
+            CFDataSetLength(tinted, width * height * n);
+            const uint8_t *src = CFDataGetBytePtr(data);  uint8_t *dst = CFDataGetMutableBytePtr(tinted);
+            for (size_t y = 0; y < height; y++, src += rowBytes)
+                for (size_t x = 0; x < width; x++, dst += n)
+                    memcpy(dst, & lut[sample(src, x, bpc) * n], n);
+            return tinted;
+        }
+        // The CGColorSpace of a PDF color space, or null if CoreGraphics can't draw it. A Separation, or a DeviceN of one
+        // component, is its alternate space, & its tint transform is read into tint
+        static CGColorSpaceRef createColorSpace(CGPDFObjectRef obj, CGPDFContentStreamRef cs, Function *tint, int depth = 0) {
+            const char *name;  CGPDFArrayRef array, names;  CGPDFStreamRef stream;  CGPDFDictionaryRef dict;  CGPDFObjectRef object;
+            if (depth > 4)
+                return nullptr;
+            if (CGPDFObjectGetValue(obj, kCGPDFObjectTypeName, & name)) {
+                if (!strcmp(name, "DeviceGray") || !strcmp(name, "G") || !strcmp(name, "CalGray"))
+                    return CGColorSpaceCreateDeviceGray();
+                if (!strcmp(name, "DeviceRGB") || !strcmp(name, "RGB") || !strcmp(name, "CalRGB"))
+                    return CGColorSpaceCreateDeviceRGB();
+                if (!strcmp(name, "DeviceCMYK") || !strcmp(name, "CMYK"))
+                    return CGColorSpaceCreateDeviceCMYK();
+                CGPDFObjectRef resource = CGPDFContentStreamGetResource(cs, "ColorSpace", name);
+                return resource ? createColorSpace(resource, cs, tint, depth + 1) : nullptr;
+            }
+            if (!CGPDFObjectGetValue(obj, kCGPDFObjectTypeArray, & array) || !CGPDFArrayGetName(array, 0, & name))
+                return nullptr;
+            if (!strcmp(name, "ICCBased") && CGPDFArrayGetStream(array, 1, & stream)) {
+                CGPDFDataFormat format;
+                CFDataRef data = CGPDFStreamCopyData(stream, & format);
+                CGColorSpaceRef space = data ? CGColorSpaceCreateWithICCData(data) : nullptr;
+                if (data)
+                    CFRelease(data);
+                if (space)
+                    return space;
+                dict = CGPDFStreamGetDictionary(stream);
+                if (CGPDFDictionaryGetObject(dict, "Alternate", & object))
+                    return createColorSpace(object, cs, nullptr, depth + 1);
+                CGPDFInteger n = 0;
+                CGPDFDictionaryGetInteger(dict, "N", & n);
+                return n == 1 ? CGColorSpaceCreateDeviceGray() : n == 3 ? CGColorSpaceCreateDeviceRGB() : n == 4 ? CGColorSpaceCreateDeviceCMYK() : nullptr;
+            }
+            if ((!strcmp(name, "CalGray") || !strcmp(name, "CalRGB") || !strcmp(name, "Lab")) && CGPDFArrayGetDictionary(array, 1, & dict)) {
+                std::vector<float> white, black, gamma, matrix, range;
+                readNumbers(dict, "WhitePoint", white), readNumbers(dict, "BlackPoint", black), readNumbers(dict, "Gamma", gamma);
+                readNumbers(dict, "Matrix", matrix), readNumbers(dict, "Range", range);
+                CGFloat w[3] = { 0.9505, 1, 1.089 }, b[3] = { 0, 0, 0 }, g[3] = { 1, 1, 1 }, m[9] = { 1, 0, 0, 0, 1, 0, 0, 0, 1 }, r[4] = { -100, 100, -100, 100 };
+                for (size_t i = 0; i < 3 && white.size() == 3; i++)
+                    w[i] = white[i];
+                for (size_t i = 0; i < 3 && black.size() == 3; i++)
+                    b[i] = black[i];
+                if (!strcmp(name, "CalGray"))
+                    return CGColorSpaceCreateCalibratedGray(w, b, gamma.size() == 1 ? gamma[0] : 1.f);
+                if (!strcmp(name, "Lab")) {
+                    for (size_t i = 0; i < 4 && range.size() == 4; i++)
+                        r[i] = range[i];
+                    return CGColorSpaceCreateLab(w, b, r);
+                }
+                for (size_t i = 0; i < 3 && gamma.size() == 3; i++)
+                    g[i] = gamma[i];
+                for (size_t i = 0; i < 9 && matrix.size() == 9; i++)
+                    m[i] = matrix[i];
+                return CGColorSpaceCreateCalibratedRGB(w, b, g, m);
+            }
+            if ((!strcmp(name, "Indexed") || !strcmp(name, "I")) && CGPDFArrayGetObject(array, 1, & object)) {
+                CGColorSpaceRef base = createColorSpace(object, cs, nullptr, depth + 1);
+                CGPDFInteger hival = -1;  CGPDFStringRef string;  CFDataRef data = nullptr;  CGPDFDataFormat format;
+                if (base && CGPDFArrayGetInteger(array, 2, & hival) && hival >= 0 && hival < 256) {
+                    if (CGPDFArrayGetString(array, 3, & string))
+                        data = CFDataCreate(nullptr, CGPDFStringGetBytePtr(string), CGPDFStringGetLength(string));
+                    else if (CGPDFArrayGetStream(array, 3, & stream))
+                        data = CGPDFStreamCopyData(stream, & format);
+                }
+                size_t size = data ? (hival + 1) * CGColorSpaceGetNumberOfComponents(base) : 0;
+                CGColorSpaceRef space = nullptr;
+                if (data && size_t(CFDataGetLength(data)) >= size)
+                    space = CGColorSpaceCreateIndexed(base, hival, CFDataGetBytePtr(data));
+                if (data)
+                    CFRelease(data);
+                CGColorSpaceRelease(base);
+                return space;
+            }
+            // A tint transform's alternate space must be of components in [0, 1]
+            bool isSeparation = !strcmp(name, "Separation"), isDeviceN = !strcmp(name, "DeviceN");
+            if (tint && (isSeparation || (isDeviceN && CGPDFArrayGetArray(array, 1, & names) && CGPDFArrayGetCount(names) == 1))
+                && CGPDFArrayGetObject(array, 2, & object) && CGPDFArrayGetObject(array, 3, & obj) && tint->read(obj)) {
+                CGColorSpaceRef space = createColorSpace(object, cs, nullptr, depth + 1);
+                CGColorSpaceModel model = space ? CGColorSpaceGetModel(space) : kCGColorSpaceModelUnknown;
+                if (model == kCGColorSpaceModelMonochrome || model == kCGColorSpaceModelRGB || model == kCGColorSpaceModelCMYK)
+                    return space;
+                CGColorSpaceRelease(space);
+            }
+            if (tint)
+                tint->type = -1;
+            return nullptr;
+        }
+        // Draws an image into pixels, width x height, in DeviceRGB, or DeviceGray for alpha, which is scaled to the image as
+        // pdfium does, without interpolation
+        void draw(CGImageRef image, void *pixels, bool isGray) const {
+            CGColorSpaceRef space = isGray ? CGColorSpaceCreateDeviceGray() : CGColorSpaceCreateDeviceRGB();
+            CGContextRef ctx = CGBitmapContextCreate(pixels, width, height, 8, isGray ? width : width * sizeof(Ra::Color), space,
+                isGray ? uint32_t(kCGImageAlphaNone) : uint32_t(kCGImageAlphaPremultipliedFirst) | kCGBitmapByteOrder32Little);
+            if (ctx) {
+                bool same = CGImageGetWidth(image) == width && CGImageGetHeight(image) == height;
+                CGContextSetInterpolationQuality(ctx, same || isGray ? kCGInterpolationNone : kCGInterpolationDefault);
+                CGContextDrawImage(ctx, CGRectMake(0, 0, width, height), image);
+                CGContextRelease(ctx);
+            }
+            CGColorSpaceRelease(space);
+        }
+        std::vector<uint8_t> drawAlpha(CGImageRef image) const {
+            std::vector<uint8_t> alpha(width * height);
+            draw(image, alpha.data(), true);
+            return alpha;
+        }
+        // Pixels whose samples are all in the color key's ranges are transparent
+        void applyColorKey(CGPDFArrayRef key, Samples& samples) {
+            size_t n = samples.components;  CGPDFInteger value;
+            std::vector<uint32_t> ranges;
+            for (size_t i = 0; i < CGPDFArrayGetCount(key) && CGPDFArrayGetInteger(key, i, & value); i++)
+                ranges.emplace_back(uint32_t(value));
+            if (samples.data == nullptr || ranges.size() != 2 * n)
+                return;
+            const uint8_t *base = CFDataGetBytePtr(samples.data);
+            for (size_t y = 0; y < height; y++) {
+                const uint8_t *row = base + (y * samples.height / height) * samples.rowBytes;
+                for (size_t x = 0; x < width; x++) {
+                    size_t sx = x * samples.width / width;  bool inRange = true;
+                    for (size_t j = 0; j < n && inRange; j++) {
+                        uint32_t s = sample(row, sx * n + j, samples.bpc);
+                        inRange = s >= ranges[2 * j] && s <= ranges[2 * j + 1];
+                    }
+                    if (inRange)
+                        pixels[y * width + x] = Ra::Color(0, 0, 0, 0);
+                }
+            }
+        }
+    };
+    
     struct Shadings {
         static constexpr size_t kMaxDepth = 32;
         enum { kStroke = 4 };       // A path's draw mode is its FPDF_FILLMODE, & kStroke if it's stroked, as pdfium's
@@ -691,6 +997,18 @@ struct RasterizerPDF {
             int clip;
         };
         std::vector<std::vector<Object>> streams;   // The page's, then each form's, by form index + 1
+        // An image object's image in images, or -1 if it couldn't be decoded, & its graphics state
+        struct ImageObject {
+            int image = -1;
+            Ra::Transform ctm;      // The unit square to page space
+            float alpha = 1.f;
+            uint8_t blend = kBlendNormal;
+        };
+        std::vector<ImageObject> imageObjects;
+        std::deque<PDFImage> images;
+        std::map<CGPDFStreamRef, int> imageIndices;         // An XObject's image, decoded once
+        std::map<std::tuple<int, float, uint32_t>, Ra::Paint> imagePaints;
+        bool readsImages = true;                            // Not for a soft mask's group
         // A path painting operator's path, in user space, & its paint, but for its colors
         struct PathObject {
             Ra::Path path = nullptr;
@@ -800,6 +1118,42 @@ struct RasterizerPDF {
         static void addObject(Scan& scan, uint8_t kind, size_t index = 0) {
             scan.shadings->streams[scan.container + 1].emplace_back(Object{ kind, uint32_t(index), scan.state.clip });
         }
+        // An image object, whose image is decoded once if it's an XObject's
+        static void addImage(Scan& scan, CGPDFStreamRef stream, CGPDFContentStreamRef cs, bool isXObject) {
+            Shadings& s = *scan.shadings;
+            ImageObject object;
+            object.ctm = scan.state.ctm, object.alpha = scan.state.alpha, object.blend = scan.state.blend;
+            if (s.readsImages && stream) {
+                auto it = isXObject ? s.imageIndices.find(stream) : s.imageIndices.end();
+                if (it != s.imageIndices.end())
+                    object.image = it->second;
+                else {
+                    s.images.emplace_back(stream, cs);
+                    if (s.images.back().isValid)
+                        object.image = int(s.images.size() - 1);
+                    else
+                        s.images.pop_back();
+                    if (isXObject)
+                        s.imageIndices[stream] = object.image;
+                }
+            }
+            addObject(scan, kImageObject, s.imageObjects.size());
+            s.imageObjects.emplace_back(object);
+        }
+        // An image's paint, with opacity, & an image mask's color, cached as a paint copies its pixels
+        Ra::Paint imagePaint(int index, float opacity, Ra::Color color) {
+            const PDFImage& image = images[index];
+            auto key = std::make_tuple(index, opacity, image.isMask ? uint32_t(color.r << 16 | color.g << 8 | color.b) : 0u);
+            auto it = imagePaints.find(key);
+            if (it != imagePaints.end())
+                return it->second;
+            std::vector<Ra::Color> pixels = image.pixels;
+            if (image.isMask)
+                for (auto& p : pixels)
+                    p = Ra::Color(color.b, color.g, color.r, p.a);
+            premultiply(pixels.data(), image.width, image.height, image.width * sizeof(Ra::Color), opacity);
+            return imagePaints[key] = Ra::Paint(pixels.data(), image.width, image.height, image.width * sizeof(Ra::Color));
+        }
         // The clip of parent & path, in page space. pdfium drops the stream's last path if it's a rect that contains the new one,
         // & a clip to nothing, from a path of one point or no area, clips everything out
         int addClip(int parent, Ra::Path path, bool isEntry) {
@@ -892,7 +1246,7 @@ struct RasterizerPDF {
                     || !CGPDFDictionaryGetName(dict = CGPDFStreamGetDictionary(stream), "Subtype", & name))
                     return;
                 if (!strcmp(name, "Image"))
-                    return addObject(scan, kImageObject);
+                    return addImage(scan, stream, cs, true);
                 if (strcmp(name, "Form"))
                     return;
                 // A transparency group's soft mask, opacity & blend mode apply to the group, so its contents start without them. Other
@@ -925,7 +1279,9 @@ struct RasterizerPDF {
                 }
             });
             CGPDFOperatorTableSetCallback(table, "EI", [](CGPDFScannerRef scanner, void *info) {      // An inline image
-                addObject(*(Scan *)info, kImageObject);
+                CGPDFStreamRef stream = nullptr;
+                CGPDFScannerPopStream(scanner, & stream);
+                addImage(*(Scan *)info, stream, CGPDFScannerGetContentStream(scanner), false);
             });
             addPathCallbacks(table);
             addTextCallbacks(table);
@@ -1302,6 +1658,7 @@ struct RasterizerPDF {
             CGPDFContentStreamRef content = CGPDFContentStreamCreateWithStream(group, resources, cs);
             CGPDFOperatorTableRef table = createTable();
             Shadings contents;
+            contents.readsImages = false;
             contents.scan(content, table, state, depth + 1);
             CGPDFOperatorTableRelease(table);
             CGPDFContentStreamRelease(content);
@@ -1405,7 +1762,7 @@ struct RasterizerPDF {
         int objectCount = form ? FPDFFormObj_CountObjects(form) : FPDFPage_CountObjects(page);
         for (int i = 0; i < objectCount; i++) {
             FPDF_PAGEOBJECT page_object = form ? FPDFFormObj_GetObject(form, i) : FPDFPage_GetObject(page, i);
-            int type = FPDFPageObj_GetType(page_object), fillmode;  FPDF_BOOL stroke;  float l, b, r, t;
+            int type = FPDFPageObj_GetType(page_object), fillmode = 0;  FPDF_BOOL stroke = false;  float l = 0.f, b = 0.f, r = 0.f, t = 0.f;
             uint8_t kind = type == FPDF_PAGEOBJ_PATH ? Shadings::kPathObject : type == FPDF_PAGEOBJ_TEXT ? Shadings::kTextObject
                 : type == FPDF_PAGEOBJ_IMAGE ? Shadings::kImageObject : type == FPDF_PAGEOBJ_SHADING ? Shadings::kShadingObject
                 : type == FPDF_PAGEOBJ_FORM ? Shadings::kFormObject : Shadings::kNoObject;
@@ -1489,7 +1846,7 @@ struct RasterizerPDF {
                     break;
                 case FPDF_PAGEOBJ_IMAGE:
                     if (mask == kNoMask)
-                        writeImageToScene(doc, page, page_object, ctm, opacity, blend, clipBounds, clipPaths, scene);
+                        writeImageToScene(doc, page, page_object, object ? & shadings.imageObjects[object->index] : nullptr, ctm, opacity, blend, shadings, clipBounds, clipPaths, scene);
                     break;
                 case FPDF_PAGEOBJ_SHADING: {
                     const Shading *shading = object && shadings.shadings[object->index].isValid ? & shadings.shadings[object->index] : nullptr;
@@ -1660,17 +2017,27 @@ struct RasterizerPDF {
         }
     }
     
-    // pdfium's bitmap has the image's own opacity, so only a group's is applied
-    static void writeImageToScene(FPDF_DOCUMENT doc, FPDF_PAGE page, FPDF_PAGEOBJECT page_object, Ra::Transform ctm, float opacity, uint8_t blend, Ra::Bounds* clipBounds, std::vector<Ra::Path>& clipPaths, Ra::SceneRef& scene) {
-        FPDF_BITMAP bitmap = FPDFImageObj_GetRenderedBitmap(doc, page, page_object);
-        auto image = paintFromBitmap(bitmap, opacity);
-        FPDFBitmap_Destroy(bitmap);
+    // Writes the scan's image, clipped to the clip, or for one it couldn't decode, pdfium's bitmap, which has the image's
+    // own opacity. An image mask is painted with pdfium's fill color, which has the fill alpha
+    static void writeImageToScene(FPDF_DOCUMENT doc, FPDF_PAGE page, FPDF_PAGEOBJECT page_object, const Shadings::ImageObject *object, Ra::Transform ctm, float opacity, uint8_t blend, Shadings& shadings, Ra::Bounds* clipBounds, std::vector<Ra::Path>& clipPaths, Ra::SceneRef& scene) {
+        Ra::Paint image;
+        if (object && object->image >= 0) {
+            unsigned int R = 0, G = 0, B = 0, A = 255;
+            bool isMask = shadings.images[object->image].isMask;
+            if (isMask)
+                FPDFPageObj_GetFillColor(page_object, & R, & G, & B, & A);
+            image = shadings.imagePaint(object->image, opacity * (isMask ? A / 255.f : object->alpha), Ra::Color(B, G, R, 255));
+            ctm = object->ctm, blend = object->blend != kBlendNormal ? object->blend : blend;
+        } else {
+            FPDF_BITMAP bitmap = FPDFImageObj_GetRenderedBitmap(doc, page, page_object);
+            image = paintFromBitmap(bitmap, opacity);
+            FPDFBitmap_Destroy(bitmap);
+        }
         if (!image.isImage())
             return;
-        
-        Ra::Bounds unitBounds(0, 0, 1, 1);
-        Ra::Path unitRectPath;  unitRectPath->addBounds(unitBounds);
-        scene->addPath(unitRectPath, ctm, image, 0, 0, clipBounds, nullptr, blend);
+        Ra::Path *clipPath = clipPaths.size() == 0 || clipPaths[0]->isRect() ? nullptr : & clipPaths[0];
+        Ra::Path unitRectPath;  unitRectPath->addBounds(Ra::Bounds(0, 0, 1, 1));
+        scene->addPath(unitRectPath, ctm, image, 0, 0, clipBounds, clipPath, blend);
     }
     
     static void writeShadingToScene(FPDF_PAGE page, FPDF_PAGEOBJECT form, FPDF_PAGEOBJECT page_object, const Shading *shading, Ra::Transform formCTM, int mask, float opacity, uint8_t blend, Shadings& shadings, Ra::Bounds* clipBounds, std::vector<Ra::Path>& clipPaths, Ra::SceneRef& scene) {
