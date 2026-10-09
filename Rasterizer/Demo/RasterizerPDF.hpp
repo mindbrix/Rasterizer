@@ -2425,14 +2425,16 @@ struct RasterizerPDF {
             if (points.empty())
                 return;
             bool isEntry = st.clip == scan.entryClip;
-            if (points.size() == 1) {
+            if (points.size() == 1) {      // But a closed point is stroked, as a dot for round caps
                 if (clipMode)
                     st.clip = s.addClip(st.clip, Ra::Path(), isEntry);
-                return points.clear();
+                if (!points[0].close || !(mode & kStroke))
+                    return points.clear();
+                clipMode = 0;
             }
             if (points.back().type == Ra::Geometry::kMove && !points.back().close)
                 points.pop_back();
-            Ra::Path path = clipMode ? buildPath(points.data(), points.size()) : nullptr;
+            Ra::Path path = clipMode ? buildPath(points.data(), points.size(), (mode & kStroke) && st.cap == kRoundCap) : nullptr;
             if (mode != kFillNone) {
                 PathObject object;
                 object.path = path, object.ctm = st.ctm, object.mode = mode;
@@ -2449,22 +2451,37 @@ struct RasterizerPDF {
                 st.clip = s.addClip(st.clip, transformedPath(path, st.ctm), isEntry);
             points.clear();
         }
-        static Ra::Path buildPath(const PathPoint *points, size_t count) {
-            Ra::Path path;  float cubic[6];  int n = 0;
+        // A path from its points. A round capped stroke paints a dot for a degenerate subpath, of a closed point, or of segments to
+        // its start, so for dots, one gets a line of a small length, as geometries drop subpaths with zero size
+        static Ra::Path buildPath(const PathPoint *points, size_t count, bool dots) {
+            Ra::Path path;  float cubic[6], sx = 0.f, sy = 0.f;  int n = 0;  bool isDegenerate = false, hasSegment = false;
+            auto addDot = [&]() {
+                if (dots && isDegenerate && hasSegment)
+                    path->lineTo(sx + fmaxf(1e-4f, 1e-6f * fabsf(sx)), sy);
+                isDegenerate = false;
+            };
             path->prealloc(count);
             for (const PathPoint *p = points, *end = points + count; p < end; p++) {
-                if (p->type == Ra::Geometry::kMove)
+                if (p->type == Ra::Geometry::kMove) {
+                    addDot();
+                    sx = p->x, sy = p->y, isDegenerate = true, hasSegment = false;
                     path->moveTo(p->x, p->y);
-                else if (p->type == Ra::Geometry::kLine)
-                    path->lineTo(p->x, p->y);
-                else {
-                    cubic[n++] = p->x, cubic[n++] = p->y;
-                    if (n == 6)
-                        path->cubicTo(cubic[0], cubic[1], cubic[2], cubic[3], cubic[4], cubic[5]), n = 0;
+                } else {
+                    hasSegment = true, isDegenerate = isDegenerate && p->x == sx && p->y == sy;
+                    if (p->type == Ra::Geometry::kLine)
+                        path->lineTo(p->x, p->y);
+                    else {
+                        cubic[n++] = p->x, cubic[n++] = p->y;
+                        if (n == 6)
+                            path->cubicTo(cubic[0], cubic[1], cubic[2], cubic[3], cubic[4], cubic[5]), n = 0;
+                    }
                 }
-                if (p->close)
+                if (p->close) {
+                    hasSegment = true, addDot();
                     path->close();
+                }
             }
+            addDot();
             return path;
         }
         // Builds & validates paths from their points, with their bounds, in parallel chunks for many, as there's an allocation for
@@ -2477,7 +2494,7 @@ struct RasterizerPDF {
                 for (size_t i = t * kPathsPerChunk, end = std::min(s.paths.size(), i + kPathsPerChunk); i < end; i++) {
                     PathObject& p = s.paths[i];
                     if (p.path.ptr == nullptr)
-                        p.path = buildPath(s.pathPoints.data() + p.pointBegin, p.pointCount);
+                        p.path = buildPath(s.pathPoints.data() + p.pointBegin, p.pointCount, (p.mode & kStroke) && p.cap == kRoundCap);
                     if (!p.path->isValid()) {
                         p.path = nullptr;
                         continue;
