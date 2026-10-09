@@ -250,6 +250,8 @@ struct RasterizerPDF {
     struct Shading {
         Ra::Transform ctm, unit;        // ctm & alpha are the sh operator's, as pdfium can't get a shading object's matrix or color
         bool isValid = false, isRadial = false, extendLo = false, extendHi = false;
+        bool isTwoCircle = false;       // A radial whose circles aren't concentric, which CoreGraphics draws
+        float circles[6] = {};          // Its x0, y0, r0, x1, y1, r1, in shading space
         float alpha = 1.f, lo = 0.f;    // lo is the gradient's start, the inner radius for a radial
         int mask = kNoMask;             // The soft mask & blend mode of an sh operator
         uint8_t blend = kBlendNormal;
@@ -281,6 +283,8 @@ struct RasterizerPDF {
         // A luminosity soft mask of a gradient, applied to a gradient with the same geometry, or to a color if shading is null.
         // The result's alphas are the mask's luminosity
         static bool masked(const Shading *shading, Ra::Color color, const Shading& mask, Shading& result) {
+            if ((shading && shading->isTwoCircle) || mask.isTwoCircle)
+                return false;
             if (shading) {
                 Ra::Transform m0 = shading->unit.concat(shading->ctm), m1 = mask.unit.concat(mask.ctm);
                 auto close = [](float x, float y) { return fabsf(x - y) <= 1e-3f * (1.f + fabsf(x)); };
@@ -368,11 +372,16 @@ struct RasterizerPDF {
                 extendLo = e0, extendHi = e1;
             } else {
                 float r0 = coords[2], r1 = coords[5], r = fmaxf(r0, r1);
-                if (r0 < 0.f || r1 < 0.f || r0 == r1 || fabsf(coords[3] - coords[0]) > 1e-3f * r || fabsf(coords[4] - coords[1]) > 1e-3f * r)
-                    return false;       // Not concentric
-                isRadial = true, unit = Ra::Transform(r, 0.f, 0.f, r, coords[0], coords[1]);
-                a = r0 / r, b = (r1 - r0) / r, lo = fminf(r0, r1) / r;
-                extendLo = r0 < r1 ? e0 : e1, extendHi = r0 < r1 ? e1 : e0;
+                if (r0 < 0.f || r1 < 0.f || (r0 == r1 && coords[0] == coords[3] && coords[1] == coords[4]))
+                    return false;
+                isRadial = true;
+                if (r0 == r1 || fabsf(coords[3] - coords[0]) > 1e-3f * r || fabsf(coords[4] - coords[1]) > 1e-3f * r) {
+                    isTwoCircle = true, std::copy(coords.begin(), coords.end(), circles), extendLo = e0, extendHi = e1;
+                } else {
+                    unit = Ra::Transform(r, 0.f, 0.f, r, coords[0], coords[1]);
+                    a = r0 / r, b = (r1 - r0) / r, lo = fminf(r0, r1) / r;
+                    extendLo = r0 < r1 ? e0 : e1, extendHi = r0 < r1 ? e1 : e0;
+                }
             }
             
             // Stops where the functions' pieces start & end, with both limits at a stitching bound so its edge stays hard
@@ -1974,7 +1983,7 @@ struct RasterizerPDF {
         }
         // The mask's shading, in group space, at ctm
         int addMask(const Shading& shading, Ra::Transform ctm) {
-            if (!shading.isValid)
+            if (!shading.isValid || shading.isTwoCircle)
                 return kUnsupportedMask;
             masks.emplace_back(shading), masks.back().ctm = shading.ctm.concat(ctm);
             return int(masks.size() - 1);
@@ -2443,6 +2452,8 @@ struct RasterizerPDF {
     static void writeGradientToScene(const Shading& shading, float alpha, uint8_t blend, Ra::Path& path, Ra::Transform ctm, uint8_t flags, Ra::Bounds* clipBounds, Ra::Path *clipPath, Ra::SceneRef& scene) {
         if (alpha == 0.f)
             return;
+        if (shading.isTwoCircle)
+            return writeTwoCircleGradientToScene(shading, alpha, blend, path, ctm, flags, clipBounds, clipPath, scene);
         std::vector<Ra::Color> colors = shading.colors;
         std::vector<float> locations = shading.locations;
         for (auto& color : colors)
@@ -2525,6 +2536,37 @@ struct RasterizerPDF {
         }
         Ra::Paint paint(colors.data(), locations.data(), colors.size(), unit.concat(ctm.invert()), shading.isRadial);
         scene->addPath(path, ctm, paint, 0.f, flags, clipBounds, & clip, blend);
+    }
+    
+    // Fills path, in ctm space, with a radial gradient of two circles that aren't concentric, which Rasterizer's radial gradients
+    // are. CoreGraphics draws it into an image of the path's bounds, which an image paint covers, at 2 pixels per unit, up to
+    // kMaxGradientSize, as it's smooth, & without its unextended ends
+    static constexpr float kMaxGradientSize = 2048.f;
+    static void writeTwoCircleGradientToScene(const Shading& shading, float alpha, uint8_t blend, Ra::Path& path, Ra::Transform ctm, uint8_t flags, Ra::Bounds* clipBounds, Ra::Path *clipPath, Ra::SceneRef& scene) {
+        path->validate();
+        Ra::Bounds b = path->bounds;
+        float bw = b.ux - b.lx, bh = b.uy - b.ly;
+        if (b.isNull() || bw <= 0.f || bh <= 0.f || ctm.det() == 0.f)
+            return;
+        size_t w = fmaxf(1.f, fminf(kMaxGradientSize, ceilf(2.f * hypotf(ctm.a, ctm.b) * bw)));
+        size_t h = fmaxf(1.f, fminf(kMaxGradientSize, ceilf(2.f * hypotf(ctm.c, ctm.d) * bh)));
+        std::vector<Ra::Color> pixels(w * h, Ra::Color(0, 0, 0, 0));
+        CGColorSpaceRef rgb = CGColorSpaceCreateDeviceRGB();
+        CGContextRef ctx = CGBitmapContextCreate(pixels.data(), w, h, 8, w * sizeof(Ra::Color), rgb, kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little);
+        std::vector<CGFloat> components, locations(shading.locations.begin(), shading.locations.end());
+        for (const Ra::Color& c : shading.colors)
+            components.insert(components.end(), { c.r / 255.0, c.g / 255.0, c.b / 255.0, c.a / 255.0 * alpha });
+        CGGradientRef gradient = CGGradientCreateWithColorComponents(rgb, components.data(), locations.data(), locations.size());
+        if (ctx && gradient) {
+            // Shading space to page space, to the path's space, to its bounds' image
+            Ra::Transform m = shading.ctm.concat(ctm.invert()).concat(Ra::Transform(w / bw, 0.f, 0.f, h / bh, -b.lx * w / bw, -b.ly * h / bh));
+            CGContextConcatCTM(ctx, CGAffineTransformMake(m.a, m.b, m.c, m.d, m.tx, m.ty));
+            const float *c = shading.circles;
+            CGGradientDrawingOptions options = (shading.extendLo ? kCGGradientDrawsBeforeStartLocation : 0) | (shading.extendHi ? kCGGradientDrawsAfterEndLocation : 0);
+            CGContextDrawRadialGradient(ctx, gradient, CGPointMake(c[0], c[1]), c[2], CGPointMake(c[3], c[4]), c[5], options);
+            scene->addPath(path, ctm, Ra::Paint(pixels.data(), w, h, w * sizeof(Ra::Color)), 0.f, flags, clipBounds, clipPath, blend);
+        }
+        CGGradientRelease(gradient), CGContextRelease(ctx), CGColorSpaceRelease(rgb);
     }
     
     static constexpr float kFlatness = 1e-2f;      // The page space error of flattened clip paths
