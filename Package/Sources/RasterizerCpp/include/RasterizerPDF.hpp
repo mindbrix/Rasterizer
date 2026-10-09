@@ -1650,18 +1650,31 @@ struct RasterizerPDF {
         std::vector<Clip> clips;
         std::map<size_t, Ra::Path> clipPaths;       // By hash, so draws with the same clip share its path, & so its clip mask
         std::vector<Shading> shadings, patterns, masks;
-        // A tiling pattern's cell's objects, scanned in pattern space, once for each pattern, & its tiles, from pattern space to page
-        // space, & a scene of the cell's objects, written when it's first drawn
+        // A tiling pattern cell's scene, written when it's first drawn, & its images, rendered for fills, by size & an uncolored
+        // pattern's color, shared by each use of its pattern
+        struct CellCache {
+            static constexpr size_t kMaxImages = 8;
+            Ra::SceneRef scene = nullptr;
+            std::map<std::tuple<size_t, size_t, uint32_t>, CGImageRef> images;
+            CellCache() {}
+            CellCache(const CellCache&) = delete;
+            ~CellCache() {
+                for (auto& it : images)
+                    CGImageRelease(it.second);
+            }
+        };
+        // A use of a tiling pattern: its cell's objects, scanned in pattern space, once for each pattern, & its tiles, from pattern
+        // space to page space
         struct Tiling {
             std::shared_ptr<Shadings> cell;
+            std::shared_ptr<CellCache> cache;
             Ra::Bounds bbox;
             float xStep = 0.f, yStep = 0.f;
             Ra::Transform ctm;
-            bool isColored = true, hasScene = false;
-            Ra::SceneRef scene;
+            bool isColored = true;
         };
         std::vector<Tiling> tilings;
-        std::map<CGPDFStreamRef, std::shared_ptr<Shadings>> cells;
+        std::map<CGPDFStreamRef, std::pair<std::shared_ptr<Shadings>, std::shared_ptr<CellCache>>> cells;
         struct Group {              // A transparency group form's soft mask, opacity & blend mode, which its contents start without
             int mask = kNoMask;
             float alpha = 1.f;
@@ -2359,9 +2372,9 @@ struct RasterizerPDF {
                 if (data)
                     CFRelease(data);
                 CGPDFContentStreamRelease(content);
-                it = cells.emplace(stream, cell).first;
+                it = cells.emplace(stream, std::make_pair(cell, std::make_shared<CellCache>())).first;
             }
-            tiling.cell = it->second;
+            tiling.cell = it->second.first, tiling.cache = it->second.second;
             tilings.emplace_back(tiling);
             return int(tilings.size() - 1);
         }
@@ -2973,37 +2986,50 @@ struct RasterizerPDF {
         float bw = b.ux - b.lx, bh = b.uy - b.ly, cw = cb.ux - cb.lx, ch = cb.uy - cb.ly;
         if (b.isNull() || bw <= 0.f || bh <= 0.f || cw <= 0.f || ch <= 0.f || ctm.det() == 0.f || tiling.ctm.det() == 0.f)
             return;
-        if (!tiling.hasScene)
-            writeStreamToScene(-1, kNoMask, 1.f, kBlendNormal, *tiling.cell, tiling.scene), tiling.hasScene = true;
+        Shadings::CellCache& cache = *tiling.cache;
+        if (cache.scene.ptr == nullptr)
+            cache.scene = Ra::SceneRef(), writeStreamToScene(-1, kNoMask, 1.f, kBlendNormal, *tiling.cell, cache.scene);
         size_t w = fmaxf(1.f, fminf(kMaxGradientSize, ceilf(2.f * hypotf(ctm.a, ctm.b) * bw)));
         size_t h = fmaxf(1.f, fminf(kMaxGradientSize, ceilf(2.f * hypotf(ctm.c, ctm.d) * bh)));
         Ra::Transform m = tiling.ctm.concat(ctm.invert()).concat(Ra::Transform(w / bw, 0.f, 0.f, h / bh, -b.lx * w / bw, -b.ly * h / bh));    // Pattern space to the image
-        // The cell's image, at the image's scale
+        // The cell's image, at the image's scale, rendered once for each size & color
         float scale = sqrtf(fabsf(m.det()));
         size_t iw = fmaxf(1.f, fminf(kMaxGradientSize, ceilf(cw * scale))), ih = fmaxf(1.f, fminf(kMaxGradientSize, ceilf(ch * scale)));
-        std::vector<Ra::Color> cell(iw * ih, Ra::Color(0, 0, 0, 0)), pixels(w * h, Ra::Color(0, 0, 0, 0));
+        auto key = std::make_tuple(iw, ih, tiling.isColored ? 0u : uint32_t(1 << 24 | color.r << 16 | color.g << 8 | color.b));
+        auto cached = cache.images.find(key);
+        CGImageRef image = cached == cache.images.end() ? nullptr : CGImageRetain(cached->second);
+        std::vector<Ra::Color> pixels(w * h, Ra::Color(0, 0, 0, 0));
         CGColorSpaceRef rgb = CGColorSpaceCreateDeviceRGB();
-        CGContextRef cellCtx = CGBitmapContextCreate(cell.data(), iw, ih, 8, iw * sizeof(Ra::Color), rgb, kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little);
+        if (image == nullptr) {
+            std::vector<Ra::Color> cell(iw * ih, Ra::Color(0, 0, 0, 0));
+            CGContextRef cellCtx = CGBitmapContextCreate(cell.data(), iw, ih, 8, iw * sizeof(Ra::Color), rgb, kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little);
+            if (cellCtx) {
+                Ra::SceneList list;
+                list.addScene(cache.scene);
+                list.ctm = Ra::Transform(iw / cw, 0.f, 0.f, ih / ch, -cb.lx * iw / cw, -cb.ly * ih / ch);
+                RasterizerCG::renderList(list, Ra::Bounds(0.f, 0.f, iw, ih), cellCtx);
+                if (!tiling.isColored)
+                    for (auto& p : cell)
+                        p = Ra::Color(color.b * p.a / 255, color.g * p.a / 255, color.r * p.a / 255, p.a);
+                image = CGBitmapContextCreateImage(cellCtx);
+                if (image && cache.images.size() < Shadings::CellCache::kMaxImages)
+                    cache.images.emplace(key, CGImageRetain(image));
+            }
+            CGContextRelease(cellCtx);
+        }
         CGContextRef ctx = CGBitmapContextCreate(pixels.data(), w, h, 8, w * sizeof(Ra::Color), rgb, kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little);
-        if (cellCtx && ctx) {
-            Ra::SceneList list;
-            list.addScene(tiling.scene);
-            list.ctm = Ra::Transform(iw / cw, 0.f, 0.f, ih / ch, -cb.lx * iw / cw, -cb.ly * ih / ch);
-            RasterizerCG::renderList(list, Ra::Bounds(0.f, 0.f, iw, ih), cellCtx);
-            if (!tiling.isColored)
-                for (auto& p : cell)
-                    p = Ra::Color(color.b * p.a / 255, color.g * p.a / 255, color.r * p.a / 255, p.a);
-            struct Info { CGImageRef image;  CGRect rect; } info = { CGBitmapContextCreateImage(cellCtx), CGRectMake(cb.lx, cb.ly, cw, ch) };
+        if (image && ctx) {
+            struct Info { CGImageRef image;  CGRect rect; } info = { image, CGRectMake(cb.lx, cb.ly, cw, ch) };
             CGPatternCallbacks callbacks = { 0, [](void *info, CGContextRef c) { CGContextDrawImage(c, ((Info *)info)->rect, ((Info *)info)->image); }, nullptr };
             CGPatternRef cgPattern = CGPatternCreate(& info, info.rect, CGAffineTransformMake(m.a, m.b, m.c, m.d, m.tx, m.ty), tiling.xStep, tiling.yStep, kCGPatternTilingConstantSpacing, true, & callbacks);
             CGColorSpaceRef patternSpace = CGColorSpaceCreatePattern(nullptr);
             CGFloat one = 1.0;
             CGContextSetFillColorSpace(ctx, patternSpace), CGContextSetFillPattern(ctx, cgPattern, & one), CGContextSetAlpha(ctx, alpha);
             CGContextFillRect(ctx, CGRectMake(0, 0, w, h));
-            CGColorSpaceRelease(patternSpace), CGPatternRelease(cgPattern), CGImageRelease(info.image);
+            CGColorSpaceRelease(patternSpace), CGPatternRelease(cgPattern);
             scene->addPath(path, ctm, Ra::Paint(pixels.data(), w, h, w * sizeof(Ra::Color)), 0.f, flags, clipBounds, clipPath, blend);
         }
-        CGContextRelease(ctx), CGContextRelease(cellCtx), CGColorSpaceRelease(rgb);
+        CGImageRelease(image), CGContextRelease(ctx), CGColorSpaceRelease(rgb);
     }
     
     static constexpr float kFlatness = 1e-2f;      // The page space error of flattened clip paths
