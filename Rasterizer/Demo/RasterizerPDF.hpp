@@ -72,24 +72,28 @@ struct RasterizerPDF {
     // A function of one input, read with CGPDF: sampled (type 0), exponential (type 2) or stitching (type 3)
     struct Function {
         static constexpr int kCurveSteps = 16;      // Pieces for an exponential with N != 1
+        static constexpr size_t kMaxInputs = 8;     // Of a sampled function, for DeviceN tint transforms
         int type = -1;
         float d0 = 0.f, d1 = 1.f, N = 1.f;
-        size_t outputs = 0, size = 0;
-        std::vector<float> range, c0, c1, bounds, encode, decode, samples;
+        size_t inputs = 1, outputs = 0, size = 0;
+        std::vector<size_t> sizes;                  // A sampled function's, of each input
+        std::vector<float> domain, range, c0, c1, bounds, encode, decode, samples;
         std::vector<Function> fns;
         
         bool read(CGPDFObjectRef obj) {
-            CGPDFDictionaryRef dict = nullptr;  CGPDFStreamRef stream = nullptr;  CGPDFInteger t;  std::vector<float> domain;
+            CGPDFDictionaryRef dict = nullptr;  CGPDFStreamRef stream = nullptr;  CGPDFInteger t;
             if (CGPDFObjectGetValue(obj, kCGPDFObjectTypeStream, & stream))
                 dict = CGPDFStreamGetDictionary(stream);
             else
                 CGPDFObjectGetValue(obj, kCGPDFObjectTypeDictionary, & dict);
-            if (dict == nullptr || !CGPDFDictionaryGetInteger(dict, "FunctionType", & t) || !readNumbers(dict, "Domain", domain) || domain.size() < 2 || domain[0] > domain[1])
+            if (dict == nullptr || !CGPDFDictionaryGetInteger(dict, "FunctionType", & t) || !readNumbers(dict, "Domain", domain) || domain.size() < 2 || domain.size() % 2 || domain[0] > domain[1])
                 return false;
-            type = int(t), d0 = domain[0], d1 = domain[1];
+            type = int(t), d0 = domain[0], d1 = domain[1], inputs = domain.size() / 2;
             readNumbers(dict, "Range", range);
             if (type == 0)
-                return readSampled(dict, stream);
+                return inputs <= kMaxInputs && readSampled(dict, stream);
+            if (inputs != 1)
+                return false;
             if (type == 2) {
                 CGPDFReal n;
                 if (!CGPDFDictionaryGetNumber(dict, "N", & n))
@@ -118,20 +122,26 @@ struct RasterizerPDF {
             return false;
         }
         bool readSampled(CGPDFDictionaryRef dict, CGPDFStreamRef stream) {
-            std::vector<float> sizes;  CGPDFInteger bps;  CGPDFDataFormat format;
-            if (stream == nullptr || !readNumbers(dict, "Size", sizes) || sizes.size() != 1 || sizes[0] < 1.f || !CGPDFDictionaryGetInteger(dict, "BitsPerSample", & bps) || bps < 1 || bps > 32 || range.size() < 2 || range.size() % 2)
+            std::vector<float> sizesIn;  CGPDFInteger bps;  CGPDFDataFormat format;
+            if (stream == nullptr || !readNumbers(dict, "Size", sizesIn) || sizesIn.size() != inputs || !CGPDFDictionaryGetInteger(dict, "BitsPerSample", & bps) || bps < 1 || bps > 32 || range.size() < 2 || range.size() % 2)
                 return false;
+            size_t count = range.size() / 2;
+            for (float s : sizesIn) {
+                if (s < 1.f || s > 65536.f)
+                    return false;
+                sizes.emplace_back(size_t(s)), count *= size_t(s);
+            }
             size = sizes[0], outputs = range.size() / 2;
             if (!readNumbers(dict, "Encode", encode))
-                encode = { 0.f, float(size - 1) };
+                for (size_t s : sizes)
+                    encode.emplace_back(0.f), encode.emplace_back(float(s - 1));
             if (!readNumbers(dict, "Decode", decode))
                 decode = range;
-            if (encode.size() != 2 || decode.size() != range.size())
+            if (encode.size() != 2 * inputs || decode.size() != range.size() || count > (1 << 24))
                 return false;
             CFDataRef data = CGPDFStreamCopyData(stream, & format);
             if (data == nullptr)
                 return false;
-            size_t count = size * outputs;
             bool ok = format == CGPDFDataFormatRaw && size_t(CFDataGetLength(data)) * 8 >= count * bps;
             if (ok) {
                 // Samples are packed big-endian bits, the outputs of each in turn, & are stored decoded
@@ -148,6 +158,31 @@ struct RasterizerPDF {
             }
             CFRelease(data);
             return ok;
+        }
+        // Writes the outputs at inputs x, interpolating a sampled function's samples multilinearly
+        void eval(const float *x, float *out) const {
+            if (inputs == 1)
+                return eval(x[0], false, out);
+            size_t i0[kMaxInputs], i1[kMaxInputs], stride[kMaxInputs];  float u[kMaxInputs];
+            for (size_t i = 0, s = 1; i < inputs; s *= sizes[i], i++) {
+                float a = domain[2 * i], b = domain[2 * i + 1], v = fmaxf(a, fminf(b, x[i]));
+                float e = b == a ? encode[2 * i] : encode[2 * i] + (v - a) * (encode[2 * i + 1] - encode[2 * i]) / (b - a);
+                e = fmaxf(0.f, fminf(float(sizes[i] - 1), e));
+                i0[i] = size_t(e), i1[i] = i0[i] + 1 < sizes[i] ? i0[i] + 1 : i0[i], u[i] = e - float(i0[i]), stride[i] = s;
+            }
+            for (size_t j = 0; j < outputs; j++)
+                out[j] = 0.f;
+            for (size_t corner = 0; corner < (size_t(1) << inputs); corner++) {
+                float w = 1.f;  size_t index = 0;
+                for (size_t i = 0; i < inputs; i++) {
+                    bool hi = corner >> i & 1;
+                    w *= hi ? u[i] : 1.f - u[i], index += (hi ? i1[i] : i0[i]) * stride[i];
+                }
+                for (size_t j = 0; w != 0.f && j < outputs; j++)
+                    out[j] += w * samples[index * outputs + j];
+            }
+            for (size_t j = 0; j < outputs && 2 * j + 1 < range.size(); j++)
+                out[j] = fmaxf(range[2 * j], fminf(range[2 * j + 1], out[j]));
         }
         // Writes the outputs at x, or at its left limit, which only differs at a stitching bound
         void eval(float x, bool left, float *out) const {
@@ -995,6 +1030,108 @@ struct RasterizerPDF {
         }
     };
     
+    // A color space of fill & stroke colors, which converts them to RGB: device gray & RGB exactly, CalGray, CalRGB & Lab
+    // as pdfium does, & CMYK & ICC spaces with CoreGraphics, as images' are, cached as it's slow. An Indexed space looks up
+    // its base's colors, & a Separation or DeviceN uses its tint transform. A space the scan can't convert has no colors, so
+    // pdfium's are used
+    struct ColorSpace {
+        enum Family { kGray, kRGB, kCalRGB, kLab, kOther, kIndexed, kTint, kPattern, kUnsupported };
+        Family family = kUnsupported;
+        size_t components = 1;
+        float white[3] = { 0.9505f, 1.f, 1.089f }, gamma[3] = { 1.f, 1.f, 1.f }, matrix[9] = { 1, 0, 0, 0, 1, 0, 0, 0, 1 }, range[4] = { -100, 100, -100, 100 };
+        bool hasMatrix = false;
+        CGColorSpaceRef space = nullptr;        // An other space's
+        const ColorSpace *base = nullptr;       // An Indexed or tint transform's base, in its Shadings' cache
+        std::vector<uint8_t> lookup;
+        size_t hival = 0;
+        Function tint;
+        mutable std::map<std::vector<float>, Ra::Color> colors;
+        
+        ColorSpace(Family family = kUnsupported, size_t components = 1, CGColorSpaceRef space = nullptr) : family(family), components(components), space(space) {}
+        ColorSpace(const ColorSpace&) = delete;
+        ~ColorSpace() { CGColorSpaceRelease(space); }
+        static uint8_t quantize(float v) { return uint8_t(fmaxf(0.f, fminf(1.f, v)) * 255.f + 0.5f); }
+        static float encode(float c) {      // sRGB's transfer function
+            c = fmaxf(0.f, fminf(1.f, c));
+            return c <= 0.0031308f ? 12.92f * c : 1.055f * powf(c, 1.f / 2.4f) - 0.055f;
+        }
+        // XYZ to sRGB, as pdfium does: with sRGB's primaries & the white point for CalRGB, & pdfium's fixed matrix for Lab
+        static Ra::Color rgbForXYZ(float X, float Y, float Z, const float *white) {
+            float r, g, b;
+            if (white == nullptr)
+                r = 3.2410f * X - 1.5374f * Y - 0.4986f * Z, g = -0.9692f * X + 1.8760f * Y + 0.0416f * Z, b = 0.0556f * X - 0.2040f * Y + 1.0570f * Z;
+            else {
+                // M = P diag(S), where P's columns are the primaries' xyz, & P S = white, so RGB = M^-1 XYZ = S^-1 P^-1 XYZ
+                const float P[9] = { 0.64f, 0.30f, 0.15f, 0.33f, 0.60f, 0.06f, 0.03f, 0.10f, 0.79f };
+                float inv[9], det = P[0] * (P[4] * P[8] - P[5] * P[7]) - P[1] * (P[3] * P[8] - P[5] * P[6]) + P[2] * (P[3] * P[7] - P[4] * P[6]);
+                inv[0] = (P[4] * P[8] - P[5] * P[7]) / det, inv[1] = (P[2] * P[7] - P[1] * P[8]) / det, inv[2] = (P[1] * P[5] - P[2] * P[4]) / det;
+                inv[3] = (P[5] * P[6] - P[3] * P[8]) / det, inv[4] = (P[0] * P[8] - P[2] * P[6]) / det, inv[5] = (P[2] * P[3] - P[0] * P[5]) / det;
+                inv[6] = (P[3] * P[7] - P[4] * P[6]) / det, inv[7] = (P[1] * P[6] - P[0] * P[7]) / det, inv[8] = (P[0] * P[4] - P[1] * P[3]) / det;
+                auto apply = [&](float x, float y, float z, float *v) {
+                    v[0] = inv[0] * x + inv[1] * y + inv[2] * z, v[1] = inv[3] * x + inv[4] * y + inv[5] * z, v[2] = inv[6] * x + inv[7] * y + inv[8] * z;
+                };
+                float S[3], v[3];
+                apply(white[0], white[1], white[2], S), apply(X, Y, Z, v);
+                r = S[0] == 0.f ? 0.f : v[0] / S[0], g = S[1] == 0.f ? 0.f : v[1] / S[1], b = S[2] == 0.f ? 0.f : v[2] / S[2];
+            }
+            return Ra::Color(quantize(encode(b)), quantize(encode(g)), quantize(encode(r)), 255);
+        }
+        // The color of components c, as RGB, if the space has one
+        bool color(const float *c, size_t n, Ra::Color& out) const {
+            if (n < components)
+                return false;
+            switch (family) {
+                case kGray:
+                    return out = Ra::Color(quantize(c[0]), quantize(c[0]), quantize(c[0]), 255), true;
+                case kRGB:
+                    return out = Ra::Color(quantize(c[2]), quantize(c[1]), quantize(c[0]), 255), true;
+                case kCalRGB: {
+                    float a = powf(fmaxf(0.f, c[0]), gamma[0]), b = powf(fmaxf(0.f, c[1]), gamma[1]), d = powf(fmaxf(0.f, c[2]), gamma[2]);
+                    const float *m = matrix;
+                    return out = hasMatrix ? rgbForXYZ(a * m[0] + b * m[3] + d * m[6], a * m[1] + b * m[4] + d * m[7], a * m[2] + b * m[5] + d * m[8], white) : rgbForXYZ(a, b, d, white), true;
+                }
+                case kLab: {
+                    float L = fmaxf(0.f, fminf(100.f, c[0])), A = fmaxf(range[0], fminf(range[1], c[1])), B = fmaxf(range[2], fminf(range[3], c[2]));
+                    float M = (L + 16.f) / 116.f, l = M + A / 500.f, n = M - B / 200.f;
+                    auto f = [](float t) { return t < 0.2069f ? 0.12842f * (t - 0.1379f) : t * t * t; };
+                    return out = rgbForXYZ(0.957f * f(l), f(M), 1.0889f * f(n), nullptr), true;
+                }
+                case kOther: {
+                    std::vector<float> key(c, c + components);
+                    auto it = colors.find(key);
+                    if (it != colors.end())
+                        return out = it->second, true;
+                    std::vector<CGFloat> values(c, c + components);
+                    values.emplace_back(1.0);
+                    CGColorRef color = CGColorCreate(space, values.data());
+                    CGColorSpaceRef rgb = CGColorSpaceCreateDeviceRGB();
+                    CGColorRef matched = color ? CGColorCreateCopyByMatchingToColorSpace(rgb, kCGRenderingIntentDefault, color, nullptr) : nullptr;
+                    bool converted = matched && CGColorGetNumberOfComponents(matched) >= 3;
+                    if (converted) {
+                        const CGFloat *v = CGColorGetComponents(matched);
+                        out = colors[key] = Ra::Color(quantize(v[2]), quantize(v[1]), quantize(v[0]), 255);
+                    }
+                    CGColorRelease(matched), CGColorRelease(color), CGColorSpaceRelease(rgb);
+                    return converted;
+                }
+                case kIndexed: {
+                    size_t i = size_t(fmaxf(0.f, fminf(float(hival), roundf(c[0])))), m = base->components;
+                    std::vector<float> values(m);
+                    for (size_t j = 0; j < m && (i + 1) * m <= lookup.size(); j++)
+                        values[j] = lookup[i * m + j] / 255.f;
+                    return (i + 1) * m <= lookup.size() && base->color(values.data(), m, out);
+                }
+                case kTint: {
+                    std::vector<float> values(tint.outputs);
+                    tint.eval(c, values.data());
+                    return base->color(values.data(), values.size(), out);
+                }
+                default:
+                    return false;
+            }
+        }
+    };
+    
     struct Shadings {
         static constexpr size_t kMaxDepth = 32;
         enum { kStroke = 4 };       // A path's draw mode is its FPDF_FILLMODE, & kStroke if it's stroked, as pdfium's
@@ -1008,6 +1145,14 @@ struct RasterizerPDF {
             FPDF_PAGEOBJECT pdfium = nullptr, parent = nullptr;     // Its pdfium object & that's form, if they're matched
         };
         std::vector<std::vector<Object>> streams;   // The page's, then each form's, by form index + 1
+        struct Colors {             // An object's fill & stroke colors, with their alphas, if the scan has them
+            Ra::Color fill = Ra::Color(0, 0, 0, 255), stroke = Ra::Color(0, 0, 0, 255);
+            bool hasFill = true, hasStroke = true;
+        };
+        // The scan's color spaces, by their object, & the device ones, as fill & stroke colors' spaces are pointers to them
+        ColorSpace graySpace { ColorSpace::kGray, 1 }, rgbSpace { ColorSpace::kRGB, 3 };
+        ColorSpace cmykSpace { ColorSpace::kOther, 4, CGColorSpaceCreateDeviceCMYK() }, patternSpace { ColorSpace::kPattern }, unsupportedSpace;
+        std::map<CGPDFObjectRef, std::unique_ptr<ColorSpace>> colorSpaces;
         // An image object's image in images, or -1 if it couldn't be decoded, & its graphics state
         struct ImageObject {
             int image = -1;
@@ -1015,6 +1160,7 @@ struct RasterizerPDF {
             float alpha = 1.f;
             int mask = kNoMask;     // Its soft mask, in masks
             uint8_t blend = kBlendNormal;
+            Colors colors;          // An image mask's
         };
         std::vector<ImageObject> imageObjects;
         std::deque<PDFImage> images;
@@ -1031,6 +1177,7 @@ struct RasterizerPDF {
             float alpha = 1.f, width = 1.f, dashPhase = 0.f;
             int dash = -1;          // In dashes, or -1 for a solid stroke
             uint8_t blend = kBlendNormal, mode = 0, cap = 0, join = 0;
+            Colors colors;
             Ra::Bounds bounds;      // Of its points, in its form's space, as pdfium's bounds of a fill. pdfium's form space is the
                                     // ctm at the Do, & its objects' matrices include the form matrix
         };
@@ -1059,6 +1206,7 @@ struct RasterizerPDF {
         struct TextRun {
             bool isValid = true;
             uint8_t mode = 0;           // Its text rendering mode
+            Colors colors;
             std::vector<Glyph> glyphs;
             float unitsPerEm = 1.f, width = 0.f;    // User space units in text space's, & the stroke width
         };
@@ -1077,7 +1225,9 @@ struct RasterizerPDF {
         
         struct State {
             Ra::Transform ctm, space;   // space is the content stream's default space, which pattern matrices map to
-            float alpha = 1.f;          // The fill alpha, ca
+            float alpha = 1.f, strokeAlpha = 1.f;     // The fill & stroke alphas, ca & CA
+            const ColorSpace *fillSpace = nullptr, *strokeSpace = nullptr;     // Null for DeviceGray
+            Colors colors;              // Without their alphas
             bool isPatternSpace = false;
             int pattern = -1, mask = kNoMask, clip = -1;
             uint8_t blend = kBlendNormal;
@@ -1145,6 +1295,7 @@ struct RasterizerPDF {
             Shadings& s = *scan.shadings;
             ImageObject object;
             object.ctm = scan.state.ctm, object.alpha = scan.state.alpha, object.mask = scan.state.mask, object.blend = scan.state.blend;
+            object.colors = objectColors(scan.state);
             if (s.readsImages && stream) {
                 auto it = isXObject ? s.imageIndices.find(stream) : s.imageIndices.end();
                 if (it != s.imageIndices.end())
@@ -1244,6 +1395,8 @@ struct RasterizerPDF {
                     return;
                 if (CGPDFDictionaryGetNumber(dict, "ca", & ca))
                     scan.state.alpha = fmaxf(0.f, fminf(1.f, ca));
+                if (CGPDFDictionaryGetNumber(dict, "CA", & ca))
+                    scan.state.strokeAlpha = fmaxf(0.f, fminf(1.f, ca));
                 CGPDFReal lw;  CGPDFInteger lc, lj;  CGPDFArrayRef d, dash;
                 if (CGPDFDictionaryGetNumber(dict, "LW", & lw))
                     scan.state.lineWidth = lw;
@@ -1430,7 +1583,7 @@ struct RasterizerPDF {
             addObject(scan, kTextObject, s.texts.size());
             s.texts.emplace_back();
             TextRun& run = s.texts.back();
-            run.mode = st.textMode;
+            run.mode = st.textMode, run.colors = objectColors(st);
             bool clips = st.textMode >= 4 && st.textMode <= 7;
             scan.clipTexts += clips;
             TextFont *font = st.font;
@@ -1468,34 +1621,19 @@ struct RasterizerPDF {
         }
         // Tracks the fill color space & pattern, & records a path fill for each path painting operator
         static void addPathCallbacks(CGPDFOperatorTableRef table) {
-            CGPDFOperatorTableSetCallback(table, "cs", [](CGPDFScannerRef scanner, void *info) {
-                Scan& scan = *(Scan *)info;  const char *name;  CGPDFArrayRef array;
-                scan.state.isPatternSpace = false, scan.state.pattern = -1;
-                if (!CGPDFScannerPopName(scanner, & name))
-                    return;
-                CGPDFObjectRef obj = strcmp(name, "Pattern") ? CGPDFContentStreamGetResource(CGPDFScannerGetContentStream(scanner), "ColorSpace", name) : nullptr;
-                scan.state.isPatternSpace = obj == nullptr ? !strcmp(name, "Pattern")
-                    : (CGPDFObjectGetValue(obj, kCGPDFObjectTypeName, & name) && !strcmp(name, "Pattern"))
-                    || (CGPDFObjectGetValue(obj, kCGPDFObjectTypeArray, & array) && CGPDFArrayGetName(array, 0, & name) && !strcmp(name, "Pattern"));
-            });
-            CGPDFOperatorTableSetCallback(table, "scn", [](CGPDFScannerRef scanner, void *info) {
-                Scan& scan = *(Scan *)info;  const char *name;
-                if (!scan.state.isPatternSpace || !CGPDFScannerPopName(scanner, & name))
-                    return;
-                CGPDFContentStreamRef cs = CGPDFScannerGetContentStream(scanner);
-                CGPDFObjectRef obj = CGPDFContentStreamGetResource(cs, "Pattern", name);
-                std::vector<Shading>& patterns = scan.shadings->patterns;
-                patterns.emplace_back();
-                Shading& pattern = patterns.back();
-                pattern.isValid = obj && readPattern(obj, cs, pattern);
-                pattern.ctm = pattern.ctm.concat(scan.state.space);
-                scan.state.pattern = int(patterns.size() - 1);
-            });
-            for (const char *op : { "g", "rg", "k" })
-                CGPDFOperatorTableSetCallback(table, op, [](CGPDFScannerRef scanner, void *info) {
-                    Scan& scan = *(Scan *)info;
-                    scan.state.isPatternSpace = false, scan.state.pattern = -1;
-                });
+            // Fill colors, & their pattern, & stroke colors
+            CGPDFOperatorTableSetCallback(table, "cs", [](CGPDFScannerRef scanner, void *info) { setColorSpace(scanner, *(Scan *)info, false); });
+            CGPDFOperatorTableSetCallback(table, "CS", [](CGPDFScannerRef scanner, void *info) { setColorSpace(scanner, *(Scan *)info, true); });
+            for (const char *op : { "sc", "scn" })
+                CGPDFOperatorTableSetCallback(table, op, [](CGPDFScannerRef scanner, void *info) { setColor(scanner, *(Scan *)info, false); });
+            for (const char *op : { "SC", "SCN" })
+                CGPDFOperatorTableSetCallback(table, op, [](CGPDFScannerRef scanner, void *info) { setColor(scanner, *(Scan *)info, true); });
+            CGPDFOperatorTableSetCallback(table, "g", [](CGPDFScannerRef scanner, void *info) { setDeviceColor(scanner, *(Scan *)info, false, nullptr); });
+            CGPDFOperatorTableSetCallback(table, "G", [](CGPDFScannerRef scanner, void *info) { setDeviceColor(scanner, *(Scan *)info, true, nullptr); });
+            CGPDFOperatorTableSetCallback(table, "rg", [](CGPDFScannerRef scanner, void *info) { setDeviceColor(scanner, *(Scan *)info, false, & ((Scan *)info)->shadings->rgbSpace); });
+            CGPDFOperatorTableSetCallback(table, "RG", [](CGPDFScannerRef scanner, void *info) { setDeviceColor(scanner, *(Scan *)info, true, & ((Scan *)info)->shadings->rgbSpace); });
+            CGPDFOperatorTableSetCallback(table, "k", [](CGPDFScannerRef scanner, void *info) { setDeviceColor(scanner, *(Scan *)info, false, & ((Scan *)info)->shadings->cmykSpace); });
+            CGPDFOperatorTableSetCallback(table, "K", [](CGPDFScannerRef scanner, void *info) { setDeviceColor(scanner, *(Scan *)info, true, & ((Scan *)info)->shadings->cmykSpace); });
             CGPDFOperatorTableSetCallback(table, "m", [](CGPDFScannerRef scanner, void *info) {
                 Scan& scan = *(Scan *)info;  float p[2];
                 if (popNumbers(scanner, p, 2))
@@ -1569,6 +1707,122 @@ struct RasterizerPDF {
                 else
                     return false;
             return true;
+        }
+        // The color space of a name, of a device space or a resource, or of a resource's object, cached by its object
+        const ColorSpace *colorSpace(const char *name, CGPDFContentStreamRef cs, int depth = 0) {
+            if (!strcmp(name, "DeviceGray") || !strcmp(name, "G"))
+                return & graySpace;
+            if (!strcmp(name, "DeviceRGB") || !strcmp(name, "RGB"))
+                return & rgbSpace;
+            if (!strcmp(name, "DeviceCMYK") || !strcmp(name, "CMYK"))
+                return & cmykSpace;
+            if (!strcmp(name, "Pattern"))
+                return & patternSpace;
+            CGPDFObjectRef obj = depth < 4 ? CGPDFContentStreamGetResource(cs, "ColorSpace", name) : nullptr;
+            return obj ? colorSpace(obj, cs, depth + 1) : & unsupportedSpace;
+        }
+        const ColorSpace *colorSpace(CGPDFObjectRef obj, CGPDFContentStreamRef cs, int depth) {
+            const char *name;  CGPDFArrayRef array, names = nullptr;  CGPDFObjectRef object;  CGPDFStringRef string;  CGPDFStreamRef stream;
+            CGPDFInteger hival;  CGPDFDataFormat format;
+            if (CGPDFObjectGetValue(obj, kCGPDFObjectTypeName, & name))
+                return colorSpace(name, cs, depth);
+            auto it = colorSpaces.find(obj);
+            if (it != colorSpaces.end())
+                return it->second.get();
+            ColorSpace *space = new ColorSpace();
+            colorSpaces.emplace(obj, std::unique_ptr<ColorSpace>(space));
+            if (depth > 4 || !CGPDFObjectGetValue(obj, kCGPDFObjectTypeArray, & array) || !CGPDFArrayGetName(array, 0, & name))
+                return space;
+            CGPDFDictionaryRef dict;
+            if (!strcmp(name, "ICCBased")) {
+                if ((space->space = PDFImage::createColorSpace(obj, cs, nullptr)))
+                    space->family = ColorSpace::kOther, space->components = CGColorSpaceGetNumberOfComponents(space->space);
+            } else if (!strcmp(name, "CalGray"))
+                space->family = ColorSpace::kGray;      // pdfium ignores its gamma
+            else if ((!strcmp(name, "CalRGB") || !strcmp(name, "Lab")) && CGPDFArrayGetDictionary(array, 1, & dict)) {
+                std::vector<float> white, gamma, matrix, range;
+                bool isLab = !strcmp(name, "Lab");
+                space->family = isLab ? ColorSpace::kLab : ColorSpace::kCalRGB, space->components = 3;
+                if (readNumbers(dict, "WhitePoint", white) && white.size() == 3)
+                    std::copy(white.begin(), white.end(), space->white);
+                if (readNumbers(dict, "Gamma", gamma) && gamma.size() == 3)
+                    std::copy(gamma.begin(), gamma.end(), space->gamma);
+                if (readNumbers(dict, "Matrix", matrix) && matrix.size() == 9)
+                    std::copy(matrix.begin(), matrix.end(), space->matrix), space->hasMatrix = true;
+                if (readNumbers(dict, "Range", range) && range.size() == 4)
+                    std::copy(range.begin(), range.end(), space->range);
+            } else if ((!strcmp(name, "Indexed") || !strcmp(name, "I")) && CGPDFArrayGetObject(array, 1, & object) && CGPDFArrayGetInteger(array, 2, & hival) && hival >= 0 && hival < 256) {
+                const ColorSpace *base = colorSpace(object, cs, depth + 1);
+                CFDataRef data = nullptr;
+                if (CGPDFArrayGetString(array, 3, & string))
+                    space->lookup.assign(CGPDFStringGetBytePtr(string), CGPDFStringGetBytePtr(string) + CGPDFStringGetLength(string));
+                else if (CGPDFArrayGetStream(array, 3, & stream) && (data = CGPDFStreamCopyData(stream, & format)))
+                    space->lookup.assign(CFDataGetBytePtr(data), CFDataGetBytePtr(data) + CFDataGetLength(data)), CFRelease(data);
+                if (base->family <= ColorSpace::kOther)
+                    space->family = ColorSpace::kIndexed, space->base = base, space->hival = size_t(hival);
+            } else if ((!strcmp(name, "Separation") || (!strcmp(name, "DeviceN") && CGPDFArrayGetArray(array, 1, & names)))
+                && CGPDFArrayGetObject(array, 2, & object) && CGPDFArrayGetObject(array, 3, & obj) && space->tint.read(obj)) {
+                const ColorSpace *base = colorSpace(object, cs, depth + 1);
+                size_t n = !strcmp(name, "Separation") ? 1 : CGPDFArrayGetCount(names);
+                if (base->family <= ColorSpace::kOther && space->tint.outputs == base->components && space->tint.inputs == n)
+                    space->family = ColorSpace::kTint, space->base = base, space->components = n;
+            } else if (!strcmp(name, "Pattern"))
+                return & patternSpace;
+            return space;
+        }
+        // pdfium keeps the color until sc or scn, & doesn't set the space's initial color
+        static void setColorSpace(CGPDFScannerRef scanner, Scan& scan, bool isStroke) {
+            State& st = scan.state;  const char *name;
+            if (!isStroke)
+                st.isPatternSpace = false, st.pattern = -1;
+            if (!CGPDFScannerPopName(scanner, & name))
+                return;
+            const ColorSpace *space = scan.shadings->colorSpace(name, CGPDFScannerGetContentStream(scanner));
+            (isStroke ? st.strokeSpace : st.fillSpace) = space;
+            if (!isStroke)
+                st.isPatternSpace = space->family == ColorSpace::kPattern;
+        }
+        // sc, scn, SC or SCN: components, & for scn, a pattern's name
+        static void setColor(CGPDFScannerRef scanner, Scan& scan, bool isStroke) {
+            State& st = scan.state;  CGPDFObjectRef obj;  CGPDFReal number;  const char *name = nullptr;
+            std::vector<float> components;
+            while (components.size() < 32 && CGPDFScannerPopObject(scanner, & obj))
+                if (CGPDFObjectGetValue(obj, kCGPDFObjectTypeReal, & number))
+                    components.emplace_back(number);
+                else if (!CGPDFObjectGetValue(obj, kCGPDFObjectTypeName, & name))
+                    break;
+            std::reverse(components.begin(), components.end());
+            if (!isStroke && st.isPatternSpace && name) {
+                CGPDFContentStreamRef cs = CGPDFScannerGetContentStream(scanner);
+                CGPDFObjectRef pattern = CGPDFContentStreamGetResource(cs, "Pattern", name);
+                std::vector<Shading>& patterns = scan.shadings->patterns;
+                patterns.emplace_back();
+                Shading& shading = patterns.back();
+                shading.isValid = pattern && readPattern(pattern, cs, shading);
+                shading.ctm = shading.ctm.concat(st.space);
+                st.pattern = int(patterns.size() - 1);
+            }
+            setColor(scan, isStroke, components.data(), components.size());
+        }
+        static void setDeviceColor(CGPDFScannerRef scanner, Scan& scan, bool isStroke, const ColorSpace *space) {
+            float c[4];
+            size_t n = space ? space->components : 1;
+            if (!isStroke)
+                scan.state.isPatternSpace = false, scan.state.pattern = -1;
+            if (popNumbers(scanner, c, int(n)))
+                (isStroke ? scan.state.strokeSpace : scan.state.fillSpace) = space, setColor(scan, isStroke, c, n);
+        }
+        static void setColor(Scan& scan, bool isStroke, const float *c, size_t n) {
+            Colors& colors = scan.state.colors;
+            const ColorSpace *space = isStroke ? scan.state.strokeSpace : scan.state.fillSpace;
+            space = space ? space : & scan.shadings->graySpace;
+            (isStroke ? colors.hasStroke : colors.hasFill) = space->color(c, n, isStroke ? colors.stroke : colors.fill);
+        }
+        // The fill & stroke colors, with their alphas
+        static Colors objectColors(const State& st) {
+            Colors colors = st.colors;
+            colors.fill.a = ColorSpace::quantize(st.alpha), colors.stroke.a = ColorSpace::quantize(st.strokeAlpha);
+            return colors;
         }
         static void setDash(Scan& scan, CGPDFArrayRef array, float phase) {
             std::vector<float> dash;  CGPDFReal number;
@@ -1645,6 +1899,7 @@ struct RasterizerPDF {
                 object.path = path, object.ctm = st.ctm, object.mode = mode;
                 object.pattern = (mode & 3) && st.isPatternSpace ? st.pattern : -1, object.mask = st.mask, object.alpha = st.alpha, object.blend = st.blend;
                 object.width = st.lineWidth, object.cap = st.cap, object.join = st.join, object.dash = st.dash, object.dashPhase = st.dashPhase;
+                object.colors = objectColors(st);
                 object.bounds = Ra::Bounds(bounds.quad(st.ctm.concat(scan.baseInverse)));
                 addObject(scan, kPathObject, s.paths.size());
                 s.paths.emplace_back(object);
@@ -1856,8 +2111,8 @@ struct RasterizerPDF {
     // Writes the scan's objects of the page's content stream, or a form's, which are in page space, & for a transparency group,
     // under its soft mask, opacity & blend mode. Under a mask only fills, as gradients with the mask's alpha, & images are
     // drawn. The opacity & blend mode are applied to each object, not the group, & an object's own blend mode replaces the
-    // group's. pdfium has their colors, & draws its objects the scan doesn't have, & those it can't draw, in their place,
-    // clipped with the last of the scan's objects' clip, or the form's at its start
+    // group's. pdfium draws its objects the scan doesn't have, & those it can't draw, in their place, clipped with the last
+    // of the scan's objects' clip, or the form's at its start, & has colors the scan can't convert
     static void writeStreamToScene(FPDF_DOCUMENT doc, FPDF_PAGE page, int container, int mask, float opacity, uint8_t blend, TextPage& textPage, Shadings& shadings, Ra::SceneRef& scene) {
         static const std::vector<Shadings::Object> none;
         const std::vector<Shadings::Object>& objects = size_t(container + 1) < shadings.streams.size() ? shadings.streams[container + 1] : none;
@@ -1880,17 +2135,16 @@ struct RasterizerPDF {
             switch (object.kind) {
                 case Shadings::kTextObject: {
                     const Shadings::TextRun& run = shadings.texts[object.index];
-                    if (mask != kNoMask || page_object == nullptr)      // Its colors are pdfium's
+                    if (mask != kNoMask)
                         break;
                     if (run.isValid)
                         writeTextRunToScene(run, page_object, opacity, blend, clipBounds, clipPaths, scene);
-                    else
+                    else if (page_object)       // pdfium's glyphs
                         writeTextToScene(page_object, textPage, objectCTM(page_object, formCTM), opacity, blend, clipBounds, scene);
                     break;
                 }
                 case Shadings::kPathObject:
-                    if (page_object)
-                        writePathToScene(page, object.parent, page_object, shadings.paths[object.index], formCTM, mask, opacity, blend, shadings, clipBounds, clipPaths, scene);
+                    writePathToScene(page, object.parent, page_object, shadings.paths[object.index], formCTM, mask, opacity, blend, shadings, clipBounds, clipPaths, scene);
                     break;
                 case Shadings::kImageObject:
                     writeImageToScene(doc, page, page_object, & shadings.imageObjects[object.index], page_object ? objectCTM(page_object, formCTM) : Ra::Transform(), mask, opacity, blend, shadings, clipBounds, clipPaths, scene);
@@ -1990,11 +2244,8 @@ struct RasterizerPDF {
         bool fills = mode == FPDF_TEXTRENDERMODE_FILL || mode == FPDF_TEXTRENDERMODE_FILL_STROKE || mode == FPDF_TEXTRENDERMODE_FILL_CLIP || mode == FPDF_TEXTRENDERMODE_FILL_STROKE_CLIP;
         bool strokes = mode == FPDF_TEXTRENDERMODE_STROKE || mode == FPDF_TEXTRENDERMODE_FILL_STROKE || mode == FPDF_TEXTRENDERMODE_STROKE_CLIP || mode == FPDF_TEXTRENDERMODE_FILL_STROKE_CLIP;
         Ra::Path *clipPath = clipPaths.size() == 0 || clipPaths[0]->isRect() ? nullptr : & clipPaths[0];
-        unsigned int R = 0, G = 0, B = 0, A = 255;
-        FPDFPageObj_GetFillColor(page_object, & R, & G, & B, & A);
-        Ra::Color fill(B, G, R, A * opacity + 0.5f);
-        FPDFPageObj_GetStrokeColor(page_object, & R, & G, & B, & A);
-        Ra::Color stroke(B, G, R, A * opacity + 0.5f);
+        Ra::Color fill, stroke;
+        fills = fills && objectColor(run.colors, page_object, false, opacity, fill), strokes = strokes && objectColor(run.colors, page_object, true, opacity, stroke);
         float width = run.width == 0.f ? -1.f : run.width / run.unitsPerEm;     // In text space, which glyphs' paths are in
         for (auto& glyph : run.glyphs) {
             if (fills)
@@ -2031,7 +2282,19 @@ struct RasterizerPDF {
         }
     }
      
-    // Writes the scan's path, with pdfium's colors
+    // The scan's fill or stroke color, or else pdfium's, with opacity, if either has it
+    static bool objectColor(const Shadings::Colors& colors, FPDF_PAGEOBJECT page_object, bool isStroke, float opacity, Ra::Color& color) {
+        unsigned int R, G, B, A;
+        if (isStroke ? colors.hasStroke : colors.hasFill)
+            color = isStroke ? colors.stroke : colors.fill;
+        else if (page_object && (isStroke ? FPDFPageObj_GetStrokeColor : FPDFPageObj_GetFillColor)(page_object, & R, & G, & B, & A))
+            color = Ra::Color(B, G, R, A);
+        else
+            return false;
+        color.a = color.a * opacity + 0.5f;
+        return true;
+    }
+    // Writes the scan's path
     static void writePathToScene(FPDF_PAGE page, FPDF_PAGEOBJECT form, FPDF_PAGEOBJECT pageObject, const Shadings::PathObject& object, Ra::Transform formCTM, int mask, float opacity, uint8_t blend, Shadings& shadings, Ra::Bounds* clipBounds, std::vector<Ra::Path>& clipPaths, Ra::SceneRef& scene) {
         int fillmode = object.mode & ~Shadings::kStroke;
         bool stroke = object.mode & Shadings::kStroke;
@@ -2045,13 +2308,11 @@ struct RasterizerPDF {
         if (mask != kUnsupportedMask) {
             Ra::Path path = object.path;
             Ra::Transform ctm = object.ctm;
-            unsigned int R = 0, G = 0, B = 0, A = 255;
-            if (fillmode != FPDF_FILLMODE_NONE) {
+            Ra::Color color(0, 0, 0, 255);
+            if (fillmode != FPDF_FILLMODE_NONE && (objectColor(object.colors, pageObject, false, opacity, color) || isPattern)) {
                 Ra::Path fill = path;
                 Ra::Path *fillClipPath = clipPath;
                 Ra::Transform fillCTM = ctm;
-                FPDFPageObj_GetFillColor(pageObject, & R, & G, & B, & A);
-                A = A * opacity + 0.5f;
                 if (fill->isRect() && ctm.det() != 0.f) {
                     // A rect fill that covers a non-rect clip paints the clip itself, even-odd, as clip masks are, & still clipped to
                     // the first one if it's another. Clip paths are in page space
@@ -2066,11 +2327,11 @@ struct RasterizerPDF {
                 bool isGradient = fill->isValid() && fillCTM.det() != 0.f;
                 Shading masked;
                 if (mask >= 0) {
-                    if (isGradient && (pattern || !isPattern) && Shading::masked(pattern, Ra::Color(B, G, R, A), shadings.masks[mask], masked))
+                    if (isGradient && (pattern || !isPattern) && Shading::masked(pattern, color, shadings.masks[mask], masked))
                         writeGradientToScene(masked, pattern ? alpha : 1.f, blend, fill, fillCTM, flags, clipBounds, fillClipPath, scene);
                 } else if (pattern && isGradient)
                     writeGradientToScene(*pattern, alpha, blend, fill, fillCTM, flags, clipBounds, fillClipPath, scene);
-                else if (isPattern && !stroke) {
+                else if (isPattern && !stroke && pageObject) {
                     // An unsupported pattern fill is drawn as a bitmap of its page bounds, which takes the object from the page
                     Ra::Bounds bounds;  Ra::Path rect;
                     auto paint = paintFromPageObject(page, form, pageObject, formCTM, opacity, bounds);
@@ -2078,13 +2339,11 @@ struct RasterizerPDF {
                     if (paint.isValid())
                         scene->addPath(rect, Ra::Transform(), paint, 0.f, 0, clipBounds, nullptr, blend);
                     return;
-                } else if (fill->isValid())
-                    scene->addPath(fill, fillCTM, Ra::Color(B, G, R, A), 0.f, flags, clipBounds, fillClipPath, blend);
+                } else if (fill->isValid() && !isPattern)
+                    scene->addPath(fill, fillCTM, color, 0.f, flags, clipBounds, fillClipPath, blend);
             }
-            if (stroke && mask == kNoMask) {
+            if (stroke && mask == kNoMask && objectColor(object.colors, pageObject, true, opacity, color)) {
                 uint8_t flags = 0;
-                FPDFPageObj_GetStrokeColor(pageObject, & R, & G, & B, & A);
-                A = A * opacity + 0.5f;
                 float width = object.width == 0.f ? -1.f : object.width;
                 flags |= object.cap == FPDF_LINECAP_ROUND ? Ra::Draw::kRoundCap : 0;
                 flags |= object.cap == FPDF_LINECAP_PROJECTING_SQUARE ? Ra::Draw::kSquareCap : 0;
@@ -2094,7 +2353,7 @@ struct RasterizerPDF {
                     path = Ra::Dasher::CreateDashedPath(path, object.dashPhase, lengths.data(), lengths.size());
                 }
                 if (path->isValid())
-                    scene->addPath(path, ctm, Ra::Color(B, G, R, A), width, flags, clipBounds, clipPath, blend);
+                    scene->addPath(path, ctm, color, width, flags, clipBounds, clipPath, blend);
             }
         }
     }
@@ -2108,14 +2367,12 @@ struct RasterizerPDF {
         if (mask == kUnsupportedMask)
             return;
         if (object && object->image >= 0) {
-            unsigned int R = 0, G = 0, B = 0, A = 255;
+            Ra::Color color;
             bool isMask = shadings.images[object->image].isMask;
-            if (isMask && page_object == nullptr)      // Its color is pdfium's
+            if (isMask && !objectColor(object->colors, page_object, false, 1.f, color))
                 return;
-            if (isMask)
-                FPDFPageObj_GetFillColor(page_object, & R, & G, & B, & A);
             ctm = object->ctm, blend = object->blend != kBlendNormal ? object->blend : blend;
-            image = shadings.imagePaint(object->image, opacity * (isMask ? A / 255.f : object->alpha), Ra::Color(B, G, R, 255), mask, ctm);
+            image = shadings.imagePaint(object->image, opacity * (isMask ? color.a / 255.f : object->alpha), Ra::Color(color.b, color.g, color.r, 255), mask, ctm);
         } else if (page_object) {
             FPDF_BITMAP bitmap = FPDFImageObj_GetRenderedBitmap(doc, page, page_object);
             if (bitmap && mask >= 0 && FPDFBitmap_GetFormat(bitmap) == FPDFBitmap_BGRA)
