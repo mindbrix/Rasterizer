@@ -221,6 +221,16 @@ struct RasterizerPDF {
         std::vector<Ra::Color> colors;
         std::vector<float> locations;
         
+        // A luminosity soft mask's alpha at a page point, where inverse maps page space to gradient space: its luminosity, & 0
+        // beyond an unextended end, which the mask's group doesn't paint
+        float luminosityAt(float x, float y, const Ra::Transform& inverse) const {
+            float gx = inverse.a * x + inverse.c * y + inverse.tx, gy = inverse.b * x + inverse.d * y + inverse.ty;
+            float u = isRadial ? sqrtf(gx * gx + gy * gy) : gy;
+            if ((u < lo && !extendLo) || (u > 1.f && !extendHi))
+                return 0.f;
+            Ra::Color m = colorAt(u, false);
+            return (0.3f * m.r + 0.59f * m.g + 0.11f * m.b) / 255.f * alpha;
+        }
         // The color at u, or its left limit, which differs at a hard stop
         Ra::Color colorAt(float u, bool left) const {
             size_t n = locations.size();
@@ -1002,12 +1012,14 @@ struct RasterizerPDF {
             int image = -1;
             Ra::Transform ctm;      // The unit square to page space
             float alpha = 1.f;
+            int mask = kNoMask;     // Its soft mask, in masks
             uint8_t blend = kBlendNormal;
         };
         std::vector<ImageObject> imageObjects;
         std::deque<PDFImage> images;
         std::map<CGPDFStreamRef, int> imageIndices;         // An XObject's image, decoded once
-        std::map<std::tuple<int, float, uint32_t>, Ra::Paint> imagePaints;
+        std::map<std::tuple<int, float, uint32_t, int, std::array<float, 6>>, Ra::Paint> imagePaints;
+        static constexpr float kMaxMaskSize = 4096.f;       // Of a masked image enlarged for its mask
         bool readsImages = true;                            // Not for a soft mask's group
         // A path painting operator's path, in user space, & its paint, but for its colors
         struct PathObject {
@@ -1130,7 +1142,7 @@ struct RasterizerPDF {
         static void addImage(Scan& scan, CGPDFStreamRef stream, CGPDFContentStreamRef cs, bool isXObject) {
             Shadings& s = *scan.shadings;
             ImageObject object;
-            object.ctm = scan.state.ctm, object.alpha = scan.state.alpha, object.blend = scan.state.blend;
+            object.ctm = scan.state.ctm, object.alpha = scan.state.alpha, object.mask = scan.state.mask, object.blend = scan.state.blend;
             if (s.readsImages && stream) {
                 auto it = isXObject ? s.imageIndices.find(stream) : s.imageIndices.end();
                 if (it != s.imageIndices.end())
@@ -1148,19 +1160,37 @@ struct RasterizerPDF {
             addObject(scan, kImageObject, s.imageObjects.size());
             s.imageObjects.emplace_back(object);
         }
-        // An image's paint, with opacity, & an image mask's color, cached as a paint copies its pixels
-        Ra::Paint imagePaint(int index, float opacity, Ra::Color color) {
+        // An image's paint, with opacity, an image mask's color, & a soft mask, in masks, for the image drawn at ctm, cached as a
+        // paint copies its pixels
+        Ra::Paint imagePaint(int index, float opacity, Ra::Color color, int mask, Ra::Transform ctm) {
             const PDFImage& image = images[index];
-            auto key = std::make_tuple(index, opacity, image.isMask ? uint32_t(color.r << 16 | color.g << 8 | color.b) : 0u);
+            std::array<float, 6> m = {};
+            if (mask >= 0)
+                m = { ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx, ctm.ty };
+            auto key = std::make_tuple(index, opacity, image.isMask ? uint32_t(color.r << 16 | color.g << 8 | color.b) : 0u, mask, m);
             auto it = imagePaints.find(key);
             if (it != imagePaints.end())
                 return it->second;
             std::vector<Ra::Color> pixels = image.pixels;
+            size_t width = image.width, height = image.height;
             if (image.isMask)
                 for (auto& p : pixels)
                     p = Ra::Color(color.b, color.g, color.r, p.a);
-            premultiply(pixels.data(), image.width, image.height, image.width * sizeof(Ra::Color), opacity);
-            return imagePaints[key] = Ra::Paint(pixels.data(), image.width, image.height, image.width * sizeof(Ra::Color));
+            if (mask >= 0) {
+                // The mask is sampled at the pixels' centers, so a small image is enlarged to 2 pixels per unit, as a mask's
+                // alpha is smooth
+                size_t w = std::max(width, size_t(fminf(kMaxMaskSize, ceilf(2.f * hypotf(ctm.a, ctm.b))))), h = std::max(height, size_t(fminf(kMaxMaskSize, ceilf(2.f * hypotf(ctm.c, ctm.d)))));
+                if (w != width || h != height) {
+                    std::vector<Ra::Color> enlarged(w * h);
+                    for (size_t y = 0; y < h; y++)
+                        for (size_t x = 0; x < w; x++)
+                            enlarged[y * w + x] = pixels[(y * height / h) * width + x * width / w];
+                    pixels.swap(enlarged), width = w, height = h;
+                }
+                applyMask(pixels.data(), width, height, width * sizeof(Ra::Color), ctm, masks[mask]);
+            }
+            premultiply(pixels.data(), width, height, width * sizeof(Ra::Color), opacity);
+            return imagePaints[key] = Ra::Paint(pixels.data(), width, height, width * sizeof(Ra::Color));
         }
         // The clip of parent & path, in page space. pdfium drops the stream's last path if it's a rect that contains a new path,
         // but not text, & a clip to nothing, from a path of one point or no area, clips everything out
@@ -1829,9 +1859,9 @@ struct RasterizerPDF {
     }
     
     // Writes the page's objects, or a form's, whose objects are in form space, & for a transparency group, under its soft mask,
-    // opacity & blend mode. Under a mask only fills are drawn, as gradients with the mask's alpha. The opacity & blend mode are
-    // applied to each object, not the group, & an object's own blend mode replaces the group's. Objects are clipped with the
-    // scan's clips, & an unmatched one with the last matched one's, or with clip, the form's at its start
+    // opacity & blend mode. Under a mask only fills, as gradients with the mask's alpha, & images are drawn. The opacity &
+    // blend mode are applied to each object, not the group, & an object's own blend mode replaces the group's. Objects are
+    // clipped with the scan's clips, & an unmatched one with the last matched one's, or with clip, the form's at its start
     static void writeObjectsToScene(FPDF_DOCUMENT doc, FPDF_PAGE page, FPDF_PAGEOBJECT form, Ra::Transform formCTM, int clip, int mask, float opacity, uint8_t blend, TextPage& textPage, Shadings& shadings, Ra::SceneRef& scene) {
         FS_MATRIX m;
         Ra::Transform ctm;
@@ -1871,8 +1901,7 @@ struct RasterizerPDF {
                         writePathToScene(page, form, page_object, shadings.paths[object->index], formCTM, mask, opacity, blend, shadings, clipBounds, clipPaths, scene);
                     break;
                 case FPDF_PAGEOBJ_IMAGE:
-                    if (mask == kNoMask)
-                        writeImageToScene(doc, page, page_object, object ? & shadings.imageObjects[object->index] : nullptr, ctm, opacity, blend, shadings, clipBounds, clipPaths, scene);
+                    writeImageToScene(doc, page, page_object, object ? & shadings.imageObjects[object->index] : nullptr, ctm, mask, opacity, blend, shadings, clipBounds, clipPaths, scene);
                     break;
                 case FPDF_PAGEOBJ_SHADING: {
                     const Shading *shading = object && shadings.shadings[object->index].isValid ? & shadings.shadings[object->index] : nullptr;
@@ -2045,18 +2074,24 @@ struct RasterizerPDF {
     }
     
     // Writes the scan's image, clipped to the clip, or for one it couldn't decode, pdfium's bitmap, which has the image's
-    // own opacity. An image mask is painted with pdfium's fill color, which has the fill alpha
-    static void writeImageToScene(FPDF_DOCUMENT doc, FPDF_PAGE page, FPDF_PAGEOBJECT page_object, const Shadings::ImageObject *object, Ra::Transform ctm, float opacity, uint8_t blend, Shadings& shadings, Ra::Bounds* clipBounds, std::vector<Ra::Path>& clipPaths, Ra::SceneRef& scene) {
+    // own opacity. An image mask is painted with pdfium's fill color, which has the fill alpha. The image's soft mask, or
+    // else the group's, scales its alpha, & an unsupported one hides it
+    static void writeImageToScene(FPDF_DOCUMENT doc, FPDF_PAGE page, FPDF_PAGEOBJECT page_object, const Shadings::ImageObject *object, Ra::Transform ctm, int mask, float opacity, uint8_t blend, Shadings& shadings, Ra::Bounds* clipBounds, std::vector<Ra::Path>& clipPaths, Ra::SceneRef& scene) {
         Ra::Paint image;
+        mask = object && object->mask != kNoMask ? object->mask : mask;
+        if (mask == kUnsupportedMask)
+            return;
         if (object && object->image >= 0) {
             unsigned int R = 0, G = 0, B = 0, A = 255;
             bool isMask = shadings.images[object->image].isMask;
             if (isMask)
                 FPDFPageObj_GetFillColor(page_object, & R, & G, & B, & A);
-            image = shadings.imagePaint(object->image, opacity * (isMask ? A / 255.f : object->alpha), Ra::Color(B, G, R, 255));
             ctm = object->ctm, blend = object->blend != kBlendNormal ? object->blend : blend;
+            image = shadings.imagePaint(object->image, opacity * (isMask ? A / 255.f : object->alpha), Ra::Color(B, G, R, 255), mask, ctm);
         } else {
             FPDF_BITMAP bitmap = FPDFImageObj_GetRenderedBitmap(doc, page, page_object);
+            if (bitmap && mask >= 0 && FPDFBitmap_GetFormat(bitmap) == FPDFBitmap_BGRA)
+                applyMask((Ra::Color *)FPDFBitmap_GetBuffer(bitmap), FPDFBitmap_GetWidth(bitmap), FPDFBitmap_GetHeight(bitmap), FPDFBitmap_GetStride(bitmap), ctm, shadings.masks[mask]);
             image = paintFromBitmap(bitmap, opacity);
             FPDFBitmap_Destroy(bitmap);
         }
@@ -2305,6 +2340,17 @@ struct RasterizerPDF {
         size_t stride = FPDFBitmap_GetStride(bitmap);
         premultiply(buffer, width, height, stride, opacity);
         return Ra::Paint(buffer, width, height, stride);
+    }
+    
+    // Multiplies the alpha of straight alpha pixels, of an image drawn at ctm, by a soft mask's at their centers
+    static void applyMask(Ra::Color *pixels, size_t width, size_t height, size_t stride, Ra::Transform ctm, const Shading& mask) {
+        Ra::Transform inverse = mask.unit.concat(mask.ctm).invert();
+        for (size_t y = 0; y < height; y++, pixels += stride / sizeof(Ra::Color))
+            for (size_t x = 0; x < width; x++) {
+                float u = (x + 0.5f) / width, v = 1.f - (y + 0.5f) / height;    // Rows run down from the unit square's top
+                float alpha = mask.luminosityAt(u * ctm.a + v * ctm.c + ctm.tx, u * ctm.b + v * ctm.d + ctm.ty, inverse);
+                pixels[x].a = uint8_t(pixels[x].a * alpha + 0.5f);
+            }
     }
     
     // pdfium's BGRA bitmaps aren't premultiplied, but Rasterizer's images are. Their alpha is scaled by opacity first
