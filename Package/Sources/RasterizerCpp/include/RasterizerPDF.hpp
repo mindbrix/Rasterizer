@@ -1221,7 +1221,7 @@ struct RasterizerPDF {
         value = (negative ? -1.0 : 1.0) * (whole + fraction / scale);
         return k == n && digits > 0;
     }
-    // An inline image's unfiltered data length, from its dictionary's tokens, or 0 if it's filtered or unknown
+    // An inline image's unfiltered data length, from its dictionary's tokens, or 0 if it's filtered, unknown or implausibly large
     static size_t inlineLength(const Token *tokens, size_t count, const Chunk& chunk) {
         double width = 0, height = 0, bpc = 0;  size_t components = 0;  bool isMask = false;
         for (size_t i = 0; i + 1 < count; i++) {
@@ -1247,7 +1247,8 @@ struct RasterizerPDF {
         }
         if (isMask)
             components = 1, bpc = 1;
-        return width > 0 && height > 0 && bpc > 0 && components ? size_t(height) * ((size_t(width) * components * size_t(bpc) + 7) / 8) : 0;
+        double length = height * ceil(width * components * bpc / 8.0);
+        return width > 0 && height > 0 && bpc > 0 && components && length < 1e12 ? size_t(length) : 0;
     }
     // Lexes the tokens starting from begin up to the first at or after end, but for an inline image's, into chunk
     static void lex(const uint8_t *data, size_t size, size_t begin, size_t end, const OperatorTable& table, Chunk& chunk) {
@@ -1342,17 +1343,19 @@ struct RasterizerPDF {
                     else if (k == kEI)
                         inlineBegin = SIZE_MAX;
                     else if (k == kID) {
-                        // The data, after one white space, to an EI after white space, after its length if it's unfiltered
+                        // The data, after one white space, to an EI after white space, which is at its length if it's unfiltered &
+                        // that length is right, else the first after its start
                         size_t start = j + (j < size && isWhite(data[j])), n = 0, e;
                         if (inlineBegin != SIZE_MAX && inlineBegin <= tokens.size())
                             n = inlineLength(tokens.data() + inlineBegin, tokens.size() - inlineBegin, chunk);
                         auto isEI = [&](size_t p) { return p + 1 < size && data[p] == 'E' && data[p + 1] == 'I' && (p + 2 == size || !isRegular(data[p + 2])); };
                         for (e = std::min(size, start + n); e < size && isWhite(data[e]); e++)
                             ;
-                        if (!(n && isEI(e)))
+                        bool isAtLength = n && isEI(e);
+                        if (!isAtLength)
                             for (e = start; e < size && !(isEI(e) && e > start && isWhite(data[e - 1])); e++)
                                 ;
-                        t.type = Token::kInlineData, t.offset = start, t.length = uint32_t((n && e < size && isEI(e) ? start + n : e > start ? e - 1 : e) - start);
+                        t.type = Token::kInlineData, t.offset = start, t.length = uint32_t((isAtLength ? start + n : e < size ? e - 1 : size) - start);
                         tokens.push_back(t), i = e;
                         continue;
                     }
