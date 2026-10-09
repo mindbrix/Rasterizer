@@ -30,6 +30,7 @@
 #import <map>
 #import <memory>
 #import <string>
+#import <thread>
 #import <tuple>
 #import <vector>
 
@@ -1130,6 +1131,456 @@ struct RasterizerPDF {
         }
     };
     
+    // A content stream's lexer & interpreter, in place of CGPDFScanner, whose lexer is slow & serial. A stream's decoded bytes are
+    // cut into chunks, which are lexed in parallel, cpus at a time, into tapes of tokens, with numbers parsed & operators looked up.
+    // The tapes are then interpreted in order, calling an operator table's callbacks with their operands. A chunk after the first
+    // can start inside a string, a comment or an inline image's data, so it's only used from the token where the chunk before it
+    // stops, as lexing from a token is the same as lexing from the stream's start, & is lexed again from there if it has none
+    struct Scanner;
+    typedef void (*Callback)(Scanner& scanner, void *info);
+    struct OperatorTable {
+        static uint32_t key(const uint8_t *s, size_t n) {
+            uint32_t k = 0;
+            for (size_t i = 0; n <= 4 && i < n; i++)
+                k = k << 8 | s[i];
+            return k;
+        }
+        void set(const char *name, Callback callback) {
+            uint32_t k = key((const uint8_t *)name, strlen(name));
+            size_t h = hash(k);
+            while (keys[h] && keys[h] != k)
+                h = (h + 1) & (kSize - 1);
+            keys[h] = k, indices[h] = int16_t(callbacks.size()), callbacks.emplace_back(callback);
+        }
+        int find(uint32_t k) const {     // A callback's index, or -1
+            for (size_t h = hash(k); k && keys[h]; h = (h + 1) & (kSize - 1))
+                if (keys[h] == k)
+                    return indices[h];
+            return -1;
+        }
+        static size_t hash(uint32_t k) { return (k * 2654435761u) >> (32 - kBits); }
+        static constexpr int kBits = 8, kSize = 1 << kBits;
+        uint32_t keys[kSize] = {};  int16_t indices[kSize] = {};
+        std::vector<Callback> callbacks;
+    };
+    struct Token {
+        enum Type : uint8_t { kNumber, kInteger, kName, kString, kBool, kNull, kArrayBegin, kArrayEnd, kDictBegin, kDictEnd, kInlineData, kOperator };
+        uint8_t type;
+        int16_t op;             // An operator's callback, or -1
+        uint32_t length;        // Of a name or string in its chunk's bytes, or inline image data in the stream
+        size_t position;        // Of its first byte in the stream
+        union { double number;  size_t offset;  bool flag; };
+    };
+    struct Chunk {
+        std::vector<Token> tokens;
+        std::vector<uint8_t> bytes;     // Decoded names & strings, each null terminated
+        size_t begin = 0, end = 0, stop = 0;    // stop is where the first token at or after end starts, or the stream's end
+    };
+    struct String { const uint8_t *bytes = nullptr;  size_t length = 0; };
+    struct Operand {
+        enum Type : uint8_t { kNumber, kInteger, kName, kString, kBool, kNull, kArray, kDict, kInlineData, kArrayMark, kDictMark };
+        uint8_t type;
+        size_t length;          // Of a name, string or inline data, or the items of an array or dict
+        union { double number;  const uint8_t *bytes;  size_t begin;  bool flag; };
+        bool getNumber(CGPDFReal *value) const { return (type == kNumber || type == kInteger) && (*value = number, true); }
+        bool getName(const char **name) const { return type == kName && (*name = (const char *)bytes, true); }
+        bool getString(String *string) const { return type == kString && (string->bytes = bytes, string->length = length, true); }
+    };
+    struct Array {
+        const Operand *items = nullptr;  size_t count = 0;
+        bool getNumber(size_t i, CGPDFReal *value) const { return i < count && items[i].getNumber(value); }
+        bool getString(size_t i, String *string) const { return i < count && items[i].getString(string); }
+    };
+    
+    // Characters' classes: white space, or a delimiter, else regular
+    enum { kWhite = 1, kDelimiter = 2 };
+    struct CharClasses {
+        uint8_t classes[256] = {};
+        CharClasses() {
+            for (uint8_t c : { ' ', '\n', '\r', '\t', '\f', '\0' })
+                classes[c] = kWhite;
+            for (uint8_t c : { '(', ')', '<', '>', '[', ']', '{', '}', '/', '%' })
+                classes[c] = kDelimiter;
+        }
+    };
+    static inline uint8_t charClass(uint8_t c) { static const CharClasses table;  return table.classes[c]; }
+    static inline bool isWhite(uint8_t c) { return charClass(c) == kWhite; }
+    static inline bool isRegular(uint8_t c) { return charClass(c) == 0; }
+    static int hexValue(uint8_t c) { return c >= '0' && c <= '9' ? c - '0' : c >= 'a' && c <= 'f' ? c - 'a' + 10 : c >= 'A' && c <= 'F' ? c - 'A' + 10 : -1; }
+    // A number, as [+-]digits[.digits], or .digits
+    static bool parseNumber(const uint8_t *s, size_t n, double& value, bool& isInteger) {
+        size_t k = 0, digits = 0;  bool negative = false;  double whole = 0.0, fraction = 0.0, scale = 1.0;
+        for (; k < n && (s[k] == '+' || s[k] == '-'); k++)
+            negative = negative != (s[k] == '-');
+        for (; k < n && s[k] >= '0' && s[k] <= '9'; k++, digits++)
+            whole = whole * 10.0 + (s[k] - '0');
+        isInteger = !(k < n && s[k] == '.');
+        if (!isInteger)
+            for (k++; k < n && s[k] >= '0' && s[k] <= '9'; k++, digits++)
+                fraction = fraction * 10.0 + (s[k] - '0'), scale *= 10.0;
+        value = (negative ? -1.0 : 1.0) * (whole + fraction / scale);
+        return k == n && digits > 0;
+    }
+    // An inline image's unfiltered data length, from its dictionary's tokens, or 0 if it's filtered or unknown
+    static size_t inlineLength(const Token *tokens, size_t count, const Chunk& chunk) {
+        double width = 0, height = 0, bpc = 0;  size_t components = 0;  bool isMask = false;
+        for (size_t i = 0; i + 1 < count; i++) {
+            if (tokens[i].type != Token::kName)
+                continue;
+            const char *key = (const char *)chunk.bytes.data() + tokens[i].offset;
+            const Token& v = tokens[i + 1];
+            const char *name = v.type == Token::kName ? (const char *)chunk.bytes.data() + v.offset : "";
+            if (!strcmp(key, "F") || !strcmp(key, "Filter"))
+                return 0;
+            if (!strcmp(key, "W") || !strcmp(key, "Width"))
+                width = v.type == Token::kInteger ? v.number : 0;
+            else if (!strcmp(key, "H") || !strcmp(key, "Height"))
+                height = v.type == Token::kInteger ? v.number : 0;
+            else if (!strcmp(key, "BPC") || !strcmp(key, "BitsPerComponent"))
+                bpc = v.type == Token::kInteger ? v.number : 0;
+            else if (!strcmp(key, "IM") || !strcmp(key, "ImageMask"))
+                isMask = v.type == Token::kBool && v.flag;
+            else if (!strcmp(key, "CS") || !strcmp(key, "ColorSpace"))
+                components = !strcmp(name, "G") || !strcmp(name, "DeviceGray") ? 1 : !strcmp(name, "RGB") || !strcmp(name, "DeviceRGB") ? 3
+                    : !strcmp(name, "CMYK") || !strcmp(name, "DeviceCMYK") ? 4 : v.type == Token::kArrayBegin && i + 2 < count && tokens[i + 2].type == Token::kName
+                    && (!strcmp((const char *)chunk.bytes.data() + tokens[i + 2].offset, "I") || !strcmp((const char *)chunk.bytes.data() + tokens[i + 2].offset, "Indexed")) ? 1 : 0;
+        }
+        if (isMask)
+            components = 1, bpc = 1;
+        return width > 0 && height > 0 && bpc > 0 && components ? size_t(height) * ((size_t(width) * components * size_t(bpc) + 7) / 8) : 0;
+    }
+    // Lexes the tokens starting from begin up to the first at or after end, but for an inline image's, into chunk
+    static void lex(const uint8_t *data, size_t size, size_t begin, size_t end, const OperatorTable& table, Chunk& chunk) {
+        static const uint32_t kBI = OperatorTable::key((const uint8_t *)"BI", 2), kID = OperatorTable::key((const uint8_t *)"ID", 2), kEI = OperatorTable::key((const uint8_t *)"EI", 2);
+        std::vector<Token>& tokens = chunk.tokens;  std::vector<uint8_t>& bytes = chunk.bytes;
+        tokens.clear(), bytes.clear(), chunk.begin = begin, chunk.end = end;
+        size_t i = begin, inlineBegin = SIZE_MAX;      // The tokens of an inline image's dictionary, from its BI
+        while (true) {
+            while (i < size && (isWhite(data[i]) || data[i] == '%'))
+                if (data[i++] == '%')
+                    while (i < size && data[i] != '\n' && data[i] != '\r')
+                        i++;
+            if (i >= size || (i >= end && inlineBegin == SIZE_MAX))
+                break;
+            Token t;  t.position = i, t.op = -1, t.length = 0, t.number = 0.0;
+            uint8_t c = data[i];
+            if (c == '(') {         // A literal string, with balanced parentheses & escapes
+                t.type = Token::kString, t.offset = bytes.size();
+                int depth = 1;
+                for (i++; i < size; i++) {
+                    c = data[i];
+                    if (c == '\\' && i + 1 < size) {
+                        c = data[++i];
+                        if (c >= '0' && c <= '7') {
+                            int v = c - '0';
+                            for (int k = 0; k < 2 && i + 1 < size && data[i + 1] >= '0' && data[i + 1] <= '7'; k++)
+                                v = v * 8 + (data[++i] - '0');
+                            bytes.push_back(uint8_t(v));
+                        } else if (c == '\r')
+                            i += i + 1 < size && data[i + 1] == '\n';
+                        else if (c != '\n')
+                            bytes.push_back(c == 'n' ? '\n' : c == 'r' ? '\r' : c == 't' ? '\t' : c == 'b' ? '\b' : c == 'f' ? '\f' : c);
+                    } else if (c == '(' || (c == ')' && --depth > 0))
+                        depth += c == '(', bytes.push_back(c);
+                    else if (c == ')') {
+                        i++;
+                        break;
+                    } else if (c == '\r') {
+                        i += i + 1 < size && data[i + 1] == '\n';
+                        bytes.push_back('\n');
+                    } else
+                        bytes.push_back(c);
+                }
+                t.length = uint32_t(bytes.size() - t.offset), bytes.push_back(0);
+            } else if (c == '<' && i + 1 < size && data[i + 1] == '<')
+                t.type = Token::kDictBegin, i += 2;
+            else if (c == '<') {    // A hex string
+                t.type = Token::kString, t.offset = bytes.size();
+                int hi = -1;
+                for (i++; i < size && data[i] != '>'; i++) {
+                    int v = hexValue(data[i]);
+                    if (v >= 0 && hi < 0)
+                        hi = v;
+                    else if (v >= 0)
+                        bytes.push_back(uint8_t(hi << 4 | v)), hi = -1;
+                }
+                if (hi >= 0)
+                    bytes.push_back(uint8_t(hi << 4));
+                i += i < size;
+                t.length = uint32_t(bytes.size() - t.offset), bytes.push_back(0);
+            } else if (c == '>' && i + 1 < size && data[i + 1] == '>')
+                t.type = Token::kDictEnd, i += 2;
+            else if (c == '[' || c == ']')
+                t.type = c == '[' ? Token::kArrayBegin : Token::kArrayEnd, i++;
+            else if (c == '/') {    // A name, with #xx escapes
+                t.type = Token::kName, t.offset = bytes.size();
+                for (i++; i < size && isRegular(data[i]); i++)
+                    if (data[i] == '#' && i + 2 < size && hexValue(data[i + 1]) >= 0 && hexValue(data[i + 2]) >= 0)
+                        bytes.push_back(uint8_t(hexValue(data[i + 1]) << 4 | hexValue(data[i + 2]))), i += 2;
+                    else
+                        bytes.push_back(data[i]);
+                t.length = uint32_t(bytes.size() - t.offset), bytes.push_back(0);
+            } else if (!isRegular(c)) {      // A stray delimiter
+                i++;
+                continue;
+            } else {
+                size_t j = i;
+                while (j < size && isRegular(data[j]))
+                    j++;
+                bool isInteger;
+                if (parseNumber(data + i, j - i, t.number, isInteger))
+                    t.type = isInteger ? Token::kInteger : Token::kNumber;
+                else if ((j - i == 4 && !memcmp(data + i, "true", 4)) || (j - i == 5 && !memcmp(data + i, "false", 5)))
+                    t.type = Token::kBool, t.flag = data[i] == 't';
+                else if (j - i == 4 && !memcmp(data + i, "null", 4))
+                    t.type = Token::kNull;
+                else {
+                    uint32_t k = OperatorTable::key(data + i, j - i);
+                    t.type = Token::kOperator, t.op = int16_t(table.find(k));
+                    if (k == kBI)
+                        inlineBegin = tokens.size() + 1;
+                    else if (k == kEI)
+                        inlineBegin = SIZE_MAX;
+                    else if (k == kID) {
+                        // The data, after one white space, to an EI after white space, after its length if it's unfiltered
+                        size_t start = j + (j < size && isWhite(data[j])), n = 0, e;
+                        if (inlineBegin != SIZE_MAX && inlineBegin <= tokens.size())
+                            n = inlineLength(tokens.data() + inlineBegin, tokens.size() - inlineBegin, chunk);
+                        auto isEI = [&](size_t p) { return p + 1 < size && data[p] == 'E' && data[p + 1] == 'I' && (p + 2 == size || !isRegular(data[p + 2])); };
+                        for (e = std::min(size, start + n); e < size && isWhite(data[e]); e++)
+                            ;
+                        if (!(n && isEI(e)))
+                            for (e = start; e < size && !(isEI(e) && e > start && isWhite(data[e - 1])); e++)
+                                ;
+                        t.type = Token::kInlineData, t.offset = start, t.length = uint32_t((n && e < size && isEI(e) ? start + n : e > start ? e - 1 : e) - start);
+                        tokens.push_back(t), i = e;
+                        continue;
+                    }
+                }
+                i = j;
+            }
+            tokens.push_back(t);
+        }
+        chunk.stop = i;
+    }
+    // The interpreter's operand stack, which a callback pops, & the content stream, for its resources
+    struct Scanner {
+        CGPDFContentStreamRef cs;
+        size_t count = 0, capacity = 64;
+        std::unique_ptr<Operand[]> stack;           // The operands, as a vector is slow in debug builds
+        std::vector<Operand> items;                 // Arrays' & dicts' items
+        std::vector<std::vector<uint8_t>> owned;    // Copies of names & strings, from chunks lexed again before their operator
+        Scanner(CGPDFContentStreamRef cs) : cs(cs), stack(new Operand[capacity]) {}
+        void grow() {
+            Operand *operands = new Operand[capacity * 2];
+            std::copy(stack.get(), stack.get() + count, operands), stack.reset(operands), capacity *= 2;
+        }
+        // Copies the operands' names & strings, before their chunks are reused
+        void own() {
+            auto copy = [&](Operand& o) {
+                if (o.type == Operand::kName || o.type == Operand::kString)
+                    owned.emplace_back(o.bytes, o.bytes + o.length + 1), o.bytes = owned.back().data();
+            };
+            for (size_t i = 0; i < count; i++)
+                copy(stack[i]);
+            for (Operand& o : items)
+                copy(o);
+        }
+        bool popObject(Operand *operand) { return count && (*operand = stack[--count], true); }
+        bool popNumber(CGPDFReal *value) { Operand o;  return popObject(& o) && o.getNumber(value); }
+        bool popInteger(CGPDFInteger *value) { Operand o;  return popObject(& o) && o.type == Operand::kInteger && (*value = CGPDFInteger(o.number), true); }
+        bool popName(const char **name) { Operand o;  return popObject(& o) && o.getName(name); }
+        bool popString(String *string) { Operand o;  return popObject(& o) && o.getString(string); }
+        bool popArray(Array *array) {
+            Operand o;
+            return popObject(& o) && o.type == Operand::kArray && (array->items = items.data() + o.begin, array->count = o.length, true);
+        }
+        // An inline image, as a stream of a PDF of it, with its dictionary's filter keys & names unabbreviated, as CGPDF decodes it
+        CGPDFStreamRef popInlineImage(CGPDFDocumentRef *doc) {
+            Operand data;
+            *doc = nullptr;
+            if (!popObject(& data) || data.type != Operand::kInlineData)
+                return nullptr;
+            std::string dict = "<<";
+            for (size_t i = 0; i + 1 < count; i += 2) {
+                const char *key;
+                if (!stack[i].getName(& key))
+                    continue;
+                key = !strcmp(key, "F") ? "Filter" : !strcmp(key, "DP") ? "DecodeParms" : key;
+                bool isFilter = !strcmp(key, "Filter");
+                dict += " /", writeName(dict, key), dict += " ", writeOperand(dict, stack[i + 1], isFilter);
+            }
+            dict += " /Length " + std::to_string(data.length) + " >>";
+            std::string pdf = "%PDF-1.4\n";
+            size_t offsets[4];
+            offsets[0] = pdf.size(), pdf += "1 0 obj << /Type /Catalog /Pages 2 0 R /RaImage 3 0 R >> endobj\n";
+            offsets[1] = pdf.size(), pdf += "2 0 obj << /Type /Pages /Kids [4 0 R] /Count 1 >> endobj\n";
+            offsets[2] = pdf.size(), pdf += "3 0 obj " + dict + " stream\n", pdf.append((const char *)data.bytes, data.length), pdf += "\nendstream endobj\n";
+            offsets[3] = pdf.size(), pdf += "4 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 1 1] >> endobj\n";
+            size_t xref = pdf.size();
+            pdf += "xref\n0 5\n0000000000 65535 f \n";
+            char line[32];
+            for (size_t offset : offsets)
+                snprintf(line, sizeof(line), "%010zu 00000 n \n", offset), pdf += line;
+            pdf += "trailer << /Size 5 /Root 1 0 R >>\nstartxref\n" + std::to_string(xref) + "\n%%EOF\n";
+            CFDataRef bytes = CFDataCreate(nullptr, (const UInt8 *)pdf.data(), pdf.size());
+            CGDataProviderRef provider = CGDataProviderCreateWithCFData(bytes);
+            *doc = CGPDFDocumentCreateWithProvider(provider);
+            CGDataProviderRelease(provider), CFRelease(bytes);
+            CGPDFStreamRef stream = nullptr;
+            if (*doc)
+                CGPDFDictionaryGetStream(CGPDFDocumentGetCatalog(*doc), "RaImage", & stream);
+            return stream;
+        }
+        static void writeName(std::string& out, const char *name) {
+            for (const char *c = name; *c; c++) {
+                char escape[4];
+                if (isRegular(uint8_t(*c)) && *c != '#' && uint8_t(*c) > 32 && uint8_t(*c) < 127)
+                    out += *c;
+                else
+                    snprintf(escape, sizeof(escape), "#%02X", uint8_t(*c)), out += escape;
+            }
+        }
+        void writeOperand(std::string& out, const Operand& o, bool isFilter) {
+            static const char *filters[][2] = { { "AHx", "ASCIIHexDecode" }, { "A85", "ASCII85Decode" }, { "LZW", "LZWDecode" }, { "Fl", "FlateDecode" },
+                { "RL", "RunLengthDecode" }, { "CCF", "CCITTFaxDecode" }, { "DCT", "DCTDecode" } };
+            char number[32];
+            switch (o.type) {
+                case Operand::kInteger:  snprintf(number, sizeof(number), "%lld", (long long)o.number), out += number;  break;
+                case Operand::kNumber:   snprintf(number, sizeof(number), "%.9g", o.number), out += number;  break;
+                case Operand::kBool:     out += o.flag ? "true" : "false";  break;
+                case Operand::kName: {
+                    const char *name = (const char *)o.bytes;
+                    for (auto& f : filters)
+                        if (isFilter && !strcmp(name, f[0]))
+                            name = f[1];
+                    out += "/", writeName(out, name);
+                    break;
+                }
+                case Operand::kString:
+                    out += "<";
+                    for (size_t i = 0; i < o.length; i++)
+                        snprintf(number, sizeof(number), "%02X", o.bytes[i]), out += number;
+                    out += ">";
+                    break;
+                case Operand::kArray:
+                case Operand::kDict:
+                    out += o.type == Operand::kArray ? "[" : "<<";
+                    for (size_t i = 0; i < o.length; i++)
+                        out += " ", writeOperand(out, items[o.begin + i], isFilter && o.type == Operand::kArray);
+                    out += o.type == Operand::kArray ? " ]" : " >>";
+                    break;
+                default:
+                    out += "null";
+            }
+        }
+        // Interprets tokens from first, calling operators' callbacks, & clearing the stack after each operator
+        void interpret(const Chunk& chunk, size_t first, const OperatorTable& table, void *info) {
+            const Token *tokens = chunk.tokens.data();  const uint8_t *bytes = chunk.bytes.data();
+            for (size_t i = first, n = chunk.tokens.size(); i < n; i++) {
+                const Token& t = tokens[i];
+                Operand o;  o.length = 0, o.number = 0.0;
+                switch (t.type) {
+                    case Token::kNumber:
+                    case Token::kInteger:
+                        o.type = t.type == Token::kNumber ? Operand::kNumber : Operand::kInteger, o.number = t.number;
+                        break;
+                    case Token::kName:
+                    case Token::kString:
+                        o.type = t.type == Token::kName ? Operand::kName : Operand::kString, o.bytes = bytes + t.offset, o.length = t.length;
+                        break;
+                    case Token::kBool:
+                        o.type = Operand::kBool, o.flag = t.flag;
+                        break;
+                    case Token::kNull:
+                        o.type = Operand::kNull;
+                        break;
+                    case Token::kInlineData:
+                        o.type = Operand::kInlineData, o.bytes = data + t.offset, o.length = t.length;
+                        break;
+                    case Token::kArrayBegin:
+                    case Token::kDictBegin:
+                        o.type = t.type == Token::kArrayBegin ? Operand::kArrayMark : Operand::kDictMark;
+                        break;
+                    case Token::kArrayEnd:
+                    case Token::kDictEnd: {     // Its items move from the stack, after its mark, to items
+                        uint8_t mark = t.type == Token::kArrayEnd ? Operand::kArrayMark : Operand::kDictMark;
+                        size_t m = count;
+                        while (m > 0 && stack[m - 1].type != mark)
+                            m--;
+                        if (m == 0)
+                            continue;
+                        Operand& array = stack[m - 1];
+                        array.type = mark == Operand::kArrayMark ? Operand::kArray : Operand::kDict, array.begin = items.size(), array.length = count - m;
+                        items.insert(items.end(), stack.get() + m, stack.get() + count), count = m;
+                        continue;
+                    }
+                    case Token::kOperator:
+                        if (t.op >= 0)
+                            table.callbacks[t.op](*this, info);
+                        count = 0;
+                        if (items.size() || owned.size())
+                            items.clear(), owned.clear();
+                        continue;
+                }
+                if (count == capacity)
+                    grow();
+                stack[count++] = o;
+            }
+        }
+        const uint8_t *data = nullptr;
+    };
+    static constexpr size_t kChunkSize = 64 * 1024;
+    // A batch of chunks, of cpus * kChunkSize bytes from begin, lexed in parallel
+    struct Batch {
+        const uint8_t *data;  size_t size, begin, count;
+        const OperatorTable *table;
+        std::vector<Chunk> chunks;
+        static void lexChunk(void *context, size_t t) {
+            Batch& b = *(Batch *)context;  Chunk& chunk = b.chunks[t];
+            lex(b.data, b.size, b.begin + t * kChunkSize, std::min(b.size, b.begin + (t + 1) * kChunkSize), *b.table, chunk);
+        }
+        void lexAll() {
+            dispatch_apply_f(count, DISPATCH_APPLY_AUTO, this, lexChunk);
+        }
+    };
+    // Scans a content stream's bytes. A large one's batches are lexed while the one before is interpreted, in two sets of chunks,
+    // so the operands of an operator in the next batch are copied before their chunks are lexed again
+    static void scanBytes(const uint8_t *data, size_t size, CGPDFContentStreamRef cs, const OperatorTable& table, void *info) {
+        static const long online = sysconf(_SC_NPROCESSORS_ONLN);
+        size_t cpus = online < 2 ? 1 : std::min(size_t(online), size_t(16)), pos = 0, step = cpus * kChunkSize;
+        Scanner scanner(cs);  scanner.data = data;
+        if (size <= 2 * kChunkSize || cpus == 1) {
+            Chunk chunk;
+            lex(data, size, 0, size, table, chunk);
+            return scanner.interpret(chunk, 0, table, info);
+        }
+        Batch batches[2];
+        for (Batch& b : batches)
+            b.data = data, b.size = size, b.table = & table, b.chunks.resize(cpus);
+        auto prepare = [&](Batch& b, size_t begin) { b.begin = begin, b.count = std::min(cpus, (size - begin + kChunkSize - 1) / kChunkSize); };
+        prepare(batches[0], 0), batches[0].lexAll();
+        for (size_t i = 0, begin = 0; begin < size; i++, begin += step) {
+            Batch& batch = batches[i & 1], & next = batches[(i + 1) & 1];
+            std::thread lexer;
+            if (begin + step < size)
+                prepare(next, begin + step), lexer = std::thread(& Batch::lexAll, & next);
+            for (size_t t = 0; t < batch.count; t++) {
+                Chunk& chunk = batch.chunks[t];
+                if (chunk.stop <= pos && pos > 0)
+                    continue;
+                auto it = std::lower_bound(chunk.tokens.begin(), chunk.tokens.end(), pos, [](const Token& a, size_t p) { return a.position < p; });
+                if (it == chunk.tokens.end() || it->position != pos)
+                    lex(data, size, pos, std::max(pos, chunk.end), table, chunk), it = chunk.tokens.begin();
+                scanner.interpret(chunk, size_t(it - chunk.tokens.begin()), table, info);
+                pos = chunk.stop;
+            }
+            scanner.own();
+            if (lexer.joinable())
+                lexer.join();
+        }
+    }
+    
     struct Shadings {
         static constexpr size_t kMaxDepth = 32;
         // A path's draw mode is its fill rule, or none, & kStroke if it's stroked, as pdfium's. Line caps & joins are as the PDF's
@@ -1169,8 +1620,11 @@ struct RasterizerPDF {
         bool readsImages = true;                            // Not for a soft mask's group
         Ra::Transform pageCTM;                              // The page's media box & rotation to the scene's space
         // A path painting operator's path, in user space, & its paint, but for its colors
+        // Its path is built from its points, in pathPoints, after the scan, with its bounds, in parallel, but for a clip's
         struct PathObject {
             Ra::Path path = nullptr;
+            size_t pointBegin = 0, pointCount = 0;
+            Ra::Bounds bounds;      // In page space, as pdfium's: of its points, outset by half a stroke's width, or a hairline's
             Ra::Transform ctm;      // User space to page space
             int pattern = -1;       // The fill's shading pattern in patterns, or -1 for a color
             int tiling = -1;        // Or its tiling pattern, in tilings
@@ -1255,11 +1709,12 @@ struct RasterizerPDF {
             uint8_t type;
             bool close;
         };
+        std::vector<PathPoint> pathPoints;  // Of paths, till they're built
         struct Scan {
             State state;
             std::vector<State> stack;
             Shadings *shadings;
-            CGPDFOperatorTableRef table;
+            const OperatorTable *table;
             size_t depth = 0;
             std::vector<PathPoint> points;     // The current path, in user space
             float startX = 0.f, startY = 0.f, x = 0.f, y = 0.f;    // Its subpath's start & current point
@@ -1283,9 +1738,13 @@ struct RasterizerPDF {
             if (page) {
                 pageCTM = transformForPage(CGPDFPageGetBoxRect(page, kCGPDFMediaBox), CGPDFPageGetRotationAngle(page));
                 CGPDFContentStreamRef cs = CGPDFContentStreamCreateWithPage(page);
-                CGPDFOperatorTableRef table = createTable();
-                scan(cs, table, State(), 0);
-                CGPDFOperatorTableRelease(table);
+                OperatorTable *table = createTable();
+                CFDataRef data = copyContents(nullptr, page);
+                scan(cs, data, table, State(), 0);
+                buildPaths();
+                delete table;
+                if (data)
+                    CFRelease(data);
                 CGPDFContentStreamRelease(cs);
             }
             CGPDFDocumentRelease(doc);
@@ -1293,13 +1752,41 @@ struct RasterizerPDF {
                 CFRelease(url);
             return page != nullptr;
         }
-        void scan(CGPDFContentStreamRef cs, CGPDFOperatorTableRef table, State state, size_t depth, int container = -1, int entryClip = -1) {
+        void scan(CGPDFContentStreamRef cs, CFDataRef data, const OperatorTable *table, State state, size_t depth, int container = -1, int entryClip = -1) {
             Scan scan;  scan.shadings = this, scan.table = table, scan.state = state, scan.depth = depth, scan.container = container, scan.entryClip = entryClip;
             if (streams.size() < size_t(container + 2))
                 streams.resize(container + 2);
-            CGPDFScannerRef scanner = CGPDFScannerCreate(cs, table, & scan);
-            CGPDFScannerScan(scanner);
-            CGPDFScannerRelease(scanner);
+            if (data)
+                scanBytes(CFDataGetBytePtr(data), size_t(CFDataGetLength(data)), cs, *table, & scan);
+        }
+        // A content stream's decoded bytes, of a stream, or of a page's Contents stream or array of them, separated by white space
+        static CFDataRef copyContents(CGPDFStreamRef stream, CGPDFPageRef page = nullptr) {
+            CGPDFDataFormat format;  CGPDFArrayRef array;
+            if (stream) {
+                CFDataRef data = CGPDFStreamCopyData(stream, & format);
+                if (data && format != CGPDFDataFormatRaw)
+                    CFRelease(data), data = nullptr;
+                return data;
+            }
+            CGPDFDictionaryRef dict = page ? CGPDFPageGetDictionary(page) : nullptr;
+            if (dict && CGPDFDictionaryGetStream(dict, "Contents", & stream))
+                return copyContents(stream);
+            if (!dict || !CGPDFDictionaryGetArray(dict, "Contents", & array))
+                return nullptr;
+            // The streams are decoded in parallel
+            struct Part { CGPDFStreamRef stream = nullptr;  CFDataRef data = nullptr; };
+            std::vector<Part> parts(CGPDFArrayGetCount(array));
+            for (size_t i = 0; i < parts.size(); i++)
+                CGPDFArrayGetStream(array, i, & parts[i].stream);
+            dispatch_apply_f(parts.size(), DISPATCH_APPLY_AUTO, parts.data(), [](void *context, size_t i) {
+                Part& part = ((Part *)context)[i];
+                part.data = part.stream ? copyContents(part.stream) : nullptr;
+            });
+            CFMutableDataRef contents = CFDataCreateMutable(nullptr, 0);
+            for (Part& part : parts)
+                if (part.data)
+                    CFDataAppendBytes(contents, CFDataGetBytePtr(part.data), CFDataGetLength(part.data)), CFDataAppendBytes(contents, (const UInt8 *)"\n", 1), CFRelease(part.data);
+            return contents;
         }
         static void addObject(Scan& scan, uint8_t kind, size_t index = 0) {
             scan.shadings->streams[scan.container + 1].emplace_back(Object{ kind, uint32_t(index), scan.state.clip });
@@ -1381,29 +1868,29 @@ struct RasterizerPDF {
             clips.emplace_back(std::move(clip));
             return int(clips.size() - 1);
         }
-        static CGPDFOperatorTableRef createTable() {
-            CGPDFOperatorTableRef table = CGPDFOperatorTableCreate();
-            CGPDFOperatorTableSetCallback(table, "q", [](CGPDFScannerRef scanner, void *info) {
+        static OperatorTable *createTable() {
+            OperatorTable *table = new OperatorTable();
+            table->set("q", [](Scanner& scanner, void *info) {
                 Scan& scan = *(Scan *)info;
                 scan.stack.emplace_back(scan.state);
             });
-            CGPDFOperatorTableSetCallback(table, "Q", [](CGPDFScannerRef scanner, void *info) {
+            table->set("Q", [](Scanner& scanner, void *info) {
                 Scan& scan = *(Scan *)info;
                 if (scan.stack.size())
                     scan.state = scan.stack.back(), scan.stack.pop_back();
             });
-            CGPDFOperatorTableSetCallback(table, "cm", [](CGPDFScannerRef scanner, void *info) {
+            table->set("cm", [](Scanner& scanner, void *info) {
                 Scan& scan = *(Scan *)info;  CGPDFReal m[6];
                 for (int i = 5; i >= 0; i--)
-                    if (!CGPDFScannerPopNumber(scanner, & m[i]))
+                    if (!scanner.popNumber(& m[i]))
                         return;
                 scan.state.ctm = Ra::Transform(m[0], m[1], m[2], m[3], m[4], m[5]).concat(scan.state.ctm);
             });
-            CGPDFOperatorTableSetCallback(table, "gs", [](CGPDFScannerRef scanner, void *info) {
+            table->set("gs", [](Scanner& scanner, void *info) {
                 Scan& scan = *(Scan *)info;  const char *name;  CGPDFDictionaryRef dict, smask;  CGPDFReal ca;
-                if (!CGPDFScannerPopName(scanner, & name))
+                if (!scanner.popName(& name))
                     return;
-                CGPDFContentStreamRef cs = CGPDFScannerGetContentStream(scanner);
+                CGPDFContentStreamRef cs = scanner.cs;
                 CGPDFObjectRef obj = CGPDFContentStreamGetResource(cs, "ExtGState", name);
                 if (obj == nullptr || !CGPDFObjectGetValue(obj, kCGPDFObjectTypeDictionary, & dict))
                     return;
@@ -1418,8 +1905,13 @@ struct RasterizerPDF {
                     scan.state.cap = uint8_t(lc);
                 if (CGPDFDictionaryGetInteger(dict, "LJ", & lj))
                     scan.state.join = uint8_t(lj);
-                if (CGPDFDictionaryGetArray(dict, "D", & d) && CGPDFArrayGetArray(d, 0, & dash) && CGPDFArrayGetNumber(d, 1, & lw))
-                    setDash(scan, dash, lw);
+                if (CGPDFDictionaryGetArray(dict, "D", & d) && CGPDFArrayGetArray(d, 0, & dash) && CGPDFArrayGetNumber(d, 1, & lw)) {
+                    std::vector<float> lengths;  CGPDFReal number;
+                    for (size_t i = 0; i < CGPDFArrayGetCount(dash); i++)
+                        if (CGPDFArrayGetNumber(dash, i, & number))
+                            lengths.emplace_back(number);
+                    setDash(scan, lengths, lw);
+                }
                 CGPDFObjectRef bm;
                 if (CGPDFDictionaryGetObject(dict, "BM", & bm))
                     scan.state.blend = readBlendMode(bm);
@@ -1428,11 +1920,11 @@ struct RasterizerPDF {
                 else if (CGPDFDictionaryGetDictionary(dict, "SMask", & smask))
                     scan.state.mask = scan.shadings->readMask(smask, cs, scan.state.ctm, scan.depth);
             });
-            CGPDFOperatorTableSetCallback(table, "sh", [](CGPDFScannerRef scanner, void *info) {
+            table->set("sh", [](Scanner& scanner, void *info) {
                 Scan& scan = *(Scan *)info;  const char *name;  CGPDFDictionaryRef dict;
-                if (!CGPDFScannerPopName(scanner, & name))
+                if (!scanner.popName(& name))
                     return;
-                CGPDFContentStreamRef cs = CGPDFScannerGetContentStream(scanner);
+                CGPDFContentStreamRef cs = scanner.cs;
                 CGPDFObjectRef obj = CGPDFContentStreamGetResource(cs, "Shading", name);
                 if (obj == nullptr)     // pdfium makes no object for it
                     return;
@@ -1442,12 +1934,12 @@ struct RasterizerPDF {
                 shading.ctm = scan.state.ctm, shading.alpha = scan.state.alpha, shading.mask = scan.state.mask, shading.blend = scan.state.blend;
                 shading.isValid = obj && CGPDFObjectGetValue(obj, kCGPDFObjectTypeDictionary, & dict) && shading.read(dict, cs);
             });
-            CGPDFOperatorTableSetCallback(table, "Do", [](CGPDFScannerRef scanner, void *info) {
+            table->set("Do", [](Scanner& scanner, void *info) {
                 Scan& scan = *(Scan *)info;  const char *name;  CGPDFStreamRef stream;  CGPDFDictionaryRef dict, resources = nullptr;
                 std::vector<float> m;
-                if (!CGPDFScannerPopName(scanner, & name))
+                if (!scanner.popName(& name))
                     return;
-                CGPDFContentStreamRef cs = CGPDFScannerGetContentStream(scanner);
+                CGPDFContentStreamRef cs = scanner.cs;
                 CGPDFObjectRef obj = CGPDFContentStreamGetResource(cs, "XObject", name);
                 if (obj == nullptr || !CGPDFObjectGetValue(obj, kCGPDFObjectTypeStream, & stream)
                     || !CGPDFDictionaryGetName(dict = CGPDFStreamGetDictionary(stream), "Subtype", & name))
@@ -1481,114 +1973,118 @@ struct RasterizerPDF {
                     state.space = state.ctm;
                     CGPDFDictionaryGetDictionary(dict, "Resources", & resources);
                     CGPDFContentStreamRef form = CGPDFContentStreamCreateWithStream(stream, resources, cs);
-                    scan.shadings->scan(form, scan.table, state, scan.depth + 1, container, scan.state.clip);
+                    CFDataRef data = copyContents(stream);
+                    scan.shadings->scan(form, data, scan.table, state, scan.depth + 1, container, scan.state.clip);
+                    if (data)
+                        CFRelease(data);
                     CGPDFContentStreamRelease(form);
                 }
             });
-            CGPDFOperatorTableSetCallback(table, "EI", [](CGPDFScannerRef scanner, void *info) {      // An inline image
-                CGPDFStreamRef stream = nullptr;
-                CGPDFScannerPopStream(scanner, & stream);
-                addImage(*(Scan *)info, stream, CGPDFScannerGetContentStream(scanner), false);
+            table->set("EI", [](Scanner& scanner, void *info) {      // An inline image
+                CGPDFDocumentRef doc = nullptr;
+                CGPDFStreamRef stream = ((Scan *)info)->shadings->readsImages ? scanner.popInlineImage(& doc) : nullptr;
+                addImage(*(Scan *)info, stream, scanner.cs, false);
+                CGPDFDocumentRelease(doc);
             });
             addPathCallbacks(table);
             addTextCallbacks(table);
             return table;
         }
         // Tracks the text state, & records each text showing operator's glyphs as a text run
-        static void addTextCallbacks(CGPDFOperatorTableRef table) {
-            CGPDFOperatorTableSetCallback(table, "BT", [](CGPDFScannerRef scanner, void *info) {
+        static void addTextCallbacks(OperatorTable *table) {
+            table->set("BT", [](Scanner& scanner, void *info) {
                 Scan& scan = *(Scan *)info;
                 scan.tm = scan.tlm = Ra::Transform();
                 scan.textClip = nullptr, scan.clipTexts = 0, scan.hasClipGlyphs = true;
             });
-            CGPDFOperatorTableSetCallback(table, "ET", [](CGPDFScannerRef scanner, void *info) {     // pdfium clips if the mode still clips
+            table->set("ET", [](Scanner& scanner, void *info) {     // pdfium clips if the mode still clips
                 Scan& scan = *(Scan *)info;  State& st = scan.state;
                 if (scan.clipTexts && st.textMode >= 4 && st.textMode <= 7 && scan.clipTexts <= Scan::kMaxClipTexts && scan.hasClipGlyphs)
                     st.clip = scan.shadings->addClip(st.clip, scan.textClip.ptr ? scan.textClip : Ra::Path(), st.clip == scan.entryClip, true);
                 scan.textClip = nullptr, scan.clipTexts = 0, scan.hasClipGlyphs = true;
             });
-            CGPDFOperatorTableSetCallback(table, "Tr", [](CGPDFScannerRef scanner, void *info) {
+            table->set("Tr", [](Scanner& scanner, void *info) {
                 CGPDFInteger mode;
-                if (CGPDFScannerPopInteger(scanner, & mode) && mode >= 0 && mode <= 7)
+                if (scanner.popInteger(& mode) && mode >= 0 && mode <= 7)
                     ((Scan *)info)->state.textMode = uint8_t(mode);
             });
-            CGPDFOperatorTableSetCallback(table, "Tf", [](CGPDFScannerRef scanner, void *info) {
+            table->set("Tf", [](Scanner& scanner, void *info) {
                 Scan& scan = *(Scan *)info;  CGPDFReal size;  const char *name;  CGPDFDictionaryRef dict;
-                if (!CGPDFScannerPopNumber(scanner, & size) || !CGPDFScannerPopName(scanner, & name))
+                if (!scanner.popNumber(& size) || !scanner.popName(& name))
                     return;
-                CGPDFObjectRef obj = CGPDFContentStreamGetResource(CGPDFScannerGetContentStream(scanner), "Font", name);
+                CGPDFObjectRef obj = CGPDFContentStreamGetResource(scanner.cs, "Font", name);
                 scan.state.fontSize = size, scan.state.hasFont = true;
                 scan.state.font = obj && CGPDFObjectGetValue(obj, kCGPDFObjectTypeDictionary, & dict) ? scan.shadings->fontFor(dict) : nullptr;
             });
-            CGPDFOperatorTableSetCallback(table, "Tc", [](CGPDFScannerRef scanner, void *info) { popNumber(scanner, ((Scan *)info)->state.charSpace); });
-            CGPDFOperatorTableSetCallback(table, "Tw", [](CGPDFScannerRef scanner, void *info) { popNumber(scanner, ((Scan *)info)->state.wordSpace); });
-            CGPDFOperatorTableSetCallback(table, "TL", [](CGPDFScannerRef scanner, void *info) { popNumber(scanner, ((Scan *)info)->state.leading); });
-            CGPDFOperatorTableSetCallback(table, "Ts", [](CGPDFScannerRef scanner, void *info) { popNumber(scanner, ((Scan *)info)->state.rise); });
-            CGPDFOperatorTableSetCallback(table, "Tz", [](CGPDFScannerRef scanner, void *info) {
+            table->set("Tc", [](Scanner& scanner, void *info) { popNumber(scanner, ((Scan *)info)->state.charSpace); });
+            table->set("Tw", [](Scanner& scanner, void *info) { popNumber(scanner, ((Scan *)info)->state.wordSpace); });
+            table->set("TL", [](Scanner& scanner, void *info) { popNumber(scanner, ((Scan *)info)->state.leading); });
+            table->set("Ts", [](Scanner& scanner, void *info) { popNumber(scanner, ((Scan *)info)->state.rise); });
+            table->set("Tz", [](Scanner& scanner, void *info) {
                 Scan& scan = *(Scan *)info;  float scale;
                 if (popNumber(scanner, scale))
                     scan.state.hScale = scale / 100.f;
             });
-            CGPDFOperatorTableSetCallback(table, "Td", [](CGPDFScannerRef scanner, void *info) {
+            table->set("Td", [](Scanner& scanner, void *info) {
                 Scan& scan = *(Scan *)info;  CGPDFReal tx, ty;
-                if (CGPDFScannerPopNumber(scanner, & ty) && CGPDFScannerPopNumber(scanner, & tx))
+                if (scanner.popNumber(& ty) && scanner.popNumber(& tx))
                     moveLine(scan, tx, ty);
             });
-            CGPDFOperatorTableSetCallback(table, "TD", [](CGPDFScannerRef scanner, void *info) {
+            table->set("TD", [](Scanner& scanner, void *info) {
                 Scan& scan = *(Scan *)info;  CGPDFReal tx, ty;
-                if (CGPDFScannerPopNumber(scanner, & ty) && CGPDFScannerPopNumber(scanner, & tx))
+                if (scanner.popNumber(& ty) && scanner.popNumber(& tx))
                     scan.state.leading = -ty, moveLine(scan, tx, ty);
             });
-            CGPDFOperatorTableSetCallback(table, "Tm", [](CGPDFScannerRef scanner, void *info) {
+            table->set("Tm", [](Scanner& scanner, void *info) {
                 Scan& scan = *(Scan *)info;  CGPDFReal m[6];
                 for (int i = 5; i >= 0; i--)
-                    if (!CGPDFScannerPopNumber(scanner, & m[i]))
+                    if (!scanner.popNumber(& m[i]))
                         return;
                 scan.tm = scan.tlm = Ra::Transform(m[0], m[1], m[2], m[3], m[4], m[5]);
             });
-            CGPDFOperatorTableSetCallback(table, "T*", [](CGPDFScannerRef scanner, void *info) {
+            table->set("T*", [](Scanner& scanner, void *info) {
                 Scan& scan = *(Scan *)info;
                 moveLine(scan, 0.f, -scan.state.leading);
             });
-            CGPDFOperatorTableSetCallback(table, "Tj", [](CGPDFScannerRef scanner, void *info) {
-                Scan& scan = *(Scan *)info;  CGPDFStringRef string;
-                if (CGPDFScannerPopString(scanner, & string))
+            table->set("Tj", [](Scanner& scanner, void *info) {
+                Scan& scan = *(Scan *)info;  String string;
+                if (scanner.popString(& string))
                     showText(scan, & string, nullptr);
             });
-            CGPDFOperatorTableSetCallback(table, "'", [](CGPDFScannerRef scanner, void *info) {
-                Scan& scan = *(Scan *)info;  CGPDFStringRef string;
-                if (CGPDFScannerPopString(scanner, & string))
+            table->set("'", [](Scanner& scanner, void *info) {
+                Scan& scan = *(Scan *)info;  String string;
+                if (scanner.popString(& string))
                     moveLine(scan, 0.f, -scan.state.leading), showText(scan, & string, nullptr);
             });
-            CGPDFOperatorTableSetCallback(table, "\"", [](CGPDFScannerRef scanner, void *info) {
-                Scan& scan = *(Scan *)info;  CGPDFStringRef string;  CGPDFReal ac, aw;
-                if (CGPDFScannerPopString(scanner, & string) && CGPDFScannerPopNumber(scanner, & ac) && CGPDFScannerPopNumber(scanner, & aw))
+            table->set("\"", [](Scanner& scanner, void *info) {
+                Scan& scan = *(Scan *)info;  String string;  CGPDFReal ac, aw;
+                if (scanner.popString(& string) && scanner.popNumber(& ac) && scanner.popNumber(& aw))
                     scan.state.wordSpace = aw, scan.state.charSpace = ac, moveLine(scan, 0.f, -scan.state.leading), showText(scan, & string, nullptr);
             });
-            CGPDFOperatorTableSetCallback(table, "TJ", [](CGPDFScannerRef scanner, void *info) {
-                Scan& scan = *(Scan *)info;  CGPDFArrayRef array;
-                if (CGPDFScannerPopArray(scanner, & array))
-                    showText(scan, nullptr, array);
+            table->set("TJ", [](Scanner& scanner, void *info) {
+                Scan& scan = *(Scan *)info;  Array array;
+                if (scanner.popArray(& array))
+                    showText(scan, nullptr, & array);
             });
         }
-        static bool popNumber(CGPDFScannerRef scanner, float& value) {
+        static bool popNumber(Scanner& scanner, float& value) {
             CGPDFReal number;
-            return CGPDFScannerPopNumber(scanner, & number) ? (value = number, true) : false;
+            return scanner.popNumber(& number) ? (value = number, true) : false;
         }
         static void moveLine(Scan& scan, float tx, float ty) {
             scan.tm = scan.tlm = Ra::Transform(1.f, 0.f, 0.f, 1.f, tx, ty).concat(scan.tlm);
         }
         // Records a text run of a string, or a TJ array of strings & adjustments, advancing the text matrix. pdfium makes no text
         // object before a Tf, or for an empty Tj string, or a TJ array without strings
-        static void showText(Scan& scan, CGPDFStringRef *string, CGPDFArrayRef array) {
-            Shadings& s = *scan.shadings;  State& st = scan.state;  CGPDFStringRef str;
-            bool hasStrings = string && CGPDFStringGetLength(*string) > 0;
-            for (size_t i = 0; array && !hasStrings && i < CGPDFArrayGetCount(array); i++)
-                hasStrings = CGPDFArrayGetString(array, i, & str);
+        static void showText(Scan& scan, const String *string, const Array *array) {
+            Shadings& s = *scan.shadings;  State& st = scan.state;  String str;
+            bool hasStrings = string && string->length > 0;
+            for (size_t i = 0; array && !hasStrings && i < array->count; i++)
+                hasStrings = array->getString(i, & str);
             if (array && !hasStrings)       // But it applies the adjustments
-                for (size_t i = 0; i < CGPDFArrayGetCount(array); i++) {
+                for (size_t i = 0; i < array->count; i++) {
                     CGPDFReal adjust;
-                    if (CGPDFArrayGetNumber(array, i, & adjust))
+                    if (array->getNumber(i, & adjust))
                         scan.tm = Ra::Transform(1.f, 0.f, 0.f, 1.f, -adjust / 1000.f * st.fontSize * st.hScale, 0.f).concat(scan.tm);
                 }
             if (!st.hasFont || !hasStrings)
@@ -1605,8 +2101,8 @@ struct RasterizerPDF {
             run.isValid = font && font->isValid, scan.hasClipGlyphs = scan.hasClipGlyphs && (run.isValid || !clips);
             Ra::Transform size(st.fontSize * st.hScale, 0.f, 0.f, st.fontSize, 0.f, st.rise);
             run.unitsPerEm = sqrtf(fabsf(size.concat(scan.tm).det())), run.width = st.lineWidth;
-            auto show = [&](CGPDFStringRef str) {
-                const uint8_t *bytes = CGPDFStringGetBytePtr(str);  size_t length = CGPDFStringGetLength(str), step = font && font->isType0 ? 2 : 1;
+            auto show = [&](const String& str) {
+                const uint8_t *bytes = str.bytes;  size_t length = str.length, step = font && font->isType0 ? 2 : 1;
                 for (size_t i = 0; i + step <= length; i += step) {
                     uint32_t code = step == 2 ? bytes[i] << 8 | bytes[i + 1] : bytes[i];
                     CGGlyph g = run.isValid ? font->glyph(code) : 0;
@@ -1626,56 +2122,56 @@ struct RasterizerPDF {
             if (string)
                 show(*string);
             else
-                for (size_t i = 0; i < CGPDFArrayGetCount(array); i++) {
+                for (size_t i = 0; i < array->count; i++) {
                     CGPDFReal adjust;
-                    if (CGPDFArrayGetString(array, i, & str))
+                    if (array->getString(i, & str))
                         show(str);
-                    else if (CGPDFArrayGetNumber(array, i, & adjust))
+                    else if (array->getNumber(i, & adjust))
                         scan.tm = Ra::Transform(1.f, 0.f, 0.f, 1.f, -adjust / 1000.f * st.fontSize * st.hScale, 0.f).concat(scan.tm);
                 }
         }
         // Tracks the fill color space & pattern, & records a path fill for each path painting operator
-        static void addPathCallbacks(CGPDFOperatorTableRef table) {
+        static void addPathCallbacks(OperatorTable *table) {
             // Fill colors, & their pattern, & stroke colors
-            CGPDFOperatorTableSetCallback(table, "cs", [](CGPDFScannerRef scanner, void *info) { setColorSpace(scanner, *(Scan *)info, false); });
-            CGPDFOperatorTableSetCallback(table, "CS", [](CGPDFScannerRef scanner, void *info) { setColorSpace(scanner, *(Scan *)info, true); });
+            table->set("cs", [](Scanner& scanner, void *info) { setColorSpace(scanner, *(Scan *)info, false); });
+            table->set("CS", [](Scanner& scanner, void *info) { setColorSpace(scanner, *(Scan *)info, true); });
             for (const char *op : { "sc", "scn" })
-                CGPDFOperatorTableSetCallback(table, op, [](CGPDFScannerRef scanner, void *info) { setColor(scanner, *(Scan *)info, false); });
+                table->set(op, [](Scanner& scanner, void *info) { setColor(scanner, *(Scan *)info, false); });
             for (const char *op : { "SC", "SCN" })
-                CGPDFOperatorTableSetCallback(table, op, [](CGPDFScannerRef scanner, void *info) { setColor(scanner, *(Scan *)info, true); });
-            CGPDFOperatorTableSetCallback(table, "g", [](CGPDFScannerRef scanner, void *info) { setDeviceColor(scanner, *(Scan *)info, false, nullptr); });
-            CGPDFOperatorTableSetCallback(table, "G", [](CGPDFScannerRef scanner, void *info) { setDeviceColor(scanner, *(Scan *)info, true, nullptr); });
-            CGPDFOperatorTableSetCallback(table, "rg", [](CGPDFScannerRef scanner, void *info) { setDeviceColor(scanner, *(Scan *)info, false, & ((Scan *)info)->shadings->rgbSpace); });
-            CGPDFOperatorTableSetCallback(table, "RG", [](CGPDFScannerRef scanner, void *info) { setDeviceColor(scanner, *(Scan *)info, true, & ((Scan *)info)->shadings->rgbSpace); });
-            CGPDFOperatorTableSetCallback(table, "k", [](CGPDFScannerRef scanner, void *info) { setDeviceColor(scanner, *(Scan *)info, false, & ((Scan *)info)->shadings->cmykSpace); });
-            CGPDFOperatorTableSetCallback(table, "K", [](CGPDFScannerRef scanner, void *info) { setDeviceColor(scanner, *(Scan *)info, true, & ((Scan *)info)->shadings->cmykSpace); });
-            CGPDFOperatorTableSetCallback(table, "m", [](CGPDFScannerRef scanner, void *info) {
+                table->set(op, [](Scanner& scanner, void *info) { setColor(scanner, *(Scan *)info, true); });
+            table->set("g", [](Scanner& scanner, void *info) { setDeviceColor(scanner, *(Scan *)info, false, nullptr); });
+            table->set("G", [](Scanner& scanner, void *info) { setDeviceColor(scanner, *(Scan *)info, true, nullptr); });
+            table->set("rg", [](Scanner& scanner, void *info) { setDeviceColor(scanner, *(Scan *)info, false, & ((Scan *)info)->shadings->rgbSpace); });
+            table->set("RG", [](Scanner& scanner, void *info) { setDeviceColor(scanner, *(Scan *)info, true, & ((Scan *)info)->shadings->rgbSpace); });
+            table->set("k", [](Scanner& scanner, void *info) { setDeviceColor(scanner, *(Scan *)info, false, & ((Scan *)info)->shadings->cmykSpace); });
+            table->set("K", [](Scanner& scanner, void *info) { setDeviceColor(scanner, *(Scan *)info, true, & ((Scan *)info)->shadings->cmykSpace); });
+            table->set("m", [](Scanner& scanner, void *info) {
                 Scan& scan = *(Scan *)info;  float p[2];
                 if (popNumbers(scanner, p, 2))
                     addPoint(scan, p[0], p[1], Ra::Geometry::kMove);
             });
-            CGPDFOperatorTableSetCallback(table, "l", [](CGPDFScannerRef scanner, void *info) {
+            table->set("l", [](Scanner& scanner, void *info) {
                 Scan& scan = *(Scan *)info;  float p[2];
                 if (popNumbers(scanner, p, 2))
                     addPoint(scan, p[0], p[1], Ra::Geometry::kLine);
             });
-            CGPDFOperatorTableSetCallback(table, "c", [](CGPDFScannerRef scanner, void *info) {
+            table->set("c", [](Scanner& scanner, void *info) {
                 Scan& scan = *(Scan *)info;  float p[6];
                 if (popNumbers(scanner, p, 6))
                     for (int i = 0; i < 6; i += 2)
                         addPoint(scan, p[i], p[i + 1], Ra::Geometry::kCubic);
             });
-            CGPDFOperatorTableSetCallback(table, "v", [](CGPDFScannerRef scanner, void *info) {      // The first control point is the current point
+            table->set("v", [](Scanner& scanner, void *info) {      // The first control point is the current point
                 Scan& scan = *(Scan *)info;  float p[4];
                 if (popNumbers(scanner, p, 4))
                     addPoint(scan, scan.x, scan.y, Ra::Geometry::kCubic), addPoint(scan, p[0], p[1], Ra::Geometry::kCubic), addPoint(scan, p[2], p[3], Ra::Geometry::kCubic);
             });
-            CGPDFOperatorTableSetCallback(table, "y", [](CGPDFScannerRef scanner, void *info) {      // The second is the end point
+            table->set("y", [](Scanner& scanner, void *info) {      // The second is the end point
                 Scan& scan = *(Scan *)info;  float p[4];
                 if (popNumbers(scanner, p, 4))
                     addPoint(scan, p[0], p[1], Ra::Geometry::kCubic), addPoint(scan, p[2], p[3], Ra::Geometry::kCubic), addPoint(scan, p[2], p[3], Ra::Geometry::kCubic);
             });
-            CGPDFOperatorTableSetCallback(table, "re", [](CGPDFScannerRef scanner, void *info) {
+            table->set("re", [](Scanner& scanner, void *info) {
                 Scan& scan = *(Scan *)info;  float p[4];
                 if (popNumbers(scanner, p, 4)) {
                     float x = p[0], y = p[1], w = p[2], h = p[3];
@@ -1683,41 +2179,46 @@ struct RasterizerPDF {
                     addPoint(scan, x + w, y + h, Ra::Geometry::kLine), addPoint(scan, x, y + h, Ra::Geometry::kLine), closePath(scan, x, y);
                 }
             });
-            CGPDFOperatorTableSetCallback(table, "h", [](CGPDFScannerRef scanner, void *info) { closeSubpath(*(Scan *)info); });
-            CGPDFOperatorTableSetCallback(table, "W", [](CGPDFScannerRef scanner, void *info) { ((Scan *)info)->clipMode = kFillWinding; });
-            CGPDFOperatorTableSetCallback(table, "W*", [](CGPDFScannerRef scanner, void *info) { ((Scan *)info)->clipMode = kFillEvenOdd; });
-            CGPDFOperatorTableSetCallback(table, "n", [](CGPDFScannerRef scanner, void *info) { addPath(*(Scan *)info, kFillNone); });
-            CGPDFOperatorTableSetCallback(table, "f", [](CGPDFScannerRef scanner, void *info) { addPath(*(Scan *)info, kFillWinding); });
-            CGPDFOperatorTableSetCallback(table, "F", [](CGPDFScannerRef scanner, void *info) { addPath(*(Scan *)info, kFillWinding); });
-            CGPDFOperatorTableSetCallback(table, "f*", [](CGPDFScannerRef scanner, void *info) { addPath(*(Scan *)info, kFillEvenOdd); });
-            CGPDFOperatorTableSetCallback(table, "B", [](CGPDFScannerRef scanner, void *info) { addPath(*(Scan *)info, kFillWinding | kStroke); });
-            CGPDFOperatorTableSetCallback(table, "B*", [](CGPDFScannerRef scanner, void *info) { addPath(*(Scan *)info, kFillEvenOdd | kStroke); });
-            CGPDFOperatorTableSetCallback(table, "S", [](CGPDFScannerRef scanner, void *info) { addPath(*(Scan *)info, kStroke); });
-            CGPDFOperatorTableSetCallback(table, "b", [](CGPDFScannerRef scanner, void *info) { closeSubpath(*(Scan *)info), addPath(*(Scan *)info, kFillWinding | kStroke); });
-            CGPDFOperatorTableSetCallback(table, "b*", [](CGPDFScannerRef scanner, void *info) { closeSubpath(*(Scan *)info), addPath(*(Scan *)info, kFillEvenOdd | kStroke); });
-            CGPDFOperatorTableSetCallback(table, "s", [](CGPDFScannerRef scanner, void *info) { closeSubpath(*(Scan *)info), addPath(*(Scan *)info, kStroke); });
+            table->set("h", [](Scanner& scanner, void *info) { closeSubpath(*(Scan *)info); });
+            table->set("W", [](Scanner& scanner, void *info) { ((Scan *)info)->clipMode = kFillWinding; });
+            table->set("W*", [](Scanner& scanner, void *info) { ((Scan *)info)->clipMode = kFillEvenOdd; });
+            table->set("n", [](Scanner& scanner, void *info) { addPath(*(Scan *)info, kFillNone); });
+            table->set("f", [](Scanner& scanner, void *info) { addPath(*(Scan *)info, kFillWinding); });
+            table->set("F", [](Scanner& scanner, void *info) { addPath(*(Scan *)info, kFillWinding); });
+            table->set("f*", [](Scanner& scanner, void *info) { addPath(*(Scan *)info, kFillEvenOdd); });
+            table->set("B", [](Scanner& scanner, void *info) { addPath(*(Scan *)info, kFillWinding | kStroke); });
+            table->set("B*", [](Scanner& scanner, void *info) { addPath(*(Scan *)info, kFillEvenOdd | kStroke); });
+            table->set("S", [](Scanner& scanner, void *info) { addPath(*(Scan *)info, kStroke); });
+            table->set("b", [](Scanner& scanner, void *info) { closeSubpath(*(Scan *)info), addPath(*(Scan *)info, kFillWinding | kStroke); });
+            table->set("b*", [](Scanner& scanner, void *info) { closeSubpath(*(Scan *)info), addPath(*(Scan *)info, kFillEvenOdd | kStroke); });
+            table->set("s", [](Scanner& scanner, void *info) { closeSubpath(*(Scan *)info), addPath(*(Scan *)info, kStroke); });
             
-            CGPDFOperatorTableSetCallback(table, "w", [](CGPDFScannerRef scanner, void *info) { popNumber(scanner, ((Scan *)info)->state.lineWidth); });
-            CGPDFOperatorTableSetCallback(table, "J", [](CGPDFScannerRef scanner, void *info) {
+            table->set("w", [](Scanner& scanner, void *info) { popNumber(scanner, ((Scan *)info)->state.lineWidth); });
+            table->set("J", [](Scanner& scanner, void *info) {
                 CGPDFInteger cap;
-                if (CGPDFScannerPopInteger(scanner, & cap))
+                if (scanner.popInteger(& cap))
                     ((Scan *)info)->state.cap = uint8_t(cap);
             });
-            CGPDFOperatorTableSetCallback(table, "j", [](CGPDFScannerRef scanner, void *info) {
+            table->set("j", [](Scanner& scanner, void *info) {
                 CGPDFInteger join;
-                if (CGPDFScannerPopInteger(scanner, & join))
+                if (scanner.popInteger(& join))
                     ((Scan *)info)->state.join = uint8_t(join);
             });
-            CGPDFOperatorTableSetCallback(table, "d", [](CGPDFScannerRef scanner, void *info) {
-                CGPDFReal phase;  CGPDFArrayRef array;
-                if (CGPDFScannerPopNumber(scanner, & phase) && CGPDFScannerPopArray(scanner, & array))
-                    setDash(*(Scan *)info, array, phase);
+            table->set("d", [](Scanner& scanner, void *info) {
+                CGPDFReal phase, number;  Array array;
+                if (scanner.popNumber(& phase) && scanner.popArray(& array)) {
+                    std::vector<float> lengths;
+                    for (size_t i = 0; i < array.count; i++)
+                        if (array.getNumber(i, & number))
+                            lengths.emplace_back(number);
+                    setDash(*(Scan *)info, lengths, phase);
+                }
             });
         }
-        static bool popNumbers(CGPDFScannerRef scanner, float *numbers, int count) {
+        static bool popNumbers(Scanner& scanner, float *numbers, int count) {
             CGPDFReal number;
             for (int i = count - 1; i >= 0; i--)
-                if (CGPDFScannerPopNumber(scanner, & number))
+                if (scanner.popNumber(& number))
                     numbers[i] = number;
                 else
                     return false;
@@ -1792,29 +2293,29 @@ struct RasterizerPDF {
             return space;
         }
         // pdfium keeps the color until sc or scn, & doesn't set the space's initial color
-        static void setColorSpace(CGPDFScannerRef scanner, Scan& scan, bool isStroke) {
+        static void setColorSpace(Scanner& scanner, Scan& scan, bool isStroke) {
             State& st = scan.state;  const char *name;
             if (!isStroke)
                 st.isPatternSpace = false, st.pattern = -1, st.tiling = -1;
-            if (!CGPDFScannerPopName(scanner, & name))
+            if (!scanner.popName(& name))
                 return;
-            const ColorSpace *space = scan.shadings->colorSpace(name, CGPDFScannerGetContentStream(scanner));
+            const ColorSpace *space = scan.shadings->colorSpace(name, scanner.cs);
             (isStroke ? st.strokeSpace : st.fillSpace) = space;
             if (!isStroke)
                 st.isPatternSpace = space->family == ColorSpace::kPattern;
         }
         // sc, scn, SC or SCN: components, & for scn, a pattern's name
-        static void setColor(CGPDFScannerRef scanner, Scan& scan, bool isStroke) {
-            State& st = scan.state;  CGPDFObjectRef obj;  CGPDFReal number;  const char *name = nullptr;
+        static void setColor(Scanner& scanner, Scan& scan, bool isStroke) {
+            State& st = scan.state;  Operand obj;  CGPDFReal number;  const char *name = nullptr;
             std::vector<float> components;
-            while (components.size() < 32 && CGPDFScannerPopObject(scanner, & obj))
-                if (CGPDFObjectGetValue(obj, kCGPDFObjectTypeReal, & number))
+            while (components.size() < 32 && scanner.popObject(& obj))
+                if (obj.getNumber(& number))
                     components.emplace_back(number);
-                else if (!CGPDFObjectGetValue(obj, kCGPDFObjectTypeName, & name))
+                else if (!obj.getName(& name))
                     break;
             std::reverse(components.begin(), components.end());
             if (!isStroke && st.isPatternSpace && name) {
-                CGPDFContentStreamRef cs = CGPDFScannerGetContentStream(scanner);
+                CGPDFContentStreamRef cs = scanner.cs;
                 CGPDFObjectRef pattern = CGPDFContentStreamGetResource(cs, "Pattern", name);
                 CGPDFStreamRef stream;  CGPDFInteger type = 0;
                 st.pattern = -1, st.tiling = -1;
@@ -1849,7 +2350,11 @@ struct RasterizerPDF {
                 cell->readsImages = readsImages;
                 CGPDFDictionaryGetDictionary(dict, "Resources", & resources);
                 CGPDFContentStreamRef content = CGPDFContentStreamCreateWithStream(stream, resources, cs);
-                cell->scan(content, scan.table, State(), scan.depth + 1);
+                CFDataRef data = copyContents(stream);
+                cell->scan(content, data, scan.table, State(), scan.depth + 1);
+                cell->buildPaths();
+                if (data)
+                    CFRelease(data);
                 CGPDFContentStreamRelease(content);
                 it = cells.emplace(stream, cell).first;
             }
@@ -1857,7 +2362,7 @@ struct RasterizerPDF {
             tilings.emplace_back(tiling);
             return int(tilings.size() - 1);
         }
-        static void setDeviceColor(CGPDFScannerRef scanner, Scan& scan, bool isStroke, const ColorSpace *space) {
+        static void setDeviceColor(Scanner& scanner, Scan& scan, bool isStroke, const ColorSpace *space) {
             float c[4];
             size_t n = space ? space->components : 1;
             if (!isStroke)
@@ -1877,11 +2382,7 @@ struct RasterizerPDF {
             colors.fill.a = ColorSpace::quantize(st.alpha), colors.stroke.a = ColorSpace::quantize(st.strokeAlpha);
             return colors;
         }
-        static void setDash(Scan& scan, CGPDFArrayRef array, float phase) {
-            std::vector<float> dash;  CGPDFReal number;
-            for (size_t i = 0; i < CGPDFArrayGetCount(array); i++)
-                if (CGPDFArrayGetNumber(array, i, & number))
-                    dash.emplace_back(number);
+        static void setDash(Scan& scan, const std::vector<float>& dash, float phase) {
             std::vector<std::vector<float>>& dashes = scan.shadings->dashes;
             scan.state.dashPhase = phase, scan.state.dash = dash.empty() ? -1 : int(dashes.size());
             if (dash.size())
@@ -1931,24 +2432,12 @@ struct RasterizerPDF {
             }
             if (points.back().type == Ra::Geometry::kMove && !points.back().close)
                 points.pop_back();
-            Ra::Path path;  float cubic[6];  int n = 0;
-            path->prealloc(points.size());
-            for (PathPoint& p : points) {
-                if (p.type == Ra::Geometry::kMove)
-                    path->moveTo(p.x, p.y);
-                else if (p.type == Ra::Geometry::kLine)
-                    path->lineTo(p.x, p.y);
-                else {
-                    cubic[n++] = p.x, cubic[n++] = p.y;
-                    if (n == 6)
-                        path->cubicTo(cubic[0], cubic[1], cubic[2], cubic[3], cubic[4], cubic[5]), n = 0;
-                }
-                if (p.close)
-                    path->close();
-            }
+            Ra::Path path = clipMode ? buildPath(points.data(), points.size()) : nullptr;
             if (mode != kFillNone) {
                 PathObject object;
                 object.path = path, object.ctm = st.ctm, object.mode = mode;
+                if (!clipMode)
+                    object.pointBegin = s.pathPoints.size(), object.pointCount = points.size(), s.pathPoints.insert(s.pathPoints.end(), points.begin(), points.end());
                 object.pattern = (mode & 3) && st.isPatternSpace ? st.pattern : -1, object.mask = st.mask, object.alpha = st.alpha, object.blend = st.blend;
                 object.tiling = (mode & 3) && st.isPatternSpace ? st.tiling : -1;
                 object.width = st.lineWidth, object.cap = st.cap, object.join = st.join, object.dash = st.dash, object.dashPhase = st.dashPhase;
@@ -1959,6 +2448,54 @@ struct RasterizerPDF {
             if (clipMode)
                 st.clip = s.addClip(st.clip, transformedPath(path, st.ctm), isEntry);
             points.clear();
+        }
+        static Ra::Path buildPath(const PathPoint *points, size_t count) {
+            Ra::Path path;  float cubic[6];  int n = 0;
+            path->prealloc(count);
+            for (const PathPoint *p = points, *end = points + count; p < end; p++) {
+                if (p->type == Ra::Geometry::kMove)
+                    path->moveTo(p->x, p->y);
+                else if (p->type == Ra::Geometry::kLine)
+                    path->lineTo(p->x, p->y);
+                else {
+                    cubic[n++] = p->x, cubic[n++] = p->y;
+                    if (n == 6)
+                        path->cubicTo(cubic[0], cubic[1], cubic[2], cubic[3], cubic[4], cubic[5]), n = 0;
+                }
+                if (p->close)
+                    path->close();
+            }
+            return path;
+        }
+        // Builds & validates paths from their points, with their bounds, in parallel chunks for many, as there's an allocation for
+        // each of a geometry's rows. Invalid ones, which draw nothing, are released, so they aren't freed with the scan
+        static constexpr size_t kPathsPerChunk = 2048;
+        void buildPaths() {
+            size_t chunks = (paths.size() + kPathsPerChunk - 1) / kPathsPerChunk;
+            auto build = [](void *context, size_t t) {
+                Shadings& s = *(Shadings *)context;
+                for (size_t i = t * kPathsPerChunk, end = std::min(s.paths.size(), i + kPathsPerChunk); i < end; i++) {
+                    PathObject& p = s.paths[i];
+                    if (p.path.ptr == nullptr)
+                        p.path = buildPath(s.pathPoints.data() + p.pointBegin, p.pointCount);
+                    if (!p.path->isValid()) {
+                        p.path = nullptr;
+                        continue;
+                    }
+                    Ra::Bounds b = p.path->bounds;
+                    bool stroke = p.mode & kStroke;
+                    if (stroke && p.width != 0.f)
+                        b = Ra::Bounds(b.lx - p.width, b.ly - p.width, b.ux + p.width, b.uy + p.width);
+                    p.bounds = Ra::Bounds(b.quad(p.ctm));
+                    if (stroke && p.width == 0.f)
+                        p.bounds = Ra::Bounds(p.bounds.lx - 0.5f, p.bounds.ly - 0.5f, p.bounds.ux + 0.5f, p.bounds.uy + 0.5f);
+                }
+            };
+            if (chunks > 1)
+                dispatch_apply_f(chunks, DISPATCH_APPLY_AUTO, this, build);
+            else if (chunks)
+                build(this, 0);
+            std::vector<PathPoint>().swap(pathPoints);
         }
         // A /BM name, or the first known in an array of them
         static uint8_t readBlendMode(CGPDFObjectRef obj) {
@@ -2022,11 +2559,15 @@ struct RasterizerPDF {
                 state.ctm = Ra::Transform(m[0], m[1], m[2], m[3], m[4], m[5]);
             state.space = state.ctm;
             CGPDFContentStreamRef content = CGPDFContentStreamCreateWithStream(group, resources, cs);
-            CGPDFOperatorTableRef table = createTable();
+            OperatorTable *table = createTable();
+            CFDataRef data = copyContents(group);
             Shadings contents;
             contents.readsImages = false;
-            contents.scan(content, table, state, depth + 1);
-            CGPDFOperatorTableRelease(table);
+            contents.scan(content, data, table, state, depth + 1);
+            contents.buildPaths();
+            delete table;
+            if (data)
+                CFRelease(data);
             CGPDFContentStreamRelease(content);
             
             const Shading *shading = nullptr;  float alpha = 1.f;
@@ -2133,20 +2674,9 @@ struct RasterizerPDF {
     // by half a unit in page space, a text run's glyphs, or an image's unit square
     static Ra::Bounds objectBounds(const Shadings::Object& object, Shadings& shadings) {
         Ra::Bounds bounds;
-        if (object.kind == Shadings::kPathObject) {
-            const Shadings::PathObject& p = shadings.paths[object.index];
-            Ra::Path path = p.path;
-            path->validate();
-            Ra::Bounds b = path->bounds;
-            bool stroke = p.mode & Shadings::kStroke;
-            if (b.isNull())
-                return bounds;
-            if (stroke && p.width != 0.f)
-                b = Ra::Bounds(b.lx - p.width, b.ly - p.width, b.ux + p.width, b.uy + p.width);
-            bounds = Ra::Bounds(b.quad(p.ctm));
-            if (stroke && p.width == 0.f)
-                bounds = Ra::Bounds(bounds.lx - 0.5f, bounds.ly - 0.5f, bounds.ux + 0.5f, bounds.uy + 0.5f);
-        } else if (object.kind == Shadings::kTextObject) {
+        if (object.kind == Shadings::kPathObject)
+            bounds = shadings.paths[object.index].bounds;
+        else if (object.kind == Shadings::kTextObject) {
             for (const Shadings::Glyph& glyph : shadings.texts[object.index].glyphs) {
                 Ra::Path path = glyph.path;
                 path->validate();
@@ -2197,6 +2727,8 @@ struct RasterizerPDF {
     }
     // Writes the scan's path. A fill of a pattern the scan can't read, as for a mesh or function shading, is the fallback color
     static void writePathToScene(const Shadings::PathObject& object, int mask, float opacity, uint8_t blend, Shadings& shadings, Ra::Bounds* clipBounds, std::vector<Ra::Path>& clipPaths, Ra::SceneRef& scene) {
+        if (object.path.ptr == nullptr)     // It's invalid
+            return;
         int fillmode = object.mode & ~Shadings::kStroke;
         bool stroke = object.mode & Shadings::kStroke;
         const Shading *pattern = shadings.pattern(object);
