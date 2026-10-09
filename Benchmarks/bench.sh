@@ -67,8 +67,9 @@ else
   git -C $REPO diff --quiet HEAD -- Package Rasterizer/Demo TestFiles || SHA=$SHA-dirty
 fi
 INC=$RA/Package/Sources/RasterizerCpp/include
-PDFIUM=$RA/Rasterizer/Frameworks/pdfium.xcframework/macos-arm64_x86_64
-[[ -f $INC/Rasterizer.hpp && -d $PDFIUM ]] || die "no Rasterizer sources at $RA"
+PDFIUM=$RA/Rasterizer/Frameworks/pdfium.xcframework/macos-arm64_x86_64    # Linked by revs whose RasterizerPDF.hpp used pdfium
+[[ -d $PDFIUM ]] || PDFIUM=
+[[ -f $INC/Rasterizer.hpp ]] || die "no Rasterizer sources at $RA"
 
 step "Writing sources"
 S=$W/src
@@ -2082,10 +2083,10 @@ if [[ ! -x $B/rabench || $S/ra/rabench.mm -nt $B/rabench || -n $(find $INC $RA/R
   BLEND=0; grep -q kBlendNormal $INC/Rasterizer.h && BLEND=1    # Its blend modes, blended in the shader
   IMAGES=0; grep -q 'function_constant(kImages)' $INC/Shaders.metal && IMAGES=1    # Its images, from an argument buffer
   clang++ -O3 -std=c++17 -fobjc-arc -DRA_CLIP_MASK=$CLIP -DRA_CLIP_CLEAR_CELLS=$CLEAR -DRA_CLIP_IN_PASS=$INPASS -DRA_BLEND=$BLEND -DRA_IMAGES=$IMAGES -x objective-c++ $S/ra/rabench.mm -x none $W/obj/xxhash.o $W/obj/nanosvg.o \
-    -I$INC -I$RA/Rasterizer/Demo -I$PDFIUM/Headers -L$PDFIUM -lpdfium -Wl,-rpath,$PDFIUM \
+    -I$INC -I$RA/Rasterizer/Demo ${=${PDFIUM:+-I$PDFIUM/Headers -L$PDFIUM -lpdfium -Wl,-rpath,$PDFIUM}} \
     -framework Foundation -framework Metal -framework QuartzCore -framework CoreGraphics -framework CoreText -framework ImageIO -framework CoreServices \
     -Wno-deprecated-declarations -o $B/rabench
-  install_name_tool -change ./libpdfium.dylib @rpath/libpdfium.dylib $B/rabench    # pdfium's install name is ./libpdfium.dylib
+  [[ -z $PDFIUM ]] || install_name_tool -change ./libpdfium.dylib @rpath/libpdfium.dylib $B/rabench    # pdfium's install name is ./libpdfium.dylib
   print $RA > $W/obj/rev
 fi
 cargo_build() {    # crate, target dir name, binary, extra cargo args

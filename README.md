@@ -65,8 +65,6 @@ A huge thanks to the creators of the following libraries:
 
 [STB Truetype](https://github.com/nothings/stb)
 
-[PDFium](https://pdfium.googlesource.com/pdfium/)
-
 
 License
 -------
