@@ -131,9 +131,14 @@ struct Rasterizer {
         inline T *alloc(size_t n) {
             size_t begin = end;
             end += n;
-            if (memory->size < end)
-                base = memory->resize(end * 1.5);
+            if (memory.ptr == nullptr || memory->size < end)
+                base = grow(end * 1.5);
             return base + begin;
+        }
+        T *grow(size_t n) {     // Its memory is allocated when it's first needed, as many rows stay empty, e.g. a geometry's
+            if (memory.ptr == nullptr)
+                memory = Ref<Memory<T>>();
+            return memory->resize(n);
         }
         inline T *prealloc(size_t n) {
             size_t begin = end;
@@ -142,9 +147,9 @@ struct Rasterizer {
         }
         inline T& back() const { return base[end - 1]; }
         Row<T>& empty() { end = idx = 0; return *this; }
-        void reset() { end = idx = 0, base = nullptr, memory = Ref<Memory<T>>(); }
+        void reset() { end = idx = 0, base = nullptr, memory = nullptr; }
         
-        T *base = nullptr;  Ref<Memory<T>> memory;  size_t end = 0, idx = 0;
+        T *base = nullptr;  Ref<Memory<T>> memory = nullptr;  size_t end = 0, idx = 0;
     };
     
     struct Transform {
@@ -274,7 +279,7 @@ struct Rasterizer {
     
     struct Geometry {
         enum Type { kMove, kLine, kQuadratic, kCubic, kClose, kCountSize };
-        const size_t TypeSizes[kCountSize] = { 1, 1, 2, 3, 1 };
+        static constexpr size_t TypeSizes[kCountSize] = { 1, 1, 2, 3, 1 };
         
         void prealloc(size_t count) {
             points.prealloc(2 * count), types.prealloc(count);

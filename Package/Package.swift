@@ -54,5 +54,5 @@ let package = Package(
             dependencies: ["RasterizerObjC"]
         ),
     ],
-    cxxLanguageStandard: .cxx11
+    cxxLanguageStandard: .cxx17
 )
