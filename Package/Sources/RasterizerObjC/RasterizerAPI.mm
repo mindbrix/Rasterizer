@@ -365,6 +365,12 @@ static uint8_t joinFlags(RAJoinStyle joinStyle) {
 - (void)setClipPath:(RAPath *)clipPath {
     _d->clipPath = clipPath ? clipPath.path : Ra::Path(nullptr), _d->validate();
 }
+- (BOOL)clipEvenOdd {
+    return (_d->flags & Ra::Draw::kClipEvenOdd) != 0;
+}
+- (void)setClipEvenOdd:(BOOL)clipEvenOdd {
+    _d->flags = (_d->flags & ~Ra::Draw::kClipEvenOdd) | (clipEvenOdd ? Ra::Draw::kClipEvenOdd : 0);
+}
 - (BOOL)hidden {
     return (_d->flags & Ra::Draw::kHidden) != 0;
 }
@@ -432,7 +438,7 @@ static uint8_t joinFlags(RAJoinStyle joinStyle) {
     Ra::Bounds clipBounds = CGRectIsNull(clip) || CGRectIsEmpty(clip) || CGRectIsInfinite(clip) ? Ra::Bounds::huge() : RaCG::BoundsFromCGRect(clip);
     auto m = RaCG::transformFromCG(ctm);
     Ra::Path clp = clipPath != nil ? clipPath.path : Ra::Path(nullptr);
-    _scene->addPath(p, m, color.paint, 0, evenOdd ? Ra::Draw::kFillEvenOdd : 0, & clipBounds, clipPath != nil ? & clp : nullptr);
+    _scene->addPath(p, m, color.paint, 0, (evenOdd ? Ra::Draw::kFillEvenOdd : 0) | Ra::Draw::kClipEvenOdd, & clipBounds, clipPath != nil ? & clp : nullptr);    // Clips even-odd, as they did
 }
 
 - (void)addStroke:(RAPath *)path
@@ -447,7 +453,7 @@ static uint8_t joinFlags(RAJoinStyle joinStyle) {
     Ra::Bounds clipBounds = CGRectIsNull(clip) || CGRectIsEmpty(clip) || CGRectIsInfinite(clip) ? Ra::Bounds::huge() : RaCG::BoundsFromCGRect(clip);
     auto m = RaCG::transformFromCG(ctm);
     Ra::Path clp = clipPath != nil ? clipPath.path : Ra::Path(nullptr);
-    _scene->addPath(p, m, color.paint, width, capFlags(capStyle) | joinFlags(joinStyle), & clipBounds, clipPath != nil ? & clp : nullptr);
+    _scene->addPath(p, m, color.paint, width, capFlags(capStyle) | joinFlags(joinStyle) | Ra::Draw::kClipEvenOdd, & clipBounds, clipPath != nil ? & clp : nullptr);
 }
 
 - (CGRect)addFrame:(RAFrame *)frame

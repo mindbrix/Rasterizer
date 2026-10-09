@@ -29,7 +29,7 @@ struct RasterizerWinding {
     
     static Ra::Vector<Pair> indicesForRect(const Ra::SceneList& list, Ra::Bounds rect) {
         Ra::Vector<Pair> indices;
-        const Ra::Geometry *lastClipPath = nullptr;  size_t lastScene = ~size_t(0);  Ra::Bounds lastClipRect;  bool lastClipTouches = false;
+        const Ra::Geometry *lastClipPath = nullptr;  uint8_t lastClipRule = 0;  size_t lastScene = ~size_t(0);  Ra::Bounds lastClipRect;  bool lastClipTouches = false;
         for (size_t il = 0; il < list.scenes.size(); il++) {
             const Ra::Scene& scene = *list.scenes[il].ptr;
             const Ra::Transform ctm = list.ctms[il].concat(list.ctm);
@@ -62,9 +62,10 @@ struct RasterizerWinding {
                 if (clipped && !Winder::TouchesRect(r, clipBounds, ctm))
                     continue;
                 if (useClips && draw.clipPath.ptr) {
-                    if (draw.clipPath.ptr != lastClipPath || il != lastScene || memcmp(& r, & lastClipRect, sizeof(r)) != 0) {
-                        lastClipPath = draw.clipPath.ptr, lastScene = il, lastClipRect = r;
-                        lastClipTouches = Winder::TouchesRect(r, draw.clipPath.ptr, ctm, 0, 0, Ra::Draw::kFillEvenOdd);
+                    uint8_t clipRule = draw.flags & Ra::Draw::kClipEvenOdd ? Ra::Draw::kFillEvenOdd : 0;
+                    if (draw.clipPath.ptr != lastClipPath || clipRule != lastClipRule || il != lastScene || memcmp(& r, & lastClipRect, sizeof(r)) != 0) {
+                        lastClipPath = draw.clipPath.ptr, lastClipRule = clipRule, lastScene = il, lastClipRect = r;
+                        lastClipTouches = Winder::TouchesRect(r, draw.clipPath.ptr, ctm, 0, 0, clipRule);
                     }
                     if (!lastClipTouches)
                         continue;

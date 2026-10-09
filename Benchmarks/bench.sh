@@ -191,6 +191,9 @@ static int exportList(const Ra::SceneList& list, const char *out) {
             d.scene = uint32_t(si), d.path = pathIndex(draw.path.ptr);
             memcpy(d.ctm, & draw.ctm, sizeof(d.ctm));
             d.paintType = uint8_t(draw.paint.type), d.flags = draw.flags;
+#if !RA_CLIP_RULE
+            d.flags |= draw.clipPath.ptr ? 1 << 5 : 0;     // Revisions without Draw::kClipEvenOdd clip even-odd
+#endif
             d.bgra[0] = draw.paint.color.b, d.bgra[1] = draw.paint.color.g, d.bgra[2] = draw.paint.color.r, d.bgra[3] = draw.paint.color.a;
             d.paintIndex = ~0u;
             if (draw.paint.isGradient())
@@ -900,6 +903,7 @@ pub const F_EVEN_ODD: u8 = 1 << 1;
 pub const F_ROUND_CAP: u8 = 1 << 2;
 pub const F_SQUARE_CAP: u8 = 1 << 3;
 pub const F_ROUND_JOIN: u8 = 1 << 4;
+pub const F_CLIP_EVEN_ODD: u8 = 1 << 5;
 pub const PAINT_COLOR: u8 = 0;
 pub const PAINT_LINEAR: u8 = 1;
 pub const PAINT_RADIAL: u8 = 2;
@@ -1152,12 +1156,13 @@ pub fn frame_view(b: [f32; 4], w: f64, h: f64, k: usize, n: usize, zmax: f64) ->
     Affine::translate(cx, cy) * Affine::scale(z) * Affine::translate(-cx, -cy) * fit
 }
 
-/// The clip a run of draws shares: the scene clip & draw clip rect (scene space), & clip path, or None for a huge rect
+/// The clip a run of draws shares: the scene clip & draw clip rect (scene space), or None for a huge rect, & clip path & its rule
 #[derive(Clone, Copy, PartialEq)]
 pub struct ClipKey {
     pub scene: u32,
     pub rect: Option<[u32; 4]>,
     pub path: u32,
+    pub even_odd: bool,
 }
 
 impl ClipKey {
@@ -1166,7 +1171,8 @@ impl ClipKey {
         let c = draw.clip;
         let r = [s[0].max(c[0]), s[1].max(c[1]), s[2].min(c[2]), s[3].min(c[3])];
         let huge = r[0] <= -HUGE && r[1] <= -HUGE && r[2] >= HUGE && r[3] >= HUGE;
-        ClipKey { scene: draw.scene, rect: if huge { None } else { Some(r.map(f32::to_bits)) }, path: draw.clip_path }
+        let even_odd = draw.clip_path != NONE && draw.flags & F_CLIP_EVEN_ODD != 0;
+        ClipKey { scene: draw.scene, rect: if huge { None } else { Some(r.map(f32::to_bits)) }, path: draw.clip_path, even_odd }
     }
     pub fn rect(&self) -> Option<Bounds> {
         self.rect.map(|r| {
@@ -1477,7 +1483,7 @@ fn build_scene(scene: &mut Scene, d: &Dump, a: &Assets, device: RAffine, hair: R
                 layers += 1;
             }
             if key.path != rsd::NONE {
-                scene.push_clip_layer(Fill::EvenOdd, kurbo(p.scene_m), &a.paths[key.path as usize]);
+                scene.push_clip_layer(if key.even_odd { Fill::EvenOdd } else { Fill::NonZero }, kurbo(p.scene_m), &a.paths[key.path as usize]);
                 layers += 1;
             }
             current = Some(key);
@@ -1705,10 +1711,10 @@ fn assets(d: &Dump) -> Assets {
         });
         b.detach()
     }).collect();
-    // Even-odd copies (which share their points) for even-odd fills & every clip path
+    // Even-odd copies (which share their points) for even-odd fills & clip paths
     let mut even_odd: Vec<Option<Path>> = vec![None; paths.len()];
     for draw in &d.draws {
-        for (i, needed) in [(draw.path, draw.width == 0.0 && draw.flags & rsd::F_EVEN_ODD != 0), (draw.clip_path, draw.clip_path != rsd::NONE)] {
+        for (i, needed) in [(draw.path, draw.width == 0.0 && draw.flags & rsd::F_EVEN_ODD != 0), (draw.clip_path, draw.clip_path != rsd::NONE && draw.flags & rsd::F_CLIP_EVEN_ODD != 0)] {
             if needed && even_odd[i as usize].is_none() {
                 even_odd[i as usize] = Some(paths[i as usize].with_fill_type(PathFillType::EvenOdd));
             }
@@ -1751,7 +1757,8 @@ fn draw_dump(canvas: &skia_safe::Canvas, d: &Dump, a: &Assets, device: Affine, h
                     canvas.clip_rect(Rect::new(r.lx as f32, r.ly as f32, r.ux as f32, r.uy as f32), ClipOp::Intersect, true);
                 }
                 if key.path != rsd::NONE {
-                    canvas.clip_path(a.even_odd[key.path as usize].as_ref().unwrap(), ClipOp::Intersect, true);
+                    let clip = if key.even_odd { a.even_odd[key.path as usize].as_ref().unwrap() } else { &a.paths[key.path as usize] };
+                    canvas.clip_path(clip, ClipOp::Intersect, true);
                 }
             }
             current = Some(key);
@@ -2082,7 +2089,8 @@ if [[ ! -x $B/rabench || $S/ra/rabench.mm -nt $B/rabench || -n $(find $INC $RA/R
   INPASS=0; grep -q '\[\[color(1)\]\]' $INC/Shaders.metal && INPASS=1    # Its in-pass mask, read with framebuffer fetch, else mask passes
   BLEND=0; grep -q kBlendNormal $INC/Rasterizer.h && BLEND=1    # Its blend modes, blended in the shader
   IMAGES=0; grep -q 'function_constant(kImages)' $INC/Shaders.metal && IMAGES=1    # Its images, from an argument buffer
-  clang++ -O3 -std=c++17 -fobjc-arc -DRA_CLIP_MASK=$CLIP -DRA_CLIP_CLEAR_CELLS=$CLEAR -DRA_CLIP_IN_PASS=$INPASS -DRA_BLEND=$BLEND -DRA_IMAGES=$IMAGES -x objective-c++ $S/ra/rabench.mm -x none $W/obj/xxhash.o $W/obj/nanosvg.o \
+  RULE=0; grep -q kClipEvenOdd $INC/Rasterizer.hpp && RULE=1    # Its draws' clip fill rules, else even-odd clips
+  clang++ -O3 -std=c++17 -fobjc-arc -DRA_CLIP_MASK=$CLIP -DRA_CLIP_CLEAR_CELLS=$CLEAR -DRA_CLIP_IN_PASS=$INPASS -DRA_BLEND=$BLEND -DRA_IMAGES=$IMAGES -DRA_CLIP_RULE=$RULE -x objective-c++ $S/ra/rabench.mm -x none $W/obj/xxhash.o $W/obj/nanosvg.o \
     -I$INC -I$RA/Rasterizer/Demo ${=${PDFIUM:+-I$PDFIUM/Headers -L$PDFIUM -lpdfium -Wl,-rpath,$PDFIUM}} \
     -framework Foundation -framework Metal -framework QuartzCore -framework CoreGraphics -framework CoreText -framework ImageIO -framework CoreServices \
     -Wno-deprecated-declarations -o $B/rabench

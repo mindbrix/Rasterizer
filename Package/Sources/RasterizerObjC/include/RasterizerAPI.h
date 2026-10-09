@@ -94,6 +94,7 @@ typedef NS_ENUM(NSUInteger, RABlendMode) {
 @property(nonatomic) RAJoinStyle joinStyle;
 @property(nonatomic) CGRect clip;       // Empty, null or infinite clips nothing
 @property(nullable, nonatomic) RAPath *clipPath;
+@property(nonatomic) BOOL clipEvenOdd;  // The clip path's fill rule, else non-zero
 @property(nonatomic) BOOL hidden;       // Hidden draws keep their index, but are not drawn
 @property(nonatomic) RABlendMode blendMode;
 

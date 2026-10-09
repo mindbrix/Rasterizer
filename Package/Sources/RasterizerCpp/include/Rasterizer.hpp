@@ -553,8 +553,9 @@ struct Rasterizer {
     };
     
     struct Draw {
-        // kHidden is set by callers to keep a draw's index without drawing it. validate() sets kInvisible for a hidden draw, or an invalid path or paint
-        enum Flags { kFillEvenOdd = 1 << 1, kRoundCap = 1 << 2, kSquareCap = 1 << 3, kRoundJoin = 1 << 4, kHidden = 1 << 6, kInvisible = 1 << 7 };
+        // kHidden is set by callers to keep a draw's index without drawing it. validate() sets kInvisible for a hidden draw, or an invalid path or paint.
+        // kClipEvenOdd fills the clip path even-odd, as kFillEvenOdd does the path, else it's non-zero
+        enum Flags { kFillEvenOdd = 1 << 1, kRoundCap = 1 << 2, kSquareCap = 1 << 3, kRoundJoin = 1 << 4, kClipEvenOdd = 1 << 5, kHidden = 1 << 6, kInvisible = 1 << 7 };
 
         Draw() {}
         Draw(const Path& path, const Transform& ctm, const Paint& paint, float width, uint8_t flags, Bounds *clipBounds = nullptr, Path *clipPath = nullptr, uint8_t blendMode = kBlendNormal)
@@ -976,7 +977,7 @@ struct Rasterizer {
             
             Color black(0, 0, 0, 255), red(0, 0, 255, 255);
             size_t lz, uz, i, clz, cuz, iz, is, cnt; uint32_t p16total = 0;
-            Geometry *lastClipPath = nullptr;  Transform lastClipCtm;
+            Geometry *lastClipPath = nullptr;  Transform lastClipCtm;  bool lastClipEvenOdd = false;
             currentClipPath = nullptr, maskBounds = device;
             float det, width, softclipMargin = 0.5f;
             
@@ -1001,13 +1002,13 @@ struct Rasterizer {
                             invclip = clipquad.invert();
                             clipBounds = Bounds(clipquad).integral().intersect(device);
                         }
-                        Geometry *clipPath = draw.clipPath.ptr;
-                        if (lastClipPath != clipPath || (clipPath && clipCtmChanged)) {
-                            lastClipPath = clipPath, lastClipCtm = ctm, clipCtmChanged = false;
+                        Geometry *clipPath = draw.clipPath.ptr;  bool clipEvenOdd = draw.flags & Draw::kClipEvenOdd;
+                        if (lastClipPath != clipPath || (clipPath && (clipCtmChanged || lastClipEvenOdd != clipEvenOdd))) {
+                            lastClipPath = clipPath, lastClipCtm = ctm, lastClipEvenOdd = clipEvenOdd, clipCtmChanged = false;
                             if (clipPath) {
-                                if (currentClipPath != clipPath || memcmp(& currentClipCtm, & ctm, sizeof(Transform)) != 0) {
-                                    currentClipPath = clipPath, currentClipCtm = ctm;
-                                    writeClipMask(clipPath, ctm, device, iz, buffer->params.useCurves);
+                                if (currentClipPath != clipPath || currentClipEvenOdd != clipEvenOdd || memcmp(& currentClipCtm, & ctm, sizeof(Transform)) != 0) {
+                                    currentClipPath = clipPath, currentClipCtm = ctm, currentClipEvenOdd = clipEvenOdd;
+                                    writeClipMask(clipPath, ctm, clipEvenOdd, device, iz, buffer->params.useCurves);
                                 }
                                 addClipCommand(iz, kClipEnable);
                                 maskBounds = currentMaskBounds;
@@ -1099,12 +1100,12 @@ struct Rasterizer {
             Cell& cell = inst->quad.cell;
             cell.lx = b.lx, cell.ly = b.ly, cell.ux = b.ux, cell.uy = b.uy;
         }
-        // Writes the instances of clip path g's even-odd coverage, & sets currentMaskBounds to their device bounds. A kClipClear cell
-        // over those bounds comes first, zeroing the mask beneath the coverage cells that follow it
-        void writeClipMask(Geometry *g, Transform ctm, Bounds device, size_t iz, bool useCurves) {
+        // Writes the instances of clip path g's even-odd or non-zero coverage, & sets currentMaskBounds to their device bounds. A kClipClear cell
+        // over those bounds comes first, zeroing the mask beneath the coverage cells that follow it. The mask's identity is of g, its ctm & its rule
+        void writeClipMask(Geometry *g, Transform ctm, bool evenOdd, Bounds device, size_t iz, bool useCurves) {
             Bounds dev = Bounds(g->bounds.quad(ctm)), clip = dev.integral().intersect(device);
             currentMaskBounds = clip;
-            addClipCommand(iz, kClipMaskBegin, clip, g, uint32_t(XXH32(& ctm, sizeof(ctm), 0)));
+            addClipCommand(iz, kClipMaskBegin, clip, g, uint32_t(XXH32(& ctm, sizeof(ctm), evenOdd)));
             if (clip.lx < clip.ux && clip.ly < clip.uy) {
                 Cell *cell = & (new (blends.alloc(1)) Blend(iz | Instance::kClipClear))->quad.cell;
                 cell->lx = clip.lx, cell->ly = clip.ly, cell->ux = clip.ux, cell->uy = clip.uy, cell->ox = kNullIndex;
@@ -1114,7 +1115,7 @@ struct Rasterizer {
                 idxr.clip = clip, idxr.samples = & samples[0], idxr.fast = fast;
                 idxr.dst = idxr.dst0 = segments.alloc(3 * g->upperBound(det));
                 idxr.applyPath(g, ctm, clip, clip.contains(dev), true);
-                writeSegmentInstances(clip, true, iz, false, fast, 0, *this);
+                writeSegmentInstances(clip, evenOdd, iz, false, fast, 0, *this);
                 segments.idx = segments.end = idxr.dst - segments.base;
             }
         }
@@ -1130,7 +1131,7 @@ struct Rasterizer {
         }
         
         size_t texTotal;  bool hasBlends = false;
-        Geometry *currentClipPath = nullptr;  Transform currentClipCtm;  Bounds currentMaskBounds, maskBounds;
+        Geometry *currentClipPath = nullptr;  Transform currentClipCtm;  bool currentClipEvenOdd = false;  Bounds currentMaskBounds, maskBounds;
         Allocator allocator;  Vector<Buffer::Entry> entries;
         Vector<TexRef> texs;
         Vector<ImageRef> images;

@@ -161,6 +161,7 @@ class ViewController: UIViewController {
         let path = CounterRotatingCirclesPath(0.33 * time, width: width, height: height, transform: toScene)
         scene.updateDraws(in: NSRange(location: 0, length: scene.count)) { _, draw in
             draw.clipPath = path
+            draw.clipEvenOdd = true     // The circles' overlaps are holes
             return true
         }
     }

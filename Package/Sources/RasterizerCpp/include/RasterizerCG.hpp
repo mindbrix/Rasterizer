@@ -71,7 +71,7 @@ struct RasterizerCG {
                     CGContextSetBlendMode(ctx, CGBlendMode(draw.blendMode));     // BlendMode is in CGBlendMode's order
                     if (list.params.useClips && draw.clipPath.ptr) {
                         writePathToCGContext(draw.clipPath.ptr, ctx);
-                        CGContextEOClip(ctx);
+                        draw.flags & Ra::Draw::kClipEvenOdd ? CGContextEOClip(ctx) : CGContextClip(ctx);
                     }
                     CGContextConcatCTM(ctx, CGFromTransform(draw.ctm));
                     writePathToCGContext(g, ctx);

@@ -1639,13 +1639,17 @@ struct RasterizerPDF {
         };
         std::deque<PathObject> paths;       // A deque, as there can be very many, which a vector would copy as it grows
         std::vector<std::vector<float>> dashes;
-        // A clip state's paths, in page space, as pdfium's: the content stream's own, then those of its form's Do. Draws are only
-        // clipped to the first path, & the bounds of all, so sorted puts the non-rect ones first
+        // A clip state's paths, in page space, as pdfium's: the content stream's own, then those of its form's Do, each with its fill
+        // rule, of W or W*. Draws are only clipped to the first path, & the bounds of all, so sorted puts the non-rect ones first
         struct Clip {
             std::vector<Ra::Path> paths, sorted;
+            std::vector<bool> evenOdds, sortedEvenOdds;     // Of paths & sorted
             size_t own = 0;
             int inherited = -1;     // The clip of the paths that aren't the stream's own
             Ra::Bounds bounds = Ra::Bounds::huge();
+            // A draw's clip path, the first of sorted if it isn't a rect, & the flag of its rule
+            Ra::Path *path() { return sorted.size() && !sorted[0]->isRect() ? & sorted[0] : nullptr; }
+            uint8_t flags() { return path() && sortedEvenOdds[0] ? Ra::Draw::kClipEvenOdd : 0; }
         };
         std::vector<Clip> clips;
         std::map<size_t, Ra::Path> clipPaths;       // By hash, so draws with the same clip share its path, & so its clip mask
@@ -1862,9 +1866,9 @@ struct RasterizerPDF {
             premultiply(pixels.data(), width, height, width * sizeof(Ra::Color), opacity);
             return imagePaints[key] = Ra::Paint(pixels.data(), width, height, width * sizeof(Ra::Color));
         }
-        // The clip of parent & path, in page space. pdfium drops the stream's last path if it's a rect that contains a new path,
-        // but not text, & a clip to nothing, from a path of one point or no area, clips everything out
-        int addClip(int parent, Ra::Path path, bool isEntry, bool isText = false) {
+        // The clip of parent & path, in page space, filled even-odd or non-zero. pdfium drops the stream's last path if it's a rect
+        // that contains a new path, but not text, & a clip to nothing, from a path of one point or no area, clips everything out
+        int addClip(int parent, Ra::Path path, bool isEntry, bool isText = false, bool isEvenOdd = false) {
             Clip clip;
             if (parent >= 0)
                 clip = clips[parent];
@@ -1872,15 +1876,15 @@ struct RasterizerPDF {
             clip.inherited = isEntry ? parent : clip.inherited;
             path = clipPaths.emplace(path->hash(), path).first->second;
             if (!isText && own > 0 && clip.paths[own - 1]->isRect() && clip.paths[own - 1]->bounds.contains(path->bounds))
-                clip.paths.erase(clip.paths.begin() + --own);
-            clip.paths.insert(clip.paths.begin() + own, path), clip.own = own + 1;
-            clip.bounds = Ra::Bounds::huge(), clip.sorted.resize(0);
+                --own, clip.paths.erase(clip.paths.begin() + own), clip.evenOdds.erase(clip.evenOdds.begin() + own);
+            clip.paths.insert(clip.paths.begin() + own, path), clip.evenOdds.insert(clip.evenOdds.begin() + own, isEvenOdd), clip.own = own + 1;
+            clip.bounds = Ra::Bounds::huge(), clip.sorted.resize(0), clip.sortedEvenOdds.resize(0);
+            for (int isRect = 0; isRect < 2; isRect++)      // The non-rect paths first, in order
+                for (size_t i = 0; i < clip.paths.size(); i++)
+                    if (clip.paths[i]->isValid() && clip.paths[i]->isRect() == bool(isRect))
+                        clip.sorted.emplace_back(clip.paths[i]), clip.sortedEvenOdds.push_back(clip.evenOdds[i]);
             for (auto& p : clip.paths)
-                if (p->isValid())
-                    clip.bounds = clip.bounds.intersect(p->bounds), clip.sorted.emplace_back(p);
-                else
-                    clip.bounds = clip.bounds.intersect(Ra::Bounds(0.f, 0.f, 0.f, 0.f));
-            std::stable_partition(clip.sorted.begin(), clip.sorted.end(), [](Ra::Path& p) { return !p->isRect(); });
+                clip.bounds = clip.bounds.intersect(p->isValid() ? p->bounds : Ra::Bounds(0.f, 0.f, 0.f, 0.f));
             clips.emplace_back(std::move(clip));
             return int(clips.size() - 1);
         }
@@ -2464,7 +2468,7 @@ struct RasterizerPDF {
                 s.paths.emplace_back(object);
             }
             if (clipMode)
-                st.clip = s.addClip(st.clip, transformedPath(path, st.ctm), isEntry);
+                st.clip = s.addClip(st.clip, transformedPath(path, st.ctm), isEntry, false, clipMode == kFillEvenOdd);
             points.clear();
         }
         // A path from its points. A round capped stroke paints a dot for a degenerate subpath, of a closed point, or of segments to
@@ -2653,21 +2657,20 @@ struct RasterizerPDF {
             int clipIndex = object.kind == Shadings::kShadingObject || object.kind == Shadings::kFormObject ? object.clip : objectClip(object, shadings);
             Shadings::Clip& objectClip = shadings.clip(clipIndex);
             Ra::Bounds *clipBounds = clipIndex < 0 ? nullptr : & objectClip.bounds;
-            std::vector<Ra::Path>& clipPaths = objectClip.sorted;
             
             switch (object.kind) {
                 case Shadings::kTextObject:
                     if (mask == kNoMask)
-                        writeTextRunToScene(shadings.texts[object.index], opacity, blend, clipBounds, clipPaths, scene);
+                        writeTextRunToScene(shadings.texts[object.index], opacity, blend, clipBounds, objectClip, scene);
                     break;
                 case Shadings::kPathObject:
-                    writePathToScene(shadings.paths[object.index], mask, opacity, blend, shadings, clipBounds, clipPaths, scene);
+                    writePathToScene(shadings.paths[object.index], mask, opacity, blend, shadings, clipBounds, objectClip, scene);
                     break;
                 case Shadings::kImageObject:
-                    writeImageToScene(shadings.imageObjects[object.index], mask, opacity, blend, shadings, clipBounds, clipPaths, scene);
+                    writeImageToScene(shadings.imageObjects[object.index], mask, opacity, blend, shadings, clipBounds, objectClip, scene);
                     break;
                 case Shadings::kShadingObject:
-                    writeShadingToScene(shadings.shadings[object.index], mask, opacity, blend, shadings, clipBounds, clipPaths, scene);
+                    writeShadingToScene(shadings.shadings[object.index], mask, opacity, blend, shadings, clipBounds, objectClip, scene);
                     break;
                 case Shadings::kFormObject: {
                     const Shadings::Group& group = shadings.forms[object.index];
@@ -2688,7 +2691,7 @@ struct RasterizerPDF {
     // Fills a clip, of a shading or form the scan can't read, with the fallback color
     static void writeFallbackToScene(Shadings::Clip& clip, Ra::SceneRef& scene) {
         if (clip.sorted.size() && clip.sorted[0]->isValid())
-            scene->addPath(clip.sorted[0], Ra::Transform(), fallbackColor(), 0.f, 0, & clip.bounds, nullptr, kBlendNormal);
+            scene->addPath(clip.sorted[0], Ra::Transform(), fallbackColor(), 0.f, clip.sortedEvenOdds[0] ? Ra::Draw::kFillEvenOdd : 0, & clip.bounds, nullptr, kBlendNormal);
     }
     // An object's clip: pdfium drops it if it's one rect of the object's stream's that contains the object, but for a shading
     // or form. The scan's bounds only differ from pdfium's in how a stroke outsets a path's, so which clips at an object's edge
@@ -2735,18 +2738,18 @@ struct RasterizerPDF {
     
     // Writes a text object's glyphs from the scan, filled and or stroked as its text rendering mode says, & not if it's invisible
     // or only clips. The boxes of a font the scan can't read are filled with the fallback color
-    static void writeTextRunToScene(const Shadings::TextRun& run, float opacity, uint8_t blend, Ra::Bounds *clipBounds, std::vector<Ra::Path>& clipPaths, Ra::SceneRef& scene) {
+    static void writeTextRunToScene(const Shadings::TextRun& run, float opacity, uint8_t blend, Ra::Bounds *clipBounds, Shadings::Clip& clip, Ra::SceneRef& scene) {
         bool fills = run.mode % 4 == 0 || run.mode % 4 == 2, strokes = run.mode % 4 == 1 || run.mode % 4 == 2;
-        Ra::Path *clipPath = clipPaths.size() == 0 || clipPaths[0]->isRect() ? nullptr : & clipPaths[0];
+        Ra::Path *clipPath = clip.path();  uint8_t clipFlags = clip.flags();
         Ra::Color fill = objectColor(run.colors, false, opacity), stroke = objectColor(run.colors, true, opacity);
         if (!run.isValid)
             fills = fills || strokes, strokes = false, fill = fallbackColor(), blend = kBlendNormal;
         float width = run.width == 0.f ? -1.f : run.width / run.unitsPerEm;     // In text space, which glyphs' paths are in
         for (auto& glyph : run.glyphs) {
             if (fills)
-                scene->addPath(glyph.path, glyph.ctm, fill, 0.f, 0, clipBounds, clipPath, blend);
+                scene->addPath(glyph.path, glyph.ctm, fill, 0.f, clipFlags, clipBounds, clipPath, blend);
             if (strokes)
-                scene->addPath(glyph.path, glyph.ctm, stroke, width, 0, clipBounds, clipPath, blend);
+                scene->addPath(glyph.path, glyph.ctm, stroke, width, clipFlags, clipBounds, clipPath, blend);
         }
     }
     
@@ -2759,7 +2762,7 @@ struct RasterizerPDF {
         return color;
     }
     // Writes the scan's path. A fill of a pattern the scan can't read, as for a mesh or function shading, is the fallback color
-    static void writePathToScene(const Shadings::PathObject& object, int mask, float opacity, uint8_t blend, Shadings& shadings, Ra::Bounds* clipBounds, std::vector<Ra::Path>& clipPaths, Ra::SceneRef& scene) {
+    static void writePathToScene(const Shadings::PathObject& object, int mask, float opacity, uint8_t blend, Shadings& shadings, Ra::Bounds* clipBounds, Shadings::Clip& clip, Ra::SceneRef& scene) {
         if (object.path.ptr == nullptr)     // It's invalid
             return;
         int fillmode = object.mode & ~Shadings::kStroke;
@@ -2770,7 +2773,7 @@ struct RasterizerPDF {
         float alpha = object.alpha * opacity;
         mask = object.mask != kNoMask ? object.mask : mask;
         blend = object.blend != kBlendNormal ? object.blend : blend;
-        Ra::Path *clipPath = clipPaths.size() == 0 || clipPaths[0]->isRect() ? nullptr : & clipPaths[0];
+        Ra::Path *clipPath = clip.path();  uint8_t clipFlags = clip.flags();
         
         if (mask == kUnsupportedMask)
             return;
@@ -2781,17 +2784,20 @@ struct RasterizerPDF {
             Ra::Path fill = path;
             Ra::Path *fillClipPath = clipPath;
             Ra::Transform fillCTM = ctm;
+            uint8_t flags = (fillmode == Shadings::kFillEvenOdd ? Ra::Draw::kFillEvenOdd : 0) | clipFlags;
             if (fill->isRect() && ctm.det() != 0.f) {
-                // A rect fill that covers a non-rect clip paints the clip itself, even-odd, as clip masks are, & still clipped to
-                // the first one if it's another. Clip paths are in page space
+                // A rect fill that covers a non-rect clip paints the clip itself, with its rule, & still clipped to the first one if
+                // it's another. Clip paths are in page space
                 Ra::Transform inv = ctm.invert();
-                for (auto& clip : clipPaths)
-                    if (!clip->isRect() && clip->isValid() && path->bounds.contains(Ra::Bounds(clip->bounds.quad(inv)))) {
-                        fill = clip, fillClipPath = & clip == & clipPaths[0] ? nullptr : clipPath, fillCTM = Ra::Transform();
+                for (size_t i = 0; i < clip.sorted.size(); i++) {
+                    Ra::Path& c = clip.sorted[i];
+                    if (!c->isRect() && c->isValid() && path->bounds.contains(Ra::Bounds(c->bounds.quad(inv)))) {
+                        fill = c, fillClipPath = i == 0 ? nullptr : clipPath, fillCTM = Ra::Transform();
+                        flags = (clip.sortedEvenOdds[i] ? Ra::Draw::kFillEvenOdd : 0) | (i == 0 ? 0 : clipFlags);
                         break;
                     }
+                }
             }
-            uint8_t flags = fillmode == Shadings::kFillEvenOdd || fill.ptr != path.ptr ? Ra::Draw::kFillEvenOdd : 0;
             bool isGradient = fill->isValid() && fillCTM.det() != 0.f;
             Shading masked;
             if (mask >= 0) {
@@ -2806,7 +2812,7 @@ struct RasterizerPDF {
         }
         if (stroke && mask == kNoMask) {
             Ra::Color color = objectColor(object.colors, true, opacity);
-            uint8_t flags = 0;
+            uint8_t flags = clipFlags;
             float width = object.width == 0.f ? -1.f : object.width;
             flags |= object.cap == Shadings::kRoundCap ? Ra::Draw::kRoundCap : 0;
             flags |= object.cap == Shadings::kSquareCap ? Ra::Draw::kSquareCap : 0;
@@ -2823,37 +2829,38 @@ struct RasterizerPDF {
     // Writes the scan's image, clipped to the clip, or for one it couldn't decode, the fallback color over its unit square. An
     // image mask is painted with the fill color, which has the fill alpha. The image's soft mask, or else the group's, scales
     // its alpha, & an unsupported one hides it
-    static void writeImageToScene(const Shadings::ImageObject& object, int mask, float opacity, uint8_t blend, Shadings& shadings, Ra::Bounds* clipBounds, std::vector<Ra::Path>& clipPaths, Ra::SceneRef& scene) {
+    static void writeImageToScene(const Shadings::ImageObject& object, int mask, float opacity, uint8_t blend, Shadings& shadings, Ra::Bounds* clipBounds, Shadings::Clip& clip, Ra::SceneRef& scene) {
         mask = object.mask != kNoMask ? object.mask : mask;
         if (mask == kUnsupportedMask)
             return;
-        Ra::Path *clipPath = clipPaths.size() == 0 || clipPaths[0]->isRect() ? nullptr : & clipPaths[0];
+        Ra::Path *clipPath = clip.path();  uint8_t clipFlags = clip.flags();
         Ra::Path unitRectPath;  unitRectPath->addBounds(Ra::Bounds(0, 0, 1, 1));
         if (object.image < 0)
-            return scene->addPath(unitRectPath, object.ctm, fallbackColor(), 0, 0, clipBounds, clipPath, kBlendNormal);
+            return scene->addPath(unitRectPath, object.ctm, fallbackColor(), 0, clipFlags, clipBounds, clipPath, kBlendNormal);
         bool isMask = shadings.images[object.image].isMask;
         Ra::Color color = isMask ? objectColor(object.colors, false, 1.f) : Ra::Color(0, 0, 0, 255);
         blend = object.blend != kBlendNormal ? object.blend : blend;
         Ra::Paint image = shadings.imagePaint(object.image, opacity * (isMask ? color.a / 255.f : object.alpha), Ra::Color(color.b, color.g, color.r, 255), mask, object.ctm);
         if (image.isImage())
-            scene->addPath(unitRectPath, object.ctm, image, 0, 0, clipBounds, clipPath, blend);
+            scene->addPath(unitRectPath, object.ctm, image, 0, clipFlags, clipBounds, clipPath, blend);
     }
     
     // Writes the scan's shading, which paints its clip, or for one it can't read, the fallback color
-    static void writeShadingToScene(const Shading& shading, int mask, float opacity, uint8_t blend, Shadings& shadings, Ra::Bounds* clipBounds, std::vector<Ra::Path>& clipPaths, Ra::SceneRef& scene) {
+    static void writeShadingToScene(const Shading& shading, int mask, float opacity, uint8_t blend, Shadings& shadings, Ra::Bounds* clipBounds, Shadings::Clip& clip, Ra::SceneRef& scene) {
         mask = shading.mask != kNoMask ? shading.mask : mask;
         blend = shading.blend != kBlendNormal ? shading.blend : blend;
         Shading masked;
-        if (clipPaths.size() == 0 || mask == kUnsupportedMask || !clipPaths[0]->isValid())
+        if (clip.sorted.size() == 0 || mask == kUnsupportedMask || !clip.sorted[0]->isValid())
             return;
+        uint8_t flags = clip.sortedEvenOdds[0] ? Ra::Draw::kFillEvenOdd : 0;    // It fills its clip, with its rule
         if (!shading.isValid)
-            scene->addPath(clipPaths[0], Ra::Transform(), fallbackColor(), 0.f, 0, clipBounds, nullptr, kBlendNormal);
+            scene->addPath(clip.sorted[0], Ra::Transform(), fallbackColor(), 0.f, flags, clipBounds, nullptr, kBlendNormal);
         else if (shading.ctm.det() == 0.f)
             return;
         else if (mask == kNoMask)
-            writeGradientToScene(shading, shading.alpha * opacity, blend, clipPaths[0], Ra::Transform(), 0, clipBounds, nullptr, scene);
+            writeGradientToScene(shading, shading.alpha * opacity, blend, clip.sorted[0], Ra::Transform(), flags, clipBounds, nullptr, scene);
         else if (Shading::masked(& shading, Ra::Color(), shadings.masks[mask], masked))
-            writeGradientToScene(masked, shading.alpha * opacity, blend, clipPaths[0], Ra::Transform(), 0, clipBounds, nullptr, scene);
+            writeGradientToScene(masked, shading.alpha * opacity, blend, clip.sorted[0], Ra::Transform(), flags, clipBounds, nullptr, scene);
     }
     
     // Fills path, in ctm space, with the gradient, clipped where an unextended end is inside it to the gradient's extent, & to clipPath
@@ -2906,10 +2913,11 @@ struct RasterizerPDF {
             return;
         }
         // Otherwise the fill is clipped to the region, in page space, & to clipPath. Draws have one clip path, so for both, the
-        // flattened clip path is clipped to the region's convex parts, its disc or band, & hole, combined even-odd as clip paths are
+        // flattened clip path is clipped to the region's convex parts, its disc or band, & hole, reversed, so it's subtracted with
+        // either of clipPath's rules
         Ra::Path clip;
         if (clipPath == nullptr)
-            clip = transformedPath(region, unit);
+            clip = transformedPath(region, unit), flags = (flags & ~Ra::Draw::kClipEvenOdd) | (regionFlags ? Ra::Draw::kClipEvenOdd : 0);
         else {
             auto polygon = [&](float x, float y) {      // Gradient space to page space
                 return std::vector<float>{ x * unit.a + y * unit.c + unit.tx, x * unit.b + y * unit.d + unit.ty };
@@ -2939,7 +2947,7 @@ struct RasterizerPDF {
             for (auto& subject : flattenedPath(*clipPath, kFlatness)) {
                 addPolygon(clip, outer.size() ? clippedPolygon(subject, outer) : subject);
                 if (hole.size())
-                    addPolygon(clip, clippedPolygon(subject, hole));
+                    addPolygon(clip, reversedPolygon(clippedPolygon(subject, hole)));
             }
         }
         Ra::Paint paint(colors.data(), locations.data(), colors.size(), unit.concat(ctm.invert()), shading.isRadial);
@@ -3104,6 +3112,12 @@ struct RasterizerPDF {
             }
         }
         return subject;
+    }
+    static std::vector<float> reversedPolygon(const std::vector<float>& xy) {
+        std::vector<float> r(xy.size());
+        for (size_t i = 0; i + 1 < xy.size(); i += 2)
+            r[xy.size() - 2 - i] = xy[i], r[xy.size() - 1 - i] = xy[i + 1];
+        return r;
     }
     static void addPolygon(Ra::Path& path, const std::vector<float>& xy) {
         if (xy.size() < 6)
