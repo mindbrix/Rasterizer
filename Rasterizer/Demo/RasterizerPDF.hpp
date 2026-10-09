@@ -1044,6 +1044,7 @@ struct RasterizerPDF {
         struct Glyph { Ra::Path path;  Ra::Transform ctm; };
         struct TextRun {
             bool isValid = true;
+            uint8_t mode = 0;           // Its text rendering mode
             std::vector<Glyph> glyphs;
             float unitsPerEm = 1.f;     // User space units in text space's, for stroke widths
         };
@@ -1071,6 +1072,7 @@ struct RasterizerPDF {
             uint8_t cap = 0, join = 0;
             TextFont *font = nullptr;   // The text state, which q & Q save & restore
             bool hasFont = false;       // pdfium's font for a Tf of a missing font is Helvetica, but it makes no text before a Tf
+            uint8_t textMode = 0;       // The text rendering mode, Tr
             float fontSize = 0.f, charSpace = 0.f, wordSpace = 0.f, hScale = 1.f, leading = 0.f, rise = 0.f;
         };
         struct PathPoint {              // As pdfium's path points: a move, line or one of a cubic's three, which can close
@@ -1091,6 +1093,12 @@ struct RasterizerPDF {
             int entryClip = -1;                // The clip at the stream's form's Do, whose paths aren't the stream's own
             Ra::Transform baseInverse;         // Of the ctm at the stream's form's Do, so pdfium's space for its objects
             Ra::Transform tm, tlm;             // The text matrix & text line matrix
+            // The glyphs of a text object's runs in clipping text rendering modes, in page space, which clip at ET, as pdfium's
+            // do, if there are at most kMaxClipTexts, & the scan has their glyphs
+            static constexpr size_t kMaxClipTexts = 1024;
+            Ra::Path textClip = nullptr;
+            size_t clipTexts = 0;
+            bool hasClipGlyphs = true;
         };
         void read(const char *filename, size_t pageIndex) {
             CFURLRef url = CFURLCreateFromFileSystemRepresentation(nullptr, (const UInt8 *)filename, strlen(filename), false);
@@ -1154,16 +1162,16 @@ struct RasterizerPDF {
             premultiply(pixels.data(), image.width, image.height, image.width * sizeof(Ra::Color), opacity);
             return imagePaints[key] = Ra::Paint(pixels.data(), image.width, image.height, image.width * sizeof(Ra::Color));
         }
-        // The clip of parent & path, in page space. pdfium drops the stream's last path if it's a rect that contains the new one,
-        // & a clip to nothing, from a path of one point or no area, clips everything out
-        int addClip(int parent, Ra::Path path, bool isEntry) {
+        // The clip of parent & path, in page space. pdfium drops the stream's last path if it's a rect that contains a new path,
+        // but not text, & a clip to nothing, from a path of one point or no area, clips everything out
+        int addClip(int parent, Ra::Path path, bool isEntry, bool isText = false) {
             Clip clip;
             if (parent >= 0)
                 clip = clips[parent];
             size_t own = isEntry ? 0 : clip.own;
             clip.inherited = isEntry ? parent : clip.inherited;
             path = clipPaths.emplace(path->hash(), path).first->second;
-            if (own > 0 && clip.paths[own - 1]->isRect() && clip.paths[own - 1]->bounds.contains(path->bounds))
+            if (!isText && own > 0 && clip.paths[own - 1]->isRect() && clip.paths[own - 1]->bounds.contains(path->bounds))
                 clip.paths.erase(clip.paths.begin() + --own);
             clip.paths.insert(clip.paths.begin() + own, path), clip.own = own + 1;
             clip.bounds = Ra::Bounds::huge(), clip.sorted.resize(0);
@@ -1292,6 +1300,18 @@ struct RasterizerPDF {
             CGPDFOperatorTableSetCallback(table, "BT", [](CGPDFScannerRef scanner, void *info) {
                 Scan& scan = *(Scan *)info;
                 scan.tm = scan.tlm = Ra::Transform();
+                scan.textClip = nullptr, scan.clipTexts = 0, scan.hasClipGlyphs = true;
+            });
+            CGPDFOperatorTableSetCallback(table, "ET", [](CGPDFScannerRef scanner, void *info) {     // pdfium clips if the mode still clips
+                Scan& scan = *(Scan *)info;  State& st = scan.state;
+                if (scan.clipTexts && st.textMode >= 4 && st.textMode <= 7 && scan.clipTexts <= Scan::kMaxClipTexts && scan.hasClipGlyphs)
+                    st.clip = scan.shadings->addClip(st.clip, scan.textClip.ptr ? scan.textClip : Ra::Path(), st.clip == scan.entryClip, true);
+                scan.textClip = nullptr, scan.clipTexts = 0, scan.hasClipGlyphs = true;
+            });
+            CGPDFOperatorTableSetCallback(table, "Tr", [](CGPDFScannerRef scanner, void *info) {
+                CGPDFInteger mode;
+                if (CGPDFScannerPopInteger(scanner, & mode) && mode >= 0 && mode <= 7)
+                    ((Scan *)info)->state.textMode = uint8_t(mode);
             });
             CGPDFOperatorTableSetCallback(table, "Tf", [](CGPDFScannerRef scanner, void *info) {
                 Scan& scan = *(Scan *)info;  CGPDFReal size;  const char *name;  CGPDFDictionaryRef dict;
@@ -1377,9 +1397,12 @@ struct RasterizerPDF {
             addObject(scan, kTextObject, s.texts.size());
             s.texts.emplace_back();
             TextRun& run = s.texts.back();
+            run.mode = st.textMode;
+            bool clips = st.textMode >= 4 && st.textMode <= 7;
+            scan.clipTexts += clips;
             TextFont *font = st.font;
             if (font == nullptr || !font->isValid) {
-                run.isValid = false;
+                run.isValid = false, scan.hasClipGlyphs = scan.hasClipGlyphs && !clips;
                 return;
             }
             Ra::Transform size(st.fontSize * st.hScale, 0.f, 0.f, st.fontSize, 0.f, st.rise);
@@ -1390,8 +1413,11 @@ struct RasterizerPDF {
                     uint32_t code = step == 2 ? bytes[i] << 8 | bytes[i + 1] : bytes[i];
                     CGGlyph g = font->glyph(code);
                     Ra::Path path = font->path(g);
-                    if (path->types.end)
+                    if (path->types.end) {
                         run.glyphs.push_back({ path, size.concat(scan.tm).concat(st.ctm) });
+                        if (clips)
+                            scan.textClip = transformedPath(path, run.glyphs.back().ctm, scan.textClip.ptr ? scan.textClip : Ra::Path());
+                    }
                     float tx = (font->width(code, g) / 1000.f * st.fontSize + st.charSpace + (step == 1 && code == 32 ? st.wordSpace : 0.f)) * st.hScale;
                     scan.tm = Ra::Transform(1.f, 0.f, 0.f, 1.f, tx, 0.f).concat(scan.tm);
                 }
@@ -1901,9 +1927,10 @@ struct RasterizerPDF {
     }
     
     // Writes a text object's glyphs from the scan, filled and or stroked as its text rendering mode says, & not if it's invisible
+    // or only clips
     static void writeTextRunToScene(const Shadings::TextRun& run, FPDF_PAGEOBJECT page_object, float opacity, uint8_t blend, Ra::Bounds *clipBounds, std::vector<Ra::Path>& clipPaths, Ra::SceneRef& scene) {
-        int mode = FPDFTextObj_GetTextRenderMode(page_object);
-        bool fills = mode < 0 || mode == FPDF_TEXTRENDERMODE_FILL || mode == FPDF_TEXTRENDERMODE_FILL_STROKE || mode == FPDF_TEXTRENDERMODE_FILL_CLIP || mode == FPDF_TEXTRENDERMODE_FILL_STROKE_CLIP;
+        int mode = run.mode;
+        bool fills = mode == FPDF_TEXTRENDERMODE_FILL || mode == FPDF_TEXTRENDERMODE_FILL_STROKE || mode == FPDF_TEXTRENDERMODE_FILL_CLIP || mode == FPDF_TEXTRENDERMODE_FILL_STROKE_CLIP;
         bool strokes = mode == FPDF_TEXTRENDERMODE_STROKE || mode == FPDF_TEXTRENDERMODE_FILL_STROKE || mode == FPDF_TEXTRENDERMODE_STROKE_CLIP || mode == FPDF_TEXTRENDERMODE_FILL_STROKE_CLIP;
         Ra::Path *clipPath = clipPaths.size() == 0 || clipPaths[0]->isRect() ? nullptr : & clipPaths[0];
         unsigned int R = 0, G = 0, B = 0, A = 255;
@@ -2230,8 +2257,8 @@ struct RasterizerPDF {
         path->close();
     }
     
-    static Ra::Path transformedPath(Ra::Path& path, Ra::Transform m) {
-        Ra::Path p;
+    // The path transformed, appended to p
+    static Ra::Path transformedPath(Ra::Path& path, Ra::Transform m, Ra::Path p = Ra::Path()) {
         path->validate();
         const float *pts = path->points.base;  const uint8_t *types = path->types.base;
         auto x = [&](size_t i) { return pts[2 * i] * m.a + pts[2 * i + 1] * m.c + m.tx; };
