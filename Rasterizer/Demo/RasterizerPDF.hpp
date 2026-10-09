@@ -28,66 +28,29 @@
 #import <CoreText/CoreText.h>
 #import <algorithm>
 #import <array>
+#import <deque>
 #import <map>
 #import <memory>
-#import <set>
 #import <string>
 #import <vector>
 
 
 struct RasterizerPDF {
     typedef std::map<void *, std::vector<int>> CharMap;
-    
-    struct ClipState {
-        Ra::Bounds clipBounds, *clipPtr = nullptr;
-        std::vector<Ra::Path> clipPaths;
-        size_t lastHash = ~0;
-        
-        // A form's objects' clips are in form space, & are within its clip, the parent's
-        void update(FPDF_PAGEOBJECT page_object, Ra::Transform formCTM, const ClipState *parent) {
-            FPDF_CLIPPATH clip_path = FPDFPageObj_GetClipPath(page_object);
-            size_t hash = clipHash(clip_path);
-            int clipCount = FPDFClipPath_CountPaths(clip_path);
-            
-            if (lastHash != hash) {
-                lastHash = hash, clipPtr = nullptr, clipBounds = Ra::Bounds::huge(), clipPaths.resize(0);
-                if (clipCount != -1) {
-                    for (int j = 0; j < clipCount; j++) {
-                        Ra::Path clip = PathWriter().createPathFromClipPath(clip_path, j);
-                        if (parent)
-                            clip = transformedPath(clip, formCTM);
-                        clipPaths.emplace_back(clip);
-                        if (clip->isValid())
-                            clipBounds = clipBounds.intersect(clip->bounds);
-                    }
-                    clipPtr = & clipBounds;
-                }
-                if (parent && parent->clipPtr) {
-                    clipPaths.insert(clipPaths.end(), parent->clipPaths.begin(), parent->clipPaths.end());
-                    clipBounds = clipBounds.intersect(parent->clipBounds), clipPtr = & clipBounds;
-                }
-                // Draws are only clipped to the first clip path, & the bounds of all, so put the non-rect ones first
-                std::stable_partition(clipPaths.begin(), clipPaths.end(), [](Ra::Path& clip) { return !clip->isRect(); });
-            }
+    // pdfium's text page, loaded for the first text object without the scan's glyphs, which are drawn for its Unicode instead
+    struct TextPage {
+        FPDF_PAGE page;
+        FPDF_TEXTPAGE text_page = nullptr;
+        CharMap charMap;
+        TextPage(FPDF_PAGE page) : page(page) {}
+        ~TextPage() {
+            if (text_page)
+                FPDFText_ClosePage(text_page);
         }
-        static size_t clipHash(FPDF_CLIPPATH clip_path) {
-            size_t hash = 0;
-            float x, y;
-            int clipCount = FPDFClipPath_CountPaths(clip_path);
-            if (clipCount != -1) {
-                hash = XXH64(& clipCount, sizeof(clipCount), hash);
-                for (int j = 0; j < clipCount; j++) {
-                    int segmentCount = FPDFClipPath_CountPathSegments(clip_path, j);
-                    assert(segmentCount);
-                    hash = XXH64(& segmentCount, sizeof(segmentCount), hash);
-                    for (int k = 0; k < 1; k++) {
-                        FPDF_PATHSEGMENT segment = FPDFClipPath_GetPathSegment(clip_path, j, k);
-                        FPDFPathSegment_GetPoint(segment, & x, & y);
-                        hash = XXH64(& x, sizeof(x), hash), hash = XXH64(& y, sizeof(y), hash);
-                    }
-                }
-            }
-            return hash;
+        FPDF_TEXTPAGE get() {
+            if (text_page == nullptr)
+                text_page = FPDFText_LoadPage(page), writeCharMap(text_page, charMap);
+            return text_page;
         }
     };
     
@@ -719,28 +682,46 @@ struct RasterizerPDF {
     struct Shadings {
         static constexpr size_t kMaxDepth = 32;
         enum { kStroke = 4 };       // A path's draw mode is its FPDF_FILLMODE, & kStroke if it's stroked, as pdfium's
-        struct Place {              // The form an object is in, or -1 for the page, & its index among the form's objects of its kind
-            int container = -1;
-            uint32_t ordinal = 0;
-            bool operator==(const Place& other) const { return container == other.container && ordinal == other.ordinal; }
+        // The objects pdfium makes from each content stream, in order, each with its record in paths, texts, shadings or forms,
+        // & its clip in clips, or -1 if it's unclipped
+        enum Kind : uint8_t { kPathObject, kTextObject, kImageObject, kShadingObject, kFormObject, kNoObject };
+        struct Object {
+            uint8_t kind;
+            uint32_t index;
+            int clip;
         };
-        struct PathFill {
+        std::vector<std::vector<Object>> streams;   // The page's, then each form's, by form index + 1
+        // A path painting operator's path, in user space, & its paint, but for its colors
+        struct PathObject {
+            Ra::Path path = nullptr;
+            Ra::Transform ctm;      // User space to page space
             int pattern = -1;       // The fill's shading pattern in patterns, or -1 for a color
             int mask = kNoMask;     // In masks
-            float alpha = 1.f;
-            uint8_t blend = kBlendNormal, mode = 0;
-            int container = -1;     // Its form, or -1 for the page
+            float alpha = 1.f, width = 1.f, dashPhase = 0.f;
+            int dash = -1;          // In dashes, or -1 for a solid stroke
+            uint8_t blend = kBlendNormal, mode = 0, cap = 0, join = 0;
             Ra::Bounds bounds;      // Of its points, in its form's space, as pdfium's bounds of a fill. pdfium's form space is the
                                     // ctm at the Do, & its objects' matrices include the form matrix
         };
+        std::deque<PathObject> paths;       // A deque, as there can be very many, which a vector would copy as it grows
+        std::vector<std::vector<float>> dashes;
+        // A clip state's paths, in page space, as pdfium's: the content stream's own, then those of its form's Do. Draws are only
+        // clipped to the first path, & the bounds of all, so sorted puts the non-rect ones first
+        struct Clip {
+            std::vector<Ra::Path> paths, sorted;
+            size_t own = 0;
+            int inherited = -1;     // The clip of the paths that aren't the stream's own
+            Ra::Bounds bounds = Ra::Bounds::huge();
+        };
+        std::vector<Clip> clips;
+        std::map<size_t, Ra::Path> clipPaths;       // By hash, so draws with the same clip share its path, & so its clip mask
         std::vector<Shading> shadings, patterns, masks;
         struct Group {              // A transparency group form's soft mask, opacity & blend mode, which its contents start without
             int mask = kNoMask;
             float alpha = 1.f;
             uint8_t blend = kBlendNormal;
-            Place place;            // Among the form's shadings & forms
+            int clip = -1;          // Its contents' clip at their start, in clips
         };
-        std::vector<Place> shadingPlaces;       // Of shadings, among their form's shadings & forms
         // A text showing operator's glyphs, as pdfium's text objects, each with its text rendering matrix, from text space to page space
         struct Glyph { Ra::Path path;  Ra::Transform ctm; };
         struct TextRun {
@@ -749,7 +730,6 @@ struct RasterizerPDF {
             float unitsPerEm = 1.f;     // User space units in text space's, for stroke widths
         };
         std::vector<TextRun> texts;
-        std::vector<Place> textPlaces;          // Of text runs, among their form's text objects
         std::map<CGPDFDictionaryRef, std::unique_ptr<TextFont>> fonts;
         TextFont *fontFor(CGPDFDictionaryRef dict) {
             auto it = fonts.find(dict);
@@ -757,32 +737,41 @@ struct RasterizerPDF {
                 it = fonts.emplace(dict, std::unique_ptr<TextFont>(new TextFont(dict))).first;
             return it->second.get();
         }
-        std::vector<PathFill> paths;
         typedef std::pair<CGPDFDictionaryRef, std::array<float, 6>> MaskKey;     // A soft mask & the ctm it's set at
         std::map<MaskKey, int> maskIndices;
         std::map<CGPDFDictionaryRef, Shading> maskGroups;
         std::vector<Group> forms;
-        size_t index = 0, pathIndex = 0, formIndex = 0, textIndex = 0;
         
         struct State {
             Ra::Transform ctm, space;   // space is the content stream's default space, which pattern matrices map to
             float alpha = 1.f;          // The fill alpha, ca
             bool isPatternSpace = false;
-            int pattern = -1, mask = kNoMask;
+            int pattern = -1, mask = kNoMask, clip = -1;
             uint8_t blend = kBlendNormal;
+            float lineWidth = 1.f, dashPhase = 0.f;     // The stroke state
+            int dash = -1;
+            uint8_t cap = 0, join = 0;
             TextFont *font = nullptr;   // The text state, which q & Q save & restore
+            bool hasFont = false;       // pdfium's font for a Tf of a missing font is Helvetica, but it makes no text before a Tf
             float fontSize = 0.f, charSpace = 0.f, wordSpace = 0.f, hScale = 1.f, leading = 0.f, rise = 0.f;
+        };
+        struct PathPoint {              // As pdfium's path points: a move, line or one of a cubic's three, which can close
+            float x, y;
+            uint8_t type;
+            bool close;
         };
         struct Scan {
             State state;
             std::vector<State> stack;
             Shadings *shadings;
             CGPDFOperatorTableRef table;
-            size_t points = 0, depth = 0;      // points in the current path, as pdfium makes no object for a path of one point
-            Ra::Bounds bounds;                 // Of the current path, in user space
+            size_t depth = 0;
+            std::vector<PathPoint> points;     // The current path, in user space
+            float startX = 0.f, startY = 0.f, x = 0.f, y = 0.f;    // Its subpath's start & current point
+            uint8_t clipMode = 0;              // The FPDF_FILLMODE of a pending W or W*, applied at the next painting operator
             int container = -1;                // The form index of the content stream, or -1 for the page's
-            Ra::Transform base;                // The ctm at the stream's form's Do, so pdfium's space for its objects
-            uint32_t others = 0, texts = 0;    // The stream's shadings & forms, & text runs, so far
+            int entryClip = -1;                // The clip at the stream's form's Do, whose paths aren't the stream's own
+            Ra::Transform baseInverse;         // Of the ctm at the stream's form's Do, so pdfium's space for its objects
             Ra::Transform tm, tlm;             // The text matrix & text line matrix
         };
         void read(const char *filename, size_t pageIndex) {
@@ -790,10 +779,8 @@ struct RasterizerPDF {
             CGPDFDocumentRef doc = url ? CGPDFDocumentCreateWithURL(url) : nullptr;
             CGPDFPageRef page = doc ? CGPDFDocumentGetPage(doc, pageIndex + 1) : nullptr;
             if (page) {
-                CGPDFDictionaryRef resources = nullptr;
-                CGPDFDictionaryGetDictionary(CGPDFPageGetDictionary(page), "Resources", & resources);
                 CGPDFContentStreamRef cs = CGPDFContentStreamCreateWithPage(page);
-                CGPDFOperatorTableRef table = createTable(needsPaths(resources));
+                CGPDFOperatorTableRef table = createTable();
                 scan(cs, table, State(), 0);
                 CGPDFOperatorTableRelease(table);
                 CGPDFContentStreamRelease(cs);
@@ -802,41 +789,40 @@ struct RasterizerPDF {
             if (url)
                 CFRelease(url);
         }
-        void scan(CGPDFContentStreamRef cs, CGPDFOperatorTableRef table, State state, size_t depth, int container = -1, Ra::Transform base = Ra::Transform()) {
-            Scan scan;  scan.shadings = this, scan.table = table, scan.state = state, scan.depth = depth, scan.container = container, scan.base = base;
+        void scan(CGPDFContentStreamRef cs, CGPDFOperatorTableRef table, State state, size_t depth, int container = -1, Ra::Transform base = Ra::Transform(), int entryClip = -1) {
+            Scan scan;  scan.shadings = this, scan.table = table, scan.state = state, scan.depth = depth, scan.container = container, scan.baseInverse = base.invert(), scan.entryClip = entryClip;
+            if (streams.size() < size_t(container + 2))
+                streams.resize(container + 2);
             CGPDFScannerRef scanner = CGPDFScannerCreate(cs, table, & scan);
             CGPDFScannerScan(scanner);
             CGPDFScannerRelease(scanner);
         }
-        // Paths are only tracked for pattern fills, soft masks & blend modes, in the resources or those of their forms. Each resources
-        // dictionary is visited once, as forms often share them, & can list themselves
-        static bool needsPaths(CGPDFDictionaryRef resources) {
-            std::set<CGPDFDictionaryRef> visited;
-            return needsPaths(resources, 0, visited);
+        static void addObject(Scan& scan, uint8_t kind, size_t index = 0) {
+            scan.shadings->streams[scan.container + 1].emplace_back(Object{ kind, uint32_t(index), scan.state.clip });
         }
-        static bool needsPaths(CGPDFDictionaryRef resources, size_t depth, std::set<CGPDFDictionaryRef>& visited) {
-            struct Info { size_t depth; std::set<CGPDFDictionaryRef> *visited; bool found; } info = { depth, & visited, false };
-            CGPDFDictionaryRef dict;
-            if (resources == nullptr || depth > kMaxDepth || !visited.insert(resources).second)
-                return false;
-            if (CGPDFDictionaryGetDictionary(resources, "Pattern", & dict) && CGPDFDictionaryGetCount(dict) > 0)
-                return true;
-            if (CGPDFDictionaryGetDictionary(resources, "ExtGState", & dict))
-                CGPDFDictionaryApplyFunction(dict, [](const char *key, CGPDFObjectRef obj, void *info) {
-                    CGPDFDictionaryRef gs, smask;  CGPDFObjectRef bm;
-                    if (CGPDFObjectGetValue(obj, kCGPDFObjectTypeDictionary, & gs) && (CGPDFDictionaryGetDictionary(gs, "SMask", & smask)
-                        || (CGPDFDictionaryGetObject(gs, "BM", & bm) && readBlendMode(bm) != kBlendNormal)))
-                        ((Info *)info)->found = true;
-                }, & info);
-            if (!info.found && CGPDFDictionaryGetDictionary(resources, "XObject", & dict))
-                CGPDFDictionaryApplyFunction(dict, [](const char *key, CGPDFObjectRef obj, void *info) {
-                    Info& i = *(Info *)info;  CGPDFStreamRef stream;  CGPDFDictionaryRef res;
-                    if (!i.found && CGPDFObjectGetValue(obj, kCGPDFObjectTypeStream, & stream) && CGPDFDictionaryGetDictionary(CGPDFStreamGetDictionary(stream), "Resources", & res))
-                        i.found = needsPaths(res, i.depth + 1, *i.visited);
-                }, & info);
-            return info.found;
+        // The clip of parent & path, in page space. pdfium drops the stream's last path if it's a rect that contains the new one,
+        // & a clip to nothing, from a path of one point or no area, clips everything out
+        int addClip(int parent, Ra::Path path, bool isEntry) {
+            Clip clip;
+            if (parent >= 0)
+                clip = clips[parent];
+            size_t own = isEntry ? 0 : clip.own;
+            clip.inherited = isEntry ? parent : clip.inherited;
+            path = clipPaths.emplace(path->hash(), path).first->second;
+            if (own > 0 && clip.paths[own - 1]->isRect() && clip.paths[own - 1]->bounds.contains(path->bounds))
+                clip.paths.erase(clip.paths.begin() + --own);
+            clip.paths.insert(clip.paths.begin() + own, path), clip.own = own + 1;
+            clip.bounds = Ra::Bounds::huge(), clip.sorted.resize(0);
+            for (auto& p : clip.paths)
+                if (p->isValid())
+                    clip.bounds = clip.bounds.intersect(p->bounds), clip.sorted.emplace_back(p);
+                else
+                    clip.bounds = clip.bounds.intersect(Ra::Bounds(0.f, 0.f, 0.f, 0.f));
+            std::stable_partition(clip.sorted.begin(), clip.sorted.end(), [](Ra::Path& p) { return !p->isRect(); });
+            clips.emplace_back(std::move(clip));
+            return int(clips.size() - 1);
         }
-        static CGPDFOperatorTableRef createTable(bool tracksPaths) {
+        static CGPDFOperatorTableRef createTable() {
             CGPDFOperatorTableRef table = CGPDFOperatorTableCreate();
             CGPDFOperatorTableSetCallback(table, "q", [](CGPDFScannerRef scanner, void *info) {
                 Scan& scan = *(Scan *)info;
@@ -864,6 +850,15 @@ struct RasterizerPDF {
                     return;
                 if (CGPDFDictionaryGetNumber(dict, "ca", & ca))
                     scan.state.alpha = fmaxf(0.f, fminf(1.f, ca));
+                CGPDFReal lw;  CGPDFInteger lc, lj;  CGPDFArrayRef d, dash;
+                if (CGPDFDictionaryGetNumber(dict, "LW", & lw))
+                    scan.state.lineWidth = lw;
+                if (CGPDFDictionaryGetInteger(dict, "LC", & lc))
+                    scan.state.cap = uint8_t(lc);
+                if (CGPDFDictionaryGetInteger(dict, "LJ", & lj))
+                    scan.state.join = uint8_t(lj);
+                if (CGPDFDictionaryGetArray(dict, "D", & d) && CGPDFArrayGetArray(d, 0, & dash) && CGPDFArrayGetNumber(d, 1, & lw))
+                    setDash(scan, dash, lw);
                 CGPDFObjectRef bm;
                 if (CGPDFDictionaryGetObject(dict, "BM", & bm))
                     scan.state.blend = readBlendMode(bm);
@@ -880,7 +875,7 @@ struct RasterizerPDF {
                 CGPDFObjectRef obj = CGPDFContentStreamGetResource(cs, "Shading", name);
                 if (obj == nullptr)     // pdfium makes no object for it
                     return;
-                scan.shadings->shadingPlaces.emplace_back(Place{ scan.container, scan.others++ });
+                addObject(scan, kShadingObject, scan.shadings->shadings.size());
                 scan.shadings->shadings.emplace_back();
                 Shading& shading = scan.shadings->shadings.back();
                 shading.ctm = scan.state.ctm, shading.alpha = scan.state.alpha, shading.mask = scan.state.mask, shading.blend = scan.state.blend;
@@ -894,7 +889,11 @@ struct RasterizerPDF {
                 CGPDFContentStreamRef cs = CGPDFScannerGetContentStream(scanner);
                 CGPDFObjectRef obj = CGPDFContentStreamGetResource(cs, "XObject", name);
                 if (obj == nullptr || !CGPDFObjectGetValue(obj, kCGPDFObjectTypeStream, & stream)
-                    || !CGPDFDictionaryGetName(dict = CGPDFStreamGetDictionary(stream), "Subtype", & name) || strcmp(name, "Form"))
+                    || !CGPDFDictionaryGetName(dict = CGPDFStreamGetDictionary(stream), "Subtype", & name))
+                    return;
+                if (!strcmp(name, "Image"))
+                    return addObject(scan, kImageObject);
+                if (strcmp(name, "Form"))
                     return;
                 // A transparency group's soft mask, opacity & blend mode apply to the group, so its contents start without them. Other
                 // forms' contents inherit them, as pdfium's objects in them do
@@ -903,24 +902,32 @@ struct RasterizerPDF {
                 Group group;
                 if (isGroup)
                     group.mask = scan.state.mask, group.alpha = scan.state.alpha, group.blend = scan.state.blend;
-                group.place = { scan.container, scan.others++ };
+                int container = int(scan.shadings->forms.size());
+                addObject(scan, kFormObject, container);
+                // Its contents are clipped to its BBox, in form space, as pdfium's are
+                State state = scan.state;
+                if (readNumbers(dict, "Matrix", m) && m.size() == 6)
+                    state.ctm = Ra::Transform(m[0], m[1], m[2], m[3], m[4], m[5]).concat(state.ctm);
+                if (readNumbers(dict, "BBox", m) && m.size() == 4) {
+                    Ra::Path bbox;  bbox->addBounds(Ra::Bounds(fminf(m[0], m[2]), fminf(m[1], m[3]), fmaxf(m[0], m[2]), fmaxf(m[1], m[3])));
+                    state.clip = scan.shadings->addClip(state.clip, transformedPath(bbox, state.ctm), true);
+                }
+                group.clip = state.clip;
                 scan.shadings->forms.emplace_back(group);
-                int container = int(scan.shadings->forms.size() - 1);
                 if (scan.depth < kMaxDepth) {
-                    State state = scan.state;
                     if (isGroup)
                         state.alpha = 1.f, state.mask = kNoMask, state.blend = kBlendNormal;
-                    if (readNumbers(dict, "Matrix", m) && m.size() == 6)
-                        state.ctm = Ra::Transform(m[0], m[1], m[2], m[3], m[4], m[5]).concat(state.ctm);
                     state.space = state.ctm;
                     CGPDFDictionaryGetDictionary(dict, "Resources", & resources);
                     CGPDFContentStreamRef form = CGPDFContentStreamCreateWithStream(stream, resources, cs);
-                    scan.shadings->scan(form, scan.table, state, scan.depth + 1, container, scan.state.ctm);
+                    scan.shadings->scan(form, scan.table, state, scan.depth + 1, container, scan.state.ctm, scan.state.clip);
                     CGPDFContentStreamRelease(form);
                 }
             });
-            if (tracksPaths)
-                addPathCallbacks(table);
+            CGPDFOperatorTableSetCallback(table, "EI", [](CGPDFScannerRef scanner, void *info) {      // An inline image
+                addObject(*(Scan *)info, kImageObject);
+            });
+            addPathCallbacks(table);
             addTextCallbacks(table);
             return table;
         }
@@ -935,7 +942,7 @@ struct RasterizerPDF {
                 if (!CGPDFScannerPopNumber(scanner, & size) || !CGPDFScannerPopName(scanner, & name))
                     return;
                 CGPDFObjectRef obj = CGPDFContentStreamGetResource(CGPDFScannerGetContentStream(scanner), "Font", name);
-                scan.state.fontSize = size;
+                scan.state.fontSize = size, scan.state.hasFont = true;
                 scan.state.font = obj && CGPDFObjectGetValue(obj, kCGPDFObjectTypeDictionary, & dict) ? scan.shadings->fontFor(dict) : nullptr;
             });
             CGPDFOperatorTableSetCallback(table, "Tc", [](CGPDFScannerRef scanner, void *info) { popNumber(scanner, ((Scan *)info)->state.charSpace); });
@@ -996,10 +1003,22 @@ struct RasterizerPDF {
         static void moveLine(Scan& scan, float tx, float ty) {
             scan.tm = scan.tlm = Ra::Transform(1.f, 0.f, 0.f, 1.f, tx, ty).concat(scan.tlm);
         }
-        // Records a text run of a string, or a TJ array of strings & adjustments, advancing the text matrix
+        // Records a text run of a string, or a TJ array of strings & adjustments, advancing the text matrix. pdfium makes no text
+        // object before a Tf, or for an empty Tj string, or a TJ array without strings
         static void showText(Scan& scan, CGPDFStringRef *string, CGPDFArrayRef array) {
-            Shadings& s = *scan.shadings;  State& st = scan.state;
-            s.textPlaces.emplace_back(Place{ scan.container, scan.texts++ });
+            Shadings& s = *scan.shadings;  State& st = scan.state;  CGPDFStringRef str;
+            bool hasStrings = string && CGPDFStringGetLength(*string) > 0;
+            for (size_t i = 0; array && !hasStrings && i < CGPDFArrayGetCount(array); i++)
+                hasStrings = CGPDFArrayGetString(array, i, & str);
+            if (array && !hasStrings)       // But it applies the adjustments
+                for (size_t i = 0; i < CGPDFArrayGetCount(array); i++) {
+                    CGPDFReal adjust;
+                    if (CGPDFArrayGetNumber(array, i, & adjust))
+                        scan.tm = Ra::Transform(1.f, 0.f, 0.f, 1.f, -adjust / 1000.f * st.fontSize * st.hScale, 0.f).concat(scan.tm);
+                }
+            if (!st.hasFont || !hasStrings)
+                return;
+            addObject(scan, kTextObject, s.texts.size());
             s.texts.emplace_back();
             TextRun& run = s.texts.back();
             TextFont *font = st.font;
@@ -1025,7 +1044,7 @@ struct RasterizerPDF {
                 show(*string);
             else
                 for (size_t i = 0; i < CGPDFArrayGetCount(array); i++) {
-                    CGPDFStringRef str;  CGPDFReal adjust;
+                    CGPDFReal adjust;
                     if (CGPDFArrayGetString(array, i, & str))
                         show(str);
                     else if (CGPDFArrayGetNumber(array, i, & adjust))
@@ -1062,47 +1081,162 @@ struct RasterizerPDF {
                     Scan& scan = *(Scan *)info;
                     scan.state.isPatternSpace = false, scan.state.pattern = -1;
                 });
-            CGPDFOperatorTableSetCallback(table, "m", [](CGPDFScannerRef scanner, void *info) { addPoints(scanner, *(Scan *)info, 1, 1); });
-            CGPDFOperatorTableSetCallback(table, "l", [](CGPDFScannerRef scanner, void *info) { addPoints(scanner, *(Scan *)info, 1, 1); });
-            CGPDFOperatorTableSetCallback(table, "c", [](CGPDFScannerRef scanner, void *info) { addPoints(scanner, *(Scan *)info, 3, 3); });
-            for (const char *op : { "v", "y" })
-                CGPDFOperatorTableSetCallback(table, op, [](CGPDFScannerRef scanner, void *info) { addPoints(scanner, *(Scan *)info, 2, 3); });
+            CGPDFOperatorTableSetCallback(table, "m", [](CGPDFScannerRef scanner, void *info) {
+                Scan& scan = *(Scan *)info;  float p[2];
+                if (popNumbers(scanner, p, 2))
+                    addPoint(scan, p[0], p[1], Ra::Geometry::kMove);
+            });
+            CGPDFOperatorTableSetCallback(table, "l", [](CGPDFScannerRef scanner, void *info) {
+                Scan& scan = *(Scan *)info;  float p[2];
+                if (popNumbers(scanner, p, 2))
+                    addPoint(scan, p[0], p[1], Ra::Geometry::kLine);
+            });
+            CGPDFOperatorTableSetCallback(table, "c", [](CGPDFScannerRef scanner, void *info) {
+                Scan& scan = *(Scan *)info;  float p[6];
+                if (popNumbers(scanner, p, 6))
+                    for (int i = 0; i < 6; i += 2)
+                        addPoint(scan, p[i], p[i + 1], Ra::Geometry::kCubic);
+            });
+            CGPDFOperatorTableSetCallback(table, "v", [](CGPDFScannerRef scanner, void *info) {      // The first control point is the current point
+                Scan& scan = *(Scan *)info;  float p[4];
+                if (popNumbers(scanner, p, 4))
+                    addPoint(scan, scan.x, scan.y, Ra::Geometry::kCubic), addPoint(scan, p[0], p[1], Ra::Geometry::kCubic), addPoint(scan, p[2], p[3], Ra::Geometry::kCubic);
+            });
+            CGPDFOperatorTableSetCallback(table, "y", [](CGPDFScannerRef scanner, void *info) {      // The second is the end point
+                Scan& scan = *(Scan *)info;  float p[4];
+                if (popNumbers(scanner, p, 4))
+                    addPoint(scan, p[0], p[1], Ra::Geometry::kCubic), addPoint(scan, p[2], p[3], Ra::Geometry::kCubic), addPoint(scan, p[2], p[3], Ra::Geometry::kCubic);
+            });
             CGPDFOperatorTableSetCallback(table, "re", [](CGPDFScannerRef scanner, void *info) {
-                Scan& scan = *(Scan *)info;  CGPDFReal x, y, w, h;
-                scan.points += 5;
-                if (CGPDFScannerPopNumber(scanner, & h) && CGPDFScannerPopNumber(scanner, & w) && CGPDFScannerPopNumber(scanner, & y) && CGPDFScannerPopNumber(scanner, & x))
-                    scan.bounds.extend(x, y), scan.bounds.extend(x + w, y + h);
+                Scan& scan = *(Scan *)info;  float p[4];
+                if (popNumbers(scanner, p, 4)) {
+                    float x = p[0], y = p[1], w = p[2], h = p[3];
+                    addPoint(scan, x, y, Ra::Geometry::kMove), addPoint(scan, x + w, y, Ra::Geometry::kLine);
+                    addPoint(scan, x + w, y + h, Ra::Geometry::kLine), addPoint(scan, x, y + h, Ra::Geometry::kLine), closePath(scan, x, y);
+                }
             });
-            CGPDFOperatorTableSetCallback(table, "n", [](CGPDFScannerRef scanner, void *info) {
-                Scan& scan = *(Scan *)info;
-                scan.points = 0, scan.bounds = Ra::Bounds();
-            });
+            CGPDFOperatorTableSetCallback(table, "h", [](CGPDFScannerRef scanner, void *info) { closeSubpath(*(Scan *)info); });
+            CGPDFOperatorTableSetCallback(table, "W", [](CGPDFScannerRef scanner, void *info) { ((Scan *)info)->clipMode = FPDF_FILLMODE_WINDING; });
+            CGPDFOperatorTableSetCallback(table, "W*", [](CGPDFScannerRef scanner, void *info) { ((Scan *)info)->clipMode = FPDF_FILLMODE_ALTERNATE; });
+            CGPDFOperatorTableSetCallback(table, "n", [](CGPDFScannerRef scanner, void *info) { addPath(*(Scan *)info, FPDF_FILLMODE_NONE); });
             CGPDFOperatorTableSetCallback(table, "f", [](CGPDFScannerRef scanner, void *info) { addPath(*(Scan *)info, FPDF_FILLMODE_WINDING); });
             CGPDFOperatorTableSetCallback(table, "F", [](CGPDFScannerRef scanner, void *info) { addPath(*(Scan *)info, FPDF_FILLMODE_WINDING); });
             CGPDFOperatorTableSetCallback(table, "f*", [](CGPDFScannerRef scanner, void *info) { addPath(*(Scan *)info, FPDF_FILLMODE_ALTERNATE); });
-            for (const char *op : { "B", "b" })
-                CGPDFOperatorTableSetCallback(table, op, [](CGPDFScannerRef scanner, void *info) { addPath(*(Scan *)info, FPDF_FILLMODE_WINDING | kStroke); });
-            for (const char *op : { "B*", "b*" })
-                CGPDFOperatorTableSetCallback(table, op, [](CGPDFScannerRef scanner, void *info) { addPath(*(Scan *)info, FPDF_FILLMODE_ALTERNATE | kStroke); });
-            for (const char *op : { "S", "s" })
-                CGPDFOperatorTableSetCallback(table, op, [](CGPDFScannerRef scanner, void *info) { addPath(*(Scan *)info, kStroke); });
+            CGPDFOperatorTableSetCallback(table, "B", [](CGPDFScannerRef scanner, void *info) { addPath(*(Scan *)info, FPDF_FILLMODE_WINDING | kStroke); });
+            CGPDFOperatorTableSetCallback(table, "B*", [](CGPDFScannerRef scanner, void *info) { addPath(*(Scan *)info, FPDF_FILLMODE_ALTERNATE | kStroke); });
+            CGPDFOperatorTableSetCallback(table, "S", [](CGPDFScannerRef scanner, void *info) { addPath(*(Scan *)info, kStroke); });
+            CGPDFOperatorTableSetCallback(table, "b", [](CGPDFScannerRef scanner, void *info) { closeSubpath(*(Scan *)info), addPath(*(Scan *)info, FPDF_FILLMODE_WINDING | kStroke); });
+            CGPDFOperatorTableSetCallback(table, "b*", [](CGPDFScannerRef scanner, void *info) { closeSubpath(*(Scan *)info), addPath(*(Scan *)info, FPDF_FILLMODE_ALTERNATE | kStroke); });
+            CGPDFOperatorTableSetCallback(table, "s", [](CGPDFScannerRef scanner, void *info) { closeSubpath(*(Scan *)info), addPath(*(Scan *)info, kStroke); });
+            
+            CGPDFOperatorTableSetCallback(table, "w", [](CGPDFScannerRef scanner, void *info) { popNumber(scanner, ((Scan *)info)->state.lineWidth); });
+            CGPDFOperatorTableSetCallback(table, "J", [](CGPDFScannerRef scanner, void *info) {
+                CGPDFInteger cap;
+                if (CGPDFScannerPopInteger(scanner, & cap))
+                    ((Scan *)info)->state.cap = uint8_t(cap);
+            });
+            CGPDFOperatorTableSetCallback(table, "j", [](CGPDFScannerRef scanner, void *info) {
+                CGPDFInteger join;
+                if (CGPDFScannerPopInteger(scanner, & join))
+                    ((Scan *)info)->state.join = uint8_t(join);
+            });
+            CGPDFOperatorTableSetCallback(table, "d", [](CGPDFScannerRef scanner, void *info) {
+                CGPDFReal phase;  CGPDFArrayRef array;
+                if (CGPDFScannerPopNumber(scanner, & phase) && CGPDFScannerPopArray(scanner, & array))
+                    setDash(*(Scan *)info, array, phase);
+            });
         }
-        // Adds the last count of an operator's points, of which it has points
-        static void addPoints(CGPDFScannerRef scanner, Scan& scan, int count, size_t points) {
-            CGPDFReal x, y;
-            scan.points += points;
-            for (int i = 0; i < count && CGPDFScannerPopNumber(scanner, & y) && CGPDFScannerPopNumber(scanner, & x); i++)
-                scan.bounds.extend(x, y);
+        static bool popNumbers(CGPDFScannerRef scanner, float *numbers, int count) {
+            CGPDFReal number;
+            for (int i = count - 1; i >= 0; i--)
+                if (CGPDFScannerPopNumber(scanner, & number))
+                    numbers[i] = number;
+                else
+                    return false;
+            return true;
         }
+        static void setDash(Scan& scan, CGPDFArrayRef array, float phase) {
+            std::vector<float> dash;  CGPDFReal number;
+            for (size_t i = 0; i < CGPDFArrayGetCount(array); i++)
+                if (CGPDFArrayGetNumber(array, i, & number))
+                    dash.emplace_back(number);
+            std::vector<std::vector<float>>& dashes = scan.shadings->dashes;
+            scan.state.dashPhase = phase, scan.state.dash = dash.empty() ? -1 : int(dashes.size());
+            if (dash.size())
+                dashes.emplace_back(dash);
+        }
+        // Adds a point as pdfium does: a move after a move replaces it, & a line or curve needs a current point
+        static void addPoint(Scan& scan, float x, float y, uint8_t type) {
+            std::vector<PathPoint>& points = scan.points;
+            bool afterMove = points.size() && points.back().type == Ra::Geometry::kMove && !points.back().close;
+            if (type == Ra::Geometry::kMove && afterMove && scan.x == x && scan.y == y)
+                return;
+            scan.x = x, scan.y = y;
+            if (type == Ra::Geometry::kMove) {
+                scan.startX = x, scan.startY = y;
+                if (afterMove) {
+                    points.back().x = x, points.back().y = y;
+                    return;
+                }
+            } else if (points.empty())
+                return;
+            points.emplace_back(PathPoint{ x, y, type, false });
+        }
+        static void closePath(Scan& scan, float x, float y) {      // With a line to x, y
+            scan.x = x, scan.y = y;
+            if (scan.points.size())
+                scan.points.emplace_back(PathPoint{ x, y, Ra::Geometry::kLine, true });
+        }
+        static void closeSubpath(Scan& scan) {
+            if (scan.points.empty())
+                return;
+            if (scan.startX != scan.x || scan.startY != scan.y)
+                closePath(scan, scan.startX, scan.startY);
+            else
+                scan.points.back().close = true;
+        }
+        // A painting operator makes a path object of a path of more than one point, & for a pending W or W*, clips to it
         static void addPath(Scan& scan, uint8_t mode) {
-            if (scan.points > 1) {
-                PathFill fill;
-                fill.pattern = (mode & 3) && scan.state.isPatternSpace ? scan.state.pattern : -1, fill.mask = scan.state.mask, fill.alpha = scan.state.alpha;
-                fill.blend = scan.state.blend, fill.mode = mode, fill.container = scan.container;
-                fill.bounds = Ra::Bounds(scan.bounds.quad(scan.state.ctm.concat(scan.base.invert())));
-                scan.shadings->paths.emplace_back(fill);
+            Shadings& s = *scan.shadings;  State& st = scan.state;  std::vector<PathPoint>& points = scan.points;
+            uint8_t clipMode = scan.clipMode;  scan.clipMode = 0;
+            if (points.empty())
+                return;
+            bool isEntry = st.clip == scan.entryClip;
+            if (points.size() == 1) {
+                if (clipMode)
+                    st.clip = s.addClip(st.clip, Ra::Path(), isEntry);
+                return points.clear();
             }
-            scan.points = 0, scan.bounds = Ra::Bounds();
+            if (points.back().type == Ra::Geometry::kMove && !points.back().close)
+                points.pop_back();
+            Ra::Path path;  Ra::Bounds bounds;  float cubic[6];  int n = 0;
+            path->prealloc(points.size());
+            for (PathPoint& p : points) {
+                bounds.extend(p.x, p.y);
+                if (p.type == Ra::Geometry::kMove)
+                    path->moveTo(p.x, p.y);
+                else if (p.type == Ra::Geometry::kLine)
+                    path->lineTo(p.x, p.y);
+                else {
+                    cubic[n++] = p.x, cubic[n++] = p.y;
+                    if (n == 6)
+                        path->cubicTo(cubic[0], cubic[1], cubic[2], cubic[3], cubic[4], cubic[5]), n = 0;
+                }
+                if (p.close)
+                    path->close();
+            }
+            if (mode != FPDF_FILLMODE_NONE) {
+                PathObject object;
+                object.path = path, object.ctm = st.ctm, object.mode = mode;
+                object.pattern = (mode & 3) && st.isPatternSpace ? st.pattern : -1, object.mask = st.mask, object.alpha = st.alpha, object.blend = st.blend;
+                object.width = st.lineWidth, object.cap = st.cap, object.join = st.join, object.dash = st.dash, object.dashPhase = st.dashPhase;
+                object.bounds = Ra::Bounds(bounds.quad(st.ctm.concat(scan.baseInverse)));
+                addObject(scan, kPathObject, s.paths.size());
+                s.paths.emplace_back(object);
+            }
+            if (clipMode)
+                st.clip = s.addClip(st.clip, transformedPath(path, st.ctm), isEntry);
+            points.clear();
         }
         // A /BM name, or the first known in an array of them
         static uint8_t readBlendMode(CGPDFObjectRef obj) {
@@ -1166,7 +1300,7 @@ struct RasterizerPDF {
                 state.ctm = Ra::Transform(m[0], m[1], m[2], m[3], m[4], m[5]);
             state.space = state.ctm;
             CGPDFContentStreamRef content = CGPDFContentStreamCreateWithStream(group, resources, cs);
-            CGPDFOperatorTableRef table = createTable(true);
+            CGPDFOperatorTableRef table = createTable();
             Shadings contents;
             contents.scan(content, table, state, depth + 1);
             CGPDFOperatorTableRelease(table);
@@ -1183,29 +1317,18 @@ struct RasterizerPDF {
             result.alpha = alpha;
             return result;
         }
-        // The shading for pdfium's next shading object, if it could be read
-        const Shading *next() {
-            size_t i = index++;
-            return i < shadings.size() && shadings[i].isValid ? & shadings[i] : nullptr;
+        // The scan's object for each of pdfium's, depth first, or null if it can't be matched
+        std::vector<const Object *> matches;
+        size_t matchIndex = 0;
+        const Object *nextObject() {
+            return matchIndex < matches.size() ? matches[matchIndex++] : nullptr;
         }
-        // The fill of pdfium's next path object, if it can be matched
-        std::vector<int> pathMatches;      // The path for each of pdfium's, or -1
-        const PathFill *nextPath() {
-            size_t i = pathIndex++;
-            return i < pathMatches.size() && pathMatches[i] >= 0 ? & paths[pathMatches[i]] : nullptr;
+        const Shading *pattern(const PathObject& object) const {
+            return object.pattern >= 0 && patterns[object.pattern].isValid ? & patterns[object.pattern] : nullptr;
         }
-        const Shading *pattern(const PathFill *fill) const {
-            return fill && fill->pattern >= 0 && patterns[fill->pattern].isValid ? & patterns[fill->pattern] : nullptr;
-        }
-        // The run of pdfium's next text object, if it can be matched
-        const TextRun *nextText() {
-            size_t i = textIndex++;
-            return i < texts.size() && texts[i].isValid ? & texts[i] : nullptr;
-        }
-        // The group of pdfium's next form object, if it can be matched
-        const Group *nextForm() {
-            size_t i = formIndex++;
-            return i < forms.size() ? & forms[i] : nullptr;
+        Clip& clip(int index) {
+            static Clip none;
+            return index < 0 ? none : clips[index];
         }
     };
     
@@ -1266,65 +1389,43 @@ struct RasterizerPDF {
     }
     
     static void writePageToScene(FPDF_DOCUMENT doc, FPDF_PAGE page, Shadings& shadings, Ra::SceneRef& scene) {
-        FPDF_TEXTPAGE text_page = FPDFText_LoadPage(page);
-        CharMap charMap;
-        writeCharMap(text_page, charMap);
-        
-        Match match;
-        for (size_t i = 0; i < shadings.paths.size(); i++)
-            match.paths[shadings.paths[i].container].emplace_back(i);
-        matchObjects(page, nullptr, -1, shadings, match);
-        if (!match.shadings || match.shading != shadings.shadings.size())
-            shadings.shadings.resize(0);    // They can't be matched, so are drawn as bitmaps
-        if (!match.texts || match.text != shadings.texts.size())
-            shadings.texts.resize(0);       // They can't be matched, so are pdfium's glyphs for their Unicode
-        if (!match.forms || match.form != shadings.forms.size())      // They can't be matched, so their soft masks & opacities are
-            shadings.forms.resize(0), shadings.pathMatches.assign(shadings.pathMatches.size(), -1);    // ignored, & nor can their paths
-        
-        writeObjectsToScene(doc, page, nullptr, Ra::Transform(), nullptr, kNoMask, 1.f, kBlendNormal, text_page, charMap, shadings, scene);
-        FPDFText_ClosePage(text_page);
+        TextPage textPage(page);
+        matchObjects(page, nullptr, -1, shadings);
+        writeObjectsToScene(doc, page, nullptr, Ra::Transform(), -1, kNoMask, 1.f, kBlendNormal, textPage, shadings, scene);
     }
     
-    // pdfium's shadings & forms are matched, depth first, with the scan's by their place in their form, & a kind with any mismatch is
-    // dropped. Paths, which the scan & pdfium can disagree on, are aligned within each form by draw mode & bounds, which for a stroke
-    // contain the scan's, so a path only one has is skipped
-    struct Match {
-        static constexpr size_t kWindow = 16;     // The scan's paths searched for each of pdfium's
-        bool shadings = true, forms = true, texts = true;
-        size_t shading = 0, form = 0, text = 0;
-        std::map<int, std::vector<size_t>> paths;   // The scan's paths in each form, in order
-        std::map<int, size_t> next;                 // The next of them to match
-    };
-    static void matchObjects(FPDF_PAGE page, FPDF_PAGEOBJECT form, int container, Shadings& shadings, Match& match) {
-        uint32_t others = 0, texts = 0;
-        std::vector<size_t>& paths = match.paths[container];  size_t& next = match.next[container];
+    // pdfium's objects are matched, depth first, with the scan's of the same kind in the same content stream, in order, within
+    // a window, so an object only one has is skipped. Paths, which the scan & pdfium can disagree on, must also have the same
+    // draw mode & bounds, which for a stroke contain the scan's. An unmatched form's contents are unmatched
+    static constexpr size_t kMatchWindow = 16;
+    static void matchObjects(FPDF_PAGE page, FPDF_PAGEOBJECT form, int container, Shadings& shadings) {
+        static const std::vector<Shadings::Object> none;
+        const std::vector<Shadings::Object>& objects = container >= -1 && size_t(container + 1) < shadings.streams.size() ? shadings.streams[container + 1] : none;
+        size_t next = 0;
         int objectCount = form ? FPDFFormObj_CountObjects(form) : FPDFPage_CountObjects(page);
         for (int i = 0; i < objectCount; i++) {
             FPDF_PAGEOBJECT page_object = form ? FPDFFormObj_GetObject(form, i) : FPDFPage_GetObject(page, i);
-            int type = FPDFPageObj_GetType(page_object);
-            if (type == FPDF_PAGEOBJ_PATH) {
-                int fillmode, j = -1;  FPDF_BOOL stroke;  float l, b, r, t;
-                if (next < paths.size() && FPDFPath_GetDrawMode(page_object, & fillmode, & stroke) && FPDFPageObj_GetBounds(page_object, & l, & b, & r, & t))
-                    for (size_t k = next; j < 0 && k < paths.size() && k < next + Match::kWindow; k++) {
-                        const Shadings::PathFill& fill = shadings.paths[paths[k]];
-                        if (fill.mode == (fillmode | (stroke ? Shadings::kStroke : 0)) && boundsMatch(fill.bounds, Ra::Bounds(l, b, r, t), stroke))
-                            j = int(paths[k]), next = k + 1;
-                    }
-                shadings.pathMatches.emplace_back(j);
-            } else if (type == FPDF_PAGEOBJ_TEXT) {
-                size_t j = match.text++;
-                match.texts = match.texts && j < shadings.textPlaces.size() && shadings.textPlaces[j] == Shadings::Place{ container, texts };
-                texts++;
-            } else if (type == FPDF_PAGEOBJ_SHADING) {
-                size_t j = match.shading++;
-                match.shadings = match.shadings && j < shadings.shadingPlaces.size() && shadings.shadingPlaces[j] == Shadings::Place{ container, others };
-                others++;
-            } else if (type == FPDF_PAGEOBJ_FORM) {
-                size_t j = match.form++;
-                match.forms = match.forms && j < shadings.forms.size() && shadings.forms[j].place == Shadings::Place{ container, others };
-                others++;
-                matchObjects(page, page_object, int(j), shadings, match);
+            int type = FPDFPageObj_GetType(page_object), fillmode;  FPDF_BOOL stroke;  float l, b, r, t;
+            uint8_t kind = type == FPDF_PAGEOBJ_PATH ? Shadings::kPathObject : type == FPDF_PAGEOBJ_TEXT ? Shadings::kTextObject
+                : type == FPDF_PAGEOBJ_IMAGE ? Shadings::kImageObject : type == FPDF_PAGEOBJ_SHADING ? Shadings::kShadingObject
+                : type == FPDF_PAGEOBJ_FORM ? Shadings::kFormObject : Shadings::kNoObject;
+            bool isPath = kind == Shadings::kPathObject;
+            bool canMatch = !isPath || (FPDFPath_GetDrawMode(page_object, & fillmode, & stroke) && FPDFPageObj_GetBounds(page_object, & l, & b, & r, & t));
+            const Shadings::Object *match = nullptr;
+            for (size_t k = next; canMatch && match == nullptr && k < objects.size() && k < next + kMatchWindow; k++) {
+                const Shadings::Object& object = objects[k];
+                if (object.kind != kind)
+                    continue;
+                if (isPath) {
+                    const Shadings::PathObject& path = shadings.paths[object.index];
+                    if (path.mode != (fillmode | (stroke ? Shadings::kStroke : 0)) || !boundsMatch(path.bounds, Ra::Bounds(l, b, r, t), stroke))
+                        continue;
+                }
+                match = & object, next = k + 1;
             }
+            shadings.matches.emplace_back(match);
+            if (type == FPDF_PAGEOBJ_FORM)
+                matchObjects(page, page_object, match ? int(match->index) : -2, shadings);
         }
     }
     // Whether pdfium's bounds of a path are the scan's, or for a stroke, which pdfium's include, contain them
@@ -1334,66 +1435,76 @@ struct RasterizerPDF {
             return pdf.lx <= scan.lx + tol && pdf.ly <= scan.ly + tol && pdf.ux >= scan.ux - tol && pdf.uy >= scan.uy - tol;
         return fabsf(pdf.lx - scan.lx) <= tol && fabsf(pdf.ly - scan.ly) <= tol && fabsf(pdf.ux - scan.ux) <= tol && fabsf(pdf.uy - scan.uy) <= tol;
     }
-    
-    static void countObjects(FPDF_PAGE page, FPDF_PAGEOBJECT form, size_t& paths, size_t& shadings, size_t& forms, size_t& texts) {
-        int objectCount = form ? FPDFFormObj_CountObjects(form) : FPDFPage_CountObjects(page);
-        for (int i = 0; i < objectCount; i++) {
-            FPDF_PAGEOBJECT page_object = form ? FPDFFormObj_GetObject(form, i) : FPDFPage_GetObject(page, i);
-            int type = FPDFPageObj_GetType(page_object);
-            paths += type == FPDF_PAGEOBJ_PATH, shadings += type == FPDF_PAGEOBJ_SHADING, texts += type == FPDF_PAGEOBJ_TEXT;
-            if (type == FPDF_PAGEOBJ_FORM)
-                forms++, countObjects(page, page_object, paths, shadings, forms, texts);
+    // The objects in a form, & in its forms
+    static size_t countObjects(FPDF_PAGEOBJECT form) {
+        size_t count = 0;
+        for (int i = 0, objectCount = FPDFFormObj_CountObjects(form); i < objectCount; i++) {
+            FPDF_PAGEOBJECT page_object = FPDFFormObj_GetObject(form, i);
+            count += 1 + (FPDFPageObj_GetType(page_object) == FPDF_PAGEOBJ_FORM ? countObjects(page_object) : 0);
         }
+        return count;
     }
     
-    // Writes the page's objects, or a form's, whose objects are in form space, within its clip, & for a transparency group, under its
-    // soft mask, opacity & blend mode. Under a mask only fills are drawn, as gradients with the mask's alpha. The opacity & blend mode
-    // are applied to each object, not the group, & an object's own blend mode replaces the group's
-    static void writeObjectsToScene(FPDF_DOCUMENT doc, FPDF_PAGE page, FPDF_PAGEOBJECT form, Ra::Transform formCTM, ClipState *parentClip, int mask, float opacity, uint8_t blend, FPDF_TEXTPAGE text_page, CharMap& charMap, Shadings& shadings, Ra::SceneRef& scene) {
-        ClipState clipState;
-        
+    // Writes the page's objects, or a form's, whose objects are in form space, & for a transparency group, under its soft mask,
+    // opacity & blend mode. Under a mask only fills are drawn, as gradients with the mask's alpha. The opacity & blend mode are
+    // applied to each object, not the group, & an object's own blend mode replaces the group's. Objects are clipped with the
+    // scan's clips, & an unmatched one with the last matched one's, or with clip, the form's at its start
+    static void writeObjectsToScene(FPDF_DOCUMENT doc, FPDF_PAGE page, FPDF_PAGEOBJECT form, Ra::Transform formCTM, int clip, int mask, float opacity, uint8_t blend, TextPage& textPage, Shadings& shadings, Ra::SceneRef& scene) {
         FS_MATRIX m;
         Ra::Transform ctm;
         int objectCount = form ? FPDFFormObj_CountObjects(form) : FPDFPage_CountObjects(page);
         for (int i = 0; i < objectCount; i++) {
             FPDF_PAGEOBJECT page_object = form ? FPDFFormObj_GetObject(form, i) : FPDFPage_GetObject(page, i);
+            const Shadings::Object *object = shadings.nextObject();
             
             FPDFPageObj_GetMatrix(page_object, & m);
             ctm = Ra::Transform(m.a, m.b, m.c, m.d, m.e, m.f).concat(formCTM);
-            clipState.update(page_object, formCTM, parentClip);
+            clip = object ? object->clip : clip;
+            int type = FPDFPageObj_GetType(page_object), clipIndex = clip;
+            if (clip >= 0 && type != FPDF_PAGEOBJ_SHADING && type != FPDF_PAGEOBJ_FORM) {
+                // pdfium drops an object's clip if it's one rect of its stream's that contains the object, but for a shading
+                Shadings::Clip& c = shadings.clips[clip];  float l, b, r, t;
+                if (c.own == 1 && c.paths[0]->isRect() && FPDFPageObj_GetBounds(page_object, & l, & b, & r, & t)
+                    && c.paths[0]->bounds.contains(Ra::Bounds(Ra::Bounds(l, b, r, t).quad(formCTM))))
+                    clipIndex = c.inherited;
+            }
+            Shadings::Clip& objectClip = shadings.clip(clipIndex);
+            Ra::Bounds *clipBounds = clipIndex < 0 ? nullptr : & objectClip.bounds;
+            std::vector<Ra::Path>& clipPaths = objectClip.sorted;
             
-            switch (FPDFPageObj_GetType(page_object)) {
+            switch (type) {
                 case FPDF_PAGEOBJ_TEXT: {
-                    const Shadings::TextRun *run = shadings.nextText();
+                    const Shadings::TextRun *run = object && shadings.texts[object->index].isValid ? & shadings.texts[object->index] : nullptr;
                     if (mask != kNoMask)
                         break;
                     if (run)
-                        writeTextRunToScene(*run, page_object, opacity, blend, clipState.clipPtr, clipState.clipPaths, scene);
+                        writeTextRunToScene(*run, page_object, opacity, blend, clipBounds, clipPaths, scene);
                     else
-                        writeTextToScene(page_object, text_page, charMap, ctm, opacity, blend, clipState.clipPtr, scene);
+                        writeTextToScene(page_object, textPage, ctm, opacity, blend, clipBounds, scene);
                     break;
                 }
                 case FPDF_PAGEOBJ_PATH:
-                    writePathToScene(page, form, page_object, ctm, formCTM, mask, opacity, blend, shadings, clipState.clipPtr, clipState.clipPaths, scene);
+                    if (object)     // Else it has no path
+                        writePathToScene(page, form, page_object, shadings.paths[object->index], formCTM, mask, opacity, blend, shadings, clipBounds, clipPaths, scene);
                     break;
                 case FPDF_PAGEOBJ_IMAGE:
                     if (mask == kNoMask)
-                        writeImageToScene(doc, page, page_object, ctm, opacity, blend, clipState.clipPtr, clipState.clipPaths, scene);
+                        writeImageToScene(doc, page, page_object, ctm, opacity, blend, clipBounds, clipPaths, scene);
                     break;
-                case FPDF_PAGEOBJ_SHADING:
-                    writeShadingToScene(page, form, page_object, formCTM, mask, opacity, blend, shadings, clipState.clipPtr, clipState.clipPaths, scene);
+                case FPDF_PAGEOBJ_SHADING: {
+                    const Shading *shading = object && shadings.shadings[object->index].isValid ? & shadings.shadings[object->index] : nullptr;
+                    writeShadingToScene(page, form, page_object, shading, formCTM, mask, opacity, blend, shadings, clipBounds, clipPaths, scene);
                     break;
+                }
                 case FPDF_PAGEOBJ_FORM: {
-                    const Shadings::Group *group = shadings.nextForm();
+                    const Shadings::Group *group = object ? & shadings.forms[object->index] : nullptr;
                     int formMask = group && group->mask != kNoMask ? group->mask : mask;
                     float formOpacity = opacity * (group ? group->alpha : 1.f);
                     uint8_t formBlend = group && group->blend != kBlendNormal ? group->blend : blend;
-                    if (formMask == kUnsupportedMask || formOpacity == 0.f) {      // Skipped, & its contents
-                        size_t paths = 0, shadingCount = 0, forms = 0, texts = 0;
-                        countObjects(page, page_object, paths, shadingCount, forms, texts);
-                        shadings.pathIndex += paths, shadings.index += shadingCount, shadings.formIndex += forms, shadings.textIndex += texts;
-                    } else
-                        writeObjectsToScene(doc, page, page_object, ctm, & clipState, formMask, formOpacity, formBlend, text_page, charMap, shadings, scene);
+                    if (formMask == kUnsupportedMask || formOpacity == 0.f)      // Skipped, & its contents
+                        shadings.matchIndex += countObjects(page_object);
+                    else
+                        writeObjectsToScene(doc, page, page_object, ctm, group ? group->clip : clip, formMask, formOpacity, formBlend, textPage, shadings, scene);
                     break;
                 }
                 default:
@@ -1454,7 +1565,9 @@ struct RasterizerPDF {
         }
     }
     
-    static void writeTextToScene(FPDF_PAGEOBJECT page_object, FPDF_TEXTPAGE text_page, CharMap& charMap, Ra::Transform textCTM, float opacity, uint8_t blend, Ra::Bounds *clipBounds, Ra::SceneRef& scene) {
+    static void writeTextToScene(FPDF_PAGEOBJECT page_object, TextPage& textPage, Ra::Transform textCTM, float opacity, uint8_t blend, Ra::Bounds *clipBounds, Ra::SceneRef& scene) {
+        FPDF_TEXTPAGE text_page = textPage.get();
+        CharMap& charMap = textPage.charMap;
         auto it = charMap.find((void *)page_object);
         if (it != charMap.end()) {
             double left = 0, bottom = 0, right = 0, top = 0;
@@ -1479,19 +1592,20 @@ struct RasterizerPDF {
         }
     }
      
-    static void writePathToScene(FPDF_PAGE page, FPDF_PAGEOBJECT form, FPDF_PAGEOBJECT pageObject, Ra::Transform ctm, Ra::Transform formCTM, int mask, float opacity, uint8_t blend, Shadings& shadings, Ra::Bounds* clipBounds, std::vector<Ra::Path>& clipPaths, Ra::SceneRef& scene) {
-        int fillmode;
-        FPDF_BOOL stroke;
-        const Shadings::PathFill *pathFill = shadings.nextPath();
-        const Shading *pattern = shadings.pattern(pathFill);
-        bool isPattern = pathFill && pathFill->pattern >= 0;
-        float alpha = (pathFill ? pathFill->alpha : 1.f) * opacity;
-        mask = pathFill && pathFill->mask != kNoMask ? pathFill->mask : mask;
-        blend = pathFill && pathFill->blend != kBlendNormal ? pathFill->blend : blend;
+    // Writes the scan's path, with pdfium's colors
+    static void writePathToScene(FPDF_PAGE page, FPDF_PAGEOBJECT form, FPDF_PAGEOBJECT pageObject, const Shadings::PathObject& object, Ra::Transform formCTM, int mask, float opacity, uint8_t blend, Shadings& shadings, Ra::Bounds* clipBounds, std::vector<Ra::Path>& clipPaths, Ra::SceneRef& scene) {
+        int fillmode = object.mode & ~Shadings::kStroke;
+        bool stroke = object.mode & Shadings::kStroke;
+        const Shading *pattern = shadings.pattern(object);
+        bool isPattern = object.pattern >= 0;
+        float alpha = object.alpha * opacity;
+        mask = object.mask != kNoMask ? object.mask : mask;
+        blend = object.blend != kBlendNormal ? object.blend : blend;
         Ra::Path *clipPath = clipPaths.size() == 0 || clipPaths[0]->isRect() ? nullptr : & clipPaths[0];
         
-        if (mask != kUnsupportedMask && FPDFPath_GetDrawMode(pageObject, & fillmode, & stroke)) {
-            Ra::Path path = PathWriter().createPathFromObject(pageObject);
+        if (mask != kUnsupportedMask) {
+            Ra::Path path = object.path;
+            Ra::Transform ctm = object.ctm;
             unsigned int R = 0, G = 0, B = 0, A = 255;
             if (fillmode != FPDF_FILLMODE_NONE) {
                 Ra::Path fill = path;
@@ -1500,13 +1614,16 @@ struct RasterizerPDF {
                 FPDFPageObj_GetFillColor(pageObject, & R, & G, & B, & A);
                 A = A * opacity + 0.5f;
                 if (fill->isRect() && ctm.det() != 0.f) {
-                    // A rect fill that covers a non-rect clip paints the clip itself; clip paths are in page space
+                    // A rect fill that covers a non-rect clip paints the clip itself, even-odd, as clip masks are, & still clipped to
+                    // the first one if it's another. Clip paths are in page space
                     Ra::Transform inv = ctm.invert();
-                    for (auto clip : clipPaths)
-                        if (!clip->isRect() && clip->isValid() && path->bounds.contains(Ra::Bounds(clip->bounds.quad(inv))))
-                            fill = clip, fillClipPath = nullptr, fillCTM = Ra::Transform();
+                    for (auto& clip : clipPaths)
+                        if (!clip->isRect() && clip->isValid() && path->bounds.contains(Ra::Bounds(clip->bounds.quad(inv)))) {
+                            fill = clip, fillClipPath = & clip == & clipPaths[0] ? nullptr : clipPath, fillCTM = Ra::Transform();
+                            break;
+                        }
                 }
-                uint8_t flags = fillmode == FPDF_FILLMODE_ALTERNATE ? Ra::Draw::kFillEvenOdd : 0;
+                uint8_t flags = fillmode == FPDF_FILLMODE_ALTERNATE || fill.ptr != path.ptr ? Ra::Draw::kFillEvenOdd : 0;
                 bool isGradient = fill->isValid() && fillCTM.det() != 0.f;
                 Shading masked;
                 if (mask >= 0) {
@@ -1526,24 +1643,16 @@ struct RasterizerPDF {
                     scene->addPath(fill, fillCTM, Ra::Color(B, G, R, A), 0.f, flags, clipBounds, fillClipPath, blend);
             }
             if (stroke && mask == kNoMask) {
-                float width = 0.f;
                 uint8_t flags = 0;
                 FPDFPageObj_GetStrokeColor(pageObject, & R, & G, & B, & A);
                 A = A * opacity + 0.5f;
-                FPDFPageObj_GetStrokeWidth(pageObject, & width);
-                width = width == 0.f ? -1.f : width;
-                int cap = FPDFPageObj_GetLineCap(pageObject);
-                flags |= cap == FPDF_LINECAP_ROUND ? Ra::Draw::kRoundCap : 0;
-                flags |= cap == FPDF_LINECAP_PROJECTING_SQUARE ? Ra::Draw::kSquareCap : 0;
-                int join = FPDFPageObj_GetLineJoin(pageObject);
-                flags |= join == FPDF_LINEJOIN_ROUND ? Ra::Draw::kRoundJoin : 0;
-                size_t dashCount = FPDFPageObj_GetDashCount(pageObject);
-                if (dashCount) {
-                    float phase;
-                    Ra::Vector<float> lengths(dashCount);
-                    FPDFPageObj_GetDashPhase(pageObject, & phase);
-                    FPDFPageObj_GetDashArray(pageObject, & lengths[0], dashCount);
-                    path = Ra::Dasher::CreateDashedPath(path, phase, & lengths[0], dashCount);;
+                float width = object.width == 0.f ? -1.f : object.width;
+                flags |= object.cap == FPDF_LINECAP_ROUND ? Ra::Draw::kRoundCap : 0;
+                flags |= object.cap == FPDF_LINECAP_PROJECTING_SQUARE ? Ra::Draw::kSquareCap : 0;
+                flags |= object.join == FPDF_LINEJOIN_ROUND ? Ra::Draw::kRoundJoin : 0;
+                if (object.dash >= 0) {
+                    std::vector<float>& lengths = shadings.dashes[object.dash];
+                    path = Ra::Dasher::CreateDashedPath(path, object.dashPhase, lengths.data(), lengths.size());
                 }
                 if (path->isValid())
                     scene->addPath(path, ctm, Ra::Color(B, G, R, A), width, flags, clipBounds, clipPath, blend);
@@ -1564,8 +1673,7 @@ struct RasterizerPDF {
         scene->addPath(unitRectPath, ctm, image, 0, 0, clipBounds, nullptr, blend);
     }
     
-    static void writeShadingToScene(FPDF_PAGE page, FPDF_PAGEOBJECT form, FPDF_PAGEOBJECT page_object, Ra::Transform formCTM, int mask, float opacity, uint8_t blend, Shadings& shadings, Ra::Bounds* clipBounds, std::vector<Ra::Path>& clipPaths, Ra::SceneRef& scene) {
-        const Shading *shading = shadings.next();
+    static void writeShadingToScene(FPDF_PAGE page, FPDF_PAGEOBJECT form, FPDF_PAGEOBJECT page_object, const Shading *shading, Ra::Transform formCTM, int mask, float opacity, uint8_t blend, Shadings& shadings, Ra::Bounds* clipBounds, std::vector<Ra::Path>& clipPaths, Ra::SceneRef& scene) {
         mask = shading && shading->mask != kNoMask ? shading->mask : mask;
         blend = shading && shading->blend != kBlendNormal ? shading->blend : blend;
         Shading masked;
@@ -1867,30 +1975,12 @@ struct RasterizerPDF {
         float x, y;
         std::vector<float> bezier;
         
-        Ra::Path createPathFromClipPath(FPDF_CLIPPATH clipPath, int index) {
-            Ra::Path p;  int segmentCount = FPDFClipPath_CountPathSegments(clipPath, index);
-            if (segmentCount > 0)
-                p->prealloc(segmentCount);
-            for (int i = 0; i < segmentCount; i++)
-                writeSegment(FPDFClipPath_GetPathSegment(clipPath, index, i), p);
-            return p;
-        }
-        
         Ra::Path createPathFromGlyphPath(FPDF_GLYPHPATH path) {
             Ra::Path p;  int segmentCount = FPDFGlyphPath_CountGlyphSegments(path);
             if (segmentCount > 0)
                 p->prealloc(segmentCount);
             for (int i = 0; i < segmentCount; i++)
                 writeSegment(FPDFGlyphPath_GetGlyphPathSegment(path, i), p);
-            return p;
-        }
-        
-        Ra::Path createPathFromObject(FPDF_PAGEOBJECT pageObject) {
-            Ra::Path p;  int segmentCount = FPDFPath_CountSegments(pageObject);
-            if (segmentCount > 0)
-                p->prealloc(segmentCount);
-            for (int i = 0; i < segmentCount; i++)
-                writeSegment(FPDFPath_GetPathSegment(pageObject, i), p);
             return p;
         }
         
