@@ -17,6 +17,18 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         // If using a storyboard, the `window` property will automatically be initialized and attached to the scene.
         // This delegate does not imply the connecting scene or session are new (see `application:configurationForConnectingSceneSession` instead).
         guard let _ = (scene as? UIWindowScene) else { return }
+        open(connectionOptions.urlContexts)
+    }
+
+    // Files sent to the app with Share or Open in, which arrive as copies the app owns, as LSSupportsOpeningDocumentsInPlace is off
+    func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {
+        open(URLContexts)
+    }
+
+    func open(_ contexts: Set<UIOpenURLContext>) {
+        guard !contexts.isEmpty, let viewController = window?.rootViewController as? ViewController else { return }
+        viewController.loadViewIfNeeded()       // On launch, so the bundled & imported documents are listed first
+        viewController.importFiles(contexts.map(\.url).sorted { $0.lastPathComponent < $1.lastPathComponent })
     }
 
     func sceneDidDisconnect(_ scene: UIScene) {
