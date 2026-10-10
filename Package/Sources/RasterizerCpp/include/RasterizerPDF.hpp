@@ -233,11 +233,35 @@ struct RasterizerPDF {
         // beyond an unextended end, which the mask's group doesn't paint
         float luminosityAt(float x, float y, const Ra::Transform& inverse) const {
             float gx = inverse.a * x + inverse.c * y + inverse.tx, gy = inverse.b * x + inverse.d * y + inverse.ty;
-            float u = isRadial ? sqrtf(gx * gx + gy * gy) : gy;
-            if ((u < lo && !extendLo) || (u > 1.f && !extendHi))
+            float u = isTwoCircle ? twoCircleAt(gx, gy) : isRadial ? sqrtf(gx * gx + gy * gy) : gy;
+            if (isnan(u) || (!isTwoCircle && ((u < lo && !extendLo) || (u > 1.f && !extendHi))))
                 return 0.f;
             Ra::Color m = colorAt(u, false);
             return (0.3f * m.r + 0.59f * m.g + 0.11f * m.b) / 255.f * alpha;
+        }
+        // A two-circle radial's gradient position at a shading space point: the greatest s whose circle, interpolated from
+        // (x0, y0, r0) at 0 to (x1, y1, r1) at 1, & extended, passes through it with radius >= 0, clamped to 0-1, or NaN if none
+        float twoCircleAt(float x, float y) const {
+            const float *c = circles;
+            float dx = c[3] - c[0], dy = c[4] - c[1], dr = c[5] - c[2], px = x - c[0], py = y - c[1];
+            float a = dx * dx + dy * dy - dr * dr, b = px * dx + py * dy + c[2] * dr, cc = px * px + py * py - c[2] * c[2];
+            float roots[2];  int n = 0;
+            if (fabsf(a) < 1e-6f * (dx * dx + dy * dy + dr * dr)) {
+                if (b != 0.f)
+                    roots[n++] = 0.5f * cc / b;
+            } else {
+                float d = b * b - a * cc;
+                if (d < 0.f)
+                    return NAN;
+                float q = sqrtf(d);
+                roots[n++] = fmaxf((b + q) / a, (b - q) / a), roots[n++] = fminf((b + q) / a, (b - q) / a);
+            }
+            for (int i = 0; i < n; i++) {
+                float t = roots[i];
+                if (c[2] + t * dr >= 0.f && (t >= 0.f || extendLo) && (t <= 1.f || extendHi))
+                    return fmaxf(0.f, fminf(1.f, t));
+            }
+            return NAN;
         }
         // The color at u, or its left limit, which differs at a hard stop
         Ra::Color colorAt(float u, bool left) const {
@@ -252,16 +276,19 @@ struct RasterizerPDF {
             return Ra::Color(uint8_t(c0.b + t * (c1.b - c0.b) + 0.5f), uint8_t(c0.g + t * (c1.g - c0.g) + 0.5f), uint8_t(c0.r + t * (c1.r - c0.r) + 0.5f), uint8_t(c0.a + t * (c1.a - c0.a) + 0.5f));
         }
         // A luminosity soft mask of a gradient, applied to a gradient with the same geometry, or to a color if shading is null.
-        // The result's alphas are the mask's luminosity
+        // The result's alphas are the mask's luminosity. Two-circle radials have the same geometry if their circles do
         static bool masked(const Shading *shading, Ra::Color color, const Shading& mask, Shading& result) {
-            if ((shading && (shading->isTwoCircle || shading->isEmpty)) || mask.isTwoCircle || mask.isEmpty)
+            if ((shading && shading->isEmpty) || mask.isEmpty)
                 return false;     // An empty shading or mask paints nothing
             if (shading) {
                 Ra::Transform m0 = shading->unit.concat(shading->ctm), m1 = mask.unit.concat(mask.ctm);
                 auto close = [](float x, float y) { return fabsf(x - y) <= 1e-3f * (1.f + fabsf(x)); };
-                if (shading->isRadial != mask.isRadial || !close(shading->lo, mask.lo) || !close(m0.a, m1.a) || !close(m0.b, m1.b)
-                    || !close(m0.c, m1.c) || !close(m0.d, m1.d) || !close(m0.tx, m1.tx) || !close(m0.ty, m1.ty))
+                if (shading->isRadial != mask.isRadial || shading->isTwoCircle != mask.isTwoCircle || !close(shading->lo, mask.lo) || !close(m0.a, m1.a)
+                    || !close(m0.b, m1.b) || !close(m0.c, m1.c) || !close(m0.d, m1.d) || !close(m0.tx, m1.tx) || !close(m0.ty, m1.ty))
                     return false;
+                for (int i = 0; i < 6 && mask.isTwoCircle; i++)
+                    if (!close(shading->circles[i], mask.circles[i]))
+                        return false;
             }
             result = mask, result.alpha = 1.f, result.mask = kNoMask, result.colors.resize(0), result.locations.resize(0);
             result.extendLo = mask.extendLo && (!shading || shading->extendLo), result.extendHi = mask.extendHi && (!shading || shading->extendHi);
@@ -2615,7 +2642,7 @@ struct RasterizerPDF {
         }
         // The mask's shading, in group space, at ctm
         int addMask(const Shading& shading, Ra::Transform ctm) {
-            if (!shading.isValid || shading.isTwoCircle || shading.isEmpty)
+            if (!shading.isValid || shading.isEmpty)
                 return kUnsupportedMask;      // An empty mask paints nothing, so hides what it masks, as an unsupported one does
             masks.emplace_back(shading), masks.back().ctm = shading.ctm.concat(ctm);
             return int(masks.size() - 1);
