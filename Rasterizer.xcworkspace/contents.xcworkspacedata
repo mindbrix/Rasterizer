@@ -1,6 +1,97 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Workspace
    version = "1.0">
+   <Group
+      location = "group:Package/Sources"
+      name = "Sources">
+      <Group
+         location = "group:RasterizerCpp"
+         name = "RasterizerCpp">
+         <Group
+            location = "group:include"
+            name = "include">
+            <FileRef
+               location = "group:xxhash.h">
+            </FileRef>
+            <FileRef
+               location = "group:RasterizerCG.hpp">
+            </FileRef>
+            <FileRef
+               location = "group:Rasterizer.hpp">
+            </FileRef>
+            <FileRef
+               location = "group:Shaders.metal">
+            </FileRef>
+            <FileRef
+               location = "group:Rasterizer.h">
+            </FileRef>
+            <FileRef
+               location = "group:RasterizerPDF.hpp">
+            </FileRef>
+            <FileRef
+               location = "group:RasterizerCoreText.hpp">
+            </FileRef>
+            <FileRef
+               location = "group:nanosvg.h">
+            </FileRef>
+            <FileRef
+               location = "group:RasterizerWinding.hpp">
+            </FileRef>
+            <FileRef
+               location = "group:RasterizerSVG.hpp">
+            </FileRef>
+            <FileRef
+               location = "group:RasterizerRenderer.hpp">
+            </FileRef>
+         </Group>
+         <FileRef
+            location = "group:xxhash.c">
+         </FileRef>
+         <FileRef
+            location = "group:nanosvg.cc">
+         </FileRef>
+      </Group>
+      <Group
+         location = "group:RasterizerSwift"
+         name = "RasterizerSwift">
+         <FileRef
+            location = "group:Extensions.swift">
+         </FileRef>
+      </Group>
+      <Group
+         location = "group:RasterizerObjC"
+         name = "RasterizerObjC">
+         <FileRef
+            location = "group:RasterizerView.mm">
+         </FileRef>
+         <Group
+            location = "group:include"
+            name = "include">
+            <FileRef
+               location = "group:RasterizerView.h">
+            </FileRef>
+            <FileRef
+               location = "group:RasterizerAPI.h">
+            </FileRef>
+         </Group>
+         <Group
+            location = "group:private"
+            name = "private">
+            <FileRef
+               location = "group:RasterizerLayer.h">
+            </FileRef>
+            <FileRef
+               location = "group:RasterizerAPI+Internal.h">
+            </FileRef>
+         </Group>
+         <FileRef
+            location = "group:RasterizerLayer.mm">
+         </FileRef>
+         <FileRef
+            location = "group:RasterizerAPI.mm">
+         </FileRef>
+      </Group>
+   </Group>
    <FileRef
       location = "group:Rasterizer.xcodeproj">
    </FileRef>
