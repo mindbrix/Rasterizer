@@ -31,7 +31,7 @@ let package = Package(
         // Targets can depend on other targets in this package and products from dependencies.
         .target(
             name: "RasterizerCpp",
-            path: "Sources/RasterizerCpp",
+            path: "Package/Sources/RasterizerCpp",
             cxxSettings: [
                 .headerSearchPath("include"),
             ]
@@ -39,7 +39,7 @@ let package = Package(
         .target(
             name: "RasterizerObjC",
             dependencies: ["RasterizerCpp"],
-            path: "Sources/RasterizerObjC",
+            path: "Package/Sources/RasterizerObjC",
             resources: [
                 .process("../../Sources/RasterizerCpp/include/Shaders.metal")
             ],
@@ -51,11 +51,12 @@ let package = Package(
         .target(
             name: "RasterizerSwift",
             dependencies: ["RasterizerObjC"],
-            path: "Sources/RasterizerSwift"
+            path: "Package/Sources/RasterizerSwift"
         ),
         .testTarget(
             name: "RasterizerSwiftTests",
-            dependencies: ["RasterizerObjC"]
+            dependencies: ["RasterizerObjC"],
+            path: "Package/Tests/RasterizerSwiftTests"
         ),
     ],
     cxxLanguageStandard: .cxx17

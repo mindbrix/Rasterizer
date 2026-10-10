@@ -50,7 +50,7 @@ Features
 Quick start
 -----------
 
-Rasterizer is a Swift package in the [`Package`](Package) folder, with three libraries:
+Rasterizer is a Swift package, with its sources in [`Package/Sources`](Package/Sources), and three libraries:
 
 | Library | What it is |
 |---|---|
@@ -58,7 +58,21 @@ Rasterizer is a Swift package in the [`Package`](Package) folder, with three lib
 | `RasterizerObjC` | The API used from Swift and Objective-C, and `RasterizerView`, a Metal-backed `UIView` or `NSView` |
 | `RasterizerSwift` | Swift helpers, such as fitting a scene to a view |
 
-`Package.swift` isn't at the repository root, so add the `Package` folder as a local package. In Xcode, choose **File ▸ Add Package Dependencies… ▸ Add Local…**, select `Package`, and link `RasterizerObjC`, plus `RasterizerSwift` if you want the helpers. A git submodule works well for keeping it up to date.
+In Xcode, choose **File ▸ Add Package Dependencies…**, enter `https://github.com/mindbrix/Rasterizer`, and link `RasterizerObjC`, plus `RasterizerSwift` if you want the helpers. Or, in a `Package.swift`:
+
+```swift
+dependencies: [
+    .package(url: "https://github.com/mindbrix/Rasterizer", branch: "master"),
+],
+targets: [
+    .target(name: "MyApp", dependencies: [
+        .product(name: "RasterizerObjC", package: "Rasterizer"),
+        .product(name: "RasterizerSwift", package: "Rasterizer"),
+    ]),
+]
+```
+
+There are no release tags yet, so depend on a branch. To work on Rasterizer alongside your app, add your clone with **Add Local…** instead.
 
 A `RasterizerView` asks its delegate each frame whether to redraw, and for the list of scenes to draw:
 
