@@ -51,6 +51,12 @@ struct RasterizerPDF {
         std::vector<size_t> sizes;                  // A sampled function's, of each input
         std::vector<float> domain, range, c0, c1, bounds, encode, decode, samples;
         std::vector<Function> fns;
+        // A PostScript calculator function's program, as operators, & numbers to push, with jumps for if & ifelse
+        enum Op : uint8_t { kPush, kJumpIfFalse, kJump, kAbs, kAdd, kAtan, kCeiling, kCos, kCvi, kCvr, kDiv, kExp, kFloor, kIdiv, kLn,
+            kLog, kMod, kMul, kNeg, kRound, kSin, kSqrt, kSub, kTruncate, kAnd, kBitshift, kEq, kFalse, kGe, kGt, kLe, kLt, kNe, kNot,
+            kOr, kTrue, kXor, kCopy, kDup, kExch, kIndex, kPop, kRoll };
+        struct Instruction { Op op;  double value; };      // A number, or a jump's target
+        std::vector<Instruction> program;
         
         bool read(CGPDFObjectRef obj) {
             CGPDFDictionaryRef dict = nullptr;  CGPDFStreamRef stream = nullptr;  CGPDFInteger t;
@@ -64,6 +70,8 @@ struct RasterizerPDF {
             readNumbers(dict, "Range", range);
             if (type == 0)
                 return inputs <= kMaxInputs && readSampled(dict, stream);
+            if (type == 4)
+                return inputs <= kMaxInputs && range.size() >= 2 && range.size() % 2 == 0 && readCalculator(stream);
             if (inputs != 1)
                 return false;
             if (type == 2) {
@@ -131,8 +139,165 @@ struct RasterizerPDF {
             CFRelease(data);
             return ok;
         }
+        // A PostScript calculator function's program, compiled, & its outputs, which are its range's
+        bool readCalculator(CGPDFStreamRef stream) {
+            CGPDFDataFormat format;  CFDataRef data = stream ? CGPDFStreamCopyData(stream, & format) : nullptr;
+            if (data == nullptr)
+                return false;
+            const char *p = (const char *)CFDataGetBytePtr(data), *end = p + CFDataGetLength(data);
+            for (; p < end && *p != '{'; p++) {}
+            bool ok = format == CGPDFDataFormatRaw && p < end && compile(++p, end, 0) && program.size() < 65536;
+            CFRelease(data);
+            outputs = range.size() / 2;
+            return ok;
+        }
+        // Compiles a brace-delimited procedure, after its {, up to its }. A procedure before if, or two before ifelse, are inline,
+        // after a jump past them if the condition is false, & an ifelse's first procedure jumps past its second
+        bool compile(const char *& p, const char *end, int depth) {
+            static const std::map<std::string, Op> ops = { { "abs", kAbs }, { "add", kAdd }, { "atan", kAtan }, { "ceiling", kCeiling },
+                { "cos", kCos }, { "cvi", kCvi }, { "cvr", kCvr }, { "div", kDiv }, { "exp", kExp }, { "floor", kFloor }, { "idiv", kIdiv },
+                { "ln", kLn }, { "log", kLog }, { "mod", kMod }, { "mul", kMul }, { "neg", kNeg }, { "round", kRound }, { "sin", kSin },
+                { "sqrt", kSqrt }, { "sub", kSub }, { "truncate", kTruncate }, { "and", kAnd }, { "bitshift", kBitshift }, { "eq", kEq },
+                { "false", kFalse }, { "ge", kGe }, { "gt", kGt }, { "le", kLe }, { "lt", kLt }, { "ne", kNe }, { "not", kNot }, { "or", kOr },
+                { "true", kTrue }, { "xor", kXor }, { "copy", kCopy }, { "dup", kDup }, { "exch", kExch }, { "index", kIndex }, { "pop", kPop },
+                { "roll", kRoll } };
+            std::vector<std::vector<Instruction>> procs;     // Pending procedures, for if & ifelse
+            auto append = [&](const std::vector<Instruction>& proc) {      // Whose jumps are to its own instructions
+                size_t start = program.size();
+                for (Instruction in : proc)
+                    program.push_back({ in.op, in.op == kJump || in.op == kJumpIfFalse ? in.value + double(start) : in.value });
+            };
+            if (depth > 32)
+                return false;
+            while (p < end) {
+                if (isspace(*p)) {
+                    p++;
+                    continue;
+                }
+                if (*p == '}') {
+                    p++;
+                    return procs.empty();
+                }
+                if (*p == '{') {
+                    std::vector<Instruction> saved;  saved.swap(program);
+                    bool ok = compile(++p, end, depth + 1);
+                    procs.emplace_back(), procs.back().swap(program), program.swap(saved);
+                    if (!ok)
+                        return false;
+                    continue;
+                }
+                const char *start = p;
+                for (; p < end && !isspace(*p) && *p != '{' && *p != '}'; p++) {}
+                std::string token(start, p);
+                char *numberEnd = nullptr;  double number = strtod(token.c_str(), & numberEnd);
+                if (token == "if" || token == "ifelse") {
+                    bool isElse = token == "ifelse";
+                    if (procs.size() != (isElse ? 2 : 1))
+                        return false;
+                    size_t jump = program.size(), skip = 0;
+                    program.push_back({ kJumpIfFalse, 0.0 });
+                    append(procs[0]);
+                    if (isElse)
+                        skip = program.size(), program.push_back({ kJump, 0.0 });
+                    program[jump].value = double(program.size());
+                    if (isElse)
+                        append(procs[1]), program[skip].value = double(program.size());
+                    procs.clear();
+                } else if (!procs.empty())
+                    return false;
+                else if (numberEnd && *numberEnd == 0 && !token.empty())
+                    program.push_back({ kPush, number });
+                else {
+                    auto it = ops.find(token);
+                    if (it == ops.end())
+                        return false;
+                    program.push_back({ it->second, 0.0 });
+                }
+            }
+            return false;
+        }
+        // Runs a PostScript calculator function's program on its inputs, clipped to its domain, & writes the outputs, clipped
+        // to its range, or zeros if it fails
+        void calculate(const float *x, float *out) const {
+            constexpr size_t kMaxStack = 100;
+            double st[kMaxStack];  size_t n = 0;
+            bool ok = true;
+            for (size_t i = 0; i < inputs; i++)
+                st[n++] = fmax(domain[2 * i], fmin(domain[2 * i + 1], x[i]));
+            for (size_t pc = 0; ok && pc < program.size(); pc++) {
+                const Instruction& in = program[pc];
+                auto need = [&](size_t k) { return n >= k ? true : (ok = false); };
+                auto room = [&](size_t k) { return n + k <= kMaxStack ? true : (ok = false); };
+                double a, b;
+                switch (in.op) {
+                    case kPush:         if (room(1)) st[n++] = in.value;  break;
+                    case kTrue:         if (room(1)) st[n++] = 1.0;  break;
+                    case kFalse:        if (room(1)) st[n++] = 0.0;  break;
+                    case kJump:         pc = size_t(in.value) - 1;  break;
+                    case kJumpIfFalse:  if (need(1) && st[--n] == 0.0) pc = size_t(in.value) - 1;  break;
+                    case kAbs:          if (need(1)) st[n - 1] = fabs(st[n - 1]);  break;
+                    case kNeg:          if (need(1)) st[n - 1] = -st[n - 1];  break;
+                    case kCeiling:      if (need(1)) st[n - 1] = ceil(st[n - 1]);  break;
+                    case kFloor:        if (need(1)) st[n - 1] = floor(st[n - 1]);  break;
+                    case kRound:        if (need(1)) st[n - 1] = floor(st[n - 1] + 0.5);  break;
+                    case kTruncate:     if (need(1)) st[n - 1] = trunc(st[n - 1]);  break;
+                    case kCvi:          if (need(1)) st[n - 1] = trunc(st[n - 1]);  break;
+                    case kCvr:          need(1);  break;
+                    case kSqrt:         if (need(1)) st[n - 1] = sqrt(fmax(0.0, st[n - 1]));  break;
+                    case kSin:          if (need(1)) st[n - 1] = sin(st[n - 1] * M_PI / 180.0);  break;
+                    case kCos:          if (need(1)) st[n - 1] = cos(st[n - 1] * M_PI / 180.0);  break;
+                    case kLn:           if (need(1)) st[n - 1] = log(st[n - 1]);  break;
+                    case kLog:          if (need(1)) st[n - 1] = log10(st[n - 1]);  break;
+                    case kNot:          if (need(1)) st[n - 1] = st[n - 1] == 0.0 || st[n - 1] == 1.0 ? 1.0 - st[n - 1] : double(~int64_t(st[n - 1]));  break;     // A boolean's, else bitwise
+                    case kDup:          if (need(1) && room(1)) st[n] = st[n - 1], n++;  break;
+                    case kPop:          if (need(1)) n--;  break;
+                    case kExch:         if (need(2)) std::swap(st[n - 1], st[n - 2]);  break;
+                    case kCopy:         if (need(1)) { size_t k = size_t(fmax(0.0, st[--n]));  if (need(k) && room(k)) { for (size_t i = 0; i < k; i++) st[n + i] = st[n - k + i];  n += k; } }  break;
+                    case kIndex:        if (need(1)) { size_t k = size_t(fmax(0.0, st[n - 1]));  if (need(k + 2)) st[n - 1] = st[n - 2 - k]; }  break;
+                    case kRoll:         if (need(2)) {
+                                            long j = long(st[--n]);  size_t k = size_t(fmax(0.0, st[--n]));
+                                            if (need(k) && k) {
+                                                j = ((j % long(k)) + long(k)) % long(k);
+                                                std::rotate(st + n - k, st + n - j, st + n);
+                                            }
+                                        }  break;
+                    default:
+                        if (!need(2))
+                            break;
+                        b = st[--n], a = st[n - 1];
+                        int64_t ia = int64_t(a), ib = int64_t(b);
+                        switch (in.op) {
+                            case kAdd:      a = a + b;  break;
+                            case kSub:      a = a - b;  break;
+                            case kMul:      a = a * b;  break;
+                            case kDiv:      a = b == 0.0 ? 0.0 : a / b;  break;
+                            case kIdiv:     a = ib == 0 ? 0.0 : double(ia / ib);  break;
+                            case kMod:      a = ib == 0 ? 0.0 : double(ia % ib);  break;
+                            case kExp:      a = pow(a, b);  break;
+                            case kAtan:     a = fmod(atan2(a, b) * 180.0 / M_PI + 360.0, 360.0);  break;
+                            case kAnd:      a = double(ia & ib);  break;
+                            case kOr:       a = double(ia | ib);  break;
+                            case kXor:      a = double(ia ^ ib);  break;
+                            case kBitshift: a = ib > 63 || ib < -63 ? 0.0 : double(ib >= 0 ? ia << ib : ia >> -ib);  break;
+                            case kEq:       a = a == b;  break;
+                            case kNe:       a = a != b;  break;
+                            case kGe:       a = a >= b;  break;
+                            case kGt:       a = a > b;  break;
+                            case kLe:       a = a <= b;  break;
+                            case kLt:       a = a < b;  break;
+                            default:        break;
+                        }
+                        st[n - 1] = a;
+                }
+            }
+            ok = ok && n >= outputs;
+            for (size_t j = 0; j < outputs; j++)
+                out[j] = ok ? fmaxf(range[2 * j], fminf(range[2 * j + 1], float(st[n - outputs + j]))) : 0.f;
+        }
         // Writes the outputs at inputs x, interpolating a sampled function's samples multilinearly
         void eval(const float *x, float *out) const {
+            if (type == 4)
+                return calculate(x, out);
             if (inputs == 1)
                 return eval(x[0], false, out);
             size_t i0[kMaxInputs], i1[kMaxInputs], stride[kMaxInputs];  float u[kMaxInputs];
@@ -171,6 +336,8 @@ struct RasterizerPDF {
                 float p = N == 1.f ? x : powf(x, N);
                 for (size_t j = 0; j < outputs; j++)
                     out[j] = c0[j] + p * (c1[j] - c0[j]);
+            } else if (type == 4) {
+                calculate(& x, out);
             } else {
                 size_t i = 0, k = fns.size();
                 float tol = 1e-5f * (d1 - d0);      // Mapped breaks can miss a bound by float error
@@ -195,8 +362,8 @@ struct RasterizerPDF {
                     if (x > lo && x < hi)
                         xs.emplace_back(m * x + c);
                 }
-            } else if (type == 2) {
-                for (int i = 1; N != 1.f && i < kCurveSteps; i++)
+            } else if (type == 2 || type == 4) {     // A calculator's pieces are unknown, so it's sampled as a curve's
+                for (int i = 1; (N != 1.f || type == 4) && i < kCurveSteps; i++)
                     xs.emplace_back(m * (lo + (hi - lo) * i / kCurveSteps) + c);
             } else {
                 for (size_t i = 0, k = fns.size(); i < k; i++) {
