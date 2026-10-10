@@ -598,6 +598,32 @@ struct RasterizerPDF {
         }
     };
     
+    // A soft mask: a gradient's luminosity, or its group's luminosity or alpha, rendered into an image over bounds, in page space,
+    // beyond which it's its backdrop's, of its BC color, or 0 for an alpha mask
+    struct Mask {
+        Shading shading;                    // A gradient's, if it's valid
+        bool isImage = false;
+        std::vector<uint8_t> alphas;        // Else its image's, top row first
+        size_t width = 0, height = 0;
+        Ra::Bounds bounds = Ra::Bounds::huge();
+        Ra::Transform inverse;              // Page space to the gradient's space, or to the image's unit square
+        float outside = 0.f;
+        
+        // Its alpha at a page point, interpolated between an image's pixels' centers
+        float alphaAt(float x, float y) const {
+            if (!isImage)
+                return shading.luminosityAt(x, y, inverse);
+            float u = inverse.a * x + inverse.c * y + inverse.tx, v = inverse.b * x + inverse.d * y + inverse.ty;
+            if (u < 0.f || u > 1.f || v < 0.f || v > 1.f || width == 0 || height == 0)
+                return outside;
+            float px = fmaxf(0.f, fminf(width - 1.f, u * width - 0.5f)), py = fmaxf(0.f, fminf(height - 1.f, (1.f - v) * height - 0.5f));
+            size_t x0 = size_t(px), y0 = size_t(py), x1 = std::min(x0 + 1, width - 1), y1 = std::min(y0 + 1, height - 1);
+            float fx = px - x0, fy = py - y0;
+            auto a = [&](size_t i, size_t j) { return alphas[j * width + i] / 255.f; };
+            return (a(x0, y0) * (1.f - fx) + a(x1, y0) * fx) * (1.f - fy) + (a(x0, y1) * (1.f - fx) + a(x1, y1) * fx) * fy;
+        }
+    };
+    
     // A font's glyphs, as CoreText paths in text space, & widths, read with CGPDF, from codes, as finding them from Unicode would
     // lose ligatures & contextual forms. Simple fonts map codes to glyphs by their Differences' names, else by Unicode from their
     // encoding. Type 0 fonts need an Identity CMap, & map CIDs to glyphs with their CIDToGIDMap. Other CMaps are invalid, but have
@@ -1960,7 +1986,8 @@ struct RasterizerPDF {
         };
         std::vector<Clip> clips;
         std::map<size_t, Ra::Path> clipPaths;       // By hash, so draws with the same clip share its path, & so its clip mask
-        std::vector<Shading> shadings, patterns, masks;
+        std::vector<Shading> shadings, patterns;
+        std::vector<Mask> masks;
         // A tiling pattern cell's scene, written when it's first drawn, & its images, rendered for fills, by size & an uncolored
         // pattern's color, shared by each use of its pattern
         struct CellCache {
@@ -2090,7 +2117,14 @@ struct RasterizerPDF {
         }
         typedef std::pair<CGPDFDictionaryRef, std::array<float, 6>> MaskKey;     // A soft mask & the ctm it's set at
         std::map<MaskKey, int> maskIndices;
-        std::map<CGPDFDictionaryRef, Shading> maskGroups;
+        // A soft mask's group, scanned in group space: the gradient it paints, if it's one, & its contents, BBox & Matrix
+        struct MaskGroup {
+            Shading shading;
+            std::shared_ptr<Shadings> contents;
+            Ra::Bounds bbox = Ra::Bounds::huge();
+            Ra::Transform matrix;
+        };
+        std::map<CGPDFDictionaryRef, MaskGroup> maskGroups;
         std::vector<Group> forms;
         
         struct State {
@@ -2947,17 +2981,30 @@ struct RasterizerPDF {
                 shading.ctm = Ra::Transform(m[0], m[1], m[2], m[3], m[4], m[5]);
             return shading.read(shadingDict, cs);
         }
-        // A luminosity soft mask whose group paints one shading, with a pattern fill or sh, is the alpha of a gradient, e.g. from
-        // Cairo. Its group's space is the ctm when the mask is set. A group with its own resources is scanned once, in group space,
-        // & each mask & ctm is one entry in masks, as content often sets the same mask before each object
+        // A soft mask, of its group's luminosity over its backdrop, or of its alpha. A luminosity group that paints one shading,
+        // with a pattern fill or sh, is the alpha of a gradient, e.g. from Cairo, & other groups are rendered into an image. Its
+        // group's space is the ctm when the mask is set. A group with its own resources is scanned once, in group space, & each
+        // mask & ctm is one entry in masks, as content often sets the same mask before each object
         int readMask(CGPDFDictionaryRef smask, CGPDFContentStreamRef cs, Ra::Transform ctm, size_t depth) {
             const char *name;  CGPDFStreamRef group;  CGPDFObjectRef tr;  CGPDFDictionaryRef resources = nullptr;
-            if (!CGPDFDictionaryGetName(smask, "S", & name) || strcmp(name, "Luminosity") || !CGPDFDictionaryGetStream(smask, "G", & group)
+            if (!CGPDFDictionaryGetName(smask, "S", & name) || (strcmp(name, "Luminosity") && strcmp(name, "Alpha")) || !CGPDFDictionaryGetStream(smask, "G", & group)
                 || (CGPDFDictionaryGetObject(smask, "TR", & tr) && !(CGPDFObjectGetValue(tr, kCGPDFObjectTypeName, & name) && !strcmp(name, "Identity")))
                 || depth >= kMaxDepth)
                 return kUnsupportedMask;
+            CGPDFDictionaryGetName(smask, "S", & name);
+            bool isAlpha = !strcmp(name, "Alpha");
+            std::vector<float> bc;      // The backdrop, in the group's color space, black by default
+            readNumbers(smask, "BC", bc);
+            float r = 0.f, g = 0.f, b = 0.f;
+            if (bc.size() == 1)
+                r = g = b = bc[0];
+            else if (bc.size() == 3)
+                r = bc[0], g = bc[1], b = bc[2];
+            else if (bc.size() == 4)
+                r = (1.f - bc[0]) * (1.f - bc[3]), g = (1.f - bc[1]) * (1.f - bc[3]), b = (1.f - bc[2]) * (1.f - bc[3]);
+            Ra::Color backdrop(uint8_t(fminf(1.f, b) * 255.f + 0.5f), uint8_t(fminf(1.f, g) * 255.f + 0.5f), uint8_t(fminf(1.f, r) * 255.f + 0.5f), 255);
             if (!CGPDFDictionaryGetDictionary(CGPDFStreamGetDictionary(group), "Resources", & resources))     // It inherits cs's
-                return addMask(readMaskGroup(group, resources, cs, depth), ctm);
+                return addMask(readMaskGroup(group, resources, cs, depth), ctm, isAlpha, backdrop);
             MaskKey key = { smask, { ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx, ctm.ty } };
             auto it = maskIndices.find(key);
             if (it != maskIndices.end())
@@ -2965,27 +3012,71 @@ struct RasterizerPDF {
             auto cached = maskGroups.find(smask);
             if (cached == maskGroups.end())
                 cached = maskGroups.emplace(smask, readMaskGroup(group, resources, cs, depth)).first;
-            return maskIndices[key] = addMask(cached->second, ctm);
+            return maskIndices[key] = addMask(cached->second, ctm, isAlpha, backdrop);
         }
-        // The mask's shading, in group space, at ctm
-        int addMask(const Shading& shading, Ra::Transform ctm) {
-            if (!shading.isValid || shading.isEmpty)
-                return shading.isEmpty ? kEmptyMask : kUnsupportedMask;
-            masks.emplace_back(shading), masks.back().ctm = shading.ctm.concat(ctm);
+        // The mask of a group, at ctm: a luminosity group's gradient, else its contents rendered over their bounds within its
+        // BBox, at 2 pixels per unit, up to kMaxMaskSize, onto its backdrop, or transparent for an alpha mask
+        int addMask(const MaskGroup& group, Ra::Transform ctm, bool isAlpha, Ra::Color backdrop) {
+            Mask mask;
+            if (!isAlpha && group.shading.isValid) {
+                if (group.shading.isEmpty)
+                    return kEmptyMask;
+                mask.shading = group.shading, mask.shading.ctm = group.shading.ctm.concat(ctm);
+                mask.inverse = mask.shading.unit.concat(mask.shading.ctm).invert();
+                masks.emplace_back(std::move(mask));
+                return int(masks.size() - 1);
+            }
+            if (group.contents == nullptr)
+                return kUnsupportedMask;
+            Ra::SceneRef content;
+            writeStreamToScene(-1, kNoMask, 1.f, kBlendNormal, *group.contents, content);
+            float outside = isAlpha ? 0.f : (0.3f * backdrop.r + 0.59f * backdrop.g + 0.11f * backdrop.b) / 255.f;
+            Ra::Bounds b = Ra::Bounds(group.bbox.quad(group.matrix.concat(ctm)));
+            if (content->count())
+                b = b.intersect(Ra::Bounds(content->bounds().quad(ctm)));
+            if (!content->count() || b.lx >= b.ux || b.ly >= b.uy)      // It's all backdrop
+                return outside == 0.f ? kEmptyMask : outside == 1.f ? kNoMask : addUniformMask(outside);
+            float bw = b.ux - b.lx, bh = b.uy - b.ly, scale = fminf(2.f, fminf(kMaxMaskSize / bw, kMaxMaskSize / bh));
+            size_t w = std::max(size_t(1), size_t(ceilf(bw * scale))), h = std::max(size_t(1), size_t(ceilf(bh * scale)));
+            std::vector<Ra::Color> pixels(w * h, isAlpha ? Ra::Color(0, 0, 0, 0) : backdrop);
+            CGColorSpaceRef rgb = CGColorSpaceCreateDeviceRGB();
+            CGContextRef ctx = CGBitmapContextCreate(pixels.data(), w, h, 8, w * sizeof(Ra::Color), rgb, kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little);
+            if (ctx) {
+                Ra::SceneList list;
+                list.addScene(content);
+                list.ctm = ctm.concat(Ra::Transform(w / bw, 0.f, 0.f, h / bh, -b.lx * w / bw, -b.ly * h / bh));
+                RasterizerCG::renderList(list, Ra::Bounds(0.f, 0.f, w, h), ctx);
+            }
+            CGContextRelease(ctx), CGColorSpaceRelease(rgb);
+            mask.isImage = true, mask.width = w, mask.height = h, mask.bounds = b, mask.outside = outside, mask.alphas.resize(w * h);
+            for (size_t i = 0; i < w * h; i++)
+                mask.alphas[i] = isAlpha ? pixels[i].a : uint8_t(0.3f * pixels[i].r + 0.59f * pixels[i].g + 0.11f * pixels[i].b + 0.5f);
+            mask.inverse = Ra::Transform(bw, 0.f, 0.f, bh, b.lx, b.ly).invert();
+            masks.emplace_back(std::move(mask));
             return int(masks.size() - 1);
         }
-        // The shading a mask's group paints, in group space, with the group's alpha, or an invalid one
-        Shading readMaskGroup(CGPDFStreamRef group, CGPDFDictionaryRef resources, CGPDFContentStreamRef cs, size_t depth) {
+        // A mask of the same alpha everywhere
+        int addUniformMask(float alpha) {
+            Mask mask;
+            mask.isImage = true, mask.outside = alpha;
+            masks.emplace_back(std::move(mask));
+            return int(masks.size() - 1);
+        }
+        // A mask's group, scanned in group space, with the shading it paints if it's only one, with the group's alpha
+        MaskGroup readMaskGroup(CGPDFStreamRef group, CGPDFDictionaryRef resources, CGPDFContentStreamRef cs, size_t depth) {
+            MaskGroup result;
             std::vector<float> m;
             State state;
             if (readNumbers(CGPDFStreamGetDictionary(group), "Matrix", m) && m.size() == 6)
-                state.ctm = Ra::Transform(m[0], m[1], m[2], m[3], m[4], m[5]);
+                result.matrix = state.ctm = Ra::Transform(m[0], m[1], m[2], m[3], m[4], m[5]);
+            if (readNumbers(CGPDFStreamGetDictionary(group), "BBox", m) && m.size() == 4)
+                result.bbox = Ra::Bounds(fminf(m[0], m[2]), fminf(m[1], m[3]), fmaxf(m[0], m[2]), fmaxf(m[1], m[3]));
             state.space = state.ctm;
             CGPDFContentStreamRef content = CGPDFContentStreamCreateWithStream(group, resources, cs);
             OperatorTable *table = createTable();
             CFDataRef data = copyContents(group);
-            Shadings contents;
-            contents.readsImages = false;
+            result.contents = std::make_shared<Shadings>();
+            Shadings& contents = *result.contents;
             contents.scan(content, data, table, state, depth + 1);
             contents.buildPaths();
             delete table;
@@ -2994,14 +3085,12 @@ struct RasterizerPDF {
             CGPDFContentStreamRelease(content);
             
             const Shading *shading = nullptr;  float alpha = 1.f;
-            if (contents.forms.empty() && contents.paths.size() == 1 && contents.shadings.empty() && contents.paths[0].pattern >= 0)
+            if (contents.forms.empty() && contents.paths.size() == 1 && contents.shadings.empty() && contents.imageObjects.empty() && contents.texts.empty() && contents.paths[0].pattern >= 0)
                 shading = & contents.patterns[contents.paths[0].pattern], alpha = contents.paths[0].alpha;
-            else if (contents.forms.empty() && contents.paths.empty() && contents.shadings.size() == 1)
+            else if (contents.forms.empty() && contents.paths.empty() && contents.imageObjects.empty() && contents.texts.empty() && contents.shadings.size() == 1)
                 shading = & contents.shadings[0], alpha = shading->alpha;
-            if (shading == nullptr || !shading->isValid)
-                return Shading();
-            Shading result = *shading;
-            result.alpha = alpha;
+            if (shading && shading->isValid)
+                result.shading = *shading, result.shading.alpha = alpha;
             return result;
         }
         const Shading *pattern(const PathObject& object) const {
@@ -3033,10 +3122,11 @@ struct RasterizerPDF {
     }
     
     // Writes the scan's objects of the page's content stream, or a form's, which are in page space, & for a transparency group,
-    // under its soft mask, opacity & blend mode. Under a mask only fills, as gradients with the mask's alpha, & images are
-    // drawn, & other objects, or any under a mask the scan can't read, are fallbacks. The opacity & blend mode are applied to
-    // each object, not the group, & an object's own blend mode replaces the group's. A form nested too deep for the scan is a
-    // fallback, over its BBox
+    // under its soft mask, opacity & blend mode. Under a gradient mask, fills of colors & gradients with its geometry are
+    // gradients with its alpha, & images' alphas are scaled by its, & other objects, or a group under a mask of an image, are
+    // rendered into masked images. Objects under a mask the scan can't read are fallbacks. The opacity & blend mode are applied
+    // to each object, but for a group rendered into an image, & an object's own blend mode replaces the group's. A form nested
+    // too deep for the scan is a fallback, over its BBox
     static void writeStreamToScene(int container, int mask, float opacity, uint8_t blend, Shadings& shadings, Ra::SceneRef& scene) {
         static const std::vector<Shadings::Object> none;
         const std::vector<Shadings::Object>& objects = size_t(container + 1) < shadings.streams.size() ? shadings.streams[container + 1] : none;
@@ -3065,6 +3155,10 @@ struct RasterizerPDF {
                     uint8_t formBlend = group.blend != kBlendNormal ? group.blend : blend;
                     if (group.isTooDeep)
                         writeFallbackToScene(shadings.clip(group.clip), scene);
+                    else if (formMask >= 0 && shadings.masks[formMask].isImage && formOpacity != 0.f)
+                        writeMaskedToScene(shadings.masks[formMask], formOpacity, formBlend, [&](Ra::SceneRef& content) {
+                            writeStreamToScene(int(object.index), kNoMask, 1.f, kBlendNormal, shadings, content);
+                        }, scene);
                     else if (formMask != kEmptyMask && formOpacity != 0.f)      // Else it's skipped, & its contents
                         writeStreamToScene(int(object.index), formMask, formOpacity, formBlend, shadings, scene);
                     break;
@@ -3073,6 +3167,41 @@ struct RasterizerPDF {
                     break;
             }
         }
+    }
+    // Writes what write writes into a scene, under a mask: CoreGraphics renders it into an image of its bounds, within the
+    // mask's, at 2 pixels per unit, up to kMaxMaskSize, whose pixels are scaled by the mask's alpha at their centers & by
+    // opacity, drawn with blend
+    template<typename Write>
+    static void writeMaskedToScene(const Mask& mask, float opacity, uint8_t blend, Write write, Ra::SceneRef& scene) {
+        Ra::SceneRef content;
+        write(content);
+        Ra::Bounds b = content->count() ? content->bounds() : Ra::Bounds();
+        if (mask.outside == 0.f)
+            b = b.intersect(mask.bounds);
+        if (b.isNull() || b.lx >= b.ux || b.ly >= b.uy)
+            return;
+        float bw = b.ux - b.lx, bh = b.uy - b.ly, scale = fminf(2.f, fminf(Shadings::kMaxMaskSize / bw, Shadings::kMaxMaskSize / bh));
+        size_t w = std::max(size_t(1), size_t(ceilf(bw * scale))), h = std::max(size_t(1), size_t(ceilf(bh * scale)));
+        std::vector<Ra::Color> pixels(w * h, Ra::Color(0, 0, 0, 0));
+        CGColorSpaceRef rgb = CGColorSpaceCreateDeviceRGB();
+        CGContextRef ctx = CGBitmapContextCreate(pixels.data(), w, h, 8, w * sizeof(Ra::Color), rgb, kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little);
+        if (ctx) {
+            Ra::SceneList list;
+            list.addScene(content);
+            list.ctm = Ra::Transform(w / bw, 0.f, 0.f, h / bh, -b.lx * w / bw, -b.ly * h / bh);
+            RasterizerCG::renderList(list, Ra::Bounds(0.f, 0.f, w, h), ctx);
+            for (size_t y = 0; y < h; y++)      // Rows run down from the top
+                for (size_t x = 0; x < w; x++) {
+                    Ra::Color& p = pixels[y * w + x];
+                    if (p.a == 0)
+                        continue;
+                    float alpha = opacity * mask.alphaAt(b.lx + (x + 0.5f) * bw / w, b.uy - (y + 0.5f) * bh / h);
+                    p = Ra::Color(uint8_t(p.b * alpha + 0.5f), uint8_t(p.g * alpha + 0.5f), uint8_t(p.r * alpha + 0.5f), uint8_t(p.a * alpha + 0.5f));
+                }
+            Ra::Path unitRectPath;  unitRectPath->addBounds(Ra::Bounds(0, 0, 1, 1));
+            scene->addPath(unitRectPath, Ra::Transform(bw, 0.f, 0.f, bh, b.lx, b.ly), Ra::Paint(pixels.data(), w, h, w * sizeof(Ra::Color)), 0.f, 0, nullptr, nullptr, blend);
+        }
+        CGContextRelease(ctx), CGColorSpaceRelease(rgb);
     }
     // Fills a clip, of a shading or form the scan can't read, with the fallback color
     static void writeFallbackToScene(Shadings::Clip& clip, Ra::SceneRef& scene) {
@@ -3124,7 +3253,8 @@ struct RasterizerPDF {
     
     // Writes a text object's glyphs from the scan, filled and or stroked as its text rendering mode says, & not if it's invisible
     // or only clips. The boxes of a font the scan can't read are filled with the fallback color. Its soft mask, or else the
-    // group's, makes its fills gradients of their color, & its strokes, or its glyphs under a mask the scan can't read, fallbacks
+    // group's, makes its fills gradients of their color, but a mask of an image, or strokes, render it into a masked image, &
+    // under a mask the scan can't read, its glyphs are fallbacks
     static void writeTextRunToScene(const Shadings::TextRun& run, int mask, float opacity, uint8_t blend, Shadings& shadings, Ra::Bounds *clipBounds, Shadings::Clip& clip, Ra::SceneRef& scene) {
         mask = run.mask != kNoMask ? run.mask : mask;
         if (mask == kEmptyMask)
@@ -3136,8 +3266,13 @@ struct RasterizerPDF {
             fills = fills || strokes, strokes = false, fill = fallbackColor(), blend = kBlendNormal, mask = kNoMask;
         else if (run.isType3)       // Its glyphs paint themselves, with the fill color, if they're visible, as CoreGraphics & pdf.js
             fills = fills || strokes, strokes = false;
-        if (mask >= 0)              // A mask only applies to fills
-            stroke = fallbackColor();
+        if (mask >= 0 && (shadings.masks[mask].isImage || strokes)) {
+            Shadings::TextRun unmasked = run;
+            unmasked.mask = kNoMask;
+            return writeMaskedToScene(shadings.masks[mask], 1.f, blend, [&](Ra::SceneRef& content) {
+                writeTextRunToScene(unmasked, kNoMask, opacity, kBlendNormal, shadings, clipBounds, clip, content);
+            }, scene);
+        }
         float width = run.width == 0.f ? -1.f : run.width / run.unitsPerEm;     // In text space, which glyphs' paths are in
         // Fills a glyph's path, under a mask as a gradient of the color with the mask's alpha, or the fallback color if it can't be
         auto fillPath = [&](Ra::Path path, Ra::Transform ctm, Ra::Color color, bool evenOdd) {
@@ -3145,7 +3280,7 @@ struct RasterizerPDF {
             Shading masked;
             if (mask < 0)
                 scene->addPath(path, ctm, color, 0.f, flags, clipBounds, clipPath, blend);
-            else if (Shading::masked(nullptr, color, shadings.masks[mask], masked))
+            else if (Shading::masked(nullptr, color, shadings.masks[mask].shading, masked))
                 writeGradientToScene(masked, 1.f, blend, path, ctm, flags, clipBounds, clipPath, scene);
             else
                 scene->addPath(path, ctm, fallbackColor(), 0.f, flags, clipBounds, clipPath, kBlendNormal);
@@ -3160,7 +3295,7 @@ struct RasterizerPDF {
             } else if (fills)
                 fillPath(glyph.path, glyph.ctm, fill, glyph.evenOdd);
             if (strokes)
-                scene->addPath(glyph.path, glyph.ctm, stroke, width, clipFlags, clipBounds, clipPath, mask >= 0 ? kBlendNormal : blend);
+                scene->addPath(glyph.path, glyph.ctm, stroke, width, clipFlags, clipBounds, clipPath, blend);
         }
     }
     
@@ -3188,6 +3323,21 @@ struct RasterizerPDF {
         
         if (mask == kEmptyMask)
             return;
+        // Under a mask, a fill of a color, or a gradient with its geometry, is a gradient with its alpha, & else it's rendered
+        // into a masked image
+        if (mask >= 0) {
+            const Mask& m = shadings.masks[mask];
+            Shading masked;
+            bool isGradient = !m.isImage && !stroke && !tiling && fillmode != Shadings::kFillNone && (pattern || !isPattern)
+                && Shading::masked(pattern, objectColor(object.colors, false, opacity), m.shading, masked);
+            if (!isGradient) {
+                Shadings::PathObject unmasked = object;
+                unmasked.mask = kNoMask, unmasked.blend = kBlendNormal;
+                return writeMaskedToScene(m, 1.f, blend, [&](Ra::SceneRef& content) {
+                    writePathToScene(unmasked, kNoMask, opacity, kBlendNormal, shadings, clipBounds, clip, content);
+                }, scene);
+            }
+        }
         Ra::Path path = object.path;
         Ra::Transform ctm = object.ctm;
         if (fillmode != Shadings::kFillNone) {
@@ -3222,7 +3372,7 @@ struct RasterizerPDF {
             Shading masked;
             bool isFallback = mask == kUnsupportedMask;
             if (mask >= 0) {
-                if (isGradient && (pattern || !isPattern) && Shading::masked(pattern, color, shadings.masks[mask], masked))
+                if (isGradient && (pattern || !isPattern) && Shading::masked(pattern, color, shadings.masks[mask].shading, masked))
                     writeGradientToScene(masked, pattern ? alpha : 1.f, blend, fill, fillCTM, flags, fillClipBounds, fillClipPath, scene);
                 else
                     isFallback = !(pattern && pattern->isEmpty);      // A mask it can't apply, but an empty gradient paints nothing
@@ -3235,7 +3385,7 @@ struct RasterizerPDF {
             if (isFallback && !isEmpty && fill->isValid())
                 scene->addPath(fill, fillCTM, fallbackColor(), 0.f, flags, fillClipBounds, fillClipPath, kBlendNormal);
         }
-        if (stroke) {       // Under a mask, a fallback
+        if (stroke) {       // Under a mask the scan can't read, a fallback
             Ra::Color color = mask == kNoMask ? objectColor(object.colors, true, opacity) : fallbackColor();
             uint8_t flags = clipFlags;
             float width = object.width == 0.f ? -1.f : object.width;
@@ -3270,8 +3420,9 @@ struct RasterizerPDF {
             scene->addPath(unitRectPath, object.ctm, image, 0, clipFlags, clipBounds, clipPath, blend);
     }
     
-    // Writes the scan's shading, which paints its clip, or for one it can't read, or under a soft mask it can't read or apply, the
-    // fallback color
+    // Writes the scan's shading, which paints its clip, or for one it can't read, or under a soft mask it can't read, the fallback
+    // color. Under a mask of a gradient with its geometry, it's a gradient with the mask's alpha, & else it's rendered into a
+    // masked image
     static void writeShadingToScene(const Shading& shading, int mask, float opacity, uint8_t blend, Shadings& shadings, Ra::Bounds* clipBounds, Shadings::Clip& clip, Ra::SceneRef& scene) {
         mask = shading.mask != kNoMask ? shading.mask : mask;
         blend = shading.blend != kBlendNormal ? shading.blend : blend;
@@ -3282,7 +3433,14 @@ struct RasterizerPDF {
         uint8_t flags = (clip.sortedEvenOdds[0] ? Ra::Draw::kFillEvenOdd : 0) | clip.otherFlags(0);
         Ra::Path *clipPath = clip.otherPath(0);
         bool isMasked = mask >= 0 && shading.isValid && !shading.isEmpty;      // An empty shading paints nothing
-        if (!shading.isValid || mask == kUnsupportedMask || (isMasked && !Shading::masked(& shading, Ra::Color(), shadings.masks[mask], masked)))
+        if (isMasked && (shadings.masks[mask].isImage || !Shading::masked(& shading, Ra::Color(), shadings.masks[mask].shading, masked))) {
+            Shading unmasked = shading;
+            unmasked.mask = kNoMask, unmasked.blend = kBlendNormal;
+            return writeMaskedToScene(shadings.masks[mask], 1.f, blend, [&](Ra::SceneRef& content) {
+                writeShadingToScene(unmasked, kNoMask, opacity, kBlendNormal, shadings, clipBounds, clip, content);
+            }, scene);
+        }
+        if (!shading.isValid || mask == kUnsupportedMask)
             scene->addPath(clip.sorted[0], Ra::Transform(), fallbackColor(), 0.f, flags, clipBounds, clipPath, kBlendNormal);
         else if (shading.ctm.det() != 0.f)
             writeGradientToScene(isMasked ? masked : shading, shading.alpha * opacity, blend, clip.sorted[0], Ra::Transform(), flags, clipBounds, clipPath, scene);
@@ -3592,12 +3750,11 @@ struct RasterizerPDF {
     }
     
     // Multiplies the alpha of straight alpha pixels, of an image drawn at ctm, by a soft mask's at their centers
-    static void applyMask(Ra::Color *pixels, size_t width, size_t height, size_t stride, Ra::Transform ctm, const Shading& mask) {
-        Ra::Transform inverse = mask.unit.concat(mask.ctm).invert();
+    static void applyMask(Ra::Color *pixels, size_t width, size_t height, size_t stride, Ra::Transform ctm, const Mask& mask) {
         for (size_t y = 0; y < height; y++, pixels += stride / sizeof(Ra::Color))
             for (size_t x = 0; x < width; x++) {
                 float u = (x + 0.5f) / width, v = 1.f - (y + 0.5f) / height;    // Rows run down from the unit square's top
-                float alpha = mask.luminosityAt(u * ctm.a + v * ctm.c + ctm.tx, u * ctm.b + v * ctm.d + ctm.ty, inverse);
+                float alpha = mask.alphaAt(u * ctm.a + v * ctm.c + ctm.tx, u * ctm.b + v * ctm.d + ctm.ty);
                 pixels[x].a = uint8_t(pixels[x].a * alpha + 0.5f);
             }
     }
