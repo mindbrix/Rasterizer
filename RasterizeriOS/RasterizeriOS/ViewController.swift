@@ -36,8 +36,9 @@ class ViewController: UIViewController {
     var bundledCount = 0
     let openButton = UIButton(configuration: .filled())
     let removeButton = UIButton(configuration: .filled())
-    // The PDF page stepper, shown for PDFs with more than one page
+    // The PDF page stepper, with the page count above it, each on a lozenge, shown for PDFs with more than one page
     let pageView = UIStackView(), pageLabel = UILabel(), pageStepper = UIStepper()
+    lazy var stepperLozenge = lozenge(pageStepper, height: 44, inset: 6)
     var documentList: RASceneList? {
         didSet {
             if let documentList {
@@ -88,15 +89,11 @@ class ViewController: UIViewController {
         removeButton.configuration?.baseBackgroundColor = .systemRed
         pageLabel.font = .monospacedDigitSystemFont(ofSize: UIFont.labelFontSize, weight: .medium)
         pageStepper.addTarget(self, action: #selector(onPage), for: .valueChanged)
-        pageView.addArrangedSubview(pageLabel)
-        pageView.addArrangedSubview(pageStepper)
-        pageView.spacing = 8
+        pageView.addArrangedSubview(lozenge(pageLabel, height: 28, inset: 10))
+        pageView.addArrangedSubview(stepperLozenge)
+        pageView.axis = .vertical
+        pageView.spacing = 6
         pageView.alignment = .center
-        pageView.isLayoutMarginsRelativeArrangement = true
-        pageView.directionalLayoutMargins = NSDirectionalEdgeInsets(top: 6, leading: 12, bottom: 6, trailing: 6)
-        pageView.backgroundColor = .systemBackground.withAlphaComponent(0.85)
-        pageView.layer.cornerRadius = 22
-        pageView.layer.cornerCurve = .continuous
         pageView.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(pageView)
         NSLayoutConstraint.activate([
@@ -108,10 +105,9 @@ class ViewController: UIViewController {
             removeButton.bottomAnchor.constraint(equalTo: openButton.bottomAnchor),
             pageView.centerXAnchor.constraint(equalTo: view.safeAreaLayoutGuide.centerXAnchor).withPriority(.defaultHigh),
             pageView.leadingAnchor.constraint(greaterThanOrEqualTo: removeButton.trailingAnchor, constant: 8),     // Off centre on narrow iPhones
-            pageView.centerYAnchor.constraint(equalTo: openButton.centerYAnchor),
-            pageView.heightAnchor.constraint(equalToConstant: 44),
+            stepperLozenge.centerYAnchor.constraint(equalTo: openButton.centerYAnchor),
         ] + [gridButton, openButton, removeButton].flatMap { [     // Circles the stepper's height
-            $0.heightAnchor.constraint(equalTo: pageView.heightAnchor),
+            $0.heightAnchor.constraint(equalTo: stepperLozenge.heightAnchor),
             $0.widthAnchor.constraint(equalTo: $0.heightAnchor),
         ] })
         documents = svgNames.compactMap { Bundle.main.url(forResource: $0, withExtension: "svg") }.map(Document.init)
@@ -120,6 +116,23 @@ class ViewController: UIViewController {
         documentList = makeDocumentList()
     }
     
+    // A translucent capsule of height, around content inset horizontally
+    func lozenge(_ content: UIView, height: CGFloat, inset: CGFloat) -> UIView {
+        let lozenge = UIView()
+        lozenge.backgroundColor = .systemBackground.withAlphaComponent(0.85)
+        lozenge.layer.cornerRadius = height / 2
+        lozenge.layer.cornerCurve = .continuous
+        content.translatesAutoresizingMaskIntoConstraints = false
+        lozenge.addSubview(content)
+        NSLayoutConstraint.activate([
+            lozenge.heightAnchor.constraint(equalToConstant: height),
+            content.centerYAnchor.constraint(equalTo: lozenge.centerYAnchor),
+            content.leadingAnchor.constraint(equalTo: lozenge.leadingAnchor, constant: inset),
+            content.trailingAnchor.constraint(equalTo: lozenge.trailingAnchor, constant: -inset),
+        ])
+        return lozenge
+    }
+
     // The buttons show SF Symbols, which are compact enough for iPhone, with their names for VoiceOver
     func setSymbol(_ button: UIButton, _ symbol: String, _ label: String) {
         button.configuration?.image = UIImage(systemName: symbol)
