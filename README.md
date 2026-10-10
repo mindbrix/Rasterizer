@@ -58,11 +58,11 @@ Rasterizer is a Swift package, with its sources in [`Package/Sources`](Package/S
 | `RasterizerObjC` | The API used from Swift and Objective-C, and `RasterizerView`, a Metal-backed `UIView` or `NSView` |
 | `RasterizerSwift` | Swift helpers, such as fitting a scene to a view |
 
-In Xcode, choose **File ▸ Add Package Dependencies…**, enter `https://github.com/mindbrix/Rasterizer`, and link `RasterizerObjC`, plus `RasterizerSwift` if you want the helpers. Or, in a `Package.swift`:
+In Xcode, choose **File ▸ Add Package Dependencies…**, enter `https://github.com/mindbrix/Rasterizer`, choose **Up to Next Minor Version** from `0.1.0`, and link `RasterizerObjC`, plus `RasterizerSwift` if you want the helpers. Or, in a `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/mindbrix/Rasterizer", branch: "master"),
+    .package(url: "https://github.com/mindbrix/Rasterizer", .upToNextMinor(from: "0.1.0")),
 ],
 targets: [
     .target(name: "MyApp", dependencies: [
@@ -72,7 +72,7 @@ targets: [
 ]
 ```
 
-There are no release tags yet, so depend on a branch. To work on Rasterizer alongside your app, add your clone with **Add Local…** instead.
+Until 1.0.0, minor versions may make breaking changes, so this takes fixes (`0.1.x`) but not the next minor version. See the [changelog](CHANGELOG.md) for what's in each release. To work on Rasterizer alongside your app, add your clone with **Add Local…** instead.
 
 A `RasterizerView` asks its delegate each frame whether to redraw, and for the list of scenes to draw:
 
