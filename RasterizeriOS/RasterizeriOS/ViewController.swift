@@ -47,7 +47,7 @@ class ViewController: UIViewController {
             }
             if documentList !== oldValue {
                 (homes, cells, gridProgress, toGrid, animating) = ([], [], 0, false, false)
-                gridButton.configuration?.title = "Grid"
+                setSymbol(gridButton, "square.grid.3x3", "Grid")
                 gridButton.isHidden = documentList == nil
             }
             removeButton.isHidden = importedURL == nil
@@ -78,30 +78,22 @@ class ViewController: UIViewController {
             view.addGestureRecognizer(UIPinchGestureRecognizer(target: self, action: #selector(onGesture)))
             view.addGestureRecognizer(UIRotationGestureRecognizer(target: self, action: #selector(onGesture)))
         }
-        gridButton.configuration?.title = "Grid"
-        gridButton.configuration?.cornerStyle = .capsule
-        gridButton.addTarget(self, action: #selector(onGrid), for: .touchUpInside)
-        gridButton.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(gridButton)
-        openButton.configuration?.title = "Open"
-        openButton.configuration?.cornerStyle = .capsule
-        openButton.addTarget(self, action: #selector(onOpen), for: .touchUpInside)
-        openButton.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(openButton)
-        removeButton.configuration?.title = "Remove"
-        removeButton.configuration?.cornerStyle = .capsule
+        for (button, symbol, label, action) in [(gridButton, "square.grid.3x3", "Grid", #selector(onGrid)), (openButton, "folder", "Open", #selector(onOpen)), (removeButton, "trash", "Remove", #selector(onRemove))] {
+            setSymbol(button, symbol, label)
+            button.configuration?.cornerStyle = .capsule
+            button.addTarget(self, action: action, for: .touchUpInside)
+            button.translatesAutoresizingMaskIntoConstraints = false
+            view.addSubview(button)
+        }
         removeButton.configuration?.baseBackgroundColor = .systemRed
-        removeButton.addTarget(self, action: #selector(onRemove), for: .touchUpInside)
-        removeButton.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(removeButton)
         pageLabel.font = .monospacedDigitSystemFont(ofSize: UIFont.labelFontSize, weight: .medium)
         pageStepper.addTarget(self, action: #selector(onPage), for: .valueChanged)
         pageView.addArrangedSubview(pageLabel)
         pageView.addArrangedSubview(pageStepper)
-        pageView.spacing = 12
+        pageView.spacing = 8
         pageView.alignment = .center
         pageView.isLayoutMarginsRelativeArrangement = true
-        pageView.directionalLayoutMargins = NSDirectionalEdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 6)
+        pageView.directionalLayoutMargins = NSDirectionalEdgeInsets(top: 6, leading: 12, bottom: 6, trailing: 6)
         pageView.backgroundColor = .systemBackground.withAlphaComponent(0.85)
         pageView.layer.cornerRadius = 22
         pageView.layer.cornerCurve = .continuous
@@ -112,18 +104,28 @@ class ViewController: UIViewController {
             gridButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -16),
             openButton.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 16),
             openButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -16),
-            removeButton.leadingAnchor.constraint(equalTo: openButton.trailingAnchor, constant: 12),
+            removeButton.leadingAnchor.constraint(equalTo: openButton.trailingAnchor, constant: 8),
             removeButton.bottomAnchor.constraint(equalTo: openButton.bottomAnchor),
-            pageView.centerXAnchor.constraint(equalTo: view.safeAreaLayoutGuide.centerXAnchor),
+            pageView.centerXAnchor.constraint(equalTo: view.safeAreaLayoutGuide.centerXAnchor).withPriority(.defaultHigh),
+            pageView.leadingAnchor.constraint(greaterThanOrEqualTo: removeButton.trailingAnchor, constant: 8),     // Off centre on narrow iPhones
             pageView.centerYAnchor.constraint(equalTo: openButton.centerYAnchor),
             pageView.heightAnchor.constraint(equalToConstant: 44),
-        ])
+        ] + [gridButton, openButton, removeButton].flatMap { [     // Circles the stepper's height
+            $0.heightAnchor.constraint(equalTo: pageView.heightAnchor),
+            $0.widthAnchor.constraint(equalTo: $0.heightAnchor),
+        ] })
         documents = svgNames.compactMap { Bundle.main.url(forResource: $0, withExtension: "svg") }.map(Document.init)
         bundledCount = documents.count
         documents += importedFiles().map(Document.init)
         documentList = makeDocumentList()
     }
     
+    // The buttons show SF Symbols, which are compact enough for iPhone, with their names for VoiceOver
+    func setSymbol(_ button: UIButton, _ symbol: String, _ label: String) {
+        button.configuration?.image = UIImage(systemName: symbol)
+        button.accessibilityLabel = label
+    }
+
     override func didRotate(from fromInterfaceOrientation: UIInterfaceOrientation) {
         let list = documentList
         documentList = list
@@ -176,7 +178,7 @@ class ViewController: UIViewController {
         gridFrom = gridProgress
         gridStart = CACurrentMediaTime()
         animating = true
-        gridButton.configuration?.title = toGrid ? "Restore" : "Grid"
+        setSymbol(gridButton, toGrid ? "arrow.uturn.backward" : "square.grid.3x3", toGrid ? "Restore" : "Grid")
     }
 
     // Moves the draws gridProgress of the way from their original transforms to their grid cells
@@ -329,6 +331,13 @@ extension ViewController: RASceneListDelegate {
         list.useClips = gridProgress == 0     // Clip bounds don't move with the draws
         list.clearColor = RAPaint(gray: 0.66, alpha: 1)
         return list
+    }
+}
+
+private extension NSLayoutConstraint {
+    func withPriority(_ priority: UILayoutPriority) -> NSLayoutConstraint {
+        self.priority = priority
+        return self
     }
 }
 
