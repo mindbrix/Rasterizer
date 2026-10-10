@@ -27,8 +27,10 @@ class ViewController: UIViewController {
             redraw = true
         }
     }
-    var down = CGAffineTransform.identity
     var redraw = false
+    // A transparent scroll view over the view pans & zooms an empty view the size of the view, which the document is fitted to
+    let scrollView = UIScrollView(), zoomView = UIView()
+    var fit = CGAffineTransform.identity
     // The bundled SVGs, then the user's imported files, in the order they were imported, which taps step through
     let svgNames = ["Anime_Girl", "AntigenicShift_HiRes", "car", "contour", "drops", "hawaii",  "Manchester_Union_Democrat_office_1877", "paris-30k", "PToT_hi-res_source_nobackground", "reschart", "Sun_poster", "tiger"]
     var documents: [Document] = []
@@ -41,11 +43,8 @@ class ViewController: UIViewController {
     lazy var stepperLozenge = lozenge(pageStepper, height: 44, inset: 6)
     var documentList: RASceneList? {
         didSet {
-            if let documentList {
-                ctm = view.bounds.fitTransform(b: documentList.bounds)
-            } else {
-                ctm = .identity
-            }
+            fit = documentList.map { view.bounds.fitTransform(b: $0.bounds) } ?? .identity
+            resetZoom()
             if documentList !== oldValue {
                 (homes, cells, gridProgress, toGrid, animating) = ([], [], 0, false, false)
                 setSymbol(gridButton, "square.grid.3x3", "Grid")
@@ -72,13 +71,18 @@ class ViewController: UIViewController {
         if let view = self.view as? RasterizerView {
             view.listDelegate = self
             view.isUserInteractionEnabled = true
-            let tap = UITapGestureRecognizer(target: self, action: #selector(onTap))
-            tap.delegate = self
-            view.addGestureRecognizer(tap)
-            view.addGestureRecognizer(UIPanGestureRecognizer(target: self, action: #selector(onGesture)))
-            view.addGestureRecognizer(UIPinchGestureRecognizer(target: self, action: #selector(onGesture)))
-            view.addGestureRecognizer(UIRotationGestureRecognizer(target: self, action: #selector(onGesture)))
         }
+        scrollView.frame = view.bounds
+        scrollView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        scrollView.contentInsetAdjustmentBehavior = .never
+        scrollView.showsHorizontalScrollIndicator = false
+        scrollView.showsVerticalScrollIndicator = false
+        scrollView.minimumZoomScale = 0.1
+        scrollView.maximumZoomScale = 100
+        scrollView.delegate = self
+        scrollView.addSubview(zoomView)
+        scrollView.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(onTap)))
+        view.addSubview(scrollView)     // Under the buttons, so their taps don't step to the next file
         for (button, symbol, label, action) in [(gridButton, "square.grid.3x3", "Grid", #selector(onGrid)), (openButton, "folder", "Open", #selector(onOpen)), (removeButton, "trash", "Remove", #selector(onRemove))] {
             setSymbol(button, symbol, label)
             button.configuration?.cornerStyle = .capsule
@@ -98,13 +102,12 @@ class ViewController: UIViewController {
         view.addSubview(pageView)
         NSLayoutConstraint.activate([
             gridButton.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -16),
-            gridButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -16),
+            gridButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
             openButton.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 16),
-            openButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -16),
+            openButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
             removeButton.leadingAnchor.constraint(equalTo: openButton.trailingAnchor, constant: 8),
             removeButton.bottomAnchor.constraint(equalTo: openButton.bottomAnchor),
-            pageView.centerXAnchor.constraint(equalTo: view.safeAreaLayoutGuide.centerXAnchor).withPriority(.defaultHigh),
-            pageView.leadingAnchor.constraint(greaterThanOrEqualTo: removeButton.trailingAnchor, constant: 8),     // Off centre on narrow iPhones
+            stepperLozenge.centerXAnchor.constraint(equalTo: view.safeAreaLayoutGuide.centerXAnchor),
             stepperLozenge.centerYAnchor.constraint(equalTo: openButton.centerYAnchor),
         ] + [gridButton, openButton, removeButton].flatMap { [     // Circles the stepper's height
             $0.heightAnchor.constraint(equalTo: stepperLozenge.heightAnchor),
@@ -137,6 +140,15 @@ class ViewController: UIViewController {
     func setSymbol(_ button: UIButton, _ symbol: String, _ label: String) {
         button.configuration?.image = UIImage(systemName: symbol)
         button.accessibilityLabel = label
+    }
+
+    // The page count lozenge goes above the stepper in portrait, & before it in landscape
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        let axis: NSLayoutConstraint.Axis = view.bounds.width > view.bounds.height ? .horizontal : .vertical
+        if pageView.axis != axis {
+            pageView.axis = axis
+        }
     }
 
     override func didRotate(from fromInterfaceOrientation: UIInterfaceOrientation) {
@@ -298,29 +310,38 @@ class ViewController: UIViewController {
         documentList = makeDocumentList()
     }
         
-    @objc func onGesture(_ recognizer: UIGestureRecognizer) {
-        switch recognizer.state {
-        case .began:
-            down = ctm
-        case .changed:
-            let cx = view.bounds.midX, cy = view.bounds.midY
-            if let t = (recognizer as? UIPanGestureRecognizer)?.translation(in: view) {
-                ctm = .init(a: down.a, b: down.b, c: down.c, d: down.d, tx: down.tx + t.x, ty: down.ty - t.y)
-            } else if let s = (recognizer as? UIPinchGestureRecognizer)?.scale {
-                ctm = down.concatAroundCenter(t: CGAffineTransform(scaleX: s, y: s), cx: cx, cy: cy)
-            } else if let r = (recognizer as? UIRotationGestureRecognizer)?.rotation {
-                ctm = down.concatAroundCenter(t: CGAffineTransform(rotationAngle: -r), cx: cx, cy: cy)
-            }
-        default:
-            break
-        }
+    // Shows the whole document again: the zoom view fills the view, unzoomed & unscrolled
+    func resetZoom() {
+        scrollView.zoomScale = 1
+        zoomView.frame = CGRect(origin: .zero, size: view.bounds.size)
+        scrollView.contentSize = view.bounds.size
+        scrollView.contentInset = .zero
+        scrollView.contentOffset = .zero
+        updateCtm()
+    }
+
+    // Maps the scroll view's zoom & offset, which are y down, into the view's y up space, after the fit
+    func updateCtm() {
+        let s = scrollView.zoomScale, o = scrollView.contentOffset, h = view.bounds.height
+        ctm = fit.concatenating(CGAffineTransform(a: s, b: 0, c: 0, d: s, tx: -o.x, ty: h * (1 - s) + o.y))
     }
 }
 
-extension ViewController: UIGestureRecognizerDelegate {
-    // Taps on the page stepper's background don't step to the next file
-    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
-        !(touch.view?.isDescendant(of: pageView) ?? false)
+extension ViewController: UIScrollViewDelegate {
+    func viewForZooming(in scrollView: UIScrollView) -> UIView? {
+        zoomView
+    }
+
+    // Centres the zoom view when it's smaller than the view
+    func scrollViewDidZoom(_ scrollView: UIScrollView) {
+        let dx = max(0, 0.5 * (scrollView.bounds.width - scrollView.contentSize.width))
+        let dy = max(0, 0.5 * (scrollView.bounds.height - scrollView.contentSize.height))
+        scrollView.contentInset = UIEdgeInsets(top: dy, left: dx, bottom: dy, right: dx)
+        updateCtm()
+    }
+
+    func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        updateCtm()
     }
 }
 
@@ -344,13 +365,6 @@ extension ViewController: RASceneListDelegate {
         list.useClips = gridProgress == 0     // Clip bounds don't move with the draws
         list.clearColor = RAPaint(gray: 0.66, alpha: 1)
         return list
-    }
-}
-
-private extension NSLayoutConstraint {
-    func withPriority(_ priority: UILayoutPriority) -> NSLayoutConstraint {
-        self.priority = priority
-        return self
     }
 }
 
