@@ -1678,6 +1678,10 @@ struct RasterizerPDF {
             // A draw's clip path, the first of sorted if it isn't a rect, & the flag of its rule
             Ra::Path *path() { return sorted.size() && !sorted[0]->isRect() ? & sorted[0] : nullptr; }
             uint8_t flags() { return path() && sortedEvenOdds[0] ? Ra::Draw::kClipEvenOdd : 0; }
+            // The clip path of a draw that fills sorted[i], a non-rect path, so is already clipped to it: the first of the others
+            // if it isn't a rect, & the flag of its rule
+            Ra::Path *otherPath(size_t i) { size_t j = i == 0; return j < sorted.size() && !sorted[j]->isRect() ? & sorted[j] : nullptr; }
+            uint8_t otherFlags(size_t i) { return otherPath(i) && sortedEvenOdds[i == 0] ? Ra::Draw::kClipEvenOdd : 0; }
         };
         std::vector<Clip> clips;
         std::map<size_t, Ra::Path> clipPaths;       // By hash, so draws with the same clip share its path, & so its clip mask
@@ -2812,31 +2816,40 @@ struct RasterizerPDF {
             Ra::Path fill = path;
             Ra::Path *fillClipPath = clipPath;
             Ra::Transform fillCTM = ctm;
+            Ra::Bounds *fillClipBounds = clipBounds, rectClip;
             uint8_t flags = (fillmode == Shadings::kFillEvenOdd ? Ra::Draw::kFillEvenOdd : 0) | clipFlags;
             if (fill->isRect() && ctm.det() != 0.f) {
-                // A rect fill that covers a non-rect clip paints the clip itself, with its rule, & still clipped to the first one if
-                // it's another. Clip paths are in page space
+                // A rect fill that covers a non-rect clip paints the clip itself, with its rule, still clipped to another non-rect
+                // one, so a draw can have two. An upright rect needn't cover it, as it narrows the clip bounds instead. Clip paths
+                // are in page space
+                bool isUpright = (ctm.b == 0.f && ctm.c == 0.f) || (ctm.a == 0.f && ctm.d == 0.f);
                 Ra::Transform inv = ctm.invert();
                 for (size_t i = 0; i < clip.sorted.size(); i++) {
                     Ra::Path& c = clip.sorted[i];
-                    if (!c->isRect() && c->isValid() && path->bounds.contains(Ra::Bounds(c->bounds.quad(inv)))) {
-                        fill = c, fillClipPath = i == 0 ? nullptr : clipPath, fillCTM = Ra::Transform();
-                        flags = (clip.sortedEvenOdds[i] ? Ra::Draw::kFillEvenOdd : 0) | (i == 0 ? 0 : clipFlags);
+                    if (!c->isRect() && c->isValid() && (isUpright || path->bounds.contains(Ra::Bounds(c->bounds.quad(inv))))) {
+                        if (isUpright) {
+                            rectClip = Ra::Bounds(path->bounds.quad(ctm));
+                            rectClip = clipBounds ? rectClip.intersect(*clipBounds) : rectClip;
+                            fillClipBounds = & rectClip;
+                        }
+                        fill = c, fillClipPath = clip.otherPath(i), fillCTM = Ra::Transform();
+                        flags = (clip.sortedEvenOdds[i] ? Ra::Draw::kFillEvenOdd : 0) | clip.otherFlags(i);
                         break;
                     }
                 }
             }
-            bool isGradient = fill->isValid() && fillCTM.det() != 0.f;
+            bool isEmpty = fillClipBounds == & rectClip && (rectClip.lx >= rectClip.ux || rectClip.ly >= rectClip.uy);
+            bool isGradient = !isEmpty && fill->isValid() && fillCTM.det() != 0.f;
             Shading masked;
             if (mask >= 0) {
                 if (isGradient && (pattern || !isPattern) && Shading::masked(pattern, color, shadings.masks[mask], masked))
-                    writeGradientToScene(masked, pattern ? alpha : 1.f, blend, fill, fillCTM, flags, clipBounds, fillClipPath, scene);
+                    writeGradientToScene(masked, pattern ? alpha : 1.f, blend, fill, fillCTM, flags, fillClipBounds, fillClipPath, scene);
             } else if (pattern && isGradient)
-                writeGradientToScene(*pattern, alpha, blend, fill, fillCTM, flags, clipBounds, fillClipPath, scene);
+                writeGradientToScene(*pattern, alpha, blend, fill, fillCTM, flags, fillClipBounds, fillClipPath, scene);
             else if (tiling && isGradient)
-                writeTilingToScene(*tiling, color, alpha, blend, fill, fillCTM, flags, clipBounds, fillClipPath, scene);
-            else if (fill->isValid() && !(isPattern && (pattern || tiling)))
-                scene->addPath(fill, fillCTM, isPattern ? fallbackColor() : color, 0.f, flags, clipBounds, fillClipPath, isPattern ? kBlendNormal : blend);
+                writeTilingToScene(*tiling, color, alpha, blend, fill, fillCTM, flags, fillClipBounds, fillClipPath, scene);
+            else if (!isEmpty && fill->isValid() && !(isPattern && (pattern || tiling)))
+                scene->addPath(fill, fillCTM, isPattern ? fallbackColor() : color, 0.f, flags, fillClipBounds, fillClipPath, isPattern ? kBlendNormal : blend);
         }
         if (stroke && mask == kNoMask) {
             Ra::Color color = objectColor(object.colors, true, opacity);
@@ -2880,15 +2893,17 @@ struct RasterizerPDF {
         Shading masked;
         if (clip.sorted.size() == 0 || mask == kUnsupportedMask || !clip.sorted[0]->isValid())
             return;
-        uint8_t flags = clip.sortedEvenOdds[0] ? Ra::Draw::kFillEvenOdd : 0;    // It fills its clip, with its rule
+        // It fills its clip, with its rule, clipped to the next if it isn't a rect
+        uint8_t flags = (clip.sortedEvenOdds[0] ? Ra::Draw::kFillEvenOdd : 0) | clip.otherFlags(0);
+        Ra::Path *clipPath = clip.otherPath(0);
         if (!shading.isValid)
-            scene->addPath(clip.sorted[0], Ra::Transform(), fallbackColor(), 0.f, flags, clipBounds, nullptr, kBlendNormal);
+            scene->addPath(clip.sorted[0], Ra::Transform(), fallbackColor(), 0.f, flags, clipBounds, clipPath, kBlendNormal);
         else if (shading.ctm.det() == 0.f)
             return;
         else if (mask == kNoMask)
-            writeGradientToScene(shading, shading.alpha * opacity, blend, clip.sorted[0], Ra::Transform(), flags, clipBounds, nullptr, scene);
+            writeGradientToScene(shading, shading.alpha * opacity, blend, clip.sorted[0], Ra::Transform(), flags, clipBounds, clipPath, scene);
         else if (Shading::masked(& shading, Ra::Color(), shadings.masks[mask], masked))
-            writeGradientToScene(masked, shading.alpha * opacity, blend, clip.sorted[0], Ra::Transform(), flags, clipBounds, nullptr, scene);
+            writeGradientToScene(masked, shading.alpha * opacity, blend, clip.sorted[0], Ra::Transform(), flags, clipBounds, clipPath, scene);
     }
     
     // Fills path, in ctm space, with the gradient, clipped where an unextended end is inside it to the gradient's extent, & to clipPath
