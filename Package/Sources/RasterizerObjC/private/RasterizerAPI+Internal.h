@@ -1,9 +1,6 @@
 //
-//  RasterizerAPI+Internal.h
-//  Rasterizer
-//
-//  Created by Nigel Barber on 04/09/2025.
-//  Copyright © 2025 @mindbrix. All rights reserved.
+//  Copyright 2025 Nigel Timothy Barber - nigel@mindbrix.co.uk
+//  SPDX-License-Identifier: MIT
 //
 #import <CoreText/CoreText.h>
 #import "RasterizerAPI.h"

@@ -1,4 +1,8 @@
 #!/bin/zsh
+#
+#   Copyright 2026 Nigel Timothy Barber - nigel@mindbrix.co.uk
+#   SPDX-License-Identifier: MIT
+#
 # bench.sh: rebuilds & runs the Rasterizer vs Vello vs Skia benchmark over TestFiles from scratch.
 #
 #   Benchmarks/bench.sh [--rounds N] [--size WxH] [--frames N] [--configs a,b,..] [--rev <git rev>] [--metallib path] [--build-only]

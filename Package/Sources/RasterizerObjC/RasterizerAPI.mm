@@ -1,9 +1,6 @@
 //
-//  RasterizerAPI.mm
-//  Rasterizer
-//
-//  Created by Nigel Barber on 03/09/2025.
-//  Copyright © 2025 @mindbrix. All rights reserved.
+//  Copyright 2025 Nigel Timothy Barber - nigel@mindbrix.co.uk
+//  SPDX-License-Identifier: MIT
 //
 
 #import <Foundation/Foundation.h>

@@ -69,7 +69,7 @@ A huge thanks to the creators of the following libraries:
 License
 -------
 
-This library is licensed under a [personal use zlib license](LICENSE.txt)
+This library is licensed under the [MIT license](LICENSE.txt)
 
 
 Tips

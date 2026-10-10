@@ -1,8 +1,6 @@
 //
-//  ViewController.swift
-//  RasterizeriOS
-//
-//  Created by Nigel Barber on 17/01/2026.
+//  Copyright 2026 Nigel Timothy Barber - nigel@mindbrix.co.uk
+//  SPDX-License-Identifier: MIT
 //
 
 import UIKit

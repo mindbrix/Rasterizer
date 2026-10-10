@@ -1,3 +1,8 @@
+//
+//  Copyright 2025 Nigel Timothy Barber - nigel@mindbrix.co.uk
+//  SPDX-License-Identifier: MIT
+//
+
 import Testing
 
 @testable import RasterizerObjC

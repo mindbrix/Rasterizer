@@ -1,8 +1,6 @@
 //
-//  Extensions.swift
-//  RasterizerSwift
-//
-//  Created by Nigel Barber on 19/01/2026.
+//  Copyright 2026 Nigel Timothy Barber - nigel@mindbrix.co.uk
+//  SPDX-License-Identifier: MIT
 //
 
 import Foundation
