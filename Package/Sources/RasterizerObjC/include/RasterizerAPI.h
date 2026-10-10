@@ -155,7 +155,8 @@ typedef BOOL (^RADrawUpdateBlock)(NSInteger index, RADraw * _Nonnull draw);
 - (CGAffineTransform)addSvgFromUrl:(nonnull NSURL *)url;
 
 // Calls block for each draw in range, clamped to count, to read or edit it. Changes to a draw's transform, color or stroke width
-// need no re-prepare, but changes to its path or visibility, or a stroke becoming a fill, do
+// need no re-prepare, but changes to its path or visibility, or a stroke becoming a fill, do. Adding to the scene from the block
+// raises NSInternalInconsistencyException, as it can move the draws being edited
 - (void)updateDrawsInRange:(NSRange)range usingBlock:(nonnull NS_NOESCAPE RADrawUpdateBlock)block;
 @end
 

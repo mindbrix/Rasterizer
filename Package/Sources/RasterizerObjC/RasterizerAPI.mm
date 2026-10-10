@@ -387,7 +387,15 @@ static uint8_t joinFlags(RAJoinStyle joinStyle) {
 
 #pragma mark - RAScene
 
-@implementation RAScene: NSObject
+@implementation RAScene: NSObject {
+    NSInteger _updates;     // The nesting depth of -updateDrawsInRange:usingBlock:, whose draws adding to the scene would move
+}
+
+// Raises if the scene's draws are being updated, as adding a draw can move them, & the RADraw a block edits points into them
+- (void)checkNotUpdating {
+    if (_updates)
+        [NSException raise:NSInternalInconsistencyException format:@"%@ was added to while its draws were being updated", self];
+}
 
 - (CGRect)bounds {
     return RaCG::CGRectFromBounds(_scene->bounds());
@@ -397,6 +405,7 @@ static uint8_t joinFlags(RAJoinStyle joinStyle) {
 }
 
 - (void)addDraw:(RADraw *)draw {
+    [self checkNotUpdating];
     Ra::Draw d = draw.draw;
     _scene->addDraw(d);
 }
@@ -435,6 +444,7 @@ static uint8_t joinFlags(RAJoinStyle joinStyle) {
     Ra::Path p = path.path;
     Ra::Bounds clipBounds = CGRectIsNull(clip) || CGRectIsEmpty(clip) || CGRectIsInfinite(clip) ? Ra::Bounds::huge() : RaCG::BoundsFromCGRect(clip);
     auto m = RaCG::transformFromCG(ctm);
+    [self checkNotUpdating];
     Ra::Path clp = clipPath != nil ? clipPath.path : Ra::Path(nullptr);
     _scene->addPath(p, m, color.paint, 0, (evenOdd ? Ra::Draw::kFillEvenOdd : 0) | Ra::Draw::kClipEvenOdd, & clipBounds, clipPath != nil ? & clp : nullptr);    // Clips even-odd, as they did
 }
@@ -450,6 +460,7 @@ static uint8_t joinFlags(RAJoinStyle joinStyle) {
     Ra::Path p = path.path;
     Ra::Bounds clipBounds = CGRectIsNull(clip) || CGRectIsEmpty(clip) || CGRectIsInfinite(clip) ? Ra::Bounds::huge() : RaCG::BoundsFromCGRect(clip);
     auto m = RaCG::transformFromCG(ctm);
+    [self checkNotUpdating];
     Ra::Path clp = clipPath != nil ? clipPath.path : Ra::Path(nullptr);
     _scene->addPath(p, m, color.paint, width, capFlags(capStyle) | joinFlags(joinStyle) | Ra::Draw::kClipEvenOdd, & clipBounds, clipPath != nil ? & clp : nullptr);
 }
@@ -459,11 +470,13 @@ static uint8_t joinFlags(RAJoinStyle joinStyle) {
                ctm:(CGAffineTransform)ctm
               clip:(CGRect)clip {
     GlyphCache cache;
+    [self checkNotUpdating];
     return RaCT::addFrameToScene(frame.frame, excludes, ctm, clip, _scene, cache);
 }
 
 - (CGRect)addText:(NSAttributedString *)string inRect:(CGRect)rect ctm:(CGAffineTransform)ctm clip:(CGRect)clip {
     GlyphCache cache;
+    [self checkNotUpdating];
     return RaCT::addTextToSceneInRect((__bridge CFAttributedStringRef)string, rect, ctm, clip, _scene, cache);
 }
 
@@ -471,10 +484,12 @@ static uint8_t joinFlags(RAJoinStyle joinStyle) {
     return RaPDF::getPageCount(url.path.UTF8String);
 }
 - (CGAffineTransform)addPdfFromUrl:(nonnull NSURL *)url pageIndex:(NSInteger)pageIndex {
+    [self checkNotUpdating];
     return RaCG::CGFromTransform(RaPDF::addPdfPageToScene(url.path.UTF8String, pageIndex, _scene));
 }
 
 - (CGAffineTransform)addSvgFromUrl:(NSURL *)url {
+    [self checkNotUpdating];
     return RaCG::CGFromTransform(RaSVG::addSvgToScene(url.path.UTF8String, _scene));
 }
 
@@ -483,11 +498,16 @@ static uint8_t joinFlags(RAJoinStyle joinStyle) {
     if (i0 >= count)
         return;
     RADraw *alias = [RADraw new];
-    _scene->update(i0, range.length > count - i0 ? count : i0 + range.length, [&](size_t i, Ra::Draw& draw) {
-        [alias setTarget:& draw];
-        return bool(block(NSInteger(i), alias));
-    });
-    [alias setTarget:nullptr];
+    _updates++;
+    @try {
+        _scene->update(i0, range.length > count - i0 ? count : i0 + range.length, [&](size_t i, Ra::Draw& draw) {
+            [alias setTarget:& draw];
+            return bool(block(NSInteger(i), alias));
+        });
+    } @finally {
+        _updates--;
+        [alias setTarget:nullptr];      // So an alias kept past the block edits its own draw
+    }
 }
 
 @end

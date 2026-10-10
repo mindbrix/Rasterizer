@@ -40,12 +40,24 @@
 
 - (void)rasterizerInit {
     self.useCG = false;
-    [self startTimer];
 }
 
-- (void)removeFromSuperview {
+// The display link retains its target, so it runs only while the view is in a window: leaving the window breaks the cycle, & a view
+// added to a window again restarts it. On macOS, a new window may be on another display, which a new link follows
+#if TARGET_OS_OSX
+- (void)viewDidMoveToWindow {
+    [super viewDidMoveToWindow];
+#elif TARGET_OS_IPHONE
+- (void)didMoveToWindow {
+    [super didMoveToWindow];
+#endif
     [self stopTimer];
-    [super removeFromSuperview];
+    if (self.window)
+        [self startTimer];
+}
+
+- (void)dealloc {
+    [self stopTimer];
 }
 
 
