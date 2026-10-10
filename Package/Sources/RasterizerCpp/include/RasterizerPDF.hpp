@@ -555,8 +555,58 @@ struct RasterizerPDF {
                 }
                 if (glyphs[code] == 0 && u)
                     CTFontGetGlyphsForCharacters(ctFont, & u, & glyphs[code], 1);
+                if (glyphs[code] == 0) {
+                    // A TrueType font without names or a Unicode cmap, but a Mac Roman one, maps the character's Mac Roman code, or
+                    // the code of a font with that encoding, as pdfium does
+                    uint8_t mac = 0;  CFIndex used = 0;
+                    if (u) {
+                        CFStringRef string = CFStringCreateWithCharacters(nullptr, & u, 1);
+                        CFStringGetBytes(string, CFRangeMake(0, 1), kCFStringEncodingMacRoman, 0, false, & mac, 1, & used), CFRelease(string);
+                    }
+                    if (used == 0 && base == kMacRoman && names[code].empty())
+                        mac = uint8_t(code), used = 1;
+                    if (used)
+                        glyphs[code] = macCmap()[mac];
+                }
             }
             return glyphs[code];
+        }
+        // The font's Mac Roman (1, 0) cmap subtable, of format 0, 4 or 6, as glyphs by code, read once, which are 0 without one
+        const std::array<CGGlyph, 256>& macCmap() {
+            if (hasMacCmap)
+                return macGlyphs;
+            hasMacCmap = true;
+            CFDataRef table = cgFont ? CGFontCopyTableForTag(cgFont, 'cmap') : nullptr;
+            const uint8_t *d = table ? CFDataGetBytePtr(table) : nullptr;  size_t n = table ? size_t(CFDataGetLength(table)) : 0;
+            auto u16 = [&](size_t o) { return o + 2 <= n ? uint16_t(d[o] << 8 | d[o + 1]) : uint16_t(0); };
+            for (size_t i = 0, count = u16(2); i < count; i++) {
+                size_t e = 4 + 8 * i, o = size_t(u16(e + 4)) << 16 | u16(e + 6);
+                if (u16(e) != 1 || u16(e + 2) != 0 || o + 6 > n)
+                    continue;
+                uint16_t format = u16(o);
+                if (format == 0)
+                    for (size_t c = 0; c < 256 && o + 6 + c < n; c++)
+                        macGlyphs[c] = d[o + 6 + c];
+                else if (format == 6)
+                    for (size_t first = u16(o + 6), k = 0, entries = u16(o + 8); k < entries && first + k < 256; k++)
+                        macGlyphs[first + k] = u16(o + 10 + 2 * k);
+                else if (format == 4) {
+                    size_t segs = u16(o + 6) / 2, ends = o + 14, starts = ends + 2 * segs + 2, deltas = starts + 2 * segs, offsets = deltas + 2 * segs;
+                    for (size_t k = 0; k < segs; k++)
+                        for (uint32_t c = u16(starts + 2 * k), end = std::min<uint32_t>(u16(ends + 2 * k), 255); c <= end; c++) {
+                            uint16_t range = u16(offsets + 2 * k), delta = u16(deltas + 2 * k), g = 0;
+                            if (range == 0)
+                                g = uint16_t(c + delta);
+                            else if ((g = u16(offsets + 2 * k + range + 2 * (c - u16(starts + 2 * k)))))
+                                g = uint16_t(g + delta);
+                            macGlyphs[c] = g;
+                        }
+                }
+                break;
+            }
+            if (table)
+                CFRelease(table);
+            return macGlyphs;
         }
         // A code's width, in thousandths of text space
         float width(uint32_t code, CGGlyph g) {
@@ -769,6 +819,7 @@ struct RasterizerPDF {
         int firstChar = 0;  std::vector<float> widths;  float missingWidth = 0.f, defaultWidth = 1000.f;
         std::map<uint32_t, float> cidWidths;  std::vector<uint16_t> cidToGid;
         std::array<std::string, 256> names;  std::array<CGGlyph, 256> glyphs = {};  std::array<bool, 256> mapped = {};
+        bool hasMacCmap = false;  std::array<CGGlyph, 256> macGlyphs = {};
         std::map<CGGlyph, Ra::Path> paths;
     };
     
