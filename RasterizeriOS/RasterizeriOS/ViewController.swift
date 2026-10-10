@@ -107,7 +107,8 @@ class ViewController: UIViewController {
             openButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
             removeButton.leadingAnchor.constraint(equalTo: openButton.trailingAnchor, constant: 8),
             removeButton.bottomAnchor.constraint(equalTo: openButton.bottomAnchor),
-            stepperLozenge.centerXAnchor.constraint(equalTo: view.safeAreaLayoutGuide.centerXAnchor),
+            stepperLozenge.centerXAnchor.constraint(equalTo: view.safeAreaLayoutGuide.centerXAnchor).withPriority(.defaultHigh),
+            pageView.leadingAnchor.constraint(greaterThanOrEqualTo: removeButton.trailingAnchor, constant: 8),     // Off centre on small iPhones
             stepperLozenge.centerYAnchor.constraint(equalTo: openButton.centerYAnchor),
         ] + [gridButton, openButton, removeButton].flatMap { [     // Circles the stepper's height
             $0.heightAnchor.constraint(equalTo: stepperLozenge.heightAnchor),
@@ -320,10 +321,12 @@ class ViewController: UIViewController {
         updateCtm()
     }
 
-    // Maps the scroll view's zoom & offset, which are y down, into the view's y up space, after the fit
+    // Maps the scroll view's zoom & offset, which are y down, into the view's y up space, after the fit. Draws in the same update
+    // as the scroll view moves, as waiting for the display link, which isn't in step with momentum scrolling, makes it judder
     func updateCtm() {
         let s = scrollView.zoomScale, o = scrollView.contentOffset, h = view.bounds.height
         ctm = fit.concatenating(CGAffineTransform(a: s, b: 0, c: 0, d: s, tx: -o.x, ty: h * (1 - s) + o.y))
+        view.layer.setNeedsDisplay()
     }
 }
 
@@ -365,6 +368,13 @@ extension ViewController: RASceneListDelegate {
         list.useClips = gridProgress == 0     // Clip bounds don't move with the draws
         list.clearColor = RAPaint(gray: 0.66, alpha: 1)
         return list
+    }
+}
+
+private extension NSLayoutConstraint {
+    func withPriority(_ priority: UILayoutPriority) -> NSLayoutConstraint {
+        self.priority = priority
+        return self
     }
 }
 
