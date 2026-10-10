@@ -219,6 +219,9 @@ struct RasterizerPDF {
         Ra::Transform ctm, unit;        // ctm & alpha are the sh operator's
         bool isValid = false, isRadial = false, extendLo = false, extendHi = false;
         bool isTwoCircle = false;       // A radial whose circles aren't concentric, which CoreGraphics draws
+        bool isEmpty = false;           // A radial whose circles are identical, which paints nothing, as pdfium & CoreGraphics
+        bool hasBBox = false;           // Its BBox, in shading space, which it's clipped to
+        Ra::Bounds bbox;
         float circles[6] = {};          // Its x0, y0, r0, x1, y1, r1, in shading space
         float alpha = 1.f, lo = 0.f;    // lo is the gradient's start, the inner radius for a radial
         int mask = kNoMask;             // The soft mask & blend mode of an sh operator
@@ -251,8 +254,8 @@ struct RasterizerPDF {
         // A luminosity soft mask of a gradient, applied to a gradient with the same geometry, or to a color if shading is null.
         // The result's alphas are the mask's luminosity
         static bool masked(const Shading *shading, Ra::Color color, const Shading& mask, Shading& result) {
-            if ((shading && shading->isTwoCircle) || mask.isTwoCircle)
-                return false;
+            if ((shading && (shading->isTwoCircle || shading->isEmpty)) || mask.isTwoCircle || mask.isEmpty)
+                return false;     // An empty shading or mask paints nothing
             if (shading) {
                 Ra::Transform m0 = shading->unit.concat(shading->ctm), m1 = mask.unit.concat(mask.ctm);
                 auto close = [](float x, float y) { return fabsf(x - y) <= 1e-3f * (1.f + fabsf(x)); };
@@ -308,8 +311,11 @@ struct RasterizerPDF {
         bool read(CGPDFDictionaryRef dict, CGPDFContentStreamRef cs) {
             CGPDFInteger type;  CGPDFArrayRef array;  CGPDFObjectRef obj;  CGPDFBoolean e0 = false, e1 = false;
             std::vector<float> coords, domain;  std::vector<Function> fns;
-            if (!CGPDFDictionaryGetInteger(dict, "ShadingType", & type) || (type != 2 && type != 3) || CGPDFDictionaryGetArray(dict, "BBox", & array))
+            if (!CGPDFDictionaryGetInteger(dict, "ShadingType", & type) || (type != 2 && type != 3))
                 return false;
+            std::vector<float> box;
+            if (readNumbers(dict, "BBox", box) && box.size() == 4)
+                hasBBox = true, bbox = Ra::Bounds(fminf(box[0], box[2]), fminf(box[1], box[3]), fmaxf(box[0], box[2]), fmaxf(box[1], box[3]));
             if (!readNumbers(dict, "Coords", coords) || coords.size() != (type == 2 ? 4 : 6))
                 return false;
             if (!readNumbers(dict, "Domain", domain))
@@ -340,8 +346,10 @@ struct RasterizerPDF {
                 extendLo = e0, extendHi = e1;
             } else {
                 float r0 = coords[2], r1 = coords[5], r = fmaxf(r0, r1);
-                if (r0 < 0.f || r1 < 0.f || (r0 == r1 && coords[0] == coords[3] && coords[1] == coords[4]))
+                if (r0 < 0.f || r1 < 0.f)
                     return false;
+                if (r0 == r1 && coords[0] == coords[3] && coords[1] == coords[4])
+                    return isEmpty = true;
                 isRadial = true;
                 if (r0 == r1 || fabsf(coords[3] - coords[0]) > 1e-3f * r || fabsf(coords[4] - coords[1]) > 1e-3f * r) {
                     isTwoCircle = true, std::copy(coords.begin(), coords.end(), circles), extendLo = e0, extendHi = e1;
@@ -817,7 +825,24 @@ struct RasterizerPDF {
                 CGImageRef decoded = source ? CGImageSourceCreateImageAtIndex(source, 0, nullptr) : nullptr;
                 if (source)
                     CFRelease(source);
-                if (decoded && space && tint.type < 0 && CGImageGetColorSpace(decoded) && components == CGColorSpaceGetNumberOfComponents(CGImageGetColorSpace(decoded))) {
+                if (decoded && space && tint.type >= 0) {
+                    // A Separation or DeviceN JPEG's samples, as ImageIO's 8 bit gray, by its tint transform, with its decode array
+                    size_t w = CGImageGetWidth(decoded), h = CGImageGetHeight(decoded), rowBytes;
+                    CFDataRef gray = copyGraySamples(decoded, rowBytes);
+                    CFDataRef pixels = gray ? createTinted(gray, w, h, 8, rowBytes, decode, tint, CGColorSpaceGetNumberOfComponents(space)) : nullptr;
+                    if (pixels) {
+                        size_t n = CGColorSpaceGetNumberOfComponents(space);
+                        CGDataProviderRef provider = CGDataProviderCreateWithCFData(pixels);
+                        image = CGImageCreate(w, h, 8, 8 * n, w * n, space, CGBitmapInfo(kCGImageAlphaNone), provider, nullptr, false, kCGRenderingIntentDefault);
+                        CGDataProviderRelease(provider), CFRelease(pixels);
+                    }
+                    if (gray)
+                        CFRelease(gray);
+                    if (image)
+                        CGImageRelease(decoded);
+                    else
+                        image = decoded;
+                } else if (decoded && space && tint.type < 0 && CGImageGetColorSpace(decoded) && components == CGColorSpaceGetNumberOfComponents(CGImageGetColorSpace(decoded))) {
                     // Its stored samples in the PDF's color space, with its decode array, not ImageIO's, which inverts an Adobe
                     // CMYK JPEG's, as a PDF's DCTDecode doesn't. Photoshop's PDFs invert them with a decode array instead
                     size_t n = components, bpp = CGImageGetBitsPerPixel(decoded);
@@ -861,6 +886,24 @@ struct RasterizerPDF {
             CGColorSpaceRelease(space);
             CFRelease(data);
             return image;
+        }
+        // A decoded image's samples as 8 bit gray with their row bytes: its own if it's 8 bit gray, else drawn into device gray
+        static CFDataRef copyGraySamples(CGImageRef image, size_t& rowBytes) {
+            CGColorSpaceRef space = CGImageGetColorSpace(image);
+            if (space && CGColorSpaceGetNumberOfComponents(space) == 1 && CGImageGetBitsPerComponent(image) == 8 && CGImageGetBitsPerPixel(image) == 8 && CGImageGetAlphaInfo(image) == kCGImageAlphaNone) {
+                rowBytes = CGImageGetBytesPerRow(image);
+                return CGDataProviderCopyData(CGImageGetDataProvider(image));
+            }
+            size_t w = CGImageGetWidth(image), h = CGImageGetHeight(image);
+            CFMutableDataRef data = CFDataCreateMutable(nullptr, w * h);
+            CFDataSetLength(data, w * h);
+            CGColorSpaceRef gray = CGColorSpaceCreateDeviceGray();
+            CGContextRef ctx = CGBitmapContextCreate(CFDataGetMutableBytePtr(data), w, h, 8, w, gray, CGBitmapInfo(kCGImageAlphaNone));
+            if (ctx)
+                CGContextDrawImage(ctx, CGRectMake(0, 0, w, h), image), CGContextRelease(ctx);
+            CGColorSpaceRelease(gray);
+            rowBytes = w;
+            return data;
         }
         // A Separation or DeviceN of one component's samples, as 8 bit samples of its alternate space, by its tint transform
         static CFDataRef createTinted(CFDataRef data, size_t width, size_t height, size_t bpc, size_t rowBytes, std::vector<CGFloat>& decode, Function& tint, size_t n) {
@@ -2568,8 +2611,8 @@ struct RasterizerPDF {
         }
         // The mask's shading, in group space, at ctm
         int addMask(const Shading& shading, Ra::Transform ctm) {
-            if (!shading.isValid || shading.isTwoCircle)
-                return kUnsupportedMask;
+            if (!shading.isValid || shading.isTwoCircle || shading.isEmpty)
+                return kUnsupportedMask;      // An empty mask paints nothing, so hides what it masks, as an unsupported one does
             masks.emplace_back(shading), masks.back().ctm = shading.ctm.concat(ctm);
             return int(masks.size() - 1);
         }
@@ -2850,8 +2893,18 @@ struct RasterizerPDF {
     
     // Fills path, in ctm space, with the gradient, clipped where an unextended end is inside it to the gradient's extent, & to clipPath
     static void writeGradientToScene(const Shading& shading, float alpha, uint8_t blend, Ra::Path& path, Ra::Transform ctm, uint8_t flags, Ra::Bounds* clipBounds, Ra::Path *clipPath, Ra::SceneRef& scene) {
-        if (alpha == 0.f)
+        if (alpha == 0.f || shading.isEmpty)
             return;
+        // A BBox clips the shading. One upright on the page narrows the clip bounds, but a rotated one isn't drawn, as draws have
+        // one clip path, which the shading's clip may need, so it paints its fill as if it had none
+        Ra::Bounds boxClip;
+        if (shading.hasBBox && ((shading.ctm.b == 0.f && shading.ctm.c == 0.f) || (shading.ctm.a == 0.f && shading.ctm.d == 0.f))) {
+            boxClip = Ra::Bounds(shading.bbox.quad(shading.ctm));
+            boxClip = clipBounds ? boxClip.intersect(*clipBounds) : boxClip;
+            if (boxClip.lx >= boxClip.ux || boxClip.ly >= boxClip.uy)
+                return;
+            clipBounds = & boxClip;
+        }
         if (shading.isTwoCircle)
             return writeTwoCircleGradientToScene(shading, alpha, blend, path, ctm, flags, clipBounds, clipPath, scene);
         std::vector<Ra::Color> colors = shading.colors;
