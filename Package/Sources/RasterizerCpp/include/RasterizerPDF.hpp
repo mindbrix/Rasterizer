@@ -381,7 +381,8 @@ struct RasterizerPDF {
         }
     };
     
-    enum { kNoMask = -1, kUnsupportedMask = -2 };
+    // A soft mask the scan can't read, so what it masks is a fallback, or one that paints nothing, so hides what it masks
+    enum { kNoMask = -1, kUnsupportedMask = -2, kEmptyMask = -3 };
     
     // An axial or radial shading, read with CGPDF, so it can be drawn as a gradient. Other shadings are invalid, so fallbacks.
     // unit maps Rasterizer's gradient space to shading space: linear gradients run up y from 0 to 1, & radial ones out from the
@@ -1997,6 +1998,7 @@ struct RasterizerPDF {
         struct Glyph { Ra::Path path;  Ra::Transform ctm;  bool evenOdd = false;  const TextFont::Type3Glyph *colored = nullptr; };
         struct TextRun {
             bool isValid = true, isType3 = false;
+            int mask = kNoMask;         // Its soft mask, in masks
             uint8_t mode = 0;           // Its text rendering mode
             Colors colors;
             std::vector<Glyph> glyphs;
@@ -2496,7 +2498,7 @@ struct RasterizerPDF {
             addObject(scan, kTextObject, s.texts.size());
             s.texts.emplace_back();
             TextRun& run = s.texts.back();
-            run.mode = st.textMode, run.colors = objectColors(st);
+            run.mode = st.textMode, run.colors = objectColors(st), run.mask = st.mask;
             bool clips = st.textMode >= 4 && st.textMode <= 7;
             scan.clipTexts += clips;
             // A font the scan can't read, or a missing one, has a box for each code, of its width, or half the font size, which is
@@ -2968,7 +2970,7 @@ struct RasterizerPDF {
         // The mask's shading, in group space, at ctm
         int addMask(const Shading& shading, Ra::Transform ctm) {
             if (!shading.isValid || shading.isEmpty)
-                return kUnsupportedMask;      // An empty mask paints nothing, so hides what it masks, as an unsupported one does
+                return shading.isEmpty ? kEmptyMask : kUnsupportedMask;
             masks.emplace_back(shading), masks.back().ctm = shading.ctm.concat(ctm);
             return int(masks.size() - 1);
         }
@@ -3032,8 +3034,9 @@ struct RasterizerPDF {
     
     // Writes the scan's objects of the page's content stream, or a form's, which are in page space, & for a transparency group,
     // under its soft mask, opacity & blend mode. Under a mask only fills, as gradients with the mask's alpha, & images are
-    // drawn. The opacity & blend mode are applied to each object, not the group, & an object's own blend mode replaces the
-    // group's. A form nested too deep for the scan is a fallback, over its BBox
+    // drawn, & other objects, or any under a mask the scan can't read, are fallbacks. The opacity & blend mode are applied to
+    // each object, not the group, & an object's own blend mode replaces the group's. A form nested too deep for the scan is a
+    // fallback, over its BBox
     static void writeStreamToScene(int container, int mask, float opacity, uint8_t blend, Shadings& shadings, Ra::SceneRef& scene) {
         static const std::vector<Shadings::Object> none;
         const std::vector<Shadings::Object>& objects = size_t(container + 1) < shadings.streams.size() ? shadings.streams[container + 1] : none;
@@ -3044,8 +3047,7 @@ struct RasterizerPDF {
             
             switch (object.kind) {
                 case Shadings::kTextObject:
-                    if (mask == kNoMask)
-                        writeTextRunToScene(shadings.texts[object.index], opacity, blend, clipBounds, objectClip, scene);
+                    writeTextRunToScene(shadings.texts[object.index], mask, opacity, blend, shadings, clipBounds, objectClip, scene);
                     break;
                 case Shadings::kPathObject:
                     writePathToScene(shadings.paths[object.index], mask, opacity, blend, shadings, clipBounds, objectClip, scene);
@@ -3063,7 +3065,7 @@ struct RasterizerPDF {
                     uint8_t formBlend = group.blend != kBlendNormal ? group.blend : blend;
                     if (group.isTooDeep)
                         writeFallbackToScene(shadings.clip(group.clip), scene);
-                    else if (formMask != kUnsupportedMask && formOpacity != 0.f)      // Else it's skipped, & its contents
+                    else if (formMask != kEmptyMask && formOpacity != 0.f)      // Else it's skipped, & its contents
                         writeStreamToScene(int(object.index), formMask, formOpacity, formBlend, shadings, scene);
                     break;
                 }
@@ -3121,27 +3123,44 @@ struct RasterizerPDF {
     }
     
     // Writes a text object's glyphs from the scan, filled and or stroked as its text rendering mode says, & not if it's invisible
-    // or only clips. The boxes of a font the scan can't read are filled with the fallback color
-    static void writeTextRunToScene(const Shadings::TextRun& run, float opacity, uint8_t blend, Ra::Bounds *clipBounds, Shadings::Clip& clip, Ra::SceneRef& scene) {
+    // or only clips. The boxes of a font the scan can't read are filled with the fallback color. Its soft mask, or else the
+    // group's, makes its fills gradients of their color, & its strokes, or its glyphs under a mask the scan can't read, fallbacks
+    static void writeTextRunToScene(const Shadings::TextRun& run, int mask, float opacity, uint8_t blend, Shadings& shadings, Ra::Bounds *clipBounds, Shadings::Clip& clip, Ra::SceneRef& scene) {
+        mask = run.mask != kNoMask ? run.mask : mask;
+        if (mask == kEmptyMask)
+            return;
         bool fills = run.mode % 4 == 0 || run.mode % 4 == 2, strokes = run.mode % 4 == 1 || run.mode % 4 == 2;
         Ra::Path *clipPath = clip.path();  uint8_t clipFlags = clip.flags();
         Ra::Color fill = objectColor(run.colors, false, opacity), stroke = objectColor(run.colors, true, opacity);
-        if (!run.isValid)
-            fills = fills || strokes, strokes = false, fill = fallbackColor(), blend = kBlendNormal;
+        if (!run.isValid || mask == kUnsupportedMask)
+            fills = fills || strokes, strokes = false, fill = fallbackColor(), blend = kBlendNormal, mask = kNoMask;
         else if (run.isType3)       // Its glyphs paint themselves, with the fill color, if they're visible, as CoreGraphics & pdf.js
             fills = fills || strokes, strokes = false;
+        if (mask >= 0)              // A mask only applies to fills
+            stroke = fallbackColor();
         float width = run.width == 0.f ? -1.f : run.width / run.unitsPerEm;     // In text space, which glyphs' paths are in
+        // Fills a glyph's path, under a mask as a gradient of the color with the mask's alpha, or the fallback color if it can't be
+        auto fillPath = [&](Ra::Path path, Ra::Transform ctm, Ra::Color color, bool evenOdd) {
+            uint8_t flags = clipFlags | (evenOdd ? Ra::Draw::kFillEvenOdd : 0);
+            Shading masked;
+            if (mask < 0)
+                scene->addPath(path, ctm, color, 0.f, flags, clipBounds, clipPath, blend);
+            else if (Shading::masked(nullptr, color, shadings.masks[mask], masked))
+                writeGradientToScene(masked, 1.f, blend, path, ctm, flags, clipBounds, clipPath, scene);
+            else
+                scene->addPath(path, ctm, fallbackColor(), 0.f, flags, clipBounds, clipPath, kBlendNormal);
+        };
         for (auto& glyph : run.glyphs) {
             if (fills && glyph.colored) {       // Its parts' colors, with the text's alpha
                 for (auto& part : glyph.colored->parts) {
                     Ra::Color color = part.color;
                     color.a = uint8_t(color.a * fill.a / 255.f + 0.5f);
-                    scene->addPath(part.path, glyph.ctm, color, 0.f, clipFlags | (part.evenOdd ? Ra::Draw::kFillEvenOdd : 0), clipBounds, clipPath, blend);
+                    fillPath(part.path, glyph.ctm, color, part.evenOdd);
                 }
             } else if (fills)
-                scene->addPath(glyph.path, glyph.ctm, fill, 0.f, clipFlags | (glyph.evenOdd ? Ra::Draw::kFillEvenOdd : 0), clipBounds, clipPath, blend);
+                fillPath(glyph.path, glyph.ctm, fill, glyph.evenOdd);
             if (strokes)
-                scene->addPath(glyph.path, glyph.ctm, stroke, width, clipFlags, clipBounds, clipPath, blend);
+                scene->addPath(glyph.path, glyph.ctm, stroke, width, clipFlags, clipBounds, clipPath, mask >= 0 ? kBlendNormal : blend);
         }
     }
     
@@ -3167,7 +3186,7 @@ struct RasterizerPDF {
         blend = object.blend != kBlendNormal ? object.blend : blend;
         Ra::Path *clipPath = clip.path();  uint8_t clipFlags = clip.flags();
         
-        if (mask == kUnsupportedMask)
+        if (mask == kEmptyMask)
             return;
         Ra::Path path = object.path;
         Ra::Transform ctm = object.ctm;
@@ -3201,18 +3220,23 @@ struct RasterizerPDF {
             bool isEmpty = fillClipBounds == & rectClip && (rectClip.lx >= rectClip.ux || rectClip.ly >= rectClip.uy);
             bool isGradient = !isEmpty && fill->isValid() && fillCTM.det() != 0.f;
             Shading masked;
+            bool isFallback = mask == kUnsupportedMask;
             if (mask >= 0) {
                 if (isGradient && (pattern || !isPattern) && Shading::masked(pattern, color, shadings.masks[mask], masked))
                     writeGradientToScene(masked, pattern ? alpha : 1.f, blend, fill, fillCTM, flags, fillClipBounds, fillClipPath, scene);
-            } else if (pattern && isGradient)
+                else
+                    isFallback = !(pattern && pattern->isEmpty);      // A mask it can't apply, but an empty gradient paints nothing
+            } else if (!isFallback && pattern && isGradient)
                 writeGradientToScene(*pattern, alpha, blend, fill, fillCTM, flags, fillClipBounds, fillClipPath, scene);
-            else if (tiling && isGradient)
+            else if (!isFallback && tiling && isGradient)
                 writeTilingToScene(*tiling, color, alpha, blend, fill, fillCTM, flags, fillClipBounds, fillClipPath, scene);
-            else if (!isEmpty && fill->isValid() && !(isPattern && (pattern || tiling)))
+            else if (!isFallback && !isEmpty && fill->isValid() && !(isPattern && (pattern || tiling)))
                 scene->addPath(fill, fillCTM, isPattern ? fallbackColor() : color, 0.f, flags, fillClipBounds, fillClipPath, isPattern ? kBlendNormal : blend);
+            if (isFallback && !isEmpty && fill->isValid())
+                scene->addPath(fill, fillCTM, fallbackColor(), 0.f, flags, fillClipBounds, fillClipPath, kBlendNormal);
         }
-        if (stroke && mask == kNoMask) {
-            Ra::Color color = objectColor(object.colors, true, opacity);
+        if (stroke) {       // Under a mask, a fallback
+            Ra::Color color = mask == kNoMask ? objectColor(object.colors, true, opacity) : fallbackColor();
             uint8_t flags = clipFlags;
             float width = object.width == 0.f ? -1.f : object.width;
             flags |= object.cap == Shadings::kRoundCap ? Ra::Draw::kRoundCap : 0;
@@ -3227,16 +3251,16 @@ struct RasterizerPDF {
         }
     }
     
-    // Writes the scan's image, clipped to the clip, or for one it couldn't decode, the fallback color over its unit square. An
-    // image mask is painted with the fill color, which has the fill alpha. The image's soft mask, or else the group's, scales
-    // its alpha, & an unsupported one hides it
+    // Writes the scan's image, clipped to the clip, or for one it couldn't decode, or under a soft mask the scan can't read, the
+    // fallback color over its unit square. An image mask is painted with the fill color, which has the fill alpha. The image's
+    // soft mask, or else the group's, scales its alpha
     static void writeImageToScene(const Shadings::ImageObject& object, int mask, float opacity, uint8_t blend, Shadings& shadings, Ra::Bounds* clipBounds, Shadings::Clip& clip, Ra::SceneRef& scene) {
         mask = object.mask != kNoMask ? object.mask : mask;
-        if (mask == kUnsupportedMask)
+        if (mask == kEmptyMask)
             return;
         Ra::Path *clipPath = clip.path();  uint8_t clipFlags = clip.flags();
         Ra::Path unitRectPath;  unitRectPath->addBounds(Ra::Bounds(0, 0, 1, 1));
-        if (object.image < 0)
+        if (object.image < 0 || mask == kUnsupportedMask)
             return scene->addPath(unitRectPath, object.ctm, fallbackColor(), 0, clipFlags, clipBounds, clipPath, kBlendNormal);
         bool isMask = shadings.images[object.image].isMask;
         Ra::Color color = isMask ? objectColor(object.colors, false, 1.f) : Ra::Color(0, 0, 0, 255);
@@ -3246,24 +3270,22 @@ struct RasterizerPDF {
             scene->addPath(unitRectPath, object.ctm, image, 0, clipFlags, clipBounds, clipPath, blend);
     }
     
-    // Writes the scan's shading, which paints its clip, or for one it can't read, the fallback color
+    // Writes the scan's shading, which paints its clip, or for one it can't read, or under a soft mask it can't read or apply, the
+    // fallback color
     static void writeShadingToScene(const Shading& shading, int mask, float opacity, uint8_t blend, Shadings& shadings, Ra::Bounds* clipBounds, Shadings::Clip& clip, Ra::SceneRef& scene) {
         mask = shading.mask != kNoMask ? shading.mask : mask;
         blend = shading.blend != kBlendNormal ? shading.blend : blend;
         Shading masked;
-        if (clip.sorted.size() == 0 || mask == kUnsupportedMask || !clip.sorted[0]->isValid())
+        if (clip.sorted.size() == 0 || mask == kEmptyMask || !clip.sorted[0]->isValid())
             return;
         // It fills its clip, with its rule, clipped to the next if it isn't a rect
         uint8_t flags = (clip.sortedEvenOdds[0] ? Ra::Draw::kFillEvenOdd : 0) | clip.otherFlags(0);
         Ra::Path *clipPath = clip.otherPath(0);
-        if (!shading.isValid)
+        bool isMasked = mask >= 0 && shading.isValid && !shading.isEmpty;      // An empty shading paints nothing
+        if (!shading.isValid || mask == kUnsupportedMask || (isMasked && !Shading::masked(& shading, Ra::Color(), shadings.masks[mask], masked)))
             scene->addPath(clip.sorted[0], Ra::Transform(), fallbackColor(), 0.f, flags, clipBounds, clipPath, kBlendNormal);
-        else if (shading.ctm.det() == 0.f)
-            return;
-        else if (mask == kNoMask)
-            writeGradientToScene(shading, shading.alpha * opacity, blend, clip.sorted[0], Ra::Transform(), flags, clipBounds, clipPath, scene);
-        else if (Shading::masked(& shading, Ra::Color(), shadings.masks[mask], masked))
-            writeGradientToScene(masked, shading.alpha * opacity, blend, clip.sorted[0], Ra::Transform(), flags, clipBounds, clipPath, scene);
+        else if (shading.ctm.det() != 0.f)
+            writeGradientToScene(isMasked ? masked : shading, shading.alpha * opacity, blend, clip.sorted[0], Ra::Transform(), flags, clipBounds, clipPath, scene);
     }
     
     // Fills path, in ctm space, with the gradient, clipped where an unextended end is inside it to the gradient's extent, & to clipPath
