@@ -11,11 +11,12 @@ import RasterizerSwift
 // A document a tap shows: a bundled or imported SVG, or a PDF, whose pages the page stepper shows
 struct Document {
     let url: URL
-    let pageCount: Int?     // nil for an SVG
+    let isPDF: Bool
+    var pageCount: Int?     // A PDF's, counted when it's first shown, so launch doesn't open every imported PDF
 
     init(url: URL) {
         self.url = url
-        pageCount = UTType(filenameExtension: url.pathExtension)?.conforms(to: .pdf) == true ? max(1, RAScene.pdfPageCount(from: url)) : nil
+        isPDF = UTType(filenameExtension: url.pathExtension)?.conforms(to: .pdf) == true
     }
 }
 
@@ -159,8 +160,11 @@ class ViewController: UIViewController {
         guard documents.indices.contains(documentIndex) else {
             return nil
         }
+        if documents[documentIndex].isPDF && documents[documentIndex].pageCount == nil {
+            documents[documentIndex].pageCount = max(1, RAScene.pdfPageCount(from: documents[documentIndex].url))
+        }
         let document = documents[documentIndex], scene = RAScene()
-        let ctm = document.pageCount == nil ? scene.addSvg(from: document.url) : scene.addPdf(from: document.url, pageIndex: pageIndex)
+        let ctm = document.isPDF ? scene.addPdf(from: document.url, pageIndex: pageIndex) : scene.addSvg(from: document.url)
         let list = RASceneList()
         list.add(scene, ctm: ctm, clip: .zero)
         documentScene = scene
