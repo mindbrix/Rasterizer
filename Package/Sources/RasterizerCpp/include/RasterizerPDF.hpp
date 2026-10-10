@@ -19,10 +19,14 @@
 #import <tuple>
 #import <vector>
 
+// The fallback color, BGRA. Tools define one that content won't use, to count fallback draws
+#ifndef RA_PDF_FALLBACK_BGRA
+#define RA_PDF_FALLBACK_BGRA 0, 0, 255, 255
+#endif
 
 struct RasterizerPDF {
     // What the scan can't draw is drawn in red, to flag it
-    static Ra::Color fallbackColor() { return Ra::Color(0, 0, 255, 255); }
+    static Ra::Color fallbackColor() { return Ra::Color(RA_PDF_FALLBACK_BGRA); }
     
     static bool readNumbers(CGPDFDictionaryRef dict, const char *key, std::vector<float>& numbers) {
         CGPDFArrayRef array;  CGPDFReal number;
