@@ -432,8 +432,9 @@ struct RasterizerPDF {
     
     // A font's glyphs, as CoreText paths in text space, & widths, read with CGPDF, from codes, as finding them from Unicode would
     // lose ligatures & contextual forms. Simple fonts map codes to glyphs by their Differences' names, else by Unicode from their
-    // encoding. Type 0 fonts need an Identity CMap, & map CIDs to glyphs with their CIDToGIDMap. Type 3 fonts & other CMaps are
-    // invalid, but have widths, a Type 0 font's its default width, so their text's boxes are drawn as fallbacks
+    // encoding. Type 0 fonts need an Identity CMap, & map CIDs to glyphs with their CIDToGIDMap. Other CMaps are invalid, but have
+    // their default width, so their text's boxes are drawn as fallbacks. A Type 3 font's glyphs are its CharProcs' content
+    // streams, by their Differences' names, which Shadings scans into paths
     struct TextFont {
         TextFont(const TextFont&) = delete;
         TextFont(CGPDFDictionaryRef dict) {
@@ -471,8 +472,16 @@ struct RasterizerPDF {
                         widths.emplace_back(CGPDFArrayGetNumber(array, i, & number) ? float(number) * scale : 0.f);
                 if (desc && CGPDFDictionaryGetNumber(desc, "MissingWidth", & number))
                     missingWidth = number * scale, hasMissingWidth = true;
-                if (!strcmp(subtype, "Type3"))
+                if (!strcmp(subtype, "Type3")) {
+                    if (m.size() != 6 || !CGPDFDictionaryGetDictionary(dict, "CharProcs", & charProcs))
+                        return;
+                    isType3 = true, fontMatrix = Ra::Transform(m[0], m[1], m[2], m[3], m[4], m[5]);
+                    CGPDFDictionaryGetDictionary(dict, "Resources", & resources);
+                    if (CGPDFDictionaryGetDictionary(dict, "Encoding", & enc))
+                        readDifferences(enc);
+                    isValid = true;
                     return;
+                }
             }
             CGPDFStreamRef file = nullptr;
             if (desc && (CGPDFDictionaryGetStream(desc, "FontFile3", & file) || CGPDFDictionaryGetStream(desc, "FontFile2", & file) || CGPDFDictionaryGetStream(desc, "FontFile", & file))) {
@@ -504,17 +513,22 @@ struct RasterizerPDF {
                 else if (CGPDFDictionaryGetDictionary(dict, "Encoding", & enc)) {
                     if (CGPDFDictionaryGetName(enc, "BaseEncoding", & name))
                         base = encodingFor(name, base);
-                    if (CGPDFDictionaryGetArray(enc, "Differences", & array))
-                        for (size_t i = 0, code = 0; i < CGPDFArrayGetCount(array); i++) {
-                            CGPDFInteger c;
-                            if (CGPDFArrayGetInteger(array, i, & c))
-                                code = size_t(c);
-                            else if (CGPDFArrayGetName(array, i, & name) && code < 256)
-                                names[code++] = name;
-                        }
+                    readDifferences(enc);
                 }
             }
             isValid = true;
+        }
+        // An Encoding dictionary's Differences, as names, by code
+        void readDifferences(CGPDFDictionaryRef enc) {
+            CGPDFArrayRef array;  const char *name;
+            if (CGPDFDictionaryGetArray(enc, "Differences", & array))
+                for (size_t i = 0, code = 0; i < CGPDFArrayGetCount(array); i++) {
+                    CGPDFInteger c;
+                    if (CGPDFArrayGetInteger(array, i, & c))
+                        code = size_t(c);
+                    else if (CGPDFArrayGetName(array, i, & name) && code < 256)
+                        names[code++] = name;
+                }
         }
         ~TextFont() {
             if (ctFont) CFRelease(ctFont);
@@ -738,8 +752,19 @@ struct RasterizerPDF {
             }
         }
         
-        bool isValid = false, isType0 = false, identityGid = true, hasMissingWidth = false;
+        bool isValid = false, isType0 = false, isType3 = false, identityGid = true, hasMissingWidth = false;
         CTFontRef ctFont = nullptr;  CGFontRef cgFont = nullptr;
+        CGPDFDictionaryRef charProcs = nullptr, resources = nullptr;    // A Type 3 font's, & its FontMatrix, glyph to text space
+        Ra::Transform fontMatrix;
+        // A Type 3 glyph, in text space: its shape, filled even-odd if its only fill is, & a colored (d0) glyph's parts, each
+        // filled with its own color
+        struct Type3Glyph {
+            struct Part { Ra::Path path;  Ra::Color color;  bool evenOdd; };
+            Ra::Path path;
+            bool evenOdd = false;
+            std::vector<Part> parts;
+        };
+        std::map<uint32_t, Type3Glyph> type3Glyphs;     // By code
         Encoding base = kStandard;
         int firstChar = 0;  std::vector<float> widths;  float missingWidth = 0.f, defaultWidth = 1000.f;
         std::map<uint32_t, float> cidWidths;  std::vector<uint16_t> cidToGid;
@@ -1750,9 +1775,10 @@ struct RasterizerPDF {
             bool isTooDeep = false; // Its contents aren't scanned, as it's nested kMaxDepth deep
         };
         // A text showing operator's glyphs, as pdfium's text objects, each with its text rendering matrix, from text space to page space
-        struct Glyph { Ra::Path path;  Ra::Transform ctm; };
+        // A Type 3 glyph's fill rule, & its parts if it's colored, which the run's font owns
+        struct Glyph { Ra::Path path;  Ra::Transform ctm;  bool evenOdd = false;  const TextFont::Type3Glyph *colored = nullptr; };
         struct TextRun {
-            bool isValid = true;
+            bool isValid = true, isType3 = false;
             uint8_t mode = 0;           // Its text rendering mode
             Colors colors;
             std::vector<Glyph> glyphs;
@@ -1765,6 +1791,82 @@ struct RasterizerPDF {
             if (it == fonts.end())
                 it = fonts.emplace(dict, std::unique_ptr<TextFont>(new TextFont(dict))).first;
             return it->second.get();
+        }
+        // A Type 3 font's glyph for a code, cached. Its procedure is scanned from its FontMatrix, & its fills, image masks, as rects
+        // of their set pixels, & valid glyphs make its shape. A d1 glyph's colors & everyone's strokes are ignored, & images but
+        // for masks aren't drawn
+        const TextFont::Type3Glyph& type3Glyph(TextFont& font, uint32_t code, CGPDFContentStreamRef cs, const OperatorTable *table, size_t depth) {
+            auto it = font.type3Glyphs.find(code);
+            if (it != font.type3Glyphs.end())
+                return it->second;
+            TextFont::Type3Glyph& glyph = font.type3Glyphs[code];     // Empty while it's scanned, so a glyph that shows itself is
+            CGPDFStreamRef proc;
+            if (code > 255 || font.names[code].empty() || !CGPDFDictionaryGetStream(font.charProcs, font.names[code].c_str(), & proc) || depth >= kMaxDepth)
+                return glyph;
+            State state;
+            state.ctm = state.space = font.fontMatrix;
+            Shadings contents;
+            CGPDFContentStreamRef content = CGPDFContentStreamCreateWithStream(proc, font.resources, cs);
+            CFDataRef data = copyContents(proc);
+            bool isColored = data && isColoredGlyph(CFDataGetBytePtr(data), size_t(CFDataGetLength(data)));
+            contents.scan(content, data, table, state, depth + 1);
+            contents.buildPaths();
+            if (data)
+                CFRelease(data);
+            CGPDFContentStreamRelease(content);
+            
+            std::vector<TextFont::Type3Glyph::Part> parts;
+            auto add = [&](Ra::Path path, Ra::Transform ctm, Ra::Color color, bool evenOdd) {
+                parts.push_back({ transformedPath(path, ctm), color, evenOdd });
+                glyph.path = transformedPath(path, ctm, glyph.path.ptr ? glyph.path : Ra::Path());
+            };
+            for (auto& p : contents.paths)
+                if (p.path.ptr && (p.mode & ~kStroke) != kFillNone)
+                    add(p.path, p.ctm, objectColor(p.colors, false, 1.f), (p.mode & ~kStroke) == kFillEvenOdd);
+            for (auto& run : contents.texts)
+                for (size_t i = 0; run.isValid && i < run.glyphs.size(); i++)
+                    add(run.glyphs[i].path, run.glyphs[i].ctm, objectColor(run.colors, false, 1.f), run.glyphs[i].evenOdd);
+            for (auto& object : contents.imageObjects)
+                if (object.image >= 0 && contents.images[object.image].isMask) {
+                    Ra::Path rects = maskRects(contents.images[object.image]);
+                    if (rects->types.end)
+                        add(rects, object.ctm, objectColor(object.colors, false, 1.f), false);
+                }
+            glyph.evenOdd = parts.size() == 1 && parts[0].evenOdd;
+            if (isColored)
+                glyph.parts.swap(parts);
+            return glyph;
+        }
+        // Whether a glyph procedure starts with d0, so it's colored, after its operands
+        static bool isColoredGlyph(const uint8_t *bytes, size_t n) {
+            size_t i = 0;
+            for (; i < n && (isspace(bytes[i]) || isdigit(bytes[i]) || bytes[i] == '.' || bytes[i] == '-' || bytes[i] == '+'); i++) {}
+            return i + 1 < n && bytes[i] == 'd' && bytes[i + 1] == '0' && (i + 2 == n || !isalnum(bytes[i + 2]));
+        }
+        // An image mask's set pixels, as rects in the unit square, of each row's runs, merged with the same runs in the rows above
+        static Ra::Path maskRects(const PDFImage& image) {
+            Ra::Path rects;
+            size_t w = image.width, h = image.height;
+            std::map<std::pair<size_t, size_t>, size_t> open, next;      // Runs, from x to x, & the row they start
+            auto close = [&](std::pair<size_t, size_t> run, size_t top, size_t bottom) {    // Rows run down from the square's top
+                rects->addBounds(Ra::Bounds(float(run.first) / w, 1.f - float(bottom) / h, float(run.second) / w, 1.f - float(top) / h));
+            };
+            for (size_t y = 0; y <= h; y++, open.swap(next), next.clear()) {
+                for (size_t x = 0; y < h && x < w; ) {
+                    for (; x < w && image.pixels[y * w + x].a < 128; x++) {}
+                    size_t x0 = x;
+                    for (; x < w && image.pixels[y * w + x].a >= 128; x++) {}
+                    if (x > x0) {
+                        auto run = std::make_pair(x0, x);  auto o = open.find(run);
+                        next[run] = o == open.end() ? y : o->second;
+                        if (o != open.end())
+                            open.erase(o);
+                    }
+                }
+                for (auto& o : open)
+                    close(o.first, o.second, y);
+            }
+            return rects;
         }
         typedef std::pair<CGPDFDictionaryRef, std::array<float, 6>> MaskKey;     // A soft mask & the ctm it's set at
         std::map<MaskKey, int> maskIndices;
@@ -2132,22 +2234,22 @@ struct RasterizerPDF {
             table->set("Tj", [](Scanner& scanner, void *info) {
                 Scan& scan = *(Scan *)info;  String string;
                 if (scanner.popString(& string))
-                    showText(scan, & string, nullptr);
+                    showText(scan, scanner.cs, & string, nullptr);
             });
             table->set("'", [](Scanner& scanner, void *info) {
                 Scan& scan = *(Scan *)info;  String string;
                 if (scanner.popString(& string))
-                    moveLine(scan, 0.f, -scan.state.leading), showText(scan, & string, nullptr);
+                    moveLine(scan, 0.f, -scan.state.leading), showText(scan, scanner.cs, & string, nullptr);
             });
             table->set("\"", [](Scanner& scanner, void *info) {
                 Scan& scan = *(Scan *)info;  String string;  CGPDFReal ac, aw;
                 if (scanner.popString(& string) && scanner.popNumber(& ac) && scanner.popNumber(& aw))
-                    scan.state.wordSpace = aw, scan.state.charSpace = ac, moveLine(scan, 0.f, -scan.state.leading), showText(scan, & string, nullptr);
+                    scan.state.wordSpace = aw, scan.state.charSpace = ac, moveLine(scan, 0.f, -scan.state.leading), showText(scan, scanner.cs, & string, nullptr);
             });
             table->set("TJ", [](Scanner& scanner, void *info) {
                 Scan& scan = *(Scan *)info;  Array array;
                 if (scanner.popArray(& array))
-                    showText(scan, nullptr, & array);
+                    showText(scan, scanner.cs, nullptr, & array);
             });
         }
         static bool popNumber(Scanner& scanner, float& value) {
@@ -2159,7 +2261,7 @@ struct RasterizerPDF {
         }
         // Records a text run of a string, or a TJ array of strings & adjustments, advancing the text matrix. pdfium makes no text
         // object before a Tf, or for an empty Tj string, or a TJ array without strings
-        static void showText(Scan& scan, const String *string, const Array *array) {
+        static void showText(Scan& scan, CGPDFContentStreamRef cs, const String *string, const Array *array) {
             Shadings& s = *scan.shadings;  State& st = scan.state;  String str;
             bool hasStrings = string && string->length > 0;
             for (size_t i = 0; array && !hasStrings && i < array->count; i++)
@@ -2181,20 +2283,21 @@ struct RasterizerPDF {
             scan.clipTexts += clips;
             // A font the scan can't read, or a missing one, has a box for each code, of its width, or half the font size, which is
             // drawn as a fallback, & doesn't clip
-            run.isValid = font && font->isValid, scan.hasClipGlyphs = scan.hasClipGlyphs && (run.isValid || !clips);
+            run.isValid = font && font->isValid, run.isType3 = run.isValid && font->isType3, scan.hasClipGlyphs = scan.hasClipGlyphs && (run.isValid || !clips);
             Ra::Transform size(st.fontSize * st.hScale, 0.f, 0.f, st.fontSize, 0.f, st.rise);
             run.unitsPerEm = sqrtf(fabsf(size.concat(scan.tm).det())), run.width = st.lineWidth;
             auto show = [&](const String& str) {
                 const uint8_t *bytes = str.bytes;  size_t length = str.length, step = font && font->isType0 ? 2 : 1;
                 for (size_t i = 0; i + step <= length; i += step) {
                     uint32_t code = step == 2 ? bytes[i] << 8 | bytes[i + 1] : bytes[i];
-                    CGGlyph g = run.isValid ? font->glyph(code) : 0;
-                    Ra::Path path = run.isValid ? font->path(g) : Ra::Path();
+                    CGGlyph g = run.isValid && !font->isType3 ? font->glyph(code) : 0;
+                    const TextFont::Type3Glyph *type3 = run.isType3 ? & s.type3Glyph(*font, code, cs, scan.table, scan.depth) : nullptr;
+                    Ra::Path path = !run.isValid ? Ra::Path() : type3 ? type3->path : font->path(g);
                     float width = font ? font->width(code, g) / 1000.f : 0.5f;
                     if (!run.isValid && !(step == 1 && code == 32) && width > 0.f)
                         path->addBounds(Ra::Bounds(0.1f * width, 0.f, 0.9f * width, 0.7f));
                     if (path->types.end) {
-                        run.glyphs.push_back({ path, size.concat(scan.tm).concat(st.ctm) });
+                        run.glyphs.push_back({ path, size.concat(scan.tm).concat(st.ctm), type3 && type3->evenOdd, type3 && type3->parts.size() ? type3 : nullptr });
                         if (clips && run.isValid)
                             scan.textClip = transformedPath(path, run.glyphs.back().ctm, scan.textClip.ptr ? scan.textClip : Ra::Path());
                     }
@@ -2807,10 +2910,18 @@ struct RasterizerPDF {
         Ra::Color fill = objectColor(run.colors, false, opacity), stroke = objectColor(run.colors, true, opacity);
         if (!run.isValid)
             fills = fills || strokes, strokes = false, fill = fallbackColor(), blend = kBlendNormal;
+        else if (run.isType3)       // Its glyphs paint themselves, with the fill color, if they're visible, as CoreGraphics & pdf.js
+            fills = fills || strokes, strokes = false;
         float width = run.width == 0.f ? -1.f : run.width / run.unitsPerEm;     // In text space, which glyphs' paths are in
         for (auto& glyph : run.glyphs) {
-            if (fills)
-                scene->addPath(glyph.path, glyph.ctm, fill, 0.f, clipFlags, clipBounds, clipPath, blend);
+            if (fills && glyph.colored) {       // Its parts' colors, with the text's alpha
+                for (auto& part : glyph.colored->parts) {
+                    Ra::Color color = part.color;
+                    color.a = uint8_t(color.a * fill.a / 255.f + 0.5f);
+                    scene->addPath(part.path, glyph.ctm, color, 0.f, clipFlags | (part.evenOdd ? Ra::Draw::kFillEvenOdd : 0), clipBounds, clipPath, blend);
+                }
+            } else if (fills)
+                scene->addPath(glyph.path, glyph.ctm, fill, 0.f, clipFlags | (glyph.evenOdd ? Ra::Draw::kFillEvenOdd : 0), clipBounds, clipPath, blend);
             if (strokes)
                 scene->addPath(glyph.path, glyph.ctm, stroke, width, clipFlags, clipBounds, clipPath, blend);
         }
