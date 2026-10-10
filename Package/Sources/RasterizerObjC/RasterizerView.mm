@@ -73,6 +73,11 @@
     _displayLink = [self displayLinkWithTarget:self selector:@selector(onDisplayLink:)];
 #elif TARGET_OS_IPHONE
     _displayLink = [CADisplayLink displayLinkWithTarget:self selector:@selector(onDisplayLink:)];
+    // ProMotion displays run up to 120Hz, but a display link defaults to 60Hz. iPhone apps also need CADisableMinimumFrameDurationOnPhone
+    if (@available(iOS 15.0, *)) {
+        float fps = UIScreen.mainScreen.maximumFramesPerSecond;
+        _displayLink.preferredFrameRateRange = CAFrameRateRangeMake(fminf(60, fps), fps, fps);
+    }
 #endif
     [_displayLink addToRunLoop:[NSRunLoop mainRunLoop] forMode:NSRunLoopCommonModes];
 }
