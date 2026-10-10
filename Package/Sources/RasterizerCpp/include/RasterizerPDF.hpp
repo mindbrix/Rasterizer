@@ -485,8 +485,10 @@ struct RasterizerPDF {
             return result.colors.size() > 1;
         }
         
-        static size_t colorSpaceComponents(CGPDFObjectRef obj, CGPDFContentStreamRef cs, bool isResource = false) {
-            const char *name;  CGPDFArrayRef array;  CGPDFStreamRef stream;  CGPDFInteger n;
+        // A color space's components, or for a Separation or DeviceN with tint, its alternate space's, with its own in inputs, & its
+        // tint transform read into tint
+        static size_t colorSpaceComponents(CGPDFObjectRef obj, CGPDFContentStreamRef cs, bool isResource = false, Function *tint = nullptr, size_t *inputs = nullptr) {
+            const char *name;  CGPDFArrayRef array, names;  CGPDFStreamRef stream;  CGPDFInteger n;  CGPDFObjectRef alternate, fn;
             if (CGPDFObjectGetValue(obj, kCGPDFObjectTypeName, & name)) {
                 if (!strcmp(name, "DeviceGray") || !strcmp(name, "G"))
                     return 1;
@@ -495,9 +497,18 @@ struct RasterizerPDF {
                 if (!strcmp(name, "DeviceCMYK") || !strcmp(name, "CMYK"))
                     return 4;
                 CGPDFObjectRef resource = isResource ? nullptr : CGPDFContentStreamGetResource(cs, "ColorSpace", name);
-                return resource ? colorSpaceComponents(resource, cs, true) : 0;
+                return resource ? colorSpaceComponents(resource, cs, true, tint, inputs) : 0;
             }
             if (CGPDFObjectGetValue(obj, kCGPDFObjectTypeArray, & array) && CGPDFArrayGetName(array, 0, & name)) {
+                bool isSeparation = !strcmp(name, "Separation"), isDeviceN = !strcmp(name, "DeviceN");
+                if (tint && inputs && (isSeparation || (isDeviceN && CGPDFArrayGetArray(array, 1, & names)))
+                    && CGPDFArrayGetObject(array, 2, & alternate) && CGPDFArrayGetObject(array, 3, & fn)) {
+                    size_t k = isSeparation ? 1 : CGPDFArrayGetCount(names), m = colorSpaceComponents(alternate, cs);
+                    if (m && k <= Function::kMaxInputs && tint->read(fn) && tint->inputs == k && tint->outputs == m)
+                        return *inputs = k, m;
+                    tint->type = -1;
+                    return 0;
+                }
                 if (!strcmp(name, "ICCBased") && CGPDFArrayGetStream(array, 1, & stream) && CGPDFDictionaryGetInteger(CGPDFStreamGetDictionary(stream), "N", & n))
                     return n == 1 || n == 3 || n == 4 ? n : 0;
                 if (!strcmp(name, "CalGray"))
@@ -523,16 +534,18 @@ struct RasterizerPDF {
                 return false;
             if (CGPDFDictionaryGetArray(dict, "Extend", & array))
                 CGPDFArrayGetBoolean(array, 0, & e0), CGPDFArrayGetBoolean(array, 1, & e1);
-            size_t components = CGPDFDictionaryGetObject(dict, "ColorSpace", & obj) ? colorSpaceComponents(obj, cs) : 0;
+            Function tint;  size_t inputs = 0;      // A Separation or DeviceN's, which the functions' outputs are
+            size_t components = CGPDFDictionaryGetObject(dict, "ColorSpace", & obj) ? colorSpaceComponents(obj, cs, false, & tint, & inputs) : 0;
+            size_t outputs = tint.type >= 0 ? inputs : components;
             if (components == 0 || !CGPDFDictionaryGetObject(dict, "Function", & obj))
                 return false;
             if (CGPDFObjectGetValue(obj, kCGPDFObjectTypeArray, & array)) {
                 for (size_t i = 0; i < CGPDFArrayGetCount(array); i++)
                     if (!CGPDFArrayGetObject(array, i, & obj) || !(fns.emplace_back(), fns.back().read(obj)) || fns.back().outputs != 1)
                         return false;
-                if (fns.size() != components)
+                if (fns.size() != outputs)
                     return false;
-            } else if (!(fns.emplace_back(), fns.back().read(obj)) || fns[0].outputs != components)
+            } else if (!(fns.emplace_back(), fns.back().read(obj)) || fns[0].outputs != outputs)
                 return false;
                 
             // Where the gradient is, as a unit transform & the stops' positions u = a + b * s for s in [0, 1] from (x0, y0, r0) to (x1, y1, r1)
@@ -572,7 +585,7 @@ struct RasterizerPDF {
             if (ts.size() < 2)
                 return false;
             for (size_t k = 0; k < ts.size(); k++) {
-                Ra::Color l = color(fns, components, ts[k], true), r = color(fns, components, ts[k], false);
+                Ra::Color l = color(fns, components, tint, ts[k], true), r = color(fns, components, tint, ts[k], false);
                 float u = a + b * (ts[k] - t0) / (t1 - t0);
                 if (k > 0)
                     colors.emplace_back(l), locations.emplace_back(u);
@@ -583,17 +596,35 @@ struct RasterizerPDF {
                 std::reverse(colors.begin(), colors.end()), std::reverse(locations.begin(), locations.end());
             return true;
         }
-        static Ra::Color color(const std::vector<Function>& fns, size_t components, float t, bool left) {
-            float c[4] = { 0.f, 0.f, 0.f, 0.f }, *out = c;
+        // The functions' color at t, or its left limit, through a tint transform if it has one
+        static Ra::Color color(const std::vector<Function>& fns, size_t components, const Function& tint, float t, bool left) {
+            float c[Function::kMaxInputs] = {}, *out = c;
             for (auto& fn : fns)
                 fn.eval(t, left, out), out += fn.outputs;
             for (auto& v : c)
                 v = fmaxf(0.f, fminf(1.f, v));
+            if (tint.type >= 0) {
+                float alternate[Function::kMaxInputs] = {};
+                tint.eval(c, alternate);
+                for (size_t i = 0; i < Function::kMaxInputs; i++)
+                    c[i] = fmaxf(0.f, fminf(1.f, alternate[i]));
+            }
             float r = c[0], g = c[0], b = c[0];
             if (components == 3)
                 g = c[1], b = c[2];
-            else if (components == 4)
-                r = (1.f - c[0]) * (1.f - c[3]), g = (1.f - c[1]) * (1.f - c[3]), b = (1.f - c[2]) * (1.f - c[3]);
+            else if (components == 4) {     // By CoreGraphics, as a fill's DeviceCMYK color is
+                static CGColorSpaceRef cmyk = CGColorSpaceCreateDeviceCMYK(), rgb = CGColorSpaceCreateDeviceRGB();
+                CGFloat values[5] = { c[0], c[1], c[2], c[3], 1.0 };
+                CGColorRef color = CGColorCreate(cmyk, values);
+                CGColorRef matched = color ? CGColorCreateCopyByMatchingToColorSpace(rgb, kCGRenderingIntentDefault, color, nullptr) : nullptr;
+                const CGFloat *v = matched && CGColorGetNumberOfComponents(matched) >= 3 ? CGColorGetComponents(matched) : nullptr;
+                if (v)
+                    r = float(v[0]), g = float(v[1]), b = float(v[2]);
+                else
+                    r = (1.f - c[0]) * (1.f - c[3]), g = (1.f - c[1]) * (1.f - c[3]), b = (1.f - c[2]) * (1.f - c[3]);
+                CGColorRelease(matched), CGColorRelease(color);
+            }
+            r = fmaxf(0.f, fminf(1.f, r)), g = fmaxf(0.f, fminf(1.f, g)), b = fmaxf(0.f, fminf(1.f, b));
             return Ra::Color(uint8_t(b * 255.f + 0.5f), uint8_t(g * 255.f + 0.5f), uint8_t(r * 255.f + 0.5f), 255);
         }
     };
@@ -1118,7 +1149,7 @@ struct RasterizerPDF {
             CGColorSpaceRef space = isMask ? CGColorSpaceCreateDeviceGray() : nullptr;
             if (!isMask && (obj = getObject(dict, "ColorSpace", "CS")))
                 space = createColorSpace(obj, cs, & tint);
-            size_t components = isMask ? 1 : tint.type >= 0 ? 1 : space ? CGColorSpaceGetNumberOfComponents(space) : 0;
+            size_t components = isMask ? 1 : tint.type >= 0 ? tint.inputs : space ? CGColorSpaceGetNumberOfComponents(space) : 0;
             if (isMask)     // A mask's sample of 0 is painted, unless its decode array is [1 0]
                 decode = decode.size() == 2 && decode[0] > decode[1] ? std::vector<CGFloat>{ 0, 1 } : std::vector<CGFloat>{ 1, 0 };
             if (format != CGPDFDataFormatRaw) {
@@ -1126,7 +1157,7 @@ struct RasterizerPDF {
                 CGImageRef decoded = source ? CGImageSourceCreateImageAtIndex(source, 0, nullptr) : nullptr;
                 if (source)
                     CFRelease(source);
-                if (decoded && space && tint.type >= 0) {
+                if (decoded && space && tint.type >= 0 && tint.inputs == 1) {
                     // A Separation or DeviceN JPEG's samples, as ImageIO's 8 bit gray, by its tint transform, with its decode array
                     size_t w = CGImageGetWidth(decoded), h = CGImageGetHeight(decoded), rowBytes;
                     CFDataRef gray = copyGraySamples(decoded, rowBytes);
@@ -1206,29 +1237,83 @@ struct RasterizerPDF {
             rowBytes = w;
             return data;
         }
-        // A Separation or DeviceN of one component's samples, as 8 bit samples of its alternate space, by its tint transform
+        // A Separation or DeviceN's samples, as 8 bit samples of its alternate space, by its tint transform. One component's are
+        // looked up from each sample value's, as bpc is at most 16, & others' are evaluated, but for a run of the same samples
         static CFDataRef createTinted(CFDataRef data, size_t width, size_t height, size_t bpc, size_t rowBytes, std::vector<CGFloat>& decode, Function& tint, size_t n) {
-            if (tint.outputs != n)
+            size_t k = tint.inputs;
+            if (tint.outputs != n || k == 0 || k > Function::kMaxInputs)
                 return nullptr;
-            float d0 = decode.size() == 2 ? decode[0] : 0.f, d1 = decode.size() == 2 ? decode[1] : 1.f, max = float((1 << bpc) - 1);
-            std::vector<uint8_t> lut(n << bpc);         // Of each sample value, as bpc is at most 16
+            float max = float((1 << bpc) - 1), in[Function::kMaxInputs];
+            auto decoded = [&](size_t i, uint32_t s) {
+                float d0 = decode.size() == 2 * k ? decode[2 * i] : 0.f, d1 = decode.size() == 2 * k ? decode[2 * i + 1] : 1.f;
+                return d0 + s * (d1 - d0) / max;
+            };
             std::vector<float> out(n);
-            for (uint32_t s = 0; s < (1u << bpc); s++) {
-                tint.eval(d0 + s * (d1 - d0) / max, false, out.data());
+            auto tinted = [&](uint8_t *dst) {
+                tint.eval(in, out.data());
                 for (size_t j = 0; j < n; j++)
-                    lut[s * n + j] = uint8_t(fmaxf(0.f, fminf(1.f, out[j])) * 255.f + 0.5f);
+                    dst[j] = uint8_t(fmaxf(0.f, fminf(1.f, out[j])) * 255.f + 0.5f);
+            };
+            CFMutableDataRef pixels = CFDataCreateMutable(nullptr, width * height * n);
+            CFDataSetLength(pixels, width * height * n);
+            const uint8_t *src = CFDataGetBytePtr(data);  uint8_t *dst = CFDataGetMutableBytePtr(pixels);
+            if (k == 1) {
+                std::vector<uint8_t> lut(n << bpc);
+                for (uint32_t s = 0; s < (1u << bpc); s++)
+                    in[0] = decoded(0, s), tinted(& lut[s * n]);
+                for (size_t y = 0; y < height; y++, src += rowBytes)
+                    for (size_t x = 0; x < width; x++, dst += n)
+                        memcpy(dst, & lut[sample(src, x, bpc) * n], n);
+                return pixels;
             }
-            CFMutableDataRef tinted = CFDataCreateMutable(nullptr, width * height * n);
-            CFDataSetLength(tinted, width * height * n);
-            const uint8_t *src = CFDataGetBytePtr(data);  uint8_t *dst = CFDataGetMutableBytePtr(tinted);
+            uint32_t last[Function::kMaxInputs];  bool hasLast = false;
             for (size_t y = 0; y < height; y++, src += rowBytes)
-                for (size_t x = 0; x < width; x++, dst += n)
-                    memcpy(dst, & lut[sample(src, x, bpc) * n], n);
-            return tinted;
+                for (size_t x = 0; x < width; x++, dst += n) {
+                    uint32_t s[Function::kMaxInputs];
+                    for (size_t i = 0; i < k; i++)
+                        s[i] = sample(src, x * k + i, bpc);
+                    if (hasLast && !memcmp(s, last, k * sizeof(uint32_t))) {
+                        memcpy(dst, dst - n, n);
+                        continue;
+                    }
+                    for (size_t i = 0; i < k; i++)
+                        in[i] = decoded(i, s[i]);
+                    tinted(dst), memcpy(last, s, k * sizeof(uint32_t)), hasLast = true;
+                }
+            return pixels;
         }
-        // The CGColorSpace of a PDF color space, or null if CoreGraphics can't draw it. A Separation, or a DeviceN of one
-        // component, is its alternate space, & its tint transform is read into tint
-        static CGColorSpaceRef createColorSpace(CGPDFObjectRef obj, CGPDFContentStreamRef cs, Function *tint, int depth = 0) {
+        // An Indexed space's lookup table over a Separation or DeviceN, of k components, as an Indexed DeviceRGB's, by the tint
+        // transform to its alternate space, converted by CoreGraphics
+        static CGColorSpaceRef createTintedIndexed(CGColorSpaceRef alternate, Function& tint, size_t hival, const uint8_t *lookup) {
+            size_t k = tint.inputs, n = CGColorSpaceGetNumberOfComponents(alternate);
+            if (tint.outputs != n || n > 4)
+                return nullptr;
+            CGColorSpaceRef rgb = CGColorSpaceCreateDeviceRGB();
+            std::vector<uint8_t> table((hival + 1) * 3);
+            for (size_t e = 0; e <= hival; e++) {
+                float in[Function::kMaxInputs], out[4];
+                for (size_t i = 0; i < k; i++)
+                    in[i] = lookup[e * k + i] / 255.f;
+                tint.eval(in, out);
+                CGFloat components[5] = { 0, 0, 0, 0, 1 };
+                for (size_t j = 0; j < n; j++)
+                    components[j] = out[j];
+                components[n] = 1;
+                CGColorRef color = CGColorCreate(alternate, components);
+                CGColorRef matched = color ? CGColorCreateCopyByMatchingToColorSpace(rgb, kCGRenderingIntentDefault, color, nullptr) : nullptr;
+                const CGFloat *c = matched ? CGColorGetComponents(matched) : nullptr;
+                for (size_t j = 0; j < 3; j++)
+                    table[e * 3 + j] = c ? uint8_t(fmax(0.0, fmin(1.0, c[j])) * 255.0 + 0.5) : 0;
+                CGColorRelease(matched), CGColorRelease(color);
+            }
+            CGColorSpaceRef space = CGColorSpaceCreateIndexed(rgb, hival, table.data());
+            CGColorSpaceRelease(rgb);
+            return space;
+        }
+        // The CGColorSpace of a PDF color space, or null if CoreGraphics can't draw it. A Separation or DeviceN is its alternate
+        // space, & its tint transform is read into tint. Its samples are tinted as bytes, so its alternate must be gray, RGB or
+        // CMYK, but for an Indexed space's base, whose colors CoreGraphics converts
+        static CGColorSpaceRef createColorSpace(CGPDFObjectRef obj, CGPDFContentStreamRef cs, Function *tint, int depth = 0, bool isIndexedBase = false) {
             const char *name;  CGPDFArrayRef array, names;  CGPDFStreamRef stream;  CGPDFDictionaryRef dict;  CGPDFObjectRef object;
             if (depth > 4)
                 return nullptr;
@@ -1240,7 +1325,7 @@ struct RasterizerPDF {
                 if (!strcmp(name, "DeviceCMYK") || !strcmp(name, "CMYK"))
                     return CGColorSpaceCreateDeviceCMYK();
                 CGPDFObjectRef resource = CGPDFContentStreamGetResource(cs, "ColorSpace", name);
-                return resource ? createColorSpace(resource, cs, tint, depth + 1) : nullptr;
+                return resource ? createColorSpace(resource, cs, tint, depth + 1, isIndexedBase) : nullptr;
             }
             if (!CGPDFObjectGetValue(obj, kCGPDFObjectTypeArray, & array) || !CGPDFArrayGetName(array, 0, & name))
                 return nullptr;
@@ -1282,7 +1367,8 @@ struct RasterizerPDF {
                 return CGColorSpaceCreateCalibratedRGB(w, b, g, m);
             }
             if ((!strcmp(name, "Indexed") || !strcmp(name, "I")) && CGPDFArrayGetObject(array, 1, & object)) {
-                CGColorSpaceRef base = createColorSpace(object, cs, nullptr, depth + 1);
+                Function baseTint;      // A Separation or DeviceN base's, whose alternate space is base
+                CGColorSpaceRef base = createColorSpace(object, cs, & baseTint, depth + 1, true);
                 CGPDFInteger hival = -1;  CGPDFStringRef string;  CFDataRef data = nullptr;  CGPDFDataFormat format;
                 if (base && CGPDFArrayGetInteger(array, 2, & hival) && hival >= 0 && hival < 256) {
                     if (CGPDFArrayGetString(array, 3, & string))
@@ -1290,10 +1376,10 @@ struct RasterizerPDF {
                     else if (CGPDFArrayGetStream(array, 3, & stream))
                         data = CGPDFStreamCopyData(stream, & format);
                 }
-                size_t size = data ? (hival + 1) * CGColorSpaceGetNumberOfComponents(base) : 0;
+                size_t size = data ? (hival + 1) * (baseTint.type >= 0 ? baseTint.inputs : CGColorSpaceGetNumberOfComponents(base)) : 0;
                 CGColorSpaceRef space = nullptr;
                 if (data && size_t(CFDataGetLength(data)) >= size)
-                    space = CGColorSpaceCreateIndexed(base, hival, CFDataGetBytePtr(data));
+                    space = baseTint.type >= 0 ? createTintedIndexed(base, baseTint, hival, CFDataGetBytePtr(data)) : CGColorSpaceCreateIndexed(base, hival, CFDataGetBytePtr(data));
                 if (data)
                     CFRelease(data);
                 CGColorSpaceRelease(base);
@@ -1301,11 +1387,12 @@ struct RasterizerPDF {
             }
             // A tint transform's alternate space must be of components in [0, 1]
             bool isSeparation = !strcmp(name, "Separation"), isDeviceN = !strcmp(name, "DeviceN");
-            if (tint && (isSeparation || (isDeviceN && CGPDFArrayGetArray(array, 1, & names) && CGPDFArrayGetCount(names) == 1))
-                && CGPDFArrayGetObject(array, 2, & object) && CGPDFArrayGetObject(array, 3, & obj) && tint->read(obj)) {
+            if (tint && (isSeparation || (isDeviceN && CGPDFArrayGetArray(array, 1, & names)))
+                && CGPDFArrayGetObject(array, 2, & object) && CGPDFArrayGetObject(array, 3, & obj) && tint->read(obj)
+                && tint->inputs == (isSeparation ? 1 : CGPDFArrayGetCount(names))) {
                 CGColorSpaceRef space = createColorSpace(object, cs, nullptr, depth + 1);
                 CGColorSpaceModel model = space ? CGColorSpaceGetModel(space) : kCGColorSpaceModelUnknown;
-                if (model == kCGColorSpaceModelMonochrome || model == kCGColorSpaceModelRGB || model == kCGColorSpaceModelCMYK)
+                if (model == kCGColorSpaceModelMonochrome || model == kCGColorSpaceModelRGB || model == kCGColorSpaceModelCMYK || (space && isIndexedBase))
                     return space;
                 CGColorSpaceRelease(space);
             }
