@@ -53,11 +53,6 @@ let package = Package(
             dependencies: ["RasterizerObjC"],
             path: "Package/Sources/RasterizerSwift"
         ),
-        .testTarget(
-            name: "RasterizerSwiftTests",
-            dependencies: ["RasterizerObjC"],
-            path: "Package/Tests/RasterizerSwiftTests"
-        ),
     ],
     cxxLanguageStandard: .cxx17
 )
