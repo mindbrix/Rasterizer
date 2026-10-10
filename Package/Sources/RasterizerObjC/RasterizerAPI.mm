@@ -11,6 +11,7 @@
 #import "RasterizerAPI+Internal.h"
 #import "RasterizerCG.hpp"
 #import "RasterizerSVG.hpp"
+#import "RasterizerPDF.hpp"
 #import "RasterizerCoreText.hpp"
 #import <map>
 
@@ -468,6 +469,14 @@ static uint8_t joinFlags(RAJoinStyle joinStyle) {
     GlyphCache cache;
     return RaCT::addTextToSceneInRect((__bridge CFAttributedStringRef)string, rect, ctm, clip, _scene, cache);
 }
+
++ (NSInteger)pdfPageCountFromUrl:(nonnull NSURL *)url {
+    return RaPDF::getPageCount(url.path.UTF8String);
+}
+- (CGAffineTransform)addPdfFromUrl:(nonnull NSURL *)url pageIndex:(NSInteger)pageIndex {
+    return RaCG::CGFromTransform(RaPDF::addPdfPageToScene(url.path.UTF8String, pageIndex, _scene));
+}
+
 - (CGAffineTransform)addSvgFromUrl:(NSURL *)url {
     return RaCG::CGFromTransform(RaSVG::addSvgToScene(url.path.UTF8String, _scene));
 }

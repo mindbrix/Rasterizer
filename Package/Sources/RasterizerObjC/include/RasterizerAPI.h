@@ -151,6 +151,10 @@ typedef BOOL (^RADrawUpdateBlock)(NSInteger index, RADraw * _Nonnull draw);
            inRect:(CGRect)rect
               ctm:(CGAffineTransform)ctm
              clip:(CGRect)clip;
+
++ (NSInteger)pdfPageCountFromUrl:(nonnull NSURL *)url;
+- (CGAffineTransform)addPdfFromUrl:(nonnull NSURL *)url pageIndex:(NSInteger)pageIndex;
+
 - (CGAffineTransform)addSvgFromUrl:(nonnull NSURL *)url;
 
 // Calls block for each draw in range, clamped to count, to read or edit it. Changes to a draw's transform, color or stroke width
