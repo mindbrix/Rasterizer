@@ -16,6 +16,7 @@
 
 /* Begin PBXFileReference section */
 		E958C7FF2F1D62DC00E9B14F /* RasterizeriOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = RasterizeriOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		E9516E002F2A000000C0F1A6 /* Signing.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Signing.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -63,6 +64,7 @@
 		E958C7F62F1D62DC00E9B14F = {
 			isa = PBXGroup;
 			children = (
+				E9516E002F2A000000C0F1A6 /* Signing.xcconfig */,
 				E9D87C5B2F261E1800539C38 /* SVG */,
 				E958C8012F1D62DC00E9B14F /* RasterizeriOS */,
 				E958C8002F1D62DC00E9B14F /* Products */,
@@ -168,12 +170,11 @@
 /* Begin XCBuildConfiguration section */
 		E958C8132F1D62DD00E9B14F /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = E9516E002F2A000000C0F1A6 /* Signing.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = WUZW9LMF53;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = RasterizeriOS/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Rasterizer;
@@ -187,7 +188,6 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = mindbrix.co.uk.RasterizeriOS;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -197,12 +197,11 @@
 		};
 		E958C8142F1D62DD00E9B14F /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = E9516E002F2A000000C0F1A6 /* Signing.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = WUZW9LMF53;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = RasterizeriOS/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Rasterizer;
@@ -216,7 +215,6 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = mindbrix.co.uk.RasterizeriOS;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;

@@ -1,0 +1,14 @@
+//
+//  Copyright 2026 Nigel Timothy Barber - nigel@mindbrix.co.uk
+//  SPDX-License-Identifier: MIT
+//
+// The demo's signing. To sign with your own team, create Signing.local.xcconfig beside this file, which git ignores, with:
+//   DEVELOPMENT_TEAM = <your team ID>
+//   RASTERIZER_BUNDLE_ID = <a bundle ID your team can register, if it can't register this one>
+
+CODE_SIGN_STYLE = Automatic
+DEVELOPMENT_TEAM = WUZW9LMF53
+RASTERIZER_BUNDLE_ID = mindbrix.co.uk.RasterizeriOS
+PRODUCT_BUNDLE_IDENTIFIER = $(RASTERIZER_BUNDLE_ID)
+
+#include? "Signing.local.xcconfig"
