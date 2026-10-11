@@ -475,16 +475,11 @@ struct Rasterizer {
             }
         }
         
-        // A two-circle radial's flags. kLinearT marks circles whose t is the root of a linear equation, as its t^2 term is 0
-        enum Radial { kTwoCircle = 1 << 0, kExtendLo = 1 << 1, kExtendHi = 1 << 2, kLinearT = 1 << 3 };
-
         size_t refCount, xxhash = 0, w = 0, h = 0;
         Vector<Color> colors;
         Vector<float> locs;
         Transform ctm;
         Vector<Color> strip;
-        float fx = 0.f, fr = 0.f, dr = 1.f;     // A two-circle radial's start circle, (fx, 0) radius fr, & its radius change to the end circle, at the origin
-        uint32_t radial = 0;
     };
     
     struct Paint {
@@ -501,29 +496,6 @@ struct Rasterizer {
             type = isRadial ? kRadial : kLinear;
             bitmap = Ref<Bitmap>();
             bitmap->addGradient(stops, locations, count, transform);
-        }
-        // A radial gradient of two circles, (x0, y0, r0) at 0 & (x1, y1, r1) at 1, in the gradient space transform maps to user
-        // space. A point's color is at the greatest t whose interpolated circle passes through it with radius >= 0, & beyond an
-        // end only if it's extended. Its gradient space is normalized, with the end circle at the origin, the start circle on the
-        // x axis, & the larger radius 1. Unless concentric from radius 0 & extended, it can leave points unpainted, so isn't opaque
-        Paint(Color *stops, float *locations, size_t count, Transform transform, float x0, float y0, float r0, float x1, float y1, float r1, bool extendLo = true, bool extendHi = true)
-        : Paint(stops, locations, count, transform, true) {
-            float dx = x0 - x1, dy = y0 - y1, f = hypotf(dx, dy), s = fmaxf(r0, r1);
-            if (type != kRadial)
-                return;
-            if (r0 < 0.f || r1 < 0.f || s == 0.f) {     // Invalid circles paint nothing
-                *this = Paint(), maxAlpha = 0;
-                return;
-            }
-            float cs = f ? dx / f : 1.f, sn = f ? dy / f : 0.f;
-            Bitmap& b = *bitmap.ptr;
-            b.ctm = Transform(s * cs, s * sn, -s * sn, s * cs, x1, y1).concat(transform);
-            b.fx = f / s, b.fr = r0 / s, b.dr = (r1 - r0) / s;
-            if (b.fx == 0.f && b.fr == 0.f && extendLo && extendHi)
-                return;
-            float a = b.fx * b.fx - b.dr * b.dr;
-            b.radial = Bitmap::kTwoCircle | extendLo * Bitmap::kExtendLo | extendHi * Bitmap::kExtendHi | (fabsf(a) < 1e-6f * (b.fx * b.fx + b.dr * b.dr)) * Bitmap::kLinearT;
-            minAlpha = 0;
         }
         Paint(Color *buffer, size_t width, size_t height, size_t bpr) {
             if (buffer == nullptr || width == 0 || height == 0 || bpr == 0)
@@ -892,7 +864,6 @@ struct Rasterizer {
     };
     struct PathData {
         Transform ctm, clip, texCtm;  float width;  uint32_t texIdx, mode;
-        float fx, fr, dr;  uint32_t radial;     // A two-circle radial's, if radial isn't 0
     };
     struct Buffer {
         // kClipMask begins rendering a clip path's coverage into the clip mask, within the device bounds packed in begin, until kEnableClip.
@@ -919,7 +890,6 @@ struct Rasterizer {
         size_t colors, paths, texStrips, p16s;
         size_t idxs, pathsCount, texCount, headerSize;
         bool hasBlends = false;     // Whether any draw's blend mode isn't Normal, so its instances need framebuffer fetch
-        bool hasTwoCircles = false; // Whether any draw has a two-circle radial, so its instances need the pipelines that draw them
     };
     struct Allocator {
         enum CountType { kFastEdges, kQuadEdges, kFastMolecules, kQuadMolecules };
@@ -1046,11 +1016,8 @@ struct Rasterizer {
                         bool isImage = list.params.showOutlines ? false : color->type == Paint::kImage;
                         size_t colorFlags = isImage ? Instance::kIsImage : (isGradient * Instance::kIsGradient | isRadial * Instance::kIsRadial);
                         if (isGradient) {
-                            Bitmap& b = *color->bitmap.ptr;
-                            paths[iz].texCtm = b.ctm.concat(m).invert();
-                            paths[iz].fx = b.fx, paths[iz].fr = b.fr, paths[iz].dr = b.dr, paths[iz].radial = isRadial ? b.radial : 0;
-                            hasTwoCircles |= paths[iz].radial != 0;
-                            texs.add(TexRef(iz, & b.strip[0]));
+                            paths[iz].texCtm = color->bitmap->ctm.concat(m).invert();
+                            texs.add(TexRef(iz, & color->bitmap->strip[0]));
                         } else if (isImage) {
                             paths[iz].texCtm = quad.invert();
                             images.add(ImageRef(iz, color));
@@ -1132,7 +1099,7 @@ struct Rasterizer {
             }
         }
         void empty() {
-            texTotal = 0, hasBlends = false, hasTwoCircles = false, blends.empty(), opaques.empty(), outlines.empty(), segments.empty(), segmentsIndices.empty(), indices.empty(), texs.resize(0), images.resize(0);
+            texTotal = 0, hasBlends = false, blends.empty(), opaques.empty(), outlines.empty(), segments.empty(), segmentsIndices.empty(), indices.empty(), texs.resize(0), images.resize(0);
             for (int i = 0; i < samples.end(); i++)
                 samples[i].empty();
             entries = Vector<Buffer::Entry>();
@@ -1142,7 +1109,7 @@ struct Rasterizer {
             samples.resize(0);
         }
         
-        size_t texTotal;  bool hasBlends = false, hasTwoCircles = false;
+        size_t texTotal;  bool hasBlends = false;
         Geometry *currentClipPath = nullptr;  Transform currentClipCtm;  bool currentClipEvenOdd = false;  Bounds currentMaskBounds, maskBounds;
         Allocator allocator;  Vector<Buffer::Entry> entries;
         Vector<TexRef> texs;
@@ -1865,9 +1832,9 @@ struct Rasterizer {
     
     static size_t resizeBuffer(const SceneList& list, Context *contexts, size_t count, size_t *begins, Buffer& buffer) {
         size_t size = buffer.headerSize, sz, i, j, instances;
-        buffer.hasBlends = false, buffer.hasTwoCircles = false;
+        buffer.hasBlends = false;
         for (i = 0; i < count; i++)
-            size += contexts[i].opaques.end * sizeof(Opaque), buffer.hasBlends |= contexts[i].hasBlends, buffer.hasTwoCircles |= contexts[i].hasTwoCircles;
+            size += contexts[i].opaques.end * sizeof(Opaque), buffer.hasBlends |= contexts[i].hasBlends;
         
         for (sz = i = 0; i < count; i++)
             sz += contexts[i].texs.end();

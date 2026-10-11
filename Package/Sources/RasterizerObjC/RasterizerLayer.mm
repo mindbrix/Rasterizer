@@ -65,16 +65,10 @@ struct TextureCache : MetalCache<id <MTLTexture>, const Ra::Paint &> {
     }
 };
 
-// The instance pipelines: without & with the clip mask attachment (masked), blending in the shader, & reading the clip mask (clip)
-struct InstancePipelines {
-    id <MTLRenderPipelineState> instances, masked, blend, blendMasked, clip, clipBlend;
-};
-
 
 @interface RasterizerLayer ()
 {
     RenderBuffer _buffer0, _buffer1;
-    InstancePipelines _instancePipelines[2];    // Without & with two-circle radials, which only frames with them use
     TextureCache _textureCache;
     // The argument buffer of the last frame's images, kept while they're the same, with their hashes, the first draw of each
     // distinct one, & their textures
@@ -92,7 +86,13 @@ struct InstancePipelines {
 @property (nonatomic) id <MTLRenderPipelineState> fastMoleculesPipelineState;
 @property (nonatomic) id <MTLRenderPipelineState> quadMoleculesPipelineState;
 @property (nonatomic) id <MTLRenderPipelineState> opaquesPipelineState;
+@property (nonatomic) id <MTLRenderPipelineState> instancesPipelineState;
 @property (nonatomic) id <MTLRenderPipelineState> opaquesMaskedPipelineState;
+@property (nonatomic) id <MTLRenderPipelineState> instancesMaskedPipelineState;
+@property (nonatomic) id <MTLRenderPipelineState> instancesClipPipelineState;
+@property (nonatomic) id <MTLRenderPipelineState> instancesBlendPipelineState;
+@property (nonatomic) id <MTLRenderPipelineState> instancesBlendMaskedPipelineState;
+@property (nonatomic) id <MTLRenderPipelineState> instancesClipBlendPipelineState;
 @property (nonatomic) id <MTLArgumentEncoder> imageEncoder;     // For an argument buffer of the frame's images, or nil without them
 @property (nonatomic) id <MTLBuffer> noImagesBuffer;            // Bound for frames without images, as the image functions need a buffer
 @property (nonatomic) id <MTLRenderPipelineState> clipMaskPipelineState;
@@ -142,11 +142,10 @@ struct InstancePipelines {
     
     // Images are sampled from an argument buffer of the frame's image textures, which needs tier 2 argument buffers. Without them,
     // e.g. in the iOS Simulator, the fragment functions are made without image sampling, & images aren't drawn
-    bool hasImages = self.device.argumentBuffersSupport == MTLArgumentBuffersTier2, twoCircles = false;
+    bool hasImages = self.device.argumentBuffersSupport == MTLArgumentBuffersTier2;
     MTLFunctionConstantValues *constants = [MTLFunctionConstantValues new];
     [constants setConstantValue:& hasImages type:MTLDataTypeBool atIndex:0];
     auto fragmentFunction = [&](NSString *name) {
-        [constants setConstantValue:& twoCircles type:MTLDataTypeBool atIndex:1];
         return [self.defaultLibrary newFunctionWithName:name constantValues:constants error:nil];
     };
     
@@ -163,40 +162,42 @@ struct InstancePipelines {
         descriptor.fragmentFunction = fragmentFunction(@"opaques_fragment_main");
         descriptor.label = masked ? @"opaques masked" : @"opaques";
         id <MTLRenderPipelineState> opaques = [self.device newRenderPipelineStateWithDescriptor:descriptor error:nil];
-        if (masked)
-            self.opaquesMaskedPipelineState = opaques;
-        else
-            self.opaquesPipelineState = opaques;
-    }
-    descriptor.colorAttachments[0].rgbBlendOperation = MTLBlendOperationAdd;
-    descriptor.colorAttachments[0].alphaBlendOperation = MTLBlendOperationAdd;
-    descriptor.colorAttachments[0].sourceRGBBlendFactor = MTLBlendFactorOne;
-    descriptor.colorAttachments[0].sourceAlphaBlendFactor = MTLBlendFactorOne;
-    descriptor.colorAttachments[0].destinationRGBBlendFactor = MTLBlendFactorOneMinusSourceAlpha;
-    descriptor.colorAttachments[0].destinationAlphaBlendFactor = MTLBlendFactorOneMinusSourceAlpha;
-    descriptor.vertexFunction = [self.defaultLibrary newFunctionWithName:@"instances_vertex_main"];
-    for (int i = 0; i < 2; i++) {
-        twoCircles = i;
-        InstancePipelines& p = _instancePipelines[i];
-        auto pipeline = [&](NSString *fragment, NSString *label, bool masked, bool blends) {
-            descriptor.colorAttachments[1].pixelFormat = masked ? MTLPixelFormatR8Unorm : MTLPixelFormatInvalid;
-            descriptor.colorAttachments[0].blendingEnabled = !blends;
-            descriptor.fragmentFunction = fragmentFunction(fragment);
-            descriptor.label = twoCircles ? [label stringByAppendingString:@" two-circle"] : label;
-            return [self.device newRenderPipelineStateWithDescriptor:descriptor error:nil];
-        };
-        p.instances = pipeline(@"instances_fragment_main", @"instances", false, false);
-        if (hasImages && !twoCircles) {
+        
+        descriptor.colorAttachments[0].blendingEnabled = YES;
+        descriptor.colorAttachments[0].rgbBlendOperation = MTLBlendOperationAdd;
+        descriptor.colorAttachments[0].alphaBlendOperation = MTLBlendOperationAdd;
+        descriptor.colorAttachments[0].sourceRGBBlendFactor = MTLBlendFactorOne;
+        descriptor.colorAttachments[0].sourceAlphaBlendFactor = MTLBlendFactorOne;
+        descriptor.colorAttachments[0].destinationRGBBlendFactor = MTLBlendFactorOneMinusSourceAlpha;
+        descriptor.colorAttachments[0].destinationAlphaBlendFactor = MTLBlendFactorOneMinusSourceAlpha;
+        descriptor.vertexFunction = [self.defaultLibrary newFunctionWithName:@"instances_vertex_main"];
+        descriptor.fragmentFunction = fragmentFunction(@"instances_fragment_main");
+        if (hasImages && !masked) {
             self.imageEncoder = [descriptor.fragmentFunction newArgumentEncoderWithBufferIndex:2];
             self.noImagesBuffer = [self.device newBufferWithLength:self.imageEncoder.encodedLength options:MTLResourceStorageModeShared];
         }
-        p.masked = pipeline(@"instances_fragment_main", @"instances masked", true, false);
+        descriptor.label = masked ? @"instances masked" : @"instances";
+        id <MTLRenderPipelineState> instances = [self.device newRenderPipelineStateWithDescriptor:descriptor error:nil];
+        
         // Frames with blend modes blend in the shader, reading the drawable with framebuffer fetch
-        p.blend = pipeline(@"instances_blend_fragment_main", @"instances blend", false, true);
-        p.blendMasked = pipeline(@"instances_blend_fragment_main", @"instances blend masked", true, true);
-        p.clip = pipeline(@"instances_clip_fragment_main", @"instances clip", true, false);
-        p.clipBlend = pipeline(@"instances_clip_blend_fragment_main", @"instances clip blend", true, true);
+        descriptor.colorAttachments[0].blendingEnabled = NO;
+        descriptor.fragmentFunction = fragmentFunction(@"instances_blend_fragment_main");
+        descriptor.label = masked ? @"instances blend masked" : @"instances blend";
+        id <MTLRenderPipelineState> blend = [self.device newRenderPipelineStateWithDescriptor:descriptor error:nil];
+        descriptor.colorAttachments[0].blendingEnabled = YES;
+        if (masked)
+            self.opaquesMaskedPipelineState = opaques, self.instancesMaskedPipelineState = instances, self.instancesBlendMaskedPipelineState = blend;
+        else
+            self.opaquesPipelineState = opaques, self.instancesPipelineState = instances, self.instancesBlendPipelineState = blend;
     }
+    descriptor.fragmentFunction = fragmentFunction(@"instances_clip_fragment_main");
+    descriptor.label = @"instances clip";
+    self.instancesClipPipelineState = [self.device newRenderPipelineStateWithDescriptor:descriptor error:nil];
+    
+    descriptor.colorAttachments[0].blendingEnabled = NO;
+    descriptor.fragmentFunction = fragmentFunction(@"instances_clip_blend_fragment_main");
+    descriptor.label = @"instances clip blend";
+    self.instancesClipBlendPipelineState = [self.device newRenderPipelineStateWithDescriptor:descriptor error:nil];
     descriptor.colorAttachments[0].blendingEnabled = YES;
     
     // A clip path's cells don't overlap, so each mask pixel is written once, without blending, after its kClipClear cell zeroes it
@@ -317,8 +318,7 @@ struct InstancePipelines {
     // The clip mask holds the current clip path's coverage within its bounds, which its kClipClear cell zeroes beneath it. Clipped
     // instances treat the mask as zero outside them, so it's never cleared. Frames without clip masks don't attach it. Without
     // framebuffer fetch, e.g. in the iOS Simulator, the clipped instances pipeline is nil, so clip paths are ignored
-    const InstancePipelines& pipelines = _instancePipelines[buffer->hasTwoCircles];
-    bool canClip = pipelines.clip != nil, hasMasks = false;
+    bool canClip = _instancesClipPipelineState != nil, hasMasks = false;
     for (size_t i = 0; i < buffer->entries.end && canClip && !hasMasks; i++)
         hasMasks = buffer->entries.base[i].type == Ra::Buffer::kClipMask;
     if (hasMasks) {
@@ -328,11 +328,11 @@ struct InstancePipelines {
     }
     // Frames with blend modes use the instance pipelines that blend in the shader. Without framebuffer fetch they're nil, so blend
     // modes are drawn as Normal
-    bool hasBlends = buffer->hasBlends && pipelines.blend != nil && pipelines.clipBlend != nil;
+    bool hasBlends = buffer->hasBlends && _instancesBlendPipelineState != nil && _instancesClipBlendPipelineState != nil;
     id <MTLRenderPipelineState> opaquesPipelineState = hasMasks ? _opaquesMaskedPipelineState : _opaquesPipelineState;
-    id <MTLRenderPipelineState> instancesPipelineState = hasBlends ? (hasMasks ? pipelines.blendMasked : pipelines.blend)
-        : hasMasks ? pipelines.masked : pipelines.instances;
-    id <MTLRenderPipelineState> instancesClipPipelineState = hasBlends ? pipelines.clipBlend : pipelines.clip;
+    id <MTLRenderPipelineState> instancesPipelineState = hasBlends ? (hasMasks ? _instancesBlendMaskedPipelineState : _instancesBlendPipelineState)
+        : hasMasks ? _instancesMaskedPipelineState : _instancesPipelineState;
+    id <MTLRenderPipelineState> instancesClipPipelineState = hasBlends ? _instancesClipBlendPipelineState : _instancesClipPipelineState;
     
     // The frame's image textures, in an argument buffer, which draws index, so they're bound once per drawable pass. It's rebuilt only
     // when the images change, & each distinct texture is looked up & made resident once. Without an image encoder images aren't drawn
@@ -489,7 +489,8 @@ struct InstancePipelines {
                     [commandEncoder setRenderPipelineState:useClip ? instancesClipPipelineState : instancesPipelineState];
                     uint32_t bounds[4] = { uint32_t(maskBounds.x), uint32_t(maskBounds.y), uint32_t(maskBounds.width), uint32_t(maskBounds.height) };
                     [commandEncoder setFragmentBytes:bounds length:sizeof(bounds) atIndex:0];
-                    [commandEncoder setFragmentBuffer:mtlBuffer offset:buffer->paths atIndex:1];    // For blend modes & two-circle radials
+                    if (hasBlends)
+                        [commandEncoder setFragmentBuffer:mtlBuffer offset:buffer->paths atIndex:1];
                 }
                 [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->paths atIndex:4];

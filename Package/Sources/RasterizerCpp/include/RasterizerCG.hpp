@@ -136,12 +136,8 @@ struct RasterizerCG {
         CGGradientRef gradient = CGGradientFromPaint(paint);
         CGPoint zero = CGPointMake(0.0, 0.0), end = CGPointMake(0.0, 1.0);
         auto options = kCGGradientDrawsBeforeStartLocation | kCGGradientDrawsAfterEndLocation;
-        const Ra::Bitmap& b = *paint.bitmap.ptr;
-        CGContextConcatCTM(ctx, CGFromTransform(b.ctm));
-        if (paint.type == Ra::Paint::kRadial && b.radial) {
-            options = (b.radial & Ra::Bitmap::kExtendLo ? kCGGradientDrawsBeforeStartLocation : 0) | (b.radial & Ra::Bitmap::kExtendHi ? kCGGradientDrawsAfterEndLocation : 0);
-            CGContextDrawRadialGradient(ctx, gradient, CGPointMake(b.fx, 0.0), b.fr, zero, b.fr + b.dr, options);
-        } else if (paint.type == Ra::Paint::kRadial)
+        CGContextConcatCTM(ctx, CGFromTransform(paint.bitmap->ctm));
+        if (paint.type == Ra::Paint::kRadial)
             CGContextDrawRadialGradient(ctx, gradient, zero, 0, zero, 1, options);
         else
             CGContextDrawLinearGradient(ctx, gradient, zero, end, options);
