@@ -53,18 +53,6 @@
 @end
 
 
-typedef void (^CTRunApplyBlock)(NSRange range, CGRect bounds);
-typedef void (^CTLineApplyBlock)(CTLineRef _Nonnull, CGPoint origin);
-
-@interface RAFrame: NSObject
-+ (double)lineHeightForFont:(nonnull NSString *)named size:(double)size;
-
-- (nonnull id)initWithAttributedString:(nonnull NSAttributedString *)attributedString inRect:(CGRect)rect;
-- (void)applyRuns:(nonnull CTRunApplyBlock)block;
-- (void)applyLines:(nonnull CTLineApplyBlock)block;
-@end
-
-
 typedef NS_ENUM(NSUInteger, RACapStyle) {
     kCapButt = 0, kCapSquare, kCapRound
 };
@@ -138,11 +126,6 @@ typedef BOOL (^RADrawUpdateBlock)(NSInteger index, RADraw * _Nonnull draw);
         joinStyle:(RAJoinStyle)joinStyle
              clip:(CGRect)clip
          clipPath:(nullable RAPath *)clipPath;
-
-- (CGRect)addFrame:(nonnull RAFrame *)frame
-          excludes:(nonnull NSArray<NSValue *> *)excludes
-               ctm:(CGAffineTransform)ctm
-              clip:(CGRect)clip;
 
 - (CGRect)addText:(nonnull NSAttributedString *)string
            inRect:(CGRect)rect

@@ -61,17 +61,14 @@
       <Group
          location = "group:RasterizerObjC"
          name = "RasterizerObjC">
-         <FileRef
-            location = "group:RasterizerView.mm">
-         </FileRef>
          <Group
             location = "group:include"
             name = "include">
             <FileRef
-               location = "group:RasterizerView.h">
+               location = "group:RasterizerAPI.h">
             </FileRef>
             <FileRef
-               location = "group:RasterizerAPI.h">
+               location = "group:RasterizerView.h">
             </FileRef>
          </Group>
          <Group
@@ -85,10 +82,13 @@
             </FileRef>
          </Group>
          <FileRef
+            location = "group:RasterizerAPI.mm">
+         </FileRef>
+         <FileRef
             location = "group:RasterizerLayer.mm">
          </FileRef>
          <FileRef
-            location = "group:RasterizerAPI.mm">
+            location = "group:RasterizerView.mm">
          </FileRef>
       </Group>
    </Group>

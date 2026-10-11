@@ -210,57 +210,6 @@
 @end
 
 
-@implementation RAFrame: NSObject
-+ (double)lineHeightForFont:(nonnull NSString *)named size:(double)size {
-    return RaCT::lineHeightFor(named.UTF8String, size);
-}
-
-- (id)initWithAttributedString:(nonnull NSAttributedString *)attributedString inRect:(CGRect)rect {
-    self = [super init];
-    if (!self)
-        return nil;
-    CTFramesetterRef framesetter = CTFramesetterCreateWithAttributedString((__bridge CFAttributedStringRef)attributedString);
-    CGPathRef rectPath = CGPathCreateWithRect(rect, NULL);
-    _frame = CTFramesetterCreateFrame(framesetter, CFRangeMake(0, 0), rectPath, NULL);
-    CGPathRelease(rectPath);
-    CFRelease(framesetter);
-    return self;
-}
-
-- (void)applyRuns:(nonnull CTRunApplyBlock)block {
-    [self applyLines:^(CTLineRef _Nonnull ctLine, CGPoint origin) {
-        CFArrayRef glyphRuns = CTLineGetGlyphRuns(ctLine);
-        for (int run = 0; run < CFArrayGetCount(glyphRuns); run++) {
-            CTRunRef ctRun = (CTRunRef)CFArrayGetValueAtIndex(glyphRuns, run);
-            CGRect image = CTRunGetImageBounds(ctRun, NULL, CFRangeMake(0, 0));
-            if (image.size.width > 0 && image.size.height > 0) {
-                CFRange range = CTRunGetStringRange(ctRun);
-                block(
-                    NSMakeRange(range.location, range.length),
-                    CGRectApplyAffineTransform(image, CGAffineTransformMakeTranslation(origin.x, origin.y))
-                );
-            }
-        }
-    }];
-}
-- (void)applyLines:(nonnull CTLineApplyBlock)block {
-    CGRect rect = CGPathGetBoundingBox(CTFrameGetPath(_frame));
-    CFArrayRef lines = CTFrameGetLines(_frame);
-    CFIndex lineCount = CFArrayGetCount(lines);
-    Ra::Vector<CGPoint> origins(lineCount);
-    CTFrameGetLineOrigins(_frame, CFRangeMake(0, 0), & origins[0]);
-    for (int line = 0; line < lineCount; line++) {
-        block(
-            (CTLineRef)CFArrayGetValueAtIndex(lines, line),
-            CGPointMake(rect.origin.x + origins[line].x, rect.origin.y + origins[line].y)
-        );
-    }
-}
-- (void)dealloc {
-    CFRelease(_frame);
-}
-@end
-
 #pragma mark - RADraw
 
 static uint8_t capFlags(RACapStyle capStyle) {
@@ -463,15 +412,6 @@ static uint8_t joinFlags(RAJoinStyle joinStyle) {
     [self checkNotUpdating];
     Ra::Path clp = clipPath != nil ? clipPath.path : Ra::Path(nullptr);
     _scene->addPath(p, m, color.paint, width, capFlags(capStyle) | joinFlags(joinStyle) | Ra::Draw::kClipEvenOdd, & clipBounds, clipPath != nil ? & clp : nullptr);
-}
-
-- (CGRect)addFrame:(RAFrame *)frame
-          excludes:(NSArray<NSValue *> *)excludes
-               ctm:(CGAffineTransform)ctm
-              clip:(CGRect)clip {
-    GlyphCache cache;
-    [self checkNotUpdating];
-    return RaCT::addFrameToScene(frame.frame, excludes, ctm, clip, _scene, cache);
 }
 
 - (CGRect)addText:(NSAttributedString *)string inRect:(CGRect)rect ctm:(CGAffineTransform)ctm clip:(CGRect)clip {
