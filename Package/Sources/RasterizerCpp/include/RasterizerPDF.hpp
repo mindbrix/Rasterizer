@@ -2961,6 +2961,8 @@ struct RasterizerPDF {
             }
             if (points.back().type == Ra::Geometry::kMove && !points.back().close)
                 points.pop_back();
+            if (!clipMode && mode == kStroke && appendDot(scan))
+                return points.clear();
             Ra::Path path = clipMode ? buildPath(points.data(), points.size(), (mode & kStroke) && st.cap == kRoundCap) : nullptr;
             if (mode != kFillNone) {
                 PathObject object;
@@ -2977,6 +2979,29 @@ struct RasterizerPDF {
             if (clipMode)
                 st.clip = s.addClip(st.clip, transformedPath(path, st.ctm), isEntry, false, clipMode == kFillEvenOdd);
             points.clear();
+        }
+        // A dot, a round capped stroke of one point, joins the previous object, as a subpath, if that's an opaque stroke with the same
+        // state & clip, as drawings can have very many, & each object is a draw. Overlaps are the same, as they're opaque
+        static bool appendDot(Scan& scan) {
+            Shadings& s = *scan.shadings;  State& st = scan.state;  std::vector<PathPoint>& points = scan.points;
+            for (const PathPoint& p : points)
+                if (p.x != points[0].x || p.y != points[0].y)
+                    return false;
+            std::vector<Object>& objects = s.streams[scan.container + 1];
+            if (st.cap != kRoundCap || objects.empty() || objects.back().kind != kPathObject || objects.back().index != s.paths.size() - 1 || objects.back().clip != st.clip)
+                return false;
+            PathObject& prev = s.paths.back();
+            Colors colors = objectColors(st);
+            const Ra::Transform& m = prev.ctm, & n = st.ctm;
+            if (prev.path.ptr || prev.pointBegin + prev.pointCount != s.pathPoints.size() || prev.mode != kStroke || prev.cap != kRoundCap
+                    || prev.width != st.lineWidth || prev.dash != -1 || st.dash != -1 || prev.mask != kNoMask || st.mask != kNoMask
+                    || prev.alpha != 1.f || st.alpha != 1.f || prev.blend != kBlendNormal || st.blend != kBlendNormal
+                    || colors.stroke.a != 255 || !colors.hasStroke || !prev.colors.hasStroke || memcmp(& prev.colors.stroke, & colors.stroke, sizeof(Ra::Color))
+                    || m.a != n.a || m.b != n.b || m.c != n.c || m.d != n.d || m.tx != n.tx || m.ty != n.ty)
+                return false;
+            s.pathPoints.insert(s.pathPoints.end(), points.begin(), points.end());
+            prev.pointCount += points.size();
+            return true;
         }
         // A path from its points. A round capped stroke paints a dot for a degenerate subpath, of a closed point, or of segments to
         // its start, so for dots, one gets a line of a small length, as geometries drop subpaths with zero size
