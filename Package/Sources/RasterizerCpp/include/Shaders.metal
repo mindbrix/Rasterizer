@@ -34,8 +34,7 @@ struct Bounds {
 
 // A path's data, as Ra::PathData
 struct PathData {
-    Transform ctm;
-    Bounds bounds;
+    Transform ctm;          // A molecule draw's, from its molecules' 16 bit space to device space
     Transform clip, texCtm;
     float width;
     uint32_t texIdx, mode;
@@ -314,19 +313,15 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
     const device Instance& inst = instances[edge.ic & Edge::kMask];
     int segcount = edge.i0, i;
     const device Transform& m = paths[inst.iz & kPathIndexMask].ctm;
-    const device Bounds& b = paths[inst.iz & kPathIndexMask].bounds;
     const device Cell& cell = inst.quad.cell;
     const device Point16 *pts = & points[inst.quad.base + (iid - inst.quad.biid) * kFastSegments];
     const device Point16 *molecule = & points[inst.quad.base + (inst.quad.molsbase + edge.ux) * 2];
     thread float *dst = & vert.x0;
-    float tx, ty, scale, ma, mb, mc, md, x16, y16, slx, sux, sly, suy, x0, y0;
+    float x16, y16, slx, sux, sly, suy, x0, y0;
     bool skip = false;
-    tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
-    scale = max(b.ux - b.lx, b.uy - b.ly) / kMoleculesRange;
-    ma = m.a * scale, mb = m.b * scale, mc = m.c * scale, md = m.d * scale;
     
     x16 = pts->x & Point16::kMask, y16 = pts->y & Point16::kMask, pts++;
-    x0 = x16 * ma + y16 * mc + tx, y0 = x16 * mb + y16 * md + ty;
+    x0 = x16 * m.a + y16 * m.c + m.tx, y0 = x16 * m.b + y16 * m.d + m.ty;
     
     *dst++ = slx = sux = x0, *dst++ = sly = suy = y0;
 
@@ -334,14 +329,14 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
         skip |= i >= segcount;
         
         x16 = pts->x & Point16::kMask, y16 = pts->y & Point16::kMask;
-        x0 = skip ? x0 : x16 * ma + y16 * mc + tx, slx = min(slx, x0), sux = max(sux, x0);
-        y0 = skip ? y0 : x16 * mb + y16 * md + ty, sly = min(sly, y0), suy = max(suy, y0);
+        x0 = skip ? x0 : x16 * m.a + y16 * m.c + m.tx, slx = min(slx, x0), sux = max(sux, x0);
+        y0 = skip ? y0 : x16 * m.b + y16 * m.d + m.ty, sly = min(sly, y0), suy = max(suy, y0);
         dst[0] = x0, dst[1] = y0;
     }
     
     float molx = molecule[m.a > 0.0 ? 1 : 0].x;
     float moly = molecule[m.c > 0.0 ? 1 : 0].y;
-    float ux = ceil(molx * ma + moly * mc + tx);
+    float ux = ceil(molx * m.a + moly * m.c + m.tx);
     
     float dx = clamp(select(floor(slx), ux, vid & 1), float(cell.lx), float(cell.ux));
     float dy = clamp(select(floor(sly), ceil(suy), vid >> 1), float(cell.ly), float(cell.uy));
@@ -387,7 +382,6 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
     const device Edge& edge = edges[iid];
     const device Instance& inst = instances[edge.ic & Edge::kMask];
     const device Transform& m = paths[inst.iz & kPathIndexMask].ctm;
-    const device Bounds& b = paths[inst.iz & kPathIndexMask].bounds;
     const device Cell& cell = inst.quad.cell;
     const device Point16 *p = & points[inst.quad.base + ((edge.ic & Edge::ue0) >> 12) + edge.i0];
     const device Point16 *molecule = & points[inst.quad.base + (inst.quad.molsbase + edge.ux) * 2];
@@ -395,15 +389,12 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
     const float ix0 = p->x & Point16::kMask, iy0 = p->y & Point16::kMask;
     const float ix1 = (p + 1)->x & Point16::kMask, iy1 = (p + 1)->y & Point16::kMask;
     const float ix2 = (p + 2)->x & Point16::kMask, iy2 = (p + 2)->y & Point16::kMask;
-    float tx, ty, scale, ma, mb, mc, md, x0, y0, x1, y1, x2, y2, slx, sux, sly, suy;
-    tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
-    scale = max(b.ux - b.lx, b.uy - b.ly) / kMoleculesRange;
-    ma = m.a * scale, mb = m.b * scale, mc = m.c * scale, md = m.d * scale;
+    float x0, y0, x1, y1, x2, y2, slx, sux, sly, suy;
     
-    x0 = ix0 * ma + iy0 * mc + tx, y0 = ix0 * mb + iy0 * md + ty;
-    x1 = ix1 * ma + iy1 * mc + tx, y1 = ix1 * mb + iy1 * md + ty;
+    x0 = ix0 * m.a + iy0 * m.c + m.tx, y0 = ix0 * m.b + iy0 * m.d + m.ty;
+    x1 = ix1 * m.a + iy1 * m.c + m.tx, y1 = ix1 * m.b + iy1 * m.d + m.ty;
     if (isCurve) {
-        x2 = ix2 * ma + iy2 * mc + tx, y2 = ix2 * mb + iy2 * md + ty;
+        x2 = ix2 * m.a + iy2 * m.c + m.tx, y2 = ix2 * m.b + iy2 * m.d + m.ty;
         x1 = 2.f * x1 - 0.5f * (x0 + x2), y1 = 2.f * y1 - 0.5f * (y0 + y2);
     } else {
         x2 = x1, x1 = 0.5 * (x0 + x2);
@@ -416,7 +407,7 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
     
     float molx = molecule[m.a > 0.0 ? 1 : 0].x;
     float moly = molecule[m.c > 0.0 ? 1 : 0].y;
-    sux = ceil(molx * ma + moly * mc + tx);
+    sux = ceil(molx * m.a + moly * m.c + m.tx);
     
     float dx = clamp(select(floor(slx), ceil(sux), vid & 1), float(cell.lx), float(cell.ux));
     float dy = clamp(select(floor(sly), ceil(suy), vid >> 1), float(cell.ly), float(cell.uy));

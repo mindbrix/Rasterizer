@@ -864,8 +864,7 @@ struct Rasterizer {
     };
     // A path's data, which the shaders index by its iz. Each field is only written for the draws that use it
     struct PathData {
-        Transform ctm;      // A molecule draw's, & its path's bounds
-        Bounds bounds;
+        Transform ctm;      // A molecule draw's, from its molecules' 16 bit space, which spans its path's bounds, to device space
         Transform clip;     // An instance's inverse clip
         Transform texCtm;   // A gradient or image's
         float width;        // A stroke's
@@ -1053,7 +1052,8 @@ struct Rasterizer {
                             i1 = uint32_t(outlines.idx);
                             inst->data.idx = i0, inst->data.count = i1 - i0;
                         } else if (kMoleculesHeight && clip.width() * clip.height() / g->types.end < kMoleculesPixelsPerEdge) {
-                            paths[iz].ctm = m, paths[iz].bounds = draw.bnds;
+                            float s = fmaxf(g->bounds.ux - g->bounds.lx, g->bounds.uy - g->bounds.ly) / kMoleculesRange;
+                            paths[iz].ctm = Transform(s, 0.f, 0.f, s, g->bounds.lx, g->bounds.ly).concat(m);
                             bool fast = !buffer->params.useCurves || g->maxCurve * det < 16.f;
                             Blend *inst = new (blends.alloc(1)) Blend(iz | colorFlags | Instance::kMolecule | bool(draw.flags & Draw::kFillEvenOdd) * Instance::kEvenOdd | fast * Instance::kFastEdges);
                             inst->g = g, inst->quad.cover = 0;
