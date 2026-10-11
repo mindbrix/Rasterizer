@@ -390,6 +390,9 @@ struct Rasterizer {
             bool v2 = pts[6] == pts[4], h2 = pts[7] == pts[5], v3 = pts[8] == pts[6], h3 = pts[9] == pts[7];
             return ((v0 && h1) || (h0 && v1)) && ((v2 && h3) || (h2 && v3));
         }
+        bool isSegments() const {   // Whether each subpath is one line, like dots & dashes
+            return counts[kLine] == counts[kMove] && types.end == 2 * counts[kMove];
+        }
         size_t upperBound(float det) const {
             size_t cubics = 0;
             if (cubicSums != 0) {
@@ -1043,7 +1046,10 @@ struct Rasterizer {
                             outliner.iz = inst->iz, outliner.outlines = & outlines;
                             if (width > 4.f && softUnclipped())
                                 outliner.opaques = & opaques;
-                            outliner.applyPath(g, m, outlineClip, unclipped, false);
+                            if (outliner.opaques == nullptr && g->isSegments())
+                                writeSegmentOutlines(g, m, outlineClip, unclipped, inst->iz);
+                            else
+                                outliner.applyPath(g, m, outlineClip, unclipped, false);
                             i1 = uint32_t(outlines.idx);
                             inst->data.idx = i0, inst->data.count = i1 - i0;
                         } else if (kMoleculesHeight && clip.width() * clip.height() / g->types.end < kMoleculesPixelsPerEdge) {
@@ -1069,6 +1075,21 @@ struct Rasterizer {
                     }
                 }
             }
+        }
+        // Each line of a path of one line subpaths is an outline instance capped at both ends, as the Outliner would write it, but
+        // directly, as dots & dashes can be very many. Lines crossing the clip are whole, as their parts outside it are hidden
+        void writeSegmentOutlines(Geometry *g, Transform m, Bounds clip, bool unclipped, uint32_t iz) {
+            Instance *dst0 = outlines.prealloc(g->counts[Geometry::kLine]), *dst = dst0;
+            for (const float *p = g->points.base, *end = p + g->points.end; p < end; p += 4) {
+                float x0 = p[0] * m.a + p[1] * m.c + m.tx, y0 = p[0] * m.b + p[1] * m.d + m.ty;
+                float x1 = p[2] * m.a + p[3] * m.c + m.tx, y1 = p[2] * m.b + p[3] * m.d + m.ty;
+                if (unclipped || (fminf(y0, y1) < clip.uy && fmaxf(y0, y1) > clip.ly && fminf(x0, x1) < clip.ux && fmaxf(x0, x1) > clip.lx)) {
+                    Quadratic& quad = dst->outline.quad;
+                    dst->iz = iz, quad.x0 = x0, quad.y0 = y0, quad.x1 = FLT_MAX, quad.y1 = 0.f, quad.x2 = x1, quad.y2 = y1;
+                    dst->outline.prev = dst->outline.next = 0, dst++;
+                }
+            }
+            outlines.idx = outlines.end += dst - dst0;
         }
         // Clip commands are kClip blends, which split the instance batches. kClipMaskBegin's cell holds the clip mask's device bounds,
         // & the instances after it, up to the next kClipEnable, render the clip path's coverage into the clip mask. Its g & quad.base
