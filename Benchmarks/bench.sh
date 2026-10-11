@@ -585,6 +585,7 @@ struct Offscreen {
         float passHeight = accumulationTexture.height;    // The edges pass's viewport height, which its edges map their rows to
 
         bool useClip = false, useImage = false, inMask = false, skipMask = false;
+        bool edgesRead = true;    // Edges begin a pass only if instances have read the accumulation texture since the last one
         enum PassKind { kDrawablePass, kEdgesPass, kMaskPass } passKind = kDrawablePass;
         auto beginPass = [&](PassKind kind) {
             if (lazyPasses && passKind == kind && kind != kEdgesPass)
@@ -697,7 +698,8 @@ struct Offscreen {
                 case Ra::Buffer::kFastMolecules:
                 case Ra::Buffer::kQuadMolecules:
                     if (entry.type == Ra::Buffer::kQuadEdges) {
-                        beginPass(kEdgesPass);
+                        if (passKind != kEdgesPass || edgesRead)
+                            beginPass(kEdgesPass), edgesRead = false;
                         [commandEncoder setRenderPipelineState:quadEdges];
                     } else if (entry.type == Ra::Buffer::kFastEdges)
                         [commandEncoder setRenderPipelineState:fastEdges];
@@ -729,6 +731,7 @@ struct Offscreen {
 #if RA_BLEND_BATCHES
                 case Ra::Buffer::kBlendInstances:
 #endif
+                    edgesRead = true;
                     if (skipMask)
                         break;
 #if RA_CLIP_IN_PASS

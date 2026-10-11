@@ -43,9 +43,9 @@ struct RasterizerRenderer {
         contexts.resize(count < 1 ? 1 : count);
     }
     
-    // A frame uses enough contexts for about kContextSeconds of drawList work each, judged by the last frame's, as each adds fixed
-    // GPU cost, so small scenes are faster with few. Two at least, as one is slower, & all of them for the first frame
-    static constexpr double kContextSeconds = 250e-6;
+    // A frame uses enough contexts for about kContextSeconds of drawList work each, judged by the last frame's, as each adds a
+    // fixed cost, so small scenes are faster with few. Two at least, as one is slower, & all of them for the first frame
+    static constexpr double kContextSeconds = 100e-6;
     
     void renderList(const Ra::SceneList& list, float scale, float w, float h, RenderBuffer *renderBuffer) {
         Ra::Buffer *buffer = & renderBuffer->buffer;
@@ -71,12 +71,11 @@ struct RasterizerRenderer {
         renderBuffer->allocContextSlices(size);
         
         Ra::writeOpaques(list, & contexts[0], contextCount, begins, *buffer);
+        Ra::coalescePasses(& contexts[0], contextCount);
         dispatch_apply(contextCount, DISPATCH_APPLY_AUTO, ^(size_t i) {
             Ra::writeContextToBuffer(list, & contexts[0] + i, begins[i], i, contextCount, *buffer);
         });
-        for (int i = 0; i < contextCount; i++)
-            for (int j = 0; j < contexts[i].entries.end(); j++)
-                *(buffer->entries.alloc(1)) = contexts[i].entries[j];
+        Ra::writeEntries(& contexts[0], contextCount, *buffer);
         size_t end = buffer->entries.end == 0 ? 0 : buffer->entries.back().end;
         assert(size >= end);
         
