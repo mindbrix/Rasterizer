@@ -867,8 +867,10 @@ struct Rasterizer {
     };
     struct Buffer {
         // kClipMask begins rendering a clip path's coverage into the clip mask, within the device bounds packed in begin, until kEnableClip.
-        // Its end identifies the mask, so an encoder can skip rendering one the mask already holds
-        enum Type { kQuadEdges, kFastEdges, kFastMolecules, kQuadMolecules, kOpaques, kInstances, kSegmentsBase, kInstancesBase, kDisableClip, kEnableClip, kClipMask };
+        // Its end identifies the mask, so an encoder can skip rendering one the mask already holds. kBlendInstances are instances of draws
+        // with blend modes, which blend in the shader, & kInstances blend with the hardware
+        enum Type { kQuadEdges, kFastEdges, kFastMolecules, kQuadMolecules, kOpaques, kInstances, kSegmentsBase, kInstancesBase, kDisableClip, kEnableClip, kClipMask, kBlendInstances };
+        static constexpr size_t kMaxBlendBatches = 32;     // Of a pass, beyond which all its instances are kBlendInstances
         struct Entry {
             Entry(Type type, size_t begin, size_t end) : type(type), begin(begin), end(end) {}
             Type type;  size_t begin, end;
@@ -1926,13 +1928,20 @@ struct Rasterizer {
                 assert(begin == instbegin);
             }
             
-            Vector<size_t> batchBegins;
-            Vector<Blend> batchCommands;
+            // The pass's instances are batches, split by clip commands, & where draws with blend modes begin & end, unless there are
+            // more than kMaxBlendBatches of those
+            struct Split { size_t at;  const Blend *cmd;  bool blends; };     // A batch's end, the command after it, & whether it blends
+            Vector<Split> splits;
+            bool blends = false;
+            size_t blendBatches = 0;
             
             Instance *dst0 = (Instance *)(buffer.base + begin), *dst = dst0;
             for (Blend *inst = ctx->blends.base + pass->idx, *endinst = inst + passsize; inst < endinst; inst++) {
                 iz = inst->iz & kPathIndexMask;
                 Geometry *g = inst->g;
+                bool isClip = !(inst->iz & Instance::kOutlines) && (inst->iz & Instance::kClip);     // kClip is an outline's kRoundJoin
+                if (!isClip && bool(inst->iz & Instance::kBlend) != blends)
+                    splits.add(Split{ begin + (dst - dst0) * sizeof(Instance), nullptr, blends }), blendBatches += !blends, blends = !blends;
                 
                 if (inst->iz & Instance::kOutlines) {
                     memcpy(dst, ctx->outlines.base + inst->data.idx, inst->data.count * sizeof(Instance));
@@ -1944,8 +1953,7 @@ struct Rasterizer {
                     
                     if (inst->iz & Instance::kClip) {
                         dst--;
-                        batchBegins.add(begin + (dst - dst0) * sizeof(Instance));
-                        batchCommands.add(*inst);
+                        splits.add(Split{ begin + (dst - dst0) * sizeof(Instance), inst, blends });
                     } else if (inst->iz & Instance::kMolecule) {
                         Edge *molecule = fast ? fastMolecule : quadMolecule;
                         Instance *prev = dst - 1;
@@ -1979,15 +1987,20 @@ struct Rasterizer {
                 }
             }
             
-            if ((size = dst - dst0) || batchBegins.end()) {
+            if ((size = dst - dst0) || splits.end()) {
                 end = begin + size * sizeof(Instance);
+                bool allBlend = blendBatches > Buffer::kMaxBlendBatches;
                 size_t i0 = begin, i1;
-                for (i = 0; i <= batchBegins.end(); i++, i0 = i1) {
-                    i1 = i == batchBegins.end() ? end : batchBegins[i];
+                for (i = 0; i <= splits.end(); i++) {
+                    bool isLast = i == splits.end();
+                    if (!isLast && allBlend && splits[i].cmd == nullptr)
+                        continue;
+                    i1 = isLast ? end : splits[i].at;
                     if (i0 != i1)
-                        ctx->entries.add(Buffer::Entry(Buffer::kInstances, i0, i1));
-                    if (i != batchBegins.end()) {     // A clip command
-                        const Blend& cmd = batchCommands[i];
+                        ctx->entries.add(Buffer::Entry((isLast ? blends : splits[i].blends) || allBlend ? Buffer::kBlendInstances : Buffer::kInstances, i0, i1));
+                    i0 = i1;
+                    if (!isLast && splits[i].cmd) {     // A clip command
+                        const Blend& cmd = *splits[i].cmd;
                         const Cell& cell = cmd.quad.cell;
                         if (cmd.data.idx == Context::kClipMaskBegin)     // The mask's device bounds, packed as lx, ly, ux, uy, & its identity
                             ctx->entries.add(Buffer::Entry(Buffer::kClipMask, size_t(cell.lx) | size_t(cell.ly) << 16 | size_t(cell.ux) << 32 | size_t(cell.uy) << 48,

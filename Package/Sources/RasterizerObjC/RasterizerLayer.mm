@@ -326,13 +326,12 @@ struct TextureCache : MetalCache<id <MTLTexture>, const Ra::Paint &> {
         drawableDescriptor.colorAttachments[1].loadAction = MTLLoadActionDontCare;
         drawableDescriptor.colorAttachments[1].storeAction = MTLStoreActionStore;    // Edges passes interrupt the drawable passes
     }
-    // Frames with blend modes use the instance pipelines that blend in the shader. Without framebuffer fetch they're nil, so blend
-    // modes are drawn as Normal
-    bool hasBlends = buffer->hasBlends && _instancesBlendPipelineState != nil && _instancesClipBlendPipelineState != nil;
+    // Batches of draws with blend modes use the instance pipelines that blend in the shader. Without framebuffer fetch they're nil,
+    // so blend modes are drawn as Normal
+    bool canBlend = _instancesBlendPipelineState != nil && _instancesClipBlendPipelineState != nil;
     id <MTLRenderPipelineState> opaquesPipelineState = hasMasks ? _opaquesMaskedPipelineState : _opaquesPipelineState;
-    id <MTLRenderPipelineState> instancesPipelineState = hasBlends ? (hasMasks ? _instancesBlendMaskedPipelineState : _instancesBlendPipelineState)
-        : hasMasks ? _instancesMaskedPipelineState : _instancesPipelineState;
-    id <MTLRenderPipelineState> instancesClipPipelineState = hasBlends ? _instancesClipBlendPipelineState : _instancesClipPipelineState;
+    id <MTLRenderPipelineState> instancesPipelineState = hasMasks ? _instancesMaskedPipelineState : _instancesPipelineState;
+    id <MTLRenderPipelineState> instancesBlendPipelineState = hasMasks ? _instancesBlendMaskedPipelineState : _instancesBlendPipelineState;
     
     // The frame's image textures, in an argument buffer, which draws index, so they're bound once per drawable pass. It's rebuilt only
     // when the images change, & each distinct texture is looked up & made resident once. Without an image encoder images aren't drawn
@@ -478,18 +477,21 @@ struct TextureCache : MetalCache<id <MTLTexture>, const Ra::Paint &> {
                 }
                 break;
             case Ra::Buffer::kInstances:
+            case Ra::Buffer::kBlendInstances: {
                 if (skipMask)
                     break;
                 beginPass(kDrawablePass);
+                bool blends = canBlend && entry.type == Ra::Buffer::kBlendInstances;
                 if (inMask) {
                     [commandEncoder setDepthStencilState:_clipMaskDepthState];
                     [commandEncoder setRenderPipelineState:_clipMaskPipelineState];
                 } else {
                     [commandEncoder setDepthStencilState:_instancesDepthState];
-                    [commandEncoder setRenderPipelineState:useClip ? instancesClipPipelineState : instancesPipelineState];
+                    [commandEncoder setRenderPipelineState:useClip ? (blends ? _instancesClipBlendPipelineState : _instancesClipPipelineState)
+                                                                   : (blends ? instancesBlendPipelineState : instancesPipelineState)];
                     uint32_t bounds[4] = { uint32_t(maskBounds.x), uint32_t(maskBounds.y), uint32_t(maskBounds.width), uint32_t(maskBounds.height) };
                     [commandEncoder setFragmentBytes:bounds length:sizeof(bounds) atIndex:0];
-                    if (hasBlends)
+                    if (blends)
                         [commandEncoder setFragmentBuffer:mtlBuffer offset:buffer->paths atIndex:1];
                 }
                 [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
@@ -507,6 +509,7 @@ struct TextureCache : MetalCache<id <MTLTexture>, const Ra::Paint &> {
                                  instanceCount:(entry.end - entry.begin) / sizeof(Ra::Instance)
                                   baseInstance:0];
                 break;
+            }
         }
     }
     [commandEncoder endEncoding];

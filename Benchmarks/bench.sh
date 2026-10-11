@@ -494,7 +494,11 @@ struct Offscreen {
         }
         id<MTLRenderPipelineState> opaquesState = hasMasks ? opaquesMasked : opaques, instancesState = hasMasks ? instancesMasked : instances;
         id<MTLRenderPipelineState> instancesClipState = instancesClip;
-#if RA_BLEND
+#if RA_BLEND_BATCHES
+        // Batches of draws with blend modes, kBlendInstances, use the pipelines that blend in the shader
+        bool canBlend = instancesBlend && instancesClipBlend;
+        id<MTLRenderPipelineState> instancesBlendState = hasMasks ? instancesBlendMasked : instancesBlend;
+#elif RA_BLEND
         bool hasBlends = buffer->hasBlends && instancesBlend && instancesClipBlend;
         if (hasBlends)
             instancesState = hasMasks ? instancesBlendMasked : instancesBlend, instancesClipState = instancesClipBlend;
@@ -708,6 +712,9 @@ struct Offscreen {
                     }
                     break;
                 case Ra::Buffer::kInstances:
+#if RA_BLEND_BATCHES
+                case Ra::Buffer::kBlendInstances:
+#endif
                     if (skipMask)
                         break;
 #if RA_CLIP_IN_PASS
@@ -717,7 +724,12 @@ struct Offscreen {
                         [commandEncoder setRenderPipelineState:clipMask];
                     } else {
                         [commandEncoder setDepthStencilState:instancesDepthState];
+#if RA_BLEND_BATCHES
+                        bool hasBlends = canBlend && entry.type == Ra::Buffer::kBlendInstances;
+                        [commandEncoder setRenderPipelineState:useClip ? (hasBlends ? instancesClipBlend : instancesClipState) : (hasBlends ? instancesBlendState : instancesState)];
+#else
                         [commandEncoder setRenderPipelineState:useClip ? instancesClipState : instancesState];
+#endif
                         uint32_t bounds[4] = { uint32_t(maskBounds.x), uint32_t(maskBounds.y), uint32_t(maskBounds.width), uint32_t(maskBounds.height) };
                         [commandEncoder setFragmentBytes:bounds length:sizeof(bounds) atIndex:0];
 #if RA_BLEND
@@ -2112,7 +2124,8 @@ if [[ ! -x $B/rabench || $S/ra/rabench.mm -nt $B/rabench || -n $(find $INC $RA/R
   IMAGES=0; grep -q 'function_constant(kImages)' $INC/Shaders.metal && IMAGES=1    # Its images, from an argument buffer
   RULE=0; grep -q kClipEvenOdd $INC/Rasterizer.hpp && RULE=1    # Its draws' clip fill rules, else even-odd clips
   PATHS=0; grep -q 'struct PathData' $INC/Rasterizer.hpp && PATHS=1    # Its per-path data as one array of structs, else an array each
-  clang++ -O3 -std=c++17 -fobjc-arc -DRA_CLIP_MASK=$CLIP -DRA_CLIP_CLEAR_CELLS=$CLEAR -DRA_CLIP_IN_PASS=$INPASS -DRA_BLEND=$BLEND -DRA_IMAGES=$IMAGES -DRA_CLIP_RULE=$RULE -DRA_PATH_DATA=$PATHS -x objective-c++ $S/ra/rabench.mm -x none $W/obj/xxhash.o $W/obj/nanosvg.o \
+  BATCHES=0; grep -q kBlendInstances $INC/Rasterizer.hpp && BATCHES=1    # Its batches of draws with blend modes, else a frame's blend mode
+  clang++ -O3 -std=c++17 -fobjc-arc -DRA_CLIP_MASK=$CLIP -DRA_CLIP_CLEAR_CELLS=$CLEAR -DRA_CLIP_IN_PASS=$INPASS -DRA_BLEND=$BLEND -DRA_IMAGES=$IMAGES -DRA_CLIP_RULE=$RULE -DRA_PATH_DATA=$PATHS -DRA_BLEND_BATCHES=$BATCHES -x objective-c++ $S/ra/rabench.mm -x none $W/obj/xxhash.o $W/obj/nanosvg.o \
     -I$INC -I$RA/Rasterizer/Demo ${=${PDFIUM:+-I$PDFIUM/Headers -L$PDFIUM -lpdfium -Wl,-rpath,$PDFIUM}} \
     -framework Foundation -framework Metal -framework QuartzCore -framework CoreGraphics -framework CoreText -framework ImageIO -framework CoreServices \
     -Wno-deprecated-declarations -o $B/rabench

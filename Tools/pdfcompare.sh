@@ -200,8 +200,9 @@ if [[ ! -x $B/pdfcompare || $0 -nt $B/pdfcompare || $S/pdfcompare.mm -nt $B/pdfc
   IMAGES=0; grep -q 'function_constant(kImages)' $INC/Shaders.metal && IMAGES=1
   RULE=0; grep -q kClipEvenOdd $INC/Rasterizer.hpp && RULE=1
   PATHS=0; grep -q 'struct PathData' $INC/Rasterizer.hpp && PATHS=1
+  BATCHES=0; grep -q kBlendInstances $INC/Rasterizer.hpp && BATCHES=1
   # Fallback draws are an odd red, so ones of the content's own red aren't counted
-  clang++ -O3 -std=c++17 -fobjc-arc -DRA_PDF_FALLBACK_BGRA=3,1,254,255 -DRA_CLIP_MASK=$CLIP -DRA_CLIP_CLEAR_CELLS=$CLEAR -DRA_CLIP_IN_PASS=$INPASS -DRA_BLEND=$BLEND -DRA_IMAGES=$IMAGES -DRA_CLIP_RULE=$RULE -DRA_PATH_DATA=$PATHS \
+  clang++ -O3 -std=c++17 -fobjc-arc -DRA_PDF_FALLBACK_BGRA=3,1,254,255 -DRA_CLIP_MASK=$CLIP -DRA_CLIP_CLEAR_CELLS=$CLEAR -DRA_CLIP_IN_PASS=$INPASS -DRA_BLEND=$BLEND -DRA_IMAGES=$IMAGES -DRA_CLIP_RULE=$RULE -DRA_PATH_DATA=$PATHS -DRA_BLEND_BATCHES=$BATCHES \
     -x objective-c++ $S/pdfcompare.mm -x none $O/xxhash.o $O/nanosvg.o -I$S -I$INC \
     -framework Foundation -framework Metal -framework QuartzCore -framework CoreGraphics -framework CoreText -framework ImageIO -framework CoreServices \
     -Wno-deprecated-declarations -Wno-unused-function -o $B/pdfcompare
