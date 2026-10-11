@@ -891,7 +891,6 @@ struct Rasterizer {
         Params params;
         size_t colors, paths, texStrips, p16s;
         size_t idxs, pathsCount, texCount, headerSize;
-        bool hasBlends = false;     // Whether any draw's blend mode isn't Normal, so its instances need framebuffer fetch
     };
     struct Allocator {
         enum CountType { kFastEdges, kQuadEdges, kFastMolecules, kQuadMolecules };
@@ -1032,7 +1031,7 @@ struct Rasterizer {
                         
                         paths[iz].clip = invclip;
                         if (draw.blendMode != kBlendNormal)     // Only blended draws write their mode
-                            paths[iz].mode = draw.blendMode, hasBlends = true, colorFlags |= Instance::kBlend;
+                            paths[iz].mode = draw.blendMode, colorFlags |= Instance::kBlend;
                         Geometry *g = draw.path.ptr;
                         if (width) {
                             paths[iz].width = width;
@@ -1101,7 +1100,7 @@ struct Rasterizer {
             }
         }
         void empty() {
-            texTotal = 0, hasBlends = false, blends.empty(), opaques.empty(), outlines.empty(), segments.empty(), segmentsIndices.empty(), indices.empty(), texs.resize(0), images.resize(0);
+            texTotal = 0, blends.empty(), opaques.empty(), outlines.empty(), segments.empty(), segmentsIndices.empty(), indices.empty(), texs.resize(0), images.resize(0);
             for (int i = 0; i < samples.end(); i++)
                 samples[i].empty();
             entries = Vector<Buffer::Entry>();
@@ -1111,7 +1110,7 @@ struct Rasterizer {
             samples.resize(0);
         }
         
-        size_t texTotal;  bool hasBlends = false;
+        size_t texTotal;
         Geometry *currentClipPath = nullptr;  Transform currentClipCtm;  bool currentClipEvenOdd = false;  Bounds currentMaskBounds, maskBounds;
         Allocator allocator;  Vector<Buffer::Entry> entries;
         Vector<TexRef> texs;
@@ -1834,9 +1833,8 @@ struct Rasterizer {
     
     static size_t resizeBuffer(const SceneList& list, Context *contexts, size_t count, size_t *begins, Buffer& buffer) {
         size_t size = buffer.headerSize, sz, i, j, instances;
-        buffer.hasBlends = false;
         for (i = 0; i < count; i++)
-            size += contexts[i].opaques.end * sizeof(Opaque), buffer.hasBlends |= contexts[i].hasBlends;
+            size += contexts[i].opaques.end * sizeof(Opaque);
         
         for (sz = i = 0; i < count; i++)
             sz += contexts[i].texs.end();
