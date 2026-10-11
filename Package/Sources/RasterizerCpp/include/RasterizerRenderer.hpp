@@ -43,18 +43,28 @@ struct RasterizerRenderer {
         contexts.resize(count < 1 ? 1 : count);
     }
     
+    // A frame uses enough contexts for about kContextSeconds of drawList work each, judged by the last frame's, as each adds fixed
+    // GPU cost, so small scenes are faster with few. Two at least, as one is slower, & all of them for the first frame
+    static constexpr double kContextSeconds = 250e-6;
+    
     void renderList(const Ra::SceneList& list, float scale, float w, float h, RenderBuffer *renderBuffer) {
         Ra::Buffer *buffer = & renderBuffer->buffer;
-        size_t contextCount = contexts.size();
+        size_t contextCount = drawListSeconds == 0.0 ? contexts.size() : std::min(contexts.size(), std::max(size_t(2), size_t(ceil(drawListSeconds / kContextSeconds))));
         list.prepare();
         buffer->prepare(list);
         renderBuffer->allocHeader(buffer->headerSize);
         
         auto divisions = (size_t *)alloca((contextCount + 1) * sizeof(size_t));
+        auto seconds = (double *)alloca(contextCount * sizeof(double));
         writeDivisions(list, contextCount, divisions);
         dispatch_apply(contextCount, DISPATCH_APPLY_AUTO, ^(size_t i) {
+            uint64_t t0 = clock_gettime_nsec_np(CLOCK_UPTIME_RAW);
             contexts[i].drawList(list, scale, w, h, divisions[i], divisions[i + 1], buffer);
+            seconds[i] = double(clock_gettime_nsec_np(CLOCK_UPTIME_RAW) - t0) * 1e-9;
         });
+        drawListSeconds = 0.0;
+        for (size_t i = 0; i < contextCount; i++)
+            drawListSeconds += seconds[i];
         auto begins = (size_t *)alloca(contextCount * sizeof(size_t));
         size_t size = Ra::resizeBuffer(list, & contexts[0], contextCount, begins, *buffer);
         bool willShrink = renderBuffer->willShrink(size);
@@ -105,4 +115,5 @@ struct RasterizerRenderer {
     }
     
     std::vector<Ra::Context> contexts;
+    double drawListSeconds = 0.0;   // The last frame's total
  };
