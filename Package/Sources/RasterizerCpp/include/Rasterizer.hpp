@@ -871,7 +871,8 @@ struct Rasterizer {
     struct Buffer {
         // kClipMask begins rendering a clip path's coverage into the clip mask, within the device bounds packed in begin, until kEnableClip.
         // Its end identifies the mask, so an encoder can skip rendering one the mask already holds. kBlendInstances are instances of draws
-        // with blend modes, which blend in the shader, & kInstances blend with the hardware
+        // with blend modes, which blend in the shader, & kInstances blend with the hardware. A kInstancesBase begins a pass, & its end is
+        // the height of the accumulation texture's rows the pass's edges use, from its top, so an encoder can limit an edges pass to them
         enum Type { kQuadEdges, kFastEdges, kFastMolecules, kQuadMolecules, kOpaques, kInstances, kSegmentsBase, kInstancesBase, kDisableClip, kEnableClip, kClipMask, kBlendInstances };
         static constexpr size_t kMaxBlendBatches = 32;     // Of a pass, beyond which all its instances are kBlendInstances
         struct Entry {
@@ -900,7 +901,7 @@ struct Rasterizer {
         struct Pass {
             Pass(size_t idx) : idx(idx) {}
             size_t count() const { return counts[0] + counts[1] + counts[2] + counts[3]; }
-            size_t idx, counts[4] = { 0, 0, 0, 0 };
+            size_t idx, height = 0, counts[4] = { 0, 0, 0, 0 };     // Its height is that of the rows of strips its cells use
         };
         void empty(Bounds device) {
             full = device, sheet = Bounds(0.f, 0.f, 0.f, 0.f), bzero(strips, sizeof(strips)), passes.empty();
@@ -916,6 +917,7 @@ struct Rasterizer {
                 if (sheet.uy - sheet.ly < hght)
                     refill(idx);
                 strip->lx = sheet.lx, strip->ly = sheet.ly, strip->ux = sheet.ux, strip->uy = sheet.ly + hght, sheet.ly = strip->uy;
+                passes.back().height = size_t(ceilf(sheet.ly - full.ly));
             }
             cell->ox = strip->lx, cell->oy = strip->ly, cell->lx = lx, cell->ly = ly, cell->ux = ux, cell->uy = uy, strip->lx += w;
             passes.back().counts[type] += count;
@@ -1931,7 +1933,7 @@ struct Rasterizer {
             passsize = (ip + 1 < count ? (pass + 1)->idx : ctx->blends.end) - pass->idx;
             instbegin = begin + pass->count() * sizeof(Edge);
             if (pass->count()) {
-                ctx->entries.add(Buffer::Entry(Buffer::kInstancesBase, instbegin, 0));
+                ctx->entries.add(Buffer::Entry(Buffer::kInstancesBase, instbegin, pass->height));
                 
                 quadEdge = (Edge *)(buffer.base + begin), end = begin + pass->counts[Allocator::kQuadEdges] * sizeof(Edge);
                 ctx->entries.add(Buffer::Entry(Buffer::kQuadEdges, begin, end)), begin = end;

@@ -337,7 +337,7 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
     float dx = clamp(select(floor(slx), ux, vid & 1), float(cell.lx), float(cell.ux));
     float dy = clamp(select(floor(sly), ceil(suy), vid >> 1), float(cell.ly), float(cell.uy));
     float x = (cell.ox - cell.lx + dx) / *width * 2.0 - 1.0, offx = 0.5 - dx;
-    float y = (cell.oy - cell.ly + dy) / *height * 2.0 - 1.0, offy = 0.5 - dy;
+    float y = 1.0 - (cell.oy - cell.ly + dy) / *height * 2.0, offy = 0.5 - dy;
     vert.position = float4(x, y, 1.0, slx == sux && sly == suy ? 0.0 : 1.0);
     for (dst = & vert.x0, i = 0; i < kFastSegments + 1; i++, dst += 2)
         dst[0] += offx, dst[1] += offy;
@@ -408,7 +408,7 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
     float dx = clamp(select(floor(slx), ceil(sux), vid & 1), float(cell.lx), float(cell.ux));
     float dy = clamp(select(floor(sly), ceil(suy), vid >> 1), float(cell.ly), float(cell.uy));
     float x = (cell.ox - cell.lx + dx) / *width * 2.0 - 1.0, offx = 0.5 - dx;
-    float y = (cell.oy - cell.ly + dy) / *height * 2.0 - 1.0, offy = 0.5 - dy;
+    float y = 1.0 - (cell.oy - cell.ly + dy) / *height * 2.0, offy = 0.5 - dy;
     
     vert.position = float4(x, y, 1.0, 1.0);
     vert.x0 = x0 + offx, vert.y0 = y0 + offy;
@@ -490,7 +490,7 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
     float dx = select(max(floor(slx), float(cell.lx)), float(cell.ux), vid & 1);
     float dy = select(max(floor(sly), float(cell.ly)), min(ceil(suy), float(cell.uy)), vid >> 1);
     float x = (cell.ox - cell.lx + dx) / *width * 2.0 - 1.0;
-    float y = (cell.oy - cell.ly + dy) / *height * 2.0 - 1.0;
+    float y = 1.0 - (cell.oy - cell.ly + dy) / *height * 2.0;
     vert.position = float4(x, y, 1.0, visible);
     
     for (int i = 0; i < 12; i += 2)
@@ -644,7 +644,7 @@ vertex InstancesVertex instances_vertex_main(
         dx = isRight ? cell.ux : cell.lx;
         dy = isTop ? cell.uy : cell.ly;
         vert.u = cell.ox == kNullIndex ? FLT_MAX : (dx - (cell.lx - cell.ox)) / *width;
-        vert.v = 1.0 - (dy - (cell.ly - cell.oy)) / *height;
+        vert.v = (dy - (cell.ly - cell.oy)) / *height;     // Cells fill the accumulation texture from its top, so edges passes can be shorter
         vert.cover = inst.quad.cover;
     }
     float x = dx / *width * 2.0 - 1.0, y = dy / *height * 2.0 - 1.0;

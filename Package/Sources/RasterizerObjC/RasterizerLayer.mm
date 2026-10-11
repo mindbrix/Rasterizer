@@ -382,6 +382,11 @@ struct TextureCache : MetalCache<id <MTLTexture>, const Ra::Paint &> {
     edgesDescriptor.colorAttachments[0].storeAction = MTLStoreActionStore;
     edgesDescriptor.colorAttachments[0].loadAction = MTLLoadActionClear;
     edgesDescriptor.colorAttachments[0].clearColor = MTLClearColorMake(0, 0, 0, 0);
+    edgesDescriptor.renderTargetWidth = _accumulationTexture.width;
+    // An edges pass renders only the accumulation rows its edges use, as clearing & storing all of them is costly. Its viewport is its
+    // height, which its edges map their rows to
+    NSUInteger edgesHeight = _accumulationTexture.height;
+    float passHeight = _accumulationTexture.height;
     
     MTLScissorRect maskBounds = { 0, 0, 0, 0 };
     size_t maskID = 0;    // The identity of the mask the clip mask holds, as contexts beginning with the last one's clip repeat it
@@ -394,6 +399,8 @@ struct TextureCache : MetalCache<id <MTLTexture>, const Ra::Paint &> {
         if (passKind == kind && kind != kEdgesPass)
             return;
         [commandEncoder endEncoding];
+        if (kind == kEdgesPass)
+            edgesDescriptor.renderTargetHeight = MAX(NSUInteger(1), MIN(edgesHeight, _accumulationTexture.height)), passHeight = edgesDescriptor.renderTargetHeight;
         commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:kind == kEdgesPass ? edgesDescriptor : drawableDescriptor];
         passKind = kind;
         if (kind == kDrawablePass)
@@ -409,7 +416,7 @@ struct TextureCache : MetalCache<id <MTLTexture>, const Ra::Paint &> {
                 segbase = entry.begin;
                 break;
             case Ra::Buffer::kInstancesBase:
-                instbase = entry.begin;
+                instbase = entry.begin, edgesHeight = entry.end;
                 break;
             case Ra::Buffer::kDisableClip:
             case Ra::Buffer::kEnableClip:
@@ -465,7 +472,7 @@ struct TextureCache : MetalCache<id <MTLTexture>, const Ra::Paint &> {
                     [commandEncoder setVertexBuffer:mtlBuffer offset:instbase atIndex:5];
                     [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->p16s atIndex:8];
                     [commandEncoder setVertexBytes:& width length:sizeof(width) atIndex:10];
-                    [commandEncoder setVertexBytes:& height length:sizeof(height) atIndex:11];
+                    [commandEncoder setVertexBytes:& passHeight length:sizeof(passHeight) atIndex:11];
                     [commandEncoder setVertexBytes:& buffer->params length:sizeof(Ra::Params) atIndex:14];
                     [commandEncoder setFragmentBuffer:mtlBuffer offset:segbase atIndex:2];
                     [commandEncoder setFragmentBytes:& buffer->params length:sizeof(Ra::Params) atIndex:14];

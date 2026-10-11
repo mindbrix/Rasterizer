@@ -281,7 +281,8 @@ struct TextureCache {
 // clip mask revisions zero it with a scissored clear pass. RA_CLIP_IN_PASS, set when Shaders.metal reads the mask with framebuffer
 // fetch, renders each mask in the drawable pass as its color attachment 1, so a frame with clip masks has no mask passes.
 // RA_BLEND, set when Rasterizer.h has blend modes, draws a frame with them using the instance pipelines that blend in the shader.
-// RA_IMAGES, set when Shaders.metal samples images from an argument buffer, binds the frame's images once per drawable pass
+// RA_IMAGES, set when Shaders.metal samples images from an argument buffer, binds the frame's images once per drawable pass.
+// RA_EDGES_HEIGHT, set when Rasterizer.hpp's allocator passes have heights, limits each edges pass to the accumulation rows it uses
 #if RA_CLIP_MASK
 static const MTLPixelFormat kDepthFormat = MTLPixelFormatDepth32Float;
 #else
@@ -577,6 +578,11 @@ struct Offscreen {
         edgesDescriptor.colorAttachments[0].storeAction = MTLStoreActionStore;
         edgesDescriptor.colorAttachments[0].loadAction = MTLLoadActionClear;
         edgesDescriptor.colorAttachments[0].clearColor = MTLClearColorMake(0, 0, 0, 0);
+#if RA_EDGES_HEIGHT
+        edgesDescriptor.renderTargetWidth = accumulationTexture.width;
+        NSUInteger edgesHeight = accumulationTexture.height;
+#endif
+        float passHeight = accumulationTexture.height;    // The edges pass's viewport height, which its edges map their rows to
 
         bool useClip = false, useImage = false, inMask = false, skipMask = false;
         enum PassKind { kDrawablePass, kEdgesPass, kMaskPass } passKind = kDrawablePass;
@@ -584,6 +590,10 @@ struct Offscreen {
             if (lazyPasses && passKind == kind && kind != kEdgesPass)
                 return;
             [commandEncoder endEncoding];
+#if RA_EDGES_HEIGHT
+            if (kind == kEdgesPass)
+                edgesDescriptor.renderTargetHeight = MAX(NSUInteger(1), MIN(edgesHeight, accumulationTexture.height)), passHeight = edgesDescriptor.renderTargetHeight;
+#endif
             commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:kind == kMaskPass ? maskDescriptor : kind == kEdgesPass ? edgesDescriptor : drawableDescriptor];
             passKind = kind;
 #if RA_IMAGES
@@ -600,7 +610,11 @@ struct Offscreen {
             Ra::Buffer::Entry& entry = buffer->entries.base[i];
             switch (entry.type) {
                 case Ra::Buffer::kSegmentsBase:  segbase = entry.begin;  break;
+#if RA_EDGES_HEIGHT
+                case Ra::Buffer::kInstancesBase:  instbase = entry.begin, edgesHeight = entry.end;  break;
+#else
                 case Ra::Buffer::kInstancesBase:  instbase = entry.begin;  break;
+#endif
                 case Ra::Buffer::kDisableClip:
                 case Ra::Buffer::kEnableClip:
                     inMask = skipMask = false, useClip = entry.type == Ra::Buffer::kEnableClip;
@@ -704,7 +718,7 @@ struct Offscreen {
 #endif
                         [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->p16s atIndex:8];
                         [commandEncoder setVertexBytes:& width length:sizeof(width) atIndex:10];
-                        [commandEncoder setVertexBytes:& height length:sizeof(height) atIndex:11];
+                        [commandEncoder setVertexBytes:& passHeight length:sizeof(passHeight) atIndex:11];
                         [commandEncoder setVertexBytes:& buffer->params length:sizeof(Ra::Params) atIndex:14];
                         [commandEncoder setFragmentBuffer:mtlBuffer offset:segbase atIndex:2];
                         [commandEncoder setFragmentBytes:& buffer->params length:sizeof(Ra::Params) atIndex:14];
@@ -2125,7 +2139,8 @@ if [[ ! -x $B/rabench || $S/ra/rabench.mm -nt $B/rabench || -n $(find $INC $RA/R
   RULE=0; grep -q kClipEvenOdd $INC/Rasterizer.hpp && RULE=1    # Its draws' clip fill rules, else even-odd clips
   PATHS=0; grep -q 'struct PathData' $INC/Rasterizer.hpp && PATHS=1    # Its per-path data as one array of structs, else an array each
   BATCHES=0; grep -q kBlendInstances $INC/Rasterizer.hpp && BATCHES=1    # Its batches of draws with blend modes, else a frame's blend mode
-  clang++ -O3 -std=c++17 -fobjc-arc -DRA_CLIP_MASK=$CLIP -DRA_CLIP_CLEAR_CELLS=$CLEAR -DRA_CLIP_IN_PASS=$INPASS -DRA_BLEND=$BLEND -DRA_IMAGES=$IMAGES -DRA_CLIP_RULE=$RULE -DRA_PATH_DATA=$PATHS -DRA_BLEND_BATCHES=$BATCHES -x objective-c++ $S/ra/rabench.mm -x none $W/obj/xxhash.o $W/obj/nanosvg.o \
+  HEIGHTS=0; grep -q 'size_t idx, height' $INC/Rasterizer.hpp && HEIGHTS=1    # Its edges passes' heights, from the accumulation texture's top
+  clang++ -O3 -std=c++17 -fobjc-arc -DRA_CLIP_MASK=$CLIP -DRA_CLIP_CLEAR_CELLS=$CLEAR -DRA_CLIP_IN_PASS=$INPASS -DRA_BLEND=$BLEND -DRA_IMAGES=$IMAGES -DRA_CLIP_RULE=$RULE -DRA_PATH_DATA=$PATHS -DRA_BLEND_BATCHES=$BATCHES -DRA_EDGES_HEIGHT=$HEIGHTS -x objective-c++ $S/ra/rabench.mm -x none $W/obj/xxhash.o $W/obj/nanosvg.o \
     -I$INC -I$RA/Rasterizer/Demo ${=${PDFIUM:+-I$PDFIUM/Headers -L$PDFIUM -lpdfium -Wl,-rpath,$PDFIUM}} \
     -framework Foundation -framework Metal -framework QuartzCore -framework CoreGraphics -framework CoreText -framework ImageIO -framework CoreServices \
     -Wno-deprecated-declarations -o $B/rabench
