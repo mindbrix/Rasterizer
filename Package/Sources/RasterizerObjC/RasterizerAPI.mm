@@ -400,7 +400,7 @@ static uint8_t joinFlags(RAJoinStyle joinStyle) {
     _scene->addPath(p, m, color.paint, width, capFlags(capStyle) | joinFlags(joinStyle) | Ra::Draw::kClipEvenOdd, & clipBounds, clipPath != nil ? & clp : nullptr, blendMode);
 }
 
-- (CGRect)addText:(NSAttributedString *)string inRect:(CGRect)rect ctm:(CGAffineTransform)ctm clip:(CGRect)clip clipPath:(nullable RAPath *)clipPath {
+- (CGRect)addText:(NSAttributedString *)string inRect:(CGRect)rect ctm:(CGAffineTransform)ctm clip:(CGRect)clip {
     GlyphCache cache;
     [self checkNotUpdating];
     return RaCT::addTextToSceneInRect((__bridge CFAttributedStringRef)string, rect, ctm, clip, _scene, cache);
