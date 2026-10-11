@@ -518,7 +518,6 @@ struct InstancesVertex
     float3 tex;
     float u, v, w;
     float cover [[flat]];
-    float x, y, z;
     uint32_t iz;
     uint image [[flat]];
 };
@@ -623,15 +622,16 @@ vertex InstancesVertex instances_vertex_main(
             float offset = roundCap ? 0.0 : squareCap ? dw : 0.5;
             float d0 = (dx - x0) * no.x + (dy - y0) * no.y;
             float d1 = (dx - x2) * -no.x + (dy - y2) * -no.y;
-            vert.w = pcap ? offset + d0 : roundJoin ? d0 : FLT_MAX;
-            vert.z = ncap ? offset + d1 : roundJoin ? d1 : FLT_MAX;
+            vert.v = pcap ? offset + d0 : roundJoin ? d0 : FLT_MAX;
+            vert.w = ncap ? offset + d1 : roundJoin ? d1 : FLT_MAX;
             
             flags = flags | ((pcap && roundCap) || (!pcap && roundJoin)) * Instance::kF0;
             flags = flags | ((ncap && roundCap) || (!ncap && roundJoin)) * Instance::kF1;
         } else
         {
-            vert.u = x0 - dx, vert.v = x1 - dx, vert.w = x2 - dx;
-            vert.x = y0 - dy, vert.y = y1 - dy, vert.z = y2 - dy;
+            // The vertex's barycentric coordinates in the control triangle, from which the fragment recovers the control points
+            float ex = dx - x2, ey = dy - y2, rdet = 1.0 / (cx * ay - ax * cy);
+            vert.u = (ey * ax - ex * ay) * rdet, vert.v = (ey * cx - ex * cy) * rdet;
             
             flags = flags | Instance::kIsCurve;
             flags = flags | (pcap ? !roundCap : !roundJoin) * Instance::kF0;
@@ -691,16 +691,18 @@ inline float4 instanceColor(InstancesVertex vert, texture2d<float> accumulation,
         const float dw = max(1.0, vert.cover);
         
         if (!isCurve) {
-            float dx = vert.u, dy = min(vert.w, vert.z), ry = min(0.0, dy);
+            float dx = vert.u, dy = min(vert.v, vert.w), ry = min(0.0, dy);
             float rect = saturate(dw - abs(dx)) * saturate(dy);
             float lozenge = saturate(dw - sqrt(dx * dx + ry * ry));
-            alpha = vert.w < vert.z ? (f0 ? lozenge : rect) : (f1 ? lozenge : rect);
+            alpha = vert.v < vert.w ? (f0 ? lozenge : rect) : (f1 ? lozenge : rect);
         } else
         {
             float x0, y0, x1, y1, x2, y2, d0, dm0, d1, dm1, sqdist, sd0, sd1, cap, cap0, cap1;
                 
-            x0 = vert.u, x1 = vert.v, x2 = vert.w;
-            y0 = vert.x, y1 = vert.y, y2 = vert.z;
+            // Barycentrics are affine in screen space, so their derivatives invert to the control triangle's edges, p0 - p2 & p1 - p2
+            float a = dfdx(vert.u), b = -dfdy(vert.u), c = dfdx(vert.v), d = -dfdy(vert.v), rdet = 1.0 / (a * d - b * c);
+            float2 e0 = float2(d, -c) * rdet, e1 = float2(-b, a) * rdet, p2 = -(e0 * vert.u + e1 * vert.v), p0 = p2 + e0, p1 = p2 + e1;
+            x0 = p0.x, y0 = p0.y, x1 = p1.x, y1 = p1.y, x2 = p2.x, y2 = p2.y;
             
             sqdist = sqBezier(float2(x0, y0), float2(x1, y1), float2(x2, y2));
             float outline = saturate(dw - sqrt(sqdist));
