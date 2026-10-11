@@ -390,7 +390,7 @@ struct RasterizerPDF {
     struct Shading {
         Ra::Transform ctm, unit;        // ctm & alpha are the sh operator's
         bool isValid = false, isRadial = false, extendLo = false, extendHi = false;
-        bool isTwoCircle = false;       // A radial whose circles aren't concentric, which CoreGraphics draws
+        bool isTwoCircle = false;       // A radial whose circles aren't concentric, drawn with a two-circle paint
         bool isEmpty = false;           // A radial whose circles are identical, which paints nothing, as pdfium & CoreGraphics
         bool hasBBox = false;           // Its BBox, in shading space, which it's clipped to
         Ra::Bounds bbox;
@@ -3547,12 +3547,16 @@ struct RasterizerPDF {
                 return;
             clipBounds = & boxClip;
         }
-        if (shading.isTwoCircle)
-            return writeTwoCircleGradientToScene(shading, alpha, blend, path, ctm, flags, clipBounds, clipPath, scene);
         std::vector<Ra::Color> colors = shading.colors;
         std::vector<float> locations = shading.locations;
         for (auto& color : colors)
             color.a = uint8_t(color.a * alpha + 0.5f);
+        if (shading.isTwoCircle) {      // Its paint leaves unextended ends unpainted
+            const float *c = shading.circles;
+            Ra::Paint paint(colors.data(), locations.data(), colors.size(), shading.ctm.concat(ctm.invert()), c[0], c[1], c[2], c[3], c[4], c[5], shading.extendLo, shading.extendHi);
+            scene->addPath(path, ctm, paint, 0.f, flags, clipBounds, clipPath, blend);
+            return;
+        }
         Ra::Transform unit = shading.unit.concat(shading.ctm);      // Gradient space to page space
         Ra::Bounds extent = Ra::Bounds(path->bounds.quad(ctm));
         if (clipBounds)
@@ -3634,36 +3638,7 @@ struct RasterizerPDF {
         scene->addPath(path, ctm, paint, 0.f, flags, clipBounds, & clip, blend);
     }
     
-    // Fills path, in ctm space, with a radial gradient of two circles that aren't concentric, which Rasterizer's radial gradients
-    // are. CoreGraphics draws it into an image of the path's bounds, which an image paint covers, at 2 pixels per unit, up to
-    // kMaxGradientSize, as it's smooth, & without its unextended ends
-    static constexpr float kMaxGradientSize = 2048.f;
-    static void writeTwoCircleGradientToScene(const Shading& shading, float alpha, uint8_t blend, Ra::Path& path, Ra::Transform ctm, uint8_t flags, Ra::Bounds* clipBounds, Ra::Path *clipPath, Ra::SceneRef& scene) {
-        path->validate();
-        Ra::Bounds b = path->bounds;
-        float bw = b.ux - b.lx, bh = b.uy - b.ly;
-        if (b.isNull() || bw <= 0.f || bh <= 0.f || ctm.det() == 0.f)
-            return;
-        size_t w = fmaxf(1.f, fminf(kMaxGradientSize, ceilf(2.f * hypotf(ctm.a, ctm.b) * bw)));
-        size_t h = fmaxf(1.f, fminf(kMaxGradientSize, ceilf(2.f * hypotf(ctm.c, ctm.d) * bh)));
-        std::vector<Ra::Color> pixels(w * h, Ra::Color(0, 0, 0, 0));
-        CGColorSpaceRef rgb = CGColorSpaceCreateDeviceRGB();
-        CGContextRef ctx = CGBitmapContextCreate(pixels.data(), w, h, 8, w * sizeof(Ra::Color), rgb, kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little);
-        std::vector<CGFloat> components, locations(shading.locations.begin(), shading.locations.end());
-        for (const Ra::Color& c : shading.colors)
-            components.insert(components.end(), { c.r / 255.0, c.g / 255.0, c.b / 255.0, c.a / 255.0 * alpha });
-        CGGradientRef gradient = CGGradientCreateWithColorComponents(rgb, components.data(), locations.data(), locations.size());
-        if (ctx && gradient) {
-            // Shading space to page space, to the path's space, to its bounds' image
-            Ra::Transform m = shading.ctm.concat(ctm.invert()).concat(Ra::Transform(w / bw, 0.f, 0.f, h / bh, -b.lx * w / bw, -b.ly * h / bh));
-            CGContextConcatCTM(ctx, CGAffineTransformMake(m.a, m.b, m.c, m.d, m.tx, m.ty));
-            const float *c = shading.circles;
-            CGGradientDrawingOptions options = (shading.extendLo ? kCGGradientDrawsBeforeStartLocation : 0) | (shading.extendHi ? kCGGradientDrawsAfterEndLocation : 0);
-            CGContextDrawRadialGradient(ctx, gradient, CGPointMake(c[0], c[1]), c[2], CGPointMake(c[3], c[4]), c[5], options);
-            scene->addPath(path, ctm, Ra::Paint(pixels.data(), w, h, w * sizeof(Ra::Color)), 0.f, flags, clipBounds, clipPath, blend);
-        }
-        CGGradientRelease(gradient), CGContextRelease(ctx), CGColorSpaceRelease(rgb);
-    }
+    static constexpr float kMaxGradientSize = 2048.f;     // The largest pattern image, in pixels
     
     // Fills path, in ctm space, with a tiling pattern. RasterizerCG draws its cell's objects into an image of its bounding box,
     // which a CGPattern tiles into an image of the path's bounds, at 2 pixels per unit, up to kMaxGradientSize, which an image

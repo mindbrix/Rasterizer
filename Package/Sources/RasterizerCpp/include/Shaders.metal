@@ -13,10 +13,40 @@ constexpr sampler cs = sampler(coord::normalized, address::clamp_to_edge, mag_fi
 // Images are sampled from an argument buffer of the frame's image textures, indexed per draw, which needs tier 2 argument buffers.
 // Without them, e.g. in the iOS Simulator, kImages is false, & images aren't drawn
 constant bool kImages [[function_constant(0)]];
+// Two-circle radials are drawn by instance pipelines made with kTwoCircles, which only frames with them use, as the code costs other
+// draws' fragments registers, even when they don't run it
+constant bool kTwoCircles [[function_constant(1)]];
 constant uint kNoImage = 0xFFFFFFFF;
 struct Image {
     texture2d<float> texture;
 };
+// A two-circle radial's flags, as Bitmap's, which all have kTwoCircle, 1 << 0, set
+constant uint kExtendLo = 1 << 1, kExtendHi = 1 << 2, kLinearT = 1 << 3;
+
+// A two-circle radial's gradient position at (x, y) in its normalized space, where the circle at t is centered at
+// ((1 - t) * fx, 0) with radius fr + t * dr: the greatest root t of a * t^2 - 2 * b * t + c = 0 whose radius is >= 0 & that is
+// within an unextended end, or FLT_MAX if there isn't one, so the point isn't painted
+inline float twoCircleT(float x, float y, float fx, float fr, float dr, uint flags) {
+    float px = x - fx, a = fx * fx - dr * dr, b = fr * dr - px * fx, c = px * px + y * y - fr * fr, t0, t1;
+    if (flags & kLinearT) {
+        if (b == 0.0)
+            return FLT_MAX;
+        t0 = t1 = 0.5 * c / b;
+    } else {
+        float d = b * b - a * c;
+        if (d < 0.0)
+            return FLT_MAX;
+        float q = sqrt(d), ra = 1.0 / a;
+        t0 = max((b + q) * ra, (b - q) * ra), t1 = min((b + q) * ra, (b - q) * ra);
+    }
+    bool lo = flags & kExtendLo, hi = flags & kExtendHi;
+    if (fr + t0 * dr >= 0.0 && (t0 >= 0.0 || lo) && (t0 <= 1.0 || hi))
+        return t0;
+    if (fr + t1 * dr >= 0.0 && (t1 >= 0.0 || lo) && (t1 <= 1.0 || hi))
+        return t1;
+    return FLT_MAX;
+}
+
 // A draw's color texture sample, or its image's
 inline float4 paintColor(float3 tex, uint image, texture2d<float> colorTexture, const device Image *images) {
     if (image != kNoImage)
@@ -34,6 +64,7 @@ struct Bounds {
 
 struct PathData {
     Transform ctm, clip, texCtm;  float width;  uint32_t texIdx, mode;
+    float fx, fr, dr;  uint32_t radial;
 };
 
 struct Colorant {
@@ -660,6 +691,8 @@ vertex InstancesVertex instances_vertex_main(
         vert.tex.x = dx * texCtm.b + dy * texCtm.d + texCtm.ty;
         vert.tex.y = (0.5 + (th + paths[iz].texIdx)) / float(th + *texCount);
         vert.tex.z = isRadial ? dx * texCtm.a + dy * texCtm.c + texCtm.tx : 0;
+        if (isRadial && path.radial)
+            vert.iz |= Instance::kIsRadial;
     } else if (isImage) {
         vert.tex.x = dx * texCtm.a + dy * texCtm.c + texCtm.tx;
         vert.tex.y = 1.0 - (dx * texCtm.b + dy * texCtm.d + texCtm.ty);
@@ -681,7 +714,8 @@ inline float fillCoverage(InstancesVertex vert, texture2d<float> accumulation) {
     return vert.iz & Instance::kEvenOdd ? 1.0 - abs(fmod(cover, 2.0) - 1.0) : min(1.0, cover);
 }
 
-inline float4 instanceColor(InstancesVertex vert, texture2d<float> accumulation, texture2d<float> colorTexture, const device Image *images)
+// kIsRadial in a vertex's iz marks a two-circle radial, whose fragments read their path's circles, so other draws need no varyings for them
+inline float4 instanceColor(InstancesVertex vert, texture2d<float> accumulation, texture2d<float> colorTexture, const device Image *images, const device PathData *paths)
 {
     float alpha = 1.0;
     if (vert.iz & Instance::kOutlines) {
@@ -726,15 +760,23 @@ inline float4 instanceColor(InstancesVertex vert, texture2d<float> accumulation,
     float sx = rsqrt(a * a + b * b), sy = rsqrt(c * c + d * d);
     float clip = saturate(0.5 + clx * sx) * saturate(0.5 + (1.0 - clx) * sx) * saturate(0.5 + cly * sy) * saturate(0.5 + (1.0 - cly) * sy);
     
-    return alpha * vert.alpha * clip * paintColor(vert.tex, vert.image, colorTexture, images);
+    float4 color;
+    if (kTwoCircles && vert.iz & Instance::kIsRadial) {
+        const device PathData& path = paths[vert.iz & kPathIndexMask];
+        float t = twoCircleT(vert.tex.z, vert.tex.x, path.fx, path.fr, path.dr, path.radial);
+        color = t == FLT_MAX ? float4(0.0) : colorTexture.sample(cs, float2(t, vert.tex.y));
+    } else
+        color = paintColor(vert.tex, vert.image, colorTexture, images);
+    return alpha * vert.alpha * clip * color;
 }
 
 fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
                                         texture2d<float> accumulation [[texture(0)]],
                                         texture2d<float> colorTexture [[texture(1)]],
+                                        const device PathData *paths [[buffer(1)]],
                                         const device Image *images [[buffer(2), function_constant(kImages)]])
 {
-    return instanceColor(vert, accumulation, colorTexture, images);
+    return instanceColor(vert, accumulation, colorTexture, images, paths);
 }
 
 // Clipped by the clip mask, the drawable pass's color attachment 1, read with framebuffer fetch. Only the current clip's bounds
@@ -744,10 +786,11 @@ fragment float4 instances_clip_fragment_main(InstancesVertex vert [[stage_in]],
                                              texture2d<float> colorTexture [[texture(1)]],
                                              float clipMask [[color(1)]],
                                              constant uint4 *maskBounds [[buffer(0)]],
+                                             const device PathData *paths [[buffer(1)]],
                                              const device Image *images [[buffer(2), function_constant(kImages)]])
 {
     uint2 p = uint2(vert.position.xy), b0 = maskBounds->xy, b1 = b0 + maskBounds->zw;
-    return instanceColor(vert, accumulation, colorTexture, images) * (all(p >= b0) && all(p < b1) ? clipMask : 0.0);
+    return instanceColor(vert, accumulation, colorTexture, images, paths) * (all(p >= b0) && all(p < b1) ? clipMask : 0.0);
 }
 
 #pragma mark - Blend modes
@@ -821,7 +864,7 @@ fragment float4 instances_blend_fragment_main(InstancesVertex vert [[stage_in]],
                                               const device PathData *paths [[buffer(1)]],
                                               const device Image *images [[buffer(2), function_constant(kImages)]])
 {
-    return blendColor(instanceColor(vert, accumulation, colorTexture, images), dst, blendMode(vert, paths));
+    return blendColor(instanceColor(vert, accumulation, colorTexture, images, paths), dst, blendMode(vert, paths));
 }
 
 fragment float4 instances_clip_blend_fragment_main(InstancesVertex vert [[stage_in]],
@@ -834,7 +877,7 @@ fragment float4 instances_clip_blend_fragment_main(InstancesVertex vert [[stage_
                                                    const device Image *images [[buffer(2), function_constant(kImages)]])
 {
     uint2 p = uint2(vert.position.xy), b0 = maskBounds->xy, b1 = b0 + maskBounds->zw;
-    float4 src = instanceColor(vert, accumulation, colorTexture, images) * (all(p >= b0) && all(p < b1) ? clipMask : 0.0);
+    float4 src = instanceColor(vert, accumulation, colorTexture, images, paths) * (all(p >= b0) && all(p < b1) ? clipMask : 0.0);
     return blendColor(src, dst, blendMode(vert, paths));
 }
 

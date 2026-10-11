@@ -282,6 +282,8 @@ struct TextureCache {
 // fetch, renders each mask in the drawable pass as its color attachment 1, so a frame with clip masks has no mask passes.
 // RA_BLEND, set when Rasterizer.h has blend modes, draws a frame with them using the instance pipelines that blend in the shader.
 // RA_IMAGES, set when Shaders.metal samples images from an argument buffer, binds the frame's images once per drawable pass
+// RA_TWO_CIRCLE, set when Shaders.metal has two-circle radials, binds the path data to every instance fragment, which reads their
+// circles, & draws frames with them using the instance pipelines made with kTwoCircles
 #if RA_CLIP_MASK
 static const MTLPixelFormat kDepthFormat = MTLPixelFormatDepth32Float;
 #else
@@ -297,6 +299,9 @@ struct Offscreen {
 #endif
 #if RA_BLEND
     id<MTLRenderPipelineState> instancesBlend, instancesBlendMasked, instancesClipBlend;
+#endif
+#if RA_TWO_CIRCLE
+    struct { id<MTLRenderPipelineState> instances, masked, blend, blendMasked, clip, clipBlend; } twoCircle;    // Made with kTwoCircles
 #endif
 #if RA_IMAGES
     id<MTLArgumentEncoder> imageEncoder;
@@ -328,7 +333,15 @@ struct Offscreen {
         bool hasImages = device.argumentBuffersSupport == MTLArgumentBuffersTier2;
         MTLFunctionConstantValues *constants = [MTLFunctionConstantValues new];
         [constants setConstantValue:& hasImages type:MTLDataTypeBool atIndex:0];
+#if RA_TWO_CIRCLE
+        bool twoCircles = false;    // Two-circle radials are drawn by instance pipelines made with kTwoCircles
+        auto fn = [&](const char *name) {
+            [constants setConstantValue:& twoCircles type:MTLDataTypeBool atIndex:1];
+            return name ? [library newFunctionWithName:@(name) constantValues:constants error:nil] : nil;
+        };
+#else
         auto fn = [&](const char *name) { return name ? [library newFunctionWithName:@(name) constantValues:constants error:nil] : nil; };
+#endif
 #else
         auto fn = [&](const char *name) { return name ? [library newFunctionWithName:@(name)] : nil; };
 #endif
@@ -406,6 +419,21 @@ struct Offscreen {
 #if RA_CLIP_MASK
         p.fragmentFunction = fn("instances_clip_fragment_main");
         instancesClip = [device newRenderPipelineStateWithDescriptor:p error:nil];
+#endif
+#if RA_TWO_CIRCLE
+        twoCircles = true;
+        auto twoCirclePipeline = [&](const char *name, bool masked, bool blends) {
+            p.colorAttachments[1].pixelFormat = masked ? MTLPixelFormatR8Unorm : MTLPixelFormatInvalid;
+            p.colorAttachments[0].blendingEnabled = !blends, p.fragmentFunction = fn(name);
+            return [device newRenderPipelineStateWithDescriptor:p error:nil];
+        };
+        twoCircle.instances = twoCirclePipeline("instances_fragment_main", false, false);
+        twoCircle.masked = twoCirclePipeline("instances_fragment_main", true, false);
+        twoCircle.blend = twoCirclePipeline("instances_blend_fragment_main", false, true);
+        twoCircle.blendMasked = twoCirclePipeline("instances_blend_fragment_main", true, true);
+        twoCircle.clip = twoCirclePipeline("instances_clip_fragment_main", true, false);
+        twoCircle.clipBlend = twoCirclePipeline("instances_clip_blend_fragment_main", true, true);
+        p.colorAttachments[1].pixelFormat = MTLPixelFormatR8Unorm, p.colorAttachments[0].blendingEnabled = YES, twoCircles = false;
 #endif
 #if RA_CLIP_IN_PASS
         p.colorAttachments[1].pixelFormat = MTLPixelFormatInvalid, p.colorAttachments[1].writeMask = MTLColorWriteMaskAll;
@@ -498,6 +526,11 @@ struct Offscreen {
         bool hasBlends = buffer->hasBlends && instancesBlend && instancesClipBlend;
         if (hasBlends)
             instancesState = hasMasks ? instancesBlendMasked : instancesBlend, instancesClipState = instancesClipBlend;
+#endif
+#if RA_TWO_CIRCLE
+        if (buffer->hasTwoCircles)
+            instancesState = hasBlends ? (hasMasks ? twoCircle.blendMasked : twoCircle.blend) : hasMasks ? twoCircle.masked : twoCircle.instances,
+            instancesClipState = hasBlends ? twoCircle.clipBlend : twoCircle.clip;
 #endif
 #else
         id<MTLRenderPipelineState> opaquesState = opaques, instancesState = instances;
@@ -721,10 +754,13 @@ struct Offscreen {
                         uint32_t bounds[4] = { uint32_t(maskBounds.x), uint32_t(maskBounds.y), uint32_t(maskBounds.width), uint32_t(maskBounds.height) };
                         [commandEncoder setFragmentBytes:bounds length:sizeof(bounds) atIndex:0];
 #if RA_BLEND
+#if RA_TWO_CIRCLE
+                        [commandEncoder setFragmentBuffer:mtlBuffer offset:buffer->paths atIndex:1];    // For blend modes & two-circle radials
+#elif RA_PATH_DATA
                         if (hasBlends)
-#if RA_PATH_DATA
                             [commandEncoder setFragmentBuffer:mtlBuffer offset:buffer->paths atIndex:1];
 #else
+                        if (hasBlends)
                             [commandEncoder setFragmentBuffer:mtlBuffer offset:buffer->modes atIndex:1];
 #endif
 #endif
@@ -2112,7 +2148,8 @@ if [[ ! -x $B/rabench || $S/ra/rabench.mm -nt $B/rabench || -n $(find $INC $RA/R
   IMAGES=0; grep -q 'function_constant(kImages)' $INC/Shaders.metal && IMAGES=1    # Its images, from an argument buffer
   RULE=0; grep -q kClipEvenOdd $INC/Rasterizer.hpp && RULE=1    # Its draws' clip fill rules, else even-odd clips
   PATHS=0; grep -q 'struct PathData' $INC/Rasterizer.hpp && PATHS=1    # Its per-path data as one array of structs, else an array each
-  clang++ -O3 -std=c++17 -fobjc-arc -DRA_CLIP_MASK=$CLIP -DRA_CLIP_CLEAR_CELLS=$CLEAR -DRA_CLIP_IN_PASS=$INPASS -DRA_BLEND=$BLEND -DRA_IMAGES=$IMAGES -DRA_CLIP_RULE=$RULE -DRA_PATH_DATA=$PATHS -x objective-c++ $S/ra/rabench.mm -x none $W/obj/xxhash.o $W/obj/nanosvg.o \
+  TWO=0; grep -q twoCircleT $INC/Shaders.metal && TWO=1    # Its two-circle radials, whose instance fragments read the path data
+  clang++ -O3 -std=c++17 -fobjc-arc -DRA_CLIP_MASK=$CLIP -DRA_CLIP_CLEAR_CELLS=$CLEAR -DRA_CLIP_IN_PASS=$INPASS -DRA_BLEND=$BLEND -DRA_IMAGES=$IMAGES -DRA_CLIP_RULE=$RULE -DRA_PATH_DATA=$PATHS -DRA_TWO_CIRCLE=$TWO -x objective-c++ $S/ra/rabench.mm -x none $W/obj/xxhash.o $W/obj/nanosvg.o \
     -I$INC -I$RA/Rasterizer/Demo ${=${PDFIUM:+-I$PDFIUM/Headers -L$PDFIUM -lpdfium -Wl,-rpath,$PDFIUM}} \
     -framework Foundation -framework Metal -framework QuartzCore -framework CoreGraphics -framework CoreText -framework ImageIO -framework CoreServices \
     -Wno-deprecated-declarations -o $B/rabench
