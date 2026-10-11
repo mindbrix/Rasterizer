@@ -862,14 +862,8 @@ struct Rasterizer {
         uint32_t ic;  enum Flags { ue0 = 0xF << 28, ue1 = 0xF << 24, kMask = ~(ue0 | ue1) };
         uint16_t i0, ux;
     };
-    // A path's data, which the shaders index by its iz. Each field is only written for the draws that use it
     struct PathData {
-        Transform ctm;      // A molecule draw's, from its molecules' 16 bit space, which spans its path's bounds, to device space
-        Transform clip;     // An instance's inverse clip
-        Transform texCtm;   // A gradient or image's
-        float width;        // A stroke's
-        uint32_t texIdx;    // A gradient or image's
-        uint32_t mode;      // A blend's
+        Transform ctm, clip, texCtm;  float width;  uint32_t texIdx, mode;
     };
     struct Buffer {
         // kClipMask begins rendering a clip path's coverage into the clip mask, within the device bounds packed in begin, until kEnableClip.

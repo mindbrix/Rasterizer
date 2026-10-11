@@ -32,12 +32,8 @@ struct Bounds {
     float lx, ly, ux, uy;
 };
 
-// A path's data, as Ra::PathData
 struct PathData {
-    Transform ctm;          // A molecule draw's, from its molecules' 16 bit space to device space
-    Transform clip, texCtm;
-    float width;
-    uint32_t texIdx, mode;
+    Transform ctm, clip, texCtm;  float width;  uint32_t texIdx, mode;
 };
 
 struct Colorant {
