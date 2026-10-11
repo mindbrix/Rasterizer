@@ -657,9 +657,13 @@ struct Offscreen {
 #endif
                     [commandEncoder setRenderPipelineState:opaquesState];
                     [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
+#if RA_PATH_DATA
+                    [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->paths atIndex:4];
+#else
                     [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->widths atIndex:6];
                     [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->texCtms atIndex:8];
                     [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->texIdxs atIndex:9];
+#endif
                     reverse = uint32_t((entry.end - entry.begin) / sizeof(Ra::Opaque));
                     [commandEncoder setVertexBytes:& width length:sizeof(width) atIndex:10];
                     [commandEncoder setVertexBytes:& height length:sizeof(height) atIndex:11];
@@ -686,9 +690,14 @@ struct Offscreen {
                     if (entry.end - entry.begin) {
                         [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
                         [commandEncoder setVertexBuffer:mtlBuffer offset:segbase atIndex:2];
+#if RA_PATH_DATA
+                        [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->paths atIndex:4];
+                        [commandEncoder setVertexBuffer:mtlBuffer offset:instbase atIndex:5];
+#else
                         [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->ctms atIndex:4];
                         [commandEncoder setVertexBuffer:mtlBuffer offset:instbase atIndex:5];
                         [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->bounds atIndex:7];
+#endif
                         [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->p16s atIndex:8];
                         [commandEncoder setVertexBytes:& width length:sizeof(width) atIndex:10];
                         [commandEncoder setVertexBytes:& height length:sizeof(height) atIndex:11];
@@ -713,7 +722,11 @@ struct Offscreen {
                         [commandEncoder setFragmentBytes:bounds length:sizeof(bounds) atIndex:0];
 #if RA_BLEND
                         if (hasBlends)
+#if RA_PATH_DATA
+                            [commandEncoder setFragmentBuffer:mtlBuffer offset:buffer->paths atIndex:1];
+#else
                             [commandEncoder setFragmentBuffer:mtlBuffer offset:buffer->modes atIndex:1];
+#endif
 #endif
                     }
 #elif RA_CLIP_MASK
@@ -734,12 +747,16 @@ struct Offscreen {
                     [commandEncoder setRenderPipelineState:instancesState];
 #endif
                     [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
+#if RA_PATH_DATA
+                    [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->paths atIndex:4];
+#else
                     [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->ctms atIndex:4];
                     [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->clips atIndex:5];
                     [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->widths atIndex:6];
                     [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->bounds atIndex:7];
                     [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->texCtms atIndex:8];
                     [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->texIdxs atIndex:9];
+#endif
                     [commandEncoder setVertexBytes:& width length:sizeof(width) atIndex:10];
                     [commandEncoder setVertexBytes:& height length:sizeof(height) atIndex:11];
                     [commandEncoder setVertexBytes:& pathsCount length:sizeof(pathsCount) atIndex:13];
@@ -2094,7 +2111,8 @@ if [[ ! -x $B/rabench || $S/ra/rabench.mm -nt $B/rabench || -n $(find $INC $RA/R
   BLEND=0; grep -q kBlendNormal $INC/Rasterizer.h && BLEND=1    # Its blend modes, blended in the shader
   IMAGES=0; grep -q 'function_constant(kImages)' $INC/Shaders.metal && IMAGES=1    # Its images, from an argument buffer
   RULE=0; grep -q kClipEvenOdd $INC/Rasterizer.hpp && RULE=1    # Its draws' clip fill rules, else even-odd clips
-  clang++ -O3 -std=c++17 -fobjc-arc -DRA_CLIP_MASK=$CLIP -DRA_CLIP_CLEAR_CELLS=$CLEAR -DRA_CLIP_IN_PASS=$INPASS -DRA_BLEND=$BLEND -DRA_IMAGES=$IMAGES -DRA_CLIP_RULE=$RULE -x objective-c++ $S/ra/rabench.mm -x none $W/obj/xxhash.o $W/obj/nanosvg.o \
+  PATHS=0; grep -q 'struct PathData' $INC/Rasterizer.hpp && PATHS=1    # Its per-path data as one array of structs, else an array each
+  clang++ -O3 -std=c++17 -fobjc-arc -DRA_CLIP_MASK=$CLIP -DRA_CLIP_CLEAR_CELLS=$CLEAR -DRA_CLIP_IN_PASS=$INPASS -DRA_BLEND=$BLEND -DRA_IMAGES=$IMAGES -DRA_CLIP_RULE=$RULE -DRA_PATH_DATA=$PATHS -x objective-c++ $S/ra/rabench.mm -x none $W/obj/xxhash.o $W/obj/nanosvg.o \
     -I$INC -I$RA/Rasterizer/Demo ${=${PDFIUM:+-I$PDFIUM/Headers -L$PDFIUM -lpdfium -Wl,-rpath,$PDFIUM}} \
     -framework Foundation -framework Metal -framework QuartzCore -framework CoreGraphics -framework CoreText -framework ImageIO -framework CoreServices \
     -Wno-deprecated-declarations -o $B/rabench

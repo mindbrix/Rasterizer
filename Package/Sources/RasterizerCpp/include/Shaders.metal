@@ -32,6 +32,15 @@ struct Bounds {
     float lx, ly, ux, uy;
 };
 
+// A path's data, as Ra::PathData
+struct PathData {
+    Transform ctm;
+    Bounds bounds;
+    Transform clip, texCtm;
+    float width;
+    uint32_t texIdx, mode;
+};
+
 struct Colorant {
     uint8_t b, g, r, a;
 };
@@ -201,11 +210,8 @@ struct OpaquesVertex
     uint image [[flat]];
 };
 
-vertex OpaquesVertex opaques_vertex_main(const device Colorant *colors [[buffer(0)]],
-                                         const device Opaque *opaques [[buffer(1)]],
-                                         const device float *widths [[buffer(6)]],
-                                         const device Transform *texCtms [[buffer(8)]],
-                                         const device uint32_t *texIdxs [[buffer(9)]],
+vertex OpaquesVertex opaques_vertex_main(const device Opaque *opaques [[buffer(1)]],
+                                         const device PathData *paths [[buffer(4)]],
                                          constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
                                          constant uint *reverse [[buffer(12)]],
                                          constant uint *pathCount [[buffer(13)]],
@@ -218,13 +224,13 @@ vertex OpaquesVertex opaques_vertex_main(const device Colorant *colors [[buffer(
     const bool isGradient = inst.iz & Instance::kIsGradient;
     const bool isRadial = inst.iz & Instance::kIsRadial;
     const bool isImage = inst.iz & Instance::kIsImage;
-    const device Transform& texCtm = texCtms[iz];
+    const device Transform& texCtm = paths[iz].texCtm;
     const device Cell& cell = inst.cell;
     const device Quadratic& quad = inst.quad;
     float x, y, z = kDepthRange * float((inst.iz & kPathIndexMask) + 1) / float(*pathCount);
     
     if (inst.iz & Instance::kOutlines) {
-        const float dw = 0.5 * (widths[inst.iz & kPathIndexMask] - 1.0);
+        const float dw = 0.5 * (paths[inst.iz & kPathIndexMask].width - 1.0);
         const float x0 = quad.x0, y0 = quad.y0, x1 = quad.x1, y1 = quad.y1, x2 = quad.x2, y2 = quad.y2;
         const bool isFlat = x1 == FLT_MAX;
         const bool isTop = vid >> 1, isRight = vid & 1;
@@ -267,12 +273,12 @@ vertex OpaquesVertex opaques_vertex_main(const device Colorant *colors [[buffer(
     
     if (params->showOpaques && isGradient) {
         vert.tex.x = x * texCtm.b + y * texCtm.d + texCtm.ty;
-        vert.tex.y = (0.5 + (th + texIdxs[iz])) / float(th + *texCount);
+        vert.tex.y = (0.5 + (th + paths[iz].texIdx)) / float(th + *texCount);
         vert.tex.z = isRadial ? x * texCtm.a + y * texCtm.c + texCtm.tx : 0;
     } else if (params->showOpaques && isImage) {
         vert.tex.x = x * texCtm.a + y * texCtm.c + texCtm.tx;
         vert.tex.y = 1.0 - (x * texCtm.b + y * texCtm.d + texCtm.ty);
-        vert.image = texIdxs[iz];
+        vert.image = paths[iz].texIdx;
     }
     return vert;
 }
@@ -296,9 +302,8 @@ struct FastMoleculesVertex
 
 vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [[buffer(1)]],
                                 const device Segment *segments [[buffer(2)]],
-                                const device Transform *ctms [[buffer(4)]],
+                                const device PathData *paths [[buffer(4)]],
                                 const device Instance *instances [[buffer(5)]],
-                                const device Bounds *bounds [[buffer(7)]],
                                 const device Point16 *points [[buffer(8)]],
                                 constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
                                 uint vid [[vertex_id]], uint iid [[instance_id]])
@@ -308,8 +313,8 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
     const device Edge& edge = edges[iid];
     const device Instance& inst = instances[edge.ic & Edge::kMask];
     int segcount = edge.i0, i;
-    const device Transform& m = ctms[inst.iz & kPathIndexMask];
-    const device Bounds& b = bounds[inst.iz & kPathIndexMask];
+    const device Transform& m = paths[inst.iz & kPathIndexMask].ctm;
+    const device Bounds& b = paths[inst.iz & kPathIndexMask].bounds;
     const device Cell& cell = inst.quad.cell;
     const device Point16 *pts = & points[inst.quad.base + (iid - inst.quad.biid) * kFastSegments];
     const device Point16 *molecule = & points[inst.quad.base + (inst.quad.molsbase + edge.ux) * 2];
@@ -371,9 +376,8 @@ struct QuadMoleculesVertex
 
 vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [[buffer(1)]],
                                 const device Segment *segments [[buffer(2)]],
-                                const device Transform *ctms [[buffer(4)]],
+                                const device PathData *paths [[buffer(4)]],
                                 const device Instance *instances [[buffer(5)]],
-                                const device Bounds *bounds [[buffer(7)]],
                                 const device Point16 *points [[buffer(8)]],
                                 constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
                                 uint vid [[vertex_id]], uint iid [[instance_id]])
@@ -382,8 +386,8 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
     
     const device Edge& edge = edges[iid];
     const device Instance& inst = instances[edge.ic & Edge::kMask];
-    const device Transform& m = ctms[inst.iz & kPathIndexMask];
-    const device Bounds& b = bounds[inst.iz & kPathIndexMask];
+    const device Transform& m = paths[inst.iz & kPathIndexMask].ctm;
+    const device Bounds& b = paths[inst.iz & kPathIndexMask].bounds;
     const device Cell& cell = inst.quad.cell;
     const device Point16 *p = & points[inst.quad.base + ((edge.ic & Edge::ue0) >> 12) + edge.i0];
     const device Point16 *molecule = & points[inst.quad.base + (inst.quad.molsbase + edge.ux) * 2];
@@ -442,7 +446,6 @@ struct EdgesVertex
 
 vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
                                      const device Segment *segments [[buffer(2)]],
-                                     const device Transform *ctms [[buffer(4)]],
                                      const device Instance *instances [[buffer(5)]],
                                      constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
                                      constant Params *params [[buffer(14)]],
@@ -534,12 +537,7 @@ struct InstancesVertex
 
 vertex InstancesVertex instances_vertex_main(
             const device Instance *instances [[buffer(1)]],
-            const device Transform *ctms [[buffer(4)]],
-            const device Transform *clips [[buffer(5)]],
-            const device float *widths [[buffer(6)]],
-            const device Bounds *bounds [[buffer(7)]],
-            const device Transform *texCtms [[buffer(8)]],
-            const device uint32_t *texIdxs [[buffer(9)]],
+            const device PathData *paths [[buffer(4)]],
             constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
             constant uint *pathCount [[buffer(13)]],
             constant uint *texCount [[buffer(14)]],
@@ -556,12 +554,13 @@ vertex InstancesVertex instances_vertex_main(
     const bool isRadial = inst.iz & Instance::kIsRadial;
     const bool isImage = inst.iz & Instance::kIsImage;
     
-    const device Transform& clip = clips[iz];
-    const device Transform& texCtm = texCtms[iz];
+    const device PathData& path = paths[iz];
+    const device Transform& clip = path.clip;
+    const device Transform& texCtm = path.texCtm;
     
     float alpha = 1.0, dx, dy;
     if (inst.iz & Instance::kOutlines) {
-        float w = widths[iz], cw = max(1.0, w), dw = 0.5 * (1.0 + cw);
+        float w = path.width, cw = max(1.0, w), dw = 0.5 * (1.0 + cw);
         alpha = select(1.0, w / cw, w != 0);
         
         float x0, y0, x1, y1, x2, y2;
@@ -667,12 +666,12 @@ vertex InstancesVertex instances_vertex_main(
     vert.clip = params->useClips ? float2(dx * clip.a + dy * clip.c + clip.tx, dx * clip.b + dy * clip.d + clip.ty) : 0.5;
     vert.alpha = alpha;
     vert.iz = iz | flags;
-    vert.image = isImage ? texIdxs[iz] : kNoImage;
+    vert.image = isImage ? path.texIdx : kNoImage;
     
     int tw = kColorTextureWidth, th = (*pathCount + tw - 0) / tw;
     if (isGradient) {
         vert.tex.x = dx * texCtm.b + dy * texCtm.d + texCtm.ty;
-        vert.tex.y = (0.5 + (th + texIdxs[iz])) / float(th + *texCount);
+        vert.tex.y = (0.5 + (th + paths[iz].texIdx)) / float(th + *texCount);
         vert.tex.z = isRadial ? dx * texCtm.a + dy * texCtm.c + texCtm.tx : 0;
     } else if (isImage) {
         vert.tex.x = dx * texCtm.a + dy * texCtm.c + texCtm.tx;
@@ -823,8 +822,8 @@ inline float4 blendColor(float4 src, float4 dst, uint mode) {
 }
 
 // Only blended draws write their mode
-inline uint blendMode(InstancesVertex vert, const device uint8_t *modes) {
-    return vert.iz & Instance::kBlend ? modes[vert.iz & kPathIndexMask] : kBlendNormal;
+inline uint blendMode(InstancesVertex vert, const device PathData *paths) {
+    return vert.iz & Instance::kBlend ? paths[vert.iz & kPathIndexMask].mode : kBlendNormal;
 }
 
 // Instances in frames with blend modes blend in the shader, with the drawable, color attachment 0, read with framebuffer fetch
@@ -832,10 +831,10 @@ fragment float4 instances_blend_fragment_main(InstancesVertex vert [[stage_in]],
                                               texture2d<float> accumulation [[texture(0)]],
                                               texture2d<float> colorTexture [[texture(1)]],
                                               float4 dst [[color(0)]],
-                                              const device uint8_t *modes [[buffer(1)]],
+                                              const device PathData *paths [[buffer(1)]],
                                               const device Image *images [[buffer(2), function_constant(kImages)]])
 {
-    return blendColor(instanceColor(vert, accumulation, colorTexture, images), dst, blendMode(vert, modes));
+    return blendColor(instanceColor(vert, accumulation, colorTexture, images), dst, blendMode(vert, paths));
 }
 
 fragment float4 instances_clip_blend_fragment_main(InstancesVertex vert [[stage_in]],
@@ -844,12 +843,12 @@ fragment float4 instances_clip_blend_fragment_main(InstancesVertex vert [[stage_
                                                    float4 dst [[color(0)]],
                                                    float clipMask [[color(1)]],
                                                    constant uint4 *maskBounds [[buffer(0)]],
-                                                   const device uint8_t *modes [[buffer(1)]],
+                                                   const device PathData *paths [[buffer(1)]],
                                                    const device Image *images [[buffer(2), function_constant(kImages)]])
 {
     uint2 p = uint2(vert.position.xy), b0 = maskBounds->xy, b1 = b0 + maskBounds->zw;
     float4 src = instanceColor(vert, accumulation, colorTexture, images) * (all(p >= b0) && all(p < b1) ? clipMask : 0.0);
-    return blendColor(src, dst, blendMode(vert, modes));
+    return blendColor(src, dst, blendMode(vert, paths));
 }
 
 #pragma mark - Clip mask

@@ -862,6 +862,16 @@ struct Rasterizer {
         uint32_t ic;  enum Flags { ue0 = 0xF << 28, ue1 = 0xF << 24, kMask = ~(ue0 | ue1) };
         uint16_t i0, ux;
     };
+    // A path's data, which the shaders index by its iz. Each field is only written for the draws that use it
+    struct PathData {
+        Transform ctm;      // A molecule draw's, & its path's bounds
+        Bounds bounds;
+        Transform clip;     // An instance's inverse clip
+        Transform texCtm;   // A gradient or image's
+        float width;        // A stroke's
+        uint32_t texIdx;    // A gradient or image's
+        uint32_t mode;      // A blend's
+    };
     struct Buffer {
         // kClipMask begins rendering a clip path's coverage into the clip mask, within the device bounds packed in begin, until kEnableClip.
         // Its end identifies the mask, so an encoder can skip rendering one the mask already holds
@@ -877,19 +887,14 @@ struct Rasterizer {
             texCount = 0;
             images.resize(0);
         
-            size_t i, sizes[] = { sizeof(Color), sizeof(Transform), sizeof(Transform), sizeof(float), sizeof(Bounds), sizeof(Transform), sizeof(uint32_t), sizeof(uint8_t) };
-            size_t count = sizeof(sizes) / sizeof(*sizes), base = 0;
             size_t colorsCount = (pathsCount / kColorTextureWidth + 1) * kColorTextureWidth;    // Whole color texture rows
-            Vector<size_t> bases(count);
-            for (i = 0; i < count; i++)
-                bases[i] = base, base += (i == 0 ? colorsCount : pathsCount + 1) * sizes[i];
-            colors = bases[0], ctms = bases[1], clips = bases[2], widths = bases[3], bounds = bases[4], texCtms = bases[5], texIdxs = bases[6], modes = bases[7];
-            headerSize = (base + 15) & ~15, entries.empty();
+            colors = 0, paths = (colorsCount * sizeof(Color) + 15) & ~15;
+            headerSize = (paths + (pathsCount + 1) * sizeof(PathData) + 15) & ~15, entries.empty();
         }
         uint8_t *base = nullptr;  Row<Entry> entries;
         RefVector<Paint> images;    // The frame's images, which draws index with texIdxs
         Params params;
-        size_t colors, ctms, clips, widths, bounds, texCtms, texIdxs, modes, texStrips, p16s;
+        size_t colors, paths, texStrips, p16s;
         size_t idxs, pathsCount, texCount, headerSize;
         bool hasBlends = false;     // Whether any draw's blend mode isn't Normal, so its instances need framebuffer fetch
     };
@@ -952,12 +957,7 @@ struct Rasterizer {
                     samples.add(Row<Sample>());
             }
             Color *colors = (Color *)(buffer->base + buffer->colors);
-            Transform *ctms = (Transform *)(buffer->base + buffer->ctms);
-            Transform *clips = (Transform *)(buffer->base + buffer->clips);
-            float *widths = (float *)(buffer->base + buffer->widths);
-            Bounds *bounds = (Bounds *)(buffer->base + buffer->bounds);
-            Transform *texCtms = (Transform *)(buffer->base + buffer->texCtms);
-            uint8_t *modes = buffer->base + buffer->modes;
+            PathData *paths = (PathData *)(buffer->base + buffer->paths);
             bool clipActive = false;
             
             Color black(0, 0, 0, 255), red(0, 0, 255, 255);
@@ -1023,10 +1023,10 @@ struct Rasterizer {
                         bool isImage = list.params.showOutlines ? false : color->type == Paint::kImage;
                         size_t colorFlags = isImage ? Instance::kIsImage : (isGradient * Instance::kIsGradient | isRadial * Instance::kIsRadial);
                         if (isGradient) {
-                            texCtms[iz] = color->bitmap->ctm.concat(m).invert();
+                            paths[iz].texCtm = color->bitmap->ctm.concat(m).invert();
                             texs.add(TexRef(iz, & color->bitmap->strip[0]));
                         } else if (isImage) {
-                            texCtms[iz] = quad.invert();
+                            paths[iz].texCtm = quad.invert();
                             images.add(ImageRef(iz, color));
                         }
                         
@@ -1035,12 +1035,12 @@ struct Rasterizer {
                         else
                             colors[iz] = draw.paint.color.premultiplied();
                         
-                        clips[iz] = invclip;
+                        paths[iz].clip = invclip;
                         if (draw.blendMode != kBlendNormal)     // Only blended draws write their mode
-                            modes[iz] = draw.blendMode, hasBlends = true, colorFlags |= Instance::kBlend;
+                            paths[iz].mode = draw.blendMode, hasBlends = true, colorFlags |= Instance::kBlend;
                         Geometry *g = draw.path.ptr;
                         if (width) {
-                            widths[iz] = width;
+                            paths[iz].width = width;
                             Blend *inst = new (blends.alloc(1)) Blend(iz | colorFlags | Instance::kOutlines | bool(draw.flags & Draw::kRoundCap) * Instance::kRoundCap | bool(draw.flags & Draw::kSquareCap) * Instance::kSquareCap | bool(draw.flags & Draw::kRoundJoin) * Instance::kRoundJoin);
                             
                             Bounds outlineClip = unclipped ? Bounds::huge() : clip.inset(-width, -width);
@@ -1053,7 +1053,7 @@ struct Rasterizer {
                             i1 = uint32_t(outlines.idx);
                             inst->data.idx = i0, inst->data.count = i1 - i0;
                         } else if (kMoleculesHeight && clip.width() * clip.height() / g->types.end < kMoleculesPixelsPerEdge) {
-                            ctms[iz] = m, bounds[iz] = draw.bnds;
+                            paths[iz].ctm = m, paths[iz].bounds = draw.bnds;
                             bool fast = !buffer->params.useCurves || g->maxCurve * det < 16.f;
                             Blend *inst = new (blends.alloc(1)) Blend(iz | colorFlags | Instance::kMolecule | bool(draw.flags & Draw::kFillEvenOdd) * Instance::kEvenOdd | fast * Instance::kFastEdges);
                             inst->g = g, inst->quad.cover = 0;
@@ -1870,17 +1870,17 @@ struct Rasterizer {
             new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::kOpaques, begin, end);
         
         buffer.texStrips = end;
-        uint32_t *texIdxs = (uint32_t *)(buffer.base + buffer.texIdxs), texIdx;
+        PathData *paths = (PathData *)(buffer.base + buffer.paths);  uint32_t texIdx;
         sz = kColorTextureWidth * sizeof(Color);
         for (texIdx = 0, i = 0; i < count; i++)
             for (j = 0; j < contexts[i].texs.end(); j++) {
                 auto ref = contexts[i].texs[j];
-                texIdxs[ref.iz] = texIdx++;
+                paths[ref.iz].texIdx = texIdx++;
                 memcpy(buffer.base + end, ref.strip, sz), end += sz;
             }
         for (texIdx = 0, i = 0; i < count; i++)     // Image draws index buffer.images, in the same order
             for (j = 0; j < contexts[i].images.end(); j++)
-                texIdxs[contexts[i].images[j].iz] = texIdx++;
+                paths[contexts[i].images[j].iz].texIdx = texIdx++;
         buffer.p16s = end;
     }
     
