@@ -52,13 +52,6 @@
          </FileRef>
       </Group>
       <Group
-         location = "group:RasterizerSwift"
-         name = "RasterizerSwift">
-         <FileRef
-            location = "group:Extensions.swift">
-         </FileRef>
-      </Group>
-      <Group
          location = "group:RasterizerObjC"
          name = "RasterizerObjC">
          <Group
@@ -89,6 +82,13 @@
          </FileRef>
          <FileRef
             location = "group:RasterizerView.mm">
+         </FileRef>
+      </Group>
+      <Group
+         location = "group:RasterizerSwift"
+         name = "RasterizerSwift">
+         <FileRef
+            location = "group:Extensions.swift">
          </FileRef>
       </Group>
    </Group>

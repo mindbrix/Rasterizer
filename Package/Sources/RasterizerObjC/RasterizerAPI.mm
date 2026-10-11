@@ -359,28 +359,12 @@ static uint8_t joinFlags(RAJoinStyle joinStyle) {
     _scene->addDraw(d);
 }
 
-- (void)addFill:(RAPath *)path
-            ctm:(CGAffineTransform)ctm
-           color:(RAPaint *)color
-        evenOdd:(BOOL)evenOdd {
-    [self addFill:path ctm:ctm color:color evenOdd:evenOdd clip:CGRectZero clipPath:nil];
-}
-
-- (void)addStroke:(RAPath *)path
-              ctm:(CGAffineTransform)ctm
-            color:(RAPaint *)color
-            width:(double)width
-         capStyle:(RACapStyle)capStyle
-        joinStyle:(RAJoinStyle)joinStyle {
-    [self addStroke:path ctm:ctm color:color width:width capStyle:capStyle joinStyle:joinStyle clip:CGRectZero clipPath:nil];
-}
-
 - (void)addImage:(nonnull RAPaint *)image
              ctm:(CGAffineTransform)ctm {
     if (image.paint.isImage()) {
         CGRect rect = CGRectMake(0, 0, image.paint.bitmap->w, image.paint.bitmap->h);
         RAPath *path = [[RAPath alloc] initWithRect:rect];
-        [self addFill:path ctm:ctm color:image evenOdd:false];
+        [self addFill:path ctm:ctm color:image evenOdd:false clip:CGRectInfinite clipPath:nil blendMode:kRABlendNormal];
     }
 }
 
@@ -389,13 +373,14 @@ static uint8_t joinFlags(RAJoinStyle joinStyle) {
            color:(RAPaint *)color
         evenOdd:(BOOL)evenOdd
            clip:(CGRect)clip
-       clipPath:(RAPath *)clipPath {
+       clipPath:(RAPath *)clipPath
+      blendMode:(RABlendMode)blendMode{
     Ra::Path p = path.path;
     Ra::Bounds clipBounds = CGRectIsNull(clip) || CGRectIsEmpty(clip) || CGRectIsInfinite(clip) ? Ra::Bounds::huge() : RaCG::BoundsFromCGRect(clip);
     auto m = RaCG::transformFromCG(ctm);
     [self checkNotUpdating];
     Ra::Path clp = clipPath != nil ? clipPath.path : Ra::Path(nullptr);
-    _scene->addPath(p, m, color.paint, 0, (evenOdd ? Ra::Draw::kFillEvenOdd : 0) | Ra::Draw::kClipEvenOdd, & clipBounds, clipPath != nil ? & clp : nullptr);    // Clips even-odd, as they did
+    _scene->addPath(p, m, color.paint, 0, (evenOdd ? Ra::Draw::kFillEvenOdd : 0) | Ra::Draw::kClipEvenOdd, & clipBounds, clipPath != nil ? & clp : nullptr, blendMode);    // Clips even-odd, as they did
 }
 
 - (void)addStroke:(RAPath *)path
@@ -405,16 +390,17 @@ static uint8_t joinFlags(RAJoinStyle joinStyle) {
          capStyle:(RACapStyle)capStyle
         joinStyle:(RAJoinStyle)joinStyle
              clip:(CGRect)clip
-         clipPath:(RAPath *)clipPath {
+         clipPath:(RAPath *)clipPath
+        blendMode:(RABlendMode)blendMode{
     Ra::Path p = path.path;
     Ra::Bounds clipBounds = CGRectIsNull(clip) || CGRectIsEmpty(clip) || CGRectIsInfinite(clip) ? Ra::Bounds::huge() : RaCG::BoundsFromCGRect(clip);
     auto m = RaCG::transformFromCG(ctm);
     [self checkNotUpdating];
     Ra::Path clp = clipPath != nil ? clipPath.path : Ra::Path(nullptr);
-    _scene->addPath(p, m, color.paint, width, capFlags(capStyle) | joinFlags(joinStyle) | Ra::Draw::kClipEvenOdd, & clipBounds, clipPath != nil ? & clp : nullptr);
+    _scene->addPath(p, m, color.paint, width, capFlags(capStyle) | joinFlags(joinStyle) | Ra::Draw::kClipEvenOdd, & clipBounds, clipPath != nil ? & clp : nullptr, blendMode);
 }
 
-- (CGRect)addText:(NSAttributedString *)string inRect:(CGRect)rect ctm:(CGAffineTransform)ctm clip:(CGRect)clip {
+- (CGRect)addText:(NSAttributedString *)string inRect:(CGRect)rect ctm:(CGAffineTransform)ctm clip:(CGRect)clip clipPath:(nullable RAPath *)clipPath {
     GlyphCache cache;
     [self checkNotUpdating];
     return RaCT::addTextToSceneInRect((__bridge CFAttributedStringRef)string, rect, ctm, clip, _scene, cache);

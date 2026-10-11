@@ -96,18 +96,6 @@ typedef BOOL (^RADrawUpdateBlock)(NSInteger index, RADraw * _Nonnull draw);
 
 - (void)addDraw:(nonnull RADraw *)draw;
 
-- (void)addFill:(nonnull RAPath *)path
-            ctm:(CGAffineTransform)ctm
-           color:(nonnull RAPaint *)color
-        evenOdd:(BOOL)evenOdd;
-
-- (void)addStroke:(nonnull RAPath *)path
-              ctm:(CGAffineTransform)ctm
-            color:(nonnull RAPaint *)color
-            width:(double)width
-         capStyle:(RACapStyle)capStyle
-        joinStyle:(RAJoinStyle)joinStyle;
-
 - (void)addImage:(nonnull RAPaint *)image
              ctm:(CGAffineTransform)ctm;
 
@@ -116,7 +104,8 @@ typedef BOOL (^RADrawUpdateBlock)(NSInteger index, RADraw * _Nonnull draw);
            color:(nonnull RAPaint *)color
         evenOdd:(BOOL)evenOdd
            clip:(CGRect)clip
-       clipPath:(nullable RAPath *)clipPath;
+       clipPath:(nullable RAPath *)clipPath
+      blendMode:(RABlendMode)blendMode;
 
 - (void)addStroke:(nonnull RAPath *)path
               ctm:(CGAffineTransform)ctm
@@ -125,7 +114,8 @@ typedef BOOL (^RADrawUpdateBlock)(NSInteger index, RADraw * _Nonnull draw);
          capStyle:(RACapStyle)capStyle
         joinStyle:(RAJoinStyle)joinStyle
              clip:(CGRect)clip
-         clipPath:(nullable RAPath *)clipPath;
+         clipPath:(nullable RAPath *)clipPath
+        blendMode:(RABlendMode)blendMode;
 
 - (CGRect)addText:(nonnull NSAttributedString *)string
            inRect:(CGRect)rect

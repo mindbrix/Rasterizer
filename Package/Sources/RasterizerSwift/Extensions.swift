@@ -68,7 +68,7 @@ public func CounterRotatingCirclesPath(_ time: Double, width: Double, height: Do
 
 public func CounterRotatingCircles(_ time: Double, width: Double, height: Double) -> RASceneList {
     let scene = RAScene()
-    scene.addFill(CounterRotatingCirclesPath(time, width: width, height: height), ctm: .identity, color: RAPaint(), evenOdd: true)
+    scene.addFill(CounterRotatingCirclesPath(time, width: width, height: height), ctm: .identity, color: RAPaint(), evenOdd: true, clip: .infinite, clipPath: nil, blendMode: .normal)
     return RASceneList(scene: scene)
 }
 
@@ -97,10 +97,10 @@ extension RAPath {
 
 extension RAScene {
     public func fillRect(_ rect: CGRect, paint: RAPaint) {
-        addFill(RAPath(rect: rect), ctm: .identity, color: paint, evenOdd: false)
+        addFill(RAPath(rect: rect), ctm: .identity, color: paint, evenOdd: false, clip: .infinite, clipPath: nil, blendMode: .normal)
     }
     
     public func strokeRect(_ rect: CGRect, width: Double, paint: RAPaint) {
-        addStroke(RAPath(rect: rect), ctm: .identity, color: paint, width: width, capStyle: .capButt, joinStyle: .joinMiter)
+        addStroke(RAPath(rect: rect), ctm: .identity, color: paint, width: width, capStyle: .capButt, joinStyle: .joinMiter, clip: .infinite, clipPath: nil, blendMode: .normal)
     }
 }
