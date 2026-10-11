@@ -1,7 +1,7 @@
 Rasterizer
 ==========
 
-**A GPU vector graphics renderer for Apple platforms, 2–5× faster than Vello and Skia on real-world documents.**
+**A GPU vector graphics renderer for Apple platforms, 3–9× faster than Vello and Skia on real-world documents.**
 
 ![Platforms](https://img.shields.io/badge/platforms-macOS%2014%20%7C%20iOS%2013-blue) ![Swift Package](https://img.shields.io/badge/Swift%20Package-compatible-orange) ![License: MIT](https://img.shields.io/badge/license-MIT-green)
 
@@ -18,14 +18,14 @@ Wall time per frame in milliseconds, fitting each file to a 2048×2048 view on a
 
 | File | Draws | Rasterizer | Vello | Skia Graphite | Skia Ganesh |
 |---|---:|---:|---:|---:|---:|
-| tiger | 301 | 0.93 | 0.89 | 0.47 | 1.40 |
-| london-rail | 10,643 | **1.02** | 1.90 | 7.19 | 6.82 |
-| Paris 30K | 50,791 | **1.95** | 11.78 | 29.40 | 52.40 |
-| spoorkaart | 84,287 | **4.21** | 21.33 | 58.34 | 224.94 |
-| 6000-DRG | 414,657 | **15.48** | 108.84 | 200.62 | 216.60 |
-| pathological | 580,473 | **9.00** | 56.86 | 226.48 | 296.09 |
+| tiger | 301 | 0.45 | 0.83 | 0.44 | 1.36 |
+| london-rail | 10,643 | **0.58** | 1.96 | 7.66 | 7.52 |
+| Paris 30K | 50,791 | **1.52** | 11.76 | 28.41 | 54.53 |
+| spoorkaart | 84,287 | **3.34** | 21.46 | 56.44 | 218.79 |
+| 6000-DRG | 414,657 | **13.06** | 109.14 | 196.62 | 214.25 |
+| pathological | 580,473 | **7.14** | 56.90 | 224.51 | 291.77 |
 
-Across all 23 test files, Vello takes 2.2× as long as Rasterizer, Skia Graphite 2.9× and Skia Ganesh 4.9× (geometric means). Small scenes, under about 1,000 draws, are within noise, and Skia is often fastest on the smallest. The advantage grows with the number of paths.
+Across all 20 test files, Vello takes 3.4× as long as Rasterizer, Skia Graphite 4.8× and Skia Ganesh 8.6× (geometric means). Small scenes, under about 1,000 draws, are within noise. The advantage grows with the number of paths.
 
 The benchmark is a single self-contained script that builds every library and replays the same geometry in each. See [Benchmarks](Benchmarks/README.md) for the method, all the results and the caveats.
 

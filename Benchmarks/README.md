@@ -36,28 +36,29 @@ The replays draw Rasterizer's parsed draws, so all libraries render the same geo
 
 ## Reference results (2026-10-11, M4 Max, 2048x2048)
 
-Wall ms per frame, fit view, best median of 3 rounds, from commit 4f1bc7b3. The shaders were compiled by `bench.sh`.
+Wall ms per frame, fit view, best median of 3 rounds, from commit 91497828. The shaders were compiled by `bench.sh`.
 
 | File | Draws | Rasterizer | Vello | Vello retained | Skia Ganesh | Ganesh MSAA4 | Skia Graphite |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| tiger | 301 | 0.93 | 0.89 | 0.83 | 1.40 | 0.64 | 0.47 |
-| hawaii | 1,137 | 1.51 | 1.23 | 1.08 | 1.47 | 1.29 | 1.19 |
-| london-rail | 10,643 | 1.02 | 1.90 | 1.20 | 6.82 | 5.78 | 7.19 |
-| Paris 30K | 50,791 | 1.95 | 11.78 | 7.64 | 52.40 | 29.50 | 29.40 |
-| contour | 53,237 | 1.51 | 3.96 | 1.48 | 28.64 | 17.32 | 18.79 |
-| spoorkaart | 84,287 | 4.21 | 21.33 | 14.01 | 224.94 | 67.24 | 58.34 |
-| designcloud | 86,728 | 2.77 | 11.93 | 5.82 | 43.22 | 41.07 | 54.25 |
-| 6000-DRG | 414,657 | 15.48 | 108.84 | 89.10 | 216.60 | 156.43 | 200.62 |
-| pathological | 580,473 | 9.00 | 56.86 | 32.18 | 296.09 | 221.57 | 226.48 |
+| tiger | 301 | 0.45 | 0.83 | 0.89 | 1.36 | 0.76 | 0.44 |
+| hawaii | 1,137 | 1.07 | 1.21 | 1.10 | 1.48 | 1.31 | 1.19 |
+| london-rail | 10,643 | 0.58 | 1.96 | 1.14 | 7.52 | 5.85 | 7.66 |
+| Paris 30K | 50,791 | 1.52 | 11.76 | 7.67 | 54.53 | 28.59 | 28.41 |
+| contour | 53,237 | 1.08 | 4.08 | 1.48 | 28.57 | 17.50 | 18.85 |
+| spoorkaart | 84,287 | 3.34 | 21.46 | 14.08 | 218.79 | 65.31 | 56.44 |
+| designcloud | 86,728 | 2.33 | 11.98 | 5.90 | 43.45 | 39.53 | 55.23 |
+| 6000-DRG | 414,657 | 13.06 | 109.14 | 89.55 | 214.25 | 150.66 | 196.62 |
+| pathological | 580,473 | 7.14 | 56.90 | 32.32 | 291.77 | 220.51 | 224.51 |
 
-Geometric mean wall vs Rasterizer, over all 23 TestFiles:
+Geometric mean wall vs Rasterizer, over all 20 TestFiles:
 
 | View | Vello | Vello retained | Skia Ganesh | Ganesh MSAA4 | Skia Graphite |
 |---|---:|---:|---:|---:|---:|
-| fit | 2.16x | 1.62x | 4.89x | 3.70x | 2.85x |
-| sweep | 1.80x | 1.75x | 11.1x | 2.75x | 1.92x |
+| fit | 3.42x | 2.60x | 8.63x | 6.27x | 4.83x |
+| sweep | 2.36x | 2.26x | 18.6x | 4.07x | 2.90x |
 
-- Scenes under about 1k draws are within noise. 8 of the 23 TestFiles were added since the 2026-10-07 results. 4 have under 500 draws, & Skia is fastest on all of them, which lowers the means. Over the original 15, the fit means are 2.25x, 1.52x, 6.29x, 4.56x & 4.66x, close to the earlier 2.28x, 1.53x, 6.72x, 4.95x & 4.68x.
+- Scenes under about 1k draws are within noise. Rasterizer now uses fewer contexts for them, & coalesces the contexts' edges passes, so it's level with or faster than the others on all of them.
+- 5 of the 20 TestFiles were added since the 2026-10-07 results. Over the original 15, the fit means are 3.14x, 2.16x, 8.79x, 6.50x & 6.57x, against the earlier 2.28x, 1.53x, 6.72x, 4.95x & 4.68x.
 - 6000-DRG now draws its zero-length round-capped dots, which the PDF parser dropped before. Its draws went from 410,998 to 414,657, as runs of dots with the same state are one draw.
 - Separate runs vary by up to about ±10% per library. Compare builds with interleaved runs, e.g. `--rev`.
 - Rasterizer's frames are short, so other GPU work on the machine, such as a busy app UI, can slow them 2–3x. Run on AC power with other GPU apps closed, & check `gpu_min` against `gpu_med` across rounds in `runs.jsonl`.
