@@ -516,7 +516,8 @@ struct InstancesVertex
     float4 position [[position]];
     float2 clip;
     float3 tex;
-    float u, v, w, cover, alpha;
+    float u, v, w;
+    float cover [[flat]];
     float x, y, z;
     uint32_t iz;
     uint image [[flat]];
@@ -545,10 +546,9 @@ vertex InstancesVertex instances_vertex_main(
     const device Transform& clip = path.clip;
     const device Transform& texCtm = path.texCtm;
     
-    float alpha = 1.0, dx, dy;
+    float dx, dy;
     if (inst.iz & Instance::kOutlines) {
         float w = path.width, cw = max(1.0, w), dw = 0.5 * (1.0 + cw);
-        alpha = select(1.0, w / cw, w != 0);
         
         float x0, y0, x1, y1, x2, y2;
         bool pcap, ncap;
@@ -637,7 +637,7 @@ vertex InstancesVertex instances_vertex_main(
             flags = flags | (pcap ? !roundCap : !roundJoin) * Instance::kF0;
             flags = flags | (ncap ? !roundCap : !roundJoin) * Instance::kF1;
         }
-        vert.cover = dw;
+        vert.cover = w != 0 && w < 1.0 ? -w : dw;     // A thin stroke's dw is 1, so its cover is its alpha, negated
         flags = flags | pcap * Instance::kPCap | ncap * Instance::kNCap;
     } else {
         const device Cell& cell = inst.quad.cell;
@@ -651,7 +651,6 @@ vertex InstancesVertex instances_vertex_main(
     float z = kDepthRange * float(iz + 1) / float(*pathCount);
     vert.position = float4(x, y, z, 1.0);
     vert.clip = params->useClips ? float2(dx * clip.a + dy * clip.c + clip.tx, dx * clip.b + dy * clip.d + clip.ty) : 0.5;
-    vert.alpha = alpha;
     vert.iz = iz | flags;
     vert.image = isImage ? path.texIdx : kNoImage;
     
@@ -689,7 +688,7 @@ inline float4 instanceColor(InstancesVertex vert, texture2d<float> accumulation,
         bool squareCap = vert.iz & Instance::kSquareCap;
         bool pcap = vert.iz & Instance::kPCap, ncap = vert.iz & Instance::kNCap;
         bool f0 = vert.iz & Instance::kF0, f1 = vert.iz & Instance::kF1;
-        const float dw = vert.cover;
+        const float dw = max(1.0, vert.cover);
         
         if (!isCurve) {
             float dx = vert.u, dy = min(vert.w, vert.z), ry = min(0.0, dy);
@@ -720,13 +719,14 @@ inline float4 instanceColor(InstancesVertex vert, texture2d<float> accumulation,
             
             alpha = cap0 * (1.0 - sd0) + cap1 * (1.0 - sd1) + (sd0 + sd1 - 1.0) * outline;
         }
+        alpha *= select(1.0, -vert.cover, vert.cover < 0.0);
     } else
         alpha = fillCoverage(vert, accumulation);
     float clx = vert.clip.x, cly = vert.clip.y, a = dfdx(clx), b = dfdy(clx), c = dfdx(cly), d = dfdy(cly);
     float sx = rsqrt(a * a + b * b), sy = rsqrt(c * c + d * d);
     float clip = saturate(0.5 + clx * sx) * saturate(0.5 + (1.0 - clx) * sx) * saturate(0.5 + cly * sy) * saturate(0.5 + (1.0 - cly) * sy);
     
-    return alpha * vert.alpha * clip * paintColor(vert.tex, vert.image, colorTexture, images);
+    return alpha * clip * paintColor(vert.tex, vert.image, colorTexture, images);
 }
 
 fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
