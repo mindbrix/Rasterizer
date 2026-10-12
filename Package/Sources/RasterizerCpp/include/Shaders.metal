@@ -219,13 +219,14 @@ vertex OpaquesVertex opaques_vertex_main(const device Opaque *opaques [[buffer(1
     const bool isGradient = inst.iz & Instance::kIsGradient;
     const bool isRadial = inst.iz & Instance::kIsRadial;
     const bool isImage = inst.iz & Instance::kIsImage;
-    const device Transform& texCtm = paths[iz].texCtm;
+    const device PathData& path = paths[iz];
+    const device Transform& texCtm = path.texCtm;
     const device Cell& cell = inst.cell;
     const device Quadratic& quad = inst.quad;
     float x, y, z = kDepthRange * float((inst.iz & kPathIndexMask) + 1) / float(*pathCount);
     
     if (inst.iz & Instance::kOutlines) {
-        const float dw = 0.5 * (paths[inst.iz & kPathIndexMask].width - 1.0);
+        const float dw = 0.5 * (path.width - 1.0);
         const float x0 = quad.x0, y0 = quad.y0, x1 = quad.x1, y1 = quad.y1, x2 = quad.x2, y2 = quad.y2;
         const bool isFlat = x1 == FLT_MAX;
         const bool isTop = vid >> 1, isRight = vid & 1;
@@ -268,12 +269,12 @@ vertex OpaquesVertex opaques_vertex_main(const device Opaque *opaques [[buffer(1
     
     if (params->showOpaques && isGradient) {
         vert.tex.x = x * texCtm.b + y * texCtm.d + texCtm.ty;
-        vert.tex.y = (0.5 + (th + paths[iz].texIdx)) / float(th + *texCount);
+        vert.tex.y = (0.5 + (th + path.texIdx)) / float(th + *texCount);
         vert.tex.z = isRadial ? x * texCtm.a + y * texCtm.c + texCtm.tx : 0;
     } else if (params->showOpaques && isImage) {
         vert.tex.x = x * texCtm.a + y * texCtm.c + texCtm.tx;
         vert.tex.y = 1.0 - (x * texCtm.b + y * texCtm.d + texCtm.ty);
-        vert.image = paths[iz].texIdx;
+        vert.image = path.texIdx;
     }
     return vert;
 }
@@ -657,7 +658,7 @@ vertex InstancesVertex instances_vertex_main(
     int tw = kColorTextureWidth, th = (*pathCount + tw - 0) / tw;
     if (isGradient) {
         vert.tex.x = dx * texCtm.b + dy * texCtm.d + texCtm.ty;
-        vert.tex.y = (0.5 + (th + paths[iz].texIdx)) / float(th + *texCount);
+        vert.tex.y = (0.5 + (th + path.texIdx)) / float(th + *texCount);
         vert.tex.z = isRadial ? dx * texCtm.a + dy * texCtm.c + texCtm.tx : 0;
     } else if (isImage) {
         vert.tex.x = dx * texCtm.a + dy * texCtm.c + texCtm.tx;
