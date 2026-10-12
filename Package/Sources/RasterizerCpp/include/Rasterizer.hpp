@@ -851,6 +851,8 @@ struct Rasterizer {
             kFragmentMask = (kBlend | kOutlines | kSquareCap | kEvenOdd)
         };
         Instance(size_t iz) : iz(uint32_t(iz)) {}
+        // A clip command, as kClip is an outline's kRoundJoin
+        static bool isClipCommand(uint32_t iz) { return (iz & (kOutlines | kClip)) == kClip; }
         uint32_t iz;  union { Quad quad;  Outline outline; };
     };
     struct Opaque {
@@ -2015,8 +2017,7 @@ struct Rasterizer {
             for (Blend *inst = ctx->blends.base + pass->idx, *endinst = inst + passsize; inst < endinst; inst++) {
                 iz = inst->iz & kPathIndexMask;
                 Geometry *g = inst->g;
-                bool isClip = !(inst->iz & Instance::kOutlines) && (inst->iz & Instance::kClip);     // kClip is an outline's kRoundJoin
-                if (!isClip && bool(inst->iz & Instance::kBlend) != blends)
+                if (!Instance::isClipCommand(inst->iz) && bool(inst->iz & Instance::kBlend) != blends)
                     splits.add(Split{ begin + (dst - dst0) * sizeof(Instance), nullptr, blends }), blendBatches += !blends, blends = !blends;
                 
                 if (inst->iz & Instance::kOutlines) {
@@ -2029,7 +2030,7 @@ struct Rasterizer {
                     ic = dst - dst0, dst++;
                     bool fast = inst->iz & Instance::kFastEdges;
                     
-                    if (inst->iz & Instance::kClip) {
+                    if (Instance::isClipCommand(inst->iz)) {
                         dst--;
                         splits.add(Split{ begin + (dst - dst0) * sizeof(Instance), inst, blends });
                     } else if (inst->iz & Instance::kMolecule) {
