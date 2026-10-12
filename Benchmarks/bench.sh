@@ -5,7 +5,8 @@
 #
 # bench.sh: rebuilds & runs the Rasterizer vs Vello vs Skia benchmark over TestFiles from scratch.
 #
-#   Benchmarks/bench.sh [--rounds N] [--size WxH] [--frames N] [--configs a,b,..] [--rev <git rev>] [--metallib path] [--build-only]
+#   Benchmarks/bench.sh [--rounds N] [--size WxH] [--frames N] [--configs a,b,..] [--rev <git rev>] [--metallib path] [--contexts N]
+#                       [--build-only]
 #
 # Everything is generated under Benchmarks/build/, which ignores itself:
 #   src/        the harness sources, written from this script each run, so this script is their only copy
@@ -19,6 +20,7 @@
 # build in DerivedData is used, which may not match the source.
 #
 # --rev benchmarks another commit: its tree is exported with git archive, & its TestFiles, parsers & shaders are used.
+# --contexts N caps Rasterizer's contexts at N, e.g. 1 for a baseline without any slicing, whose edges passes can't be coalesced.
 #
 # How it works:
 # - rabench loads each TestFile exactly as RasterizerDemo does (RaSVG / RaPDF page 0), exports the parsed SceneList as an RSD dump,
@@ -37,8 +39,8 @@ HERE=${0:a:h}; REPO=${HERE:h}; W=$HERE/build
 RUST=1.99.0
 VE_VERSION=0.11.0
 VE_SHA256=b1fb9548d2b46b0f79137b5b1d208ecbd76d432f74e7a2ba838615d117f11532
-ALL_CONFIGS=rasterizer,vello,vello_retained,skia_ganesh,skia_ganesh_msaa4,skia_graphite
-ROUNDS=3; SIZE=2048x2048; FRAMES=30; CONFIGS=$ALL_CONFIGS; REV=; ML=${METALLIB:-}; BUILD_ONLY=0
+ALL_CONFIGS=rasterizer,vello,vello_retained,skia_ganesh,skia_graphite
+ROUNDS=3; SIZE=2048x2048; FRAMES=30; CONFIGS=$ALL_CONFIGS; REV=; ML=${METALLIB:-}; CONTEXTS=; BUILD_ONLY=0
 while (( $# )); do
   case $1 in
     --rounds) ROUNDS=$2; shift ;;
@@ -47,8 +49,9 @@ while (( $# )); do
     --configs) CONFIGS=$2; shift ;;
     --rev) REV=$2; shift ;;
     --metallib) ML=${2:a}; shift ;;
+    --contexts) CONTEXTS=$2; shift ;;
     --build-only) BUILD_ONLY=1 ;;
-    *) sed -n '2,4p' $0; exit 2 ;;
+    *) sed -n '2,5p' $0; exit 2 ;;
   esac
   shift
 done
@@ -89,7 +92,7 @@ w $S/ra/rabench.mm <<'__RA_RABENCH_MM__'
 //  rabench: loads a TestFiles SVG/PDF exactly as the Rasterizer demo does, then either
 //    export <in> <out.rsd>                          writes the parsed SceneList as a neutral binary dump (see RSD format below)
 //    bench  <in> <metallib> [opts]                  renders it offscreen with the Metal renderer & times each frame
-//  bench opts: --size WxH  --frames N  --zoom Z  --png out.png  --pngframe k
+//  bench opts: --size WxH  --frames N  --zoom Z  --png out.png  --pngframe k  --contexts N
 //
 //  RSD v1 (little endian). Coordinates are Rasterizer's: y up, device = list ctm * scene ctm * draw ctm.
 //    "RSD1" u32 version  f32 bounds[4] (SceneList::bounds())
@@ -282,7 +285,8 @@ struct TextureCache {
 // fetch, renders each mask in the drawable pass as its color attachment 1, so a frame with clip masks has no mask passes.
 // RA_BLEND, set when Rasterizer.h has blend modes, draws a frame with them using the instance pipelines that blend in the shader.
 // RA_IMAGES, set when Shaders.metal samples images from an argument buffer, binds the frame's images once per drawable pass.
-// RA_EDGES_HEIGHT, set when Rasterizer.hpp's allocator passes have heights, limits each edges pass to the accumulation rows it uses
+// RA_EDGES_HEIGHT, set when Rasterizer.hpp's allocator passes have heights, limits each edges pass to the accumulation rows it uses.
+// RA_CONTEXT_LIMIT, set when RasterizerRenderer.hpp keeps its contexts in a vector, lets --contexts N cap how many a frame uses
 #if RA_CLIP_MASK
 static const MTLPixelFormat kDepthFormat = MTLPixelFormatDepth32Float;
 #else
@@ -838,13 +842,20 @@ static double median(std::vector<double> v) {
     return v.size() & 1 ? v[v.size() / 2] : 0.5 * (v[v.size() / 2 - 1] + v[v.size() / 2]);
 }
 
-static int bench(Ra::SceneList& list, const char *name, const char *metallib, size_t W, size_t H, size_t frames, float zmax, const char *png, long pngFrame) {
+static int bench(Ra::SceneList& list, const char *name, const char *metallib, size_t W, size_t H, size_t frames, float zmax, const char *png, long pngFrame, size_t contexts) {
     Offscreen gpu;
     if (!gpu.init(metallib, W, H))
         return 1;
     RenderBuffer buffers[2];
     buffers[0].device = buffers[1].device = gpu.device;
     RasterizerRenderer renderer;
+    if (contexts) {     // A frame uses at most contexts.size()
+#if RA_CONTEXT_LIMIT
+        renderer.contexts.resize(std::min(contexts, renderer.contexts.size()));
+#else
+        return fprintf(stderr, "--contexts needs a RasterizerRenderer with a contexts vector\n"), 2;
+#endif
+    }
     Ra::Bounds bounds = list.bounds();
 
     double t0 = now();
@@ -891,7 +902,7 @@ static int bench(Ra::SceneList& list, const char *name, const char *metallib, si
 int main(int argc, const char *argv[]) {
     @autoreleasepool {
         if (argc < 4)
-            return fprintf(stderr, "usage: rabench export <in> <out.rsd> | bench <in> <metallib> [--size WxH] [--frames N] [--zoom Z] [--png out.png] [--pngframe k]\n"), 2;
+            return fprintf(stderr, "usage: rabench export <in> <out.rsd> | bench <in> <metallib> [--size WxH] [--frames N] [--zoom Z] [--png out.png] [--pngframe k] [--contexts N]\n"), 2;
         std::string cmd = argv[1];
         Ra::SceneList list;
         double t0 = now();
@@ -903,7 +914,7 @@ int main(int argc, const char *argv[]) {
             fprintf(stderr, "%s: loaded in %.1f ms\n", name, loadTime * 1e3);
             return exportList(list, argv[3]);
         }
-        size_t W = 2048, H = 2048, frames = 60;  float zoom = 8.f;  const char *png = nullptr;  long pngFrame = 0;
+        size_t W = 2048, H = 2048, frames = 60, contexts = 0;  float zoom = 8.f;  const char *png = nullptr;  long pngFrame = 0;
         for (int i = 4; i < argc; i++) {
             std::string a = argv[i];
             if (a == "--size" && i + 1 < argc)
@@ -916,10 +927,12 @@ int main(int argc, const char *argv[]) {
                 png = argv[++i];
             else if (a == "--pngframe" && i + 1 < argc)
                 pngFrame = strtol(argv[++i], nullptr, 10);
+            else if (a == "--contexts" && i + 1 < argc)
+                contexts = strtoul(argv[++i], nullptr, 10);
         }
         if (frames == 0)
             frames = 1;
-        return bench(list, name, argv[3], W, H, frames, zoom, png, pngFrame);
+        return bench(list, name, argv[3], W, H, frames, zoom, png, pngFrame, contexts);
     }
 }
 __RA_RABENCH_MM__
@@ -2143,7 +2156,8 @@ if [[ ! -x $B/rabench || $S/ra/rabench.mm -nt $B/rabench || -n $(find $INC $RA/R
   PATHS=0; grep -q 'struct PathData' $INC/Rasterizer.hpp && PATHS=1    # Its per-path data as one array of structs, else an array each
   BATCHES=0; grep -q kBlendInstances $INC/Rasterizer.hpp && BATCHES=1    # Its batches of draws with blend modes, else a frame's blend mode
   HEIGHTS=0; grep -q 'size_t idx, height' $INC/Rasterizer.hpp && HEIGHTS=1    # Its edges passes' heights, from the accumulation texture's top
-  clang++ -O3 -std=c++17 -fobjc-arc -DRA_CLIP_MASK=$CLIP -DRA_CLIP_CLEAR_CELLS=$CLEAR -DRA_CLIP_IN_PASS=$INPASS -DRA_BLEND=$BLEND -DRA_IMAGES=$IMAGES -DRA_CLIP_RULE=$RULE -DRA_PATH_DATA=$PATHS -DRA_BLEND_BATCHES=$BATCHES -DRA_EDGES_HEIGHT=$HEIGHTS -x objective-c++ $S/ra/rabench.mm -x none $W/obj/xxhash.o $W/obj/nanosvg.o \
+  LIMIT=0; grep -q 'std::vector<Ra::Context> contexts' $INC/RasterizerRenderer.hpp && LIMIT=1    # Its contexts' count capped by --contexts
+  clang++ -O3 -std=c++17 -fobjc-arc -DRA_CLIP_MASK=$CLIP -DRA_CLIP_CLEAR_CELLS=$CLEAR -DRA_CLIP_IN_PASS=$INPASS -DRA_BLEND=$BLEND -DRA_IMAGES=$IMAGES -DRA_CLIP_RULE=$RULE -DRA_PATH_DATA=$PATHS -DRA_BLEND_BATCHES=$BATCHES -DRA_EDGES_HEIGHT=$HEIGHTS -DRA_CONTEXT_LIMIT=$LIMIT -x objective-c++ $S/ra/rabench.mm -x none $W/obj/xxhash.o $W/obj/nanosvg.o \
     -I$INC -I$RA/Rasterizer/Demo ${=${PDFIUM:+-I$PDFIUM/Headers -L$PDFIUM -lpdfium -Wl,-rpath,$PDFIUM}} \
     -framework Foundation -framework Metal -framework QuartzCore -framework CoreGraphics -framework CoreText -framework ImageIO -framework CoreServices \
     -Wno-deprecated-declarations -o $B/rabench
@@ -2190,19 +2204,19 @@ done
 
 # Each config: name, binary & extra args. rasterizer takes the source file, the replays its dump
 typeset -A BIN ARGS
-BIN=(vello vello vello_retained vello skia_ganesh skia_ganesh skia_ganesh_msaa4 skia_ganesh skia_graphite skia_graphite)
-ARGS=(vello "" vello_retained --retained skia_ganesh "" skia_ganesh_msaa4 "--msaa 4" skia_graphite "")
+BIN=(vello vello vello_retained vello skia_ganesh skia_ganesh skia_graphite skia_graphite)
+ARGS=(vello "" vello_retained --retained skia_ganesh "" skia_graphite "")
 REPLAYS=(${${(s:,:)CONFIGS}:#rasterizer})
 run() {    # config, file, png | frames zoom
   local c=$1 f=$2 n=${${2:t}%.*}; shift 2
-  if [[ $c == rasterizer ]]; then $B/rabench bench "$f" $ML --size $SIZE "$@"
+  if [[ $c == rasterizer ]]; then $B/rabench bench "$f" $ML --size $SIZE ${=CONTEXTS:+--contexts $CONTEXTS} "$@"
   else $B/$BIN[$c] $D/$n.rsd --size $SIZE ${=ARGS[$c]} "$@"; fi
 }
 
-OUT=$W/results/$(date +%Y%m%d-%H%M%S)-$SHA-$SIZE; mkdir -p $OUT/png
+OUT=$W/results/$(date +%Y%m%d-%H%M%S)-$SHA-$SIZE${CONTEXTS:+-c$CONTEXTS}; mkdir -p $OUT/png
 {
   print "date: $(date -u +%FT%TZ)"
-  print "rasterizer: $SHA ($RA)"
+  print "rasterizer: $SHA ($RA)${CONTEXTS:+, contexts capped at $CONTEXTS}"
   print "metallib: $ML ($MLSRC)"
   print "machine: $(sysctl -n hw.model), $(sysctl -n machdep.cpu.brand_string), $(( $(sysctl -n hw.memsize) / 1073741824 )) GB"
   print "macOS: $(sw_vers -productVersion) ($(sw_vers -buildVersion))"
