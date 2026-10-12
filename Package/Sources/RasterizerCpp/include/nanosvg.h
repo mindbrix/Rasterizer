@@ -1734,7 +1734,7 @@ static int nsvg__parseAttr(NSVGparser* p, const char* name, const char* value)
 			attr->fillColor = nsvg__parseColor(value);
 		}
 	} else if (strcmp(name, "opacity") == 0) {
-		attr->opacity = nsvg__parseOpacity(value);
+		attr->opacity *= nsvg__parseOpacity(value);
 	} else if (strcmp(name, "fill-opacity") == 0) {
 		attr->fillOpacity = nsvg__parseOpacity(value);
 	} else if (strcmp(name, "stroke") == 0) {
