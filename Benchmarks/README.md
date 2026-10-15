@@ -35,33 +35,32 @@ The replays draw Rasterizer's parsed draws, so all libraries render the same geo
 - Clip paths: all are anti-aliased & even-odd, applied once per run of draws with the same clip. Rasterizer uses a coverage mask; commits before it used an aliased stencil, & `--rev` benchmarks them that way.
 - Gradients & images: these are exported as Rasterizer stores them. Each library interpolates & samples in its own way.
 
-## Reference results (2026-10-11, M4 Max, 2048x2048)
+## Reference results (2026-10-15, MacBook Air M4, 2048x2048)
 
-Wall ms per frame, fit view, best median of 3 rounds, from commit 91497828. The shaders were compiled by `bench.sh`.
+Wall ms per frame, fit view, best median of 3 rounds, from commit 5c0faffc. The shaders were compiled by `bench.sh`.
 
 | File | Draws | Rasterizer | Vello | Vello retained | Skia Ganesh | Skia Graphite |
 |---|---:|---:|---:|---:|---:|---:|
-| tiger | 301 | 0.45 | 0.83 | 0.89 | 1.36 | 0.44 |
-| hawaii | 1,137 | 1.07 | 1.21 | 1.10 | 1.48 | 1.19 |
-| london-rail | 10,643 | 0.58 | 1.96 | 1.14 | 7.52 | 7.66 |
-| Paris 30K | 50,791 | 1.52 | 11.76 | 7.67 | 54.53 | 28.41 |
-| contour | 53,237 | 1.08 | 4.08 | 1.48 | 28.57 | 18.85 |
-| spoorkaart | 84,287 | 3.34 | 21.46 | 14.08 | 218.79 | 56.44 |
-| designcloud | 86,728 | 2.33 | 11.98 | 5.90 | 43.45 | 55.23 |
-| 6000-DRG | 414,657 | 13.06 | 109.14 | 89.55 | 214.25 | 196.62 |
-| pathological | 580,473 | 7.14 | 56.90 | 32.32 | 291.77 | 224.51 |
+| tiger | 301 | 1.35 | 1.43 | 1.42 | 3.56 | 0.86 |
+| hawaii | 1,137 | 2.81 | 2.34 | 2.11 | 3.58 | 2.40 |
+| london-rail | 10,643 | 1.76 | 3.90 | 2.86 | 8.36 | 7.83 |
+| Paris 30K | 50,791 | 4.94 | 28.09 | 24.57 | 66.08 | 34.58 |
+| contour | 53,237 | 3.32 | 6.49 | 3.99 | 30.82 | 19.88 |
+| spoorkaart | 84,287 | 9.87 | 44.34 | 37.18 | 327.85 | 66.27 |
+| designcloud | 86,728 | 8.02 | 21.16 | 15.10 | 49.88 | 68.87 |
+| 6000-DRG | 414,657 | 20.04 | 129.98 | 109.58 | 233.40 | 224.56 |
+| pathological | 580,473 | 18.14 | 106.74 | 81.97 | 324.32 | 267.01 |
 
 Geometric mean wall vs Rasterizer, over all 20 TestFiles:
 
 | View | Vello | Vello retained | Skia Ganesh | Skia Graphite |
 |---|---:|---:|---:|---:|
-| fit | 3.42x | 2.60x | 8.63x | 4.83x |
-| sweep | 2.36x | 2.26x | 18.6x | 2.90x |
+| fit | 2.16x | 1.86x | 4.97x | 2.44x |
+| sweep | 1.70x | 1.93x | 10.6x | 1.95x |
 
-- Scenes under about 1k draws are within noise. Rasterizer now uses fewer contexts for them, & coalesces the contexts' edges passes, so it's level with or faster than the others on all of them.
-- 5 of the 20 TestFiles were added since the 2026-10-07 results. Over the original 15, the fit means are 3.14x, 2.16x, 8.79x & 6.57x, against the earlier 2.28x, 1.53x, 6.72x & 4.68x.
-- 6000-DRG now draws its zero-length round-capped dots, which the PDF parser dropped before. Its draws went from 410,998 to 414,657, as runs of dots with the same state are one draw.
+- The MacBook Air is the reference because it's a more typical machine than an M4 Max. Rasterizer does most of its work on the GPU, so its lead depends on the GPU's size: on the M4 Max, at commit 91497828, the fit means were 3.42x, 2.60x, 8.63x & 4.83x. The other libraries are mostly limited by the CPU, & were only 1.4–1.7x slower on the Air.
+- Rasterizer is fastest on 13 of the 20 TestFiles in the fit view. Skia Graphite is faster on the 5 smallest that aren't reschart, e.g. tiger at 0.86 ms against 1.35 ms, Vello retained on hawaii, & Skia Ganesh on Manchester_Union_Democrat. Rasterizer takes under 5 ms on all of them.
 - Separate runs vary by up to about ±10% per library. Compare builds with interleaved runs, e.g. `--rev`.
 - Rasterizer's frames are short, so other GPU work on the machine, such as a busy app UI, can slow them 2–3x. Run on AC power with other GPU apps closed, & check `gpu_min` against `gpu_med` across rounds in `runs.jsonl`.
-- Skia's frames are dominated by single-threaded CPU recording, at about 0.4–0.5 µs per draw.
-- Ganesh without MSAA falls back to CPU masks for large anti-aliased paths, so its sweep degrades badly, e.g. spoorkaart at 1.1 s.
+- Skia's frames are dominated by single-threaded CPU recording, at about 0.3–0.6 µs per draw for Graphite on the larger files.
+- Ganesh without MSAA falls back to CPU masks for large anti-aliased paths, so its sweep degrades badly, e.g. spoorkaart at 2.6 s.
