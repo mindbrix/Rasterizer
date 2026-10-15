@@ -1,9 +1,6 @@
 //
-//  RasterizerAPI+Internal.h
-//  Rasterizer
-//
-//  Created by Nigel Barber on 04/09/2025.
-//  Copyright © 2025 @mindbrix. All rights reserved.
+//  Copyright 2025 Nigel Timothy Barber - nigel@mindbrix.co.uk
+//  SPDX-License-Identifier: MIT
 //
 #import <CoreText/CoreText.h>
 #import "RasterizerAPI.h"
@@ -20,8 +17,9 @@
 @end
 
 
-@interface RAFrame ()
-@property(nonatomic) CTFrameRef frame;
+@interface RADraw ()
+@property(nonatomic) Ra::Draw draw;
+- (void)setTarget:(Ra::Draw *)target;      // Edits *target in place, or the draw's own Ra::Draw if null
 @end
 
 @interface RAScene ()

@@ -1,51 +1,20 @@
 //
 //  Copyright 2025 Nigel Timothy Barber - nigel@mindbrix.co.uk
-//
-//  This software is provided 'as-is', without any express or implied
-//  warranty. In no event will the authors be held liable for any damages
-//  arising from the use of this software.
-//
-//  Permission is granted to anyone to use this software for personal use
-//  (for a commercial licence please contact the author), and to alter it and
-//  redistribute it freely, subject to the following restrictions:
-//
-//  1. The origin of this software must not be misrepresented; you must not
-//  claim that you wrote the original software. If you use this software
-//  in a product, an acknowledgment in the product documentation would be
-//  appreciated but is not required.
-//  2. Altered source versions must be plainly marked as such, and must not be
-//  misrepresented as being the original software.
-//  3. This notice may not be removed or altered from any source distribution.
+//  SPDX-License-Identifier: MIT
 //
 
 #import "RasterizerView.h"
 #import "RasterizerLayer.h"
-#import "RasterizerRenderer.hpp"
+#import "RasterizerCG.hpp"
 #import "RasterizerAPI+Internal.h"
 
 
 @interface RasterizerView () <CALayerDelegate, LayerDelegate>
 
-#if TARGET_OS_OSX
-@property(nonatomic) CVDisplayLinkRef displayLink;
-#elif TARGET_OS_IPHONE
 @property(nonatomic) CADisplayLink *displayLink;
-#endif
-
-@property(nonatomic) dispatch_semaphore_t inflight_semaphore;
 @property(nonatomic) RasterizerRenderer renderer;
-- (void)handleTimerTick:(id)sender;
 
 @end
-
-#if TARGET_OS_OSX
-static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink, const CVTimeStamp *now, const CVTimeStamp *outputTime,
-CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
-    RasterizerView *view = (__bridge RasterizerView *)displayLinkContext;
-    [view handleTimerTick: nil];
-    return kCVReturnSuccess;
-}
-#endif
 
 @implementation RasterizerView
 
@@ -71,65 +40,68 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 
 - (void)rasterizerInit {
     self.useCG = false;
-    [self startTimer];
 }
 
-- (void)removeFromSuperview {
+// The display link retains its target, so it runs only while the view is in a window: leaving the window breaks the cycle, & a view
+// added to a window again restarts it. On macOS, a new window may be on another display, which a new link follows
+#if TARGET_OS_OSX
+- (void)viewDidMoveToWindow {
+    [super viewDidMoveToWindow];
+#elif TARGET_OS_IPHONE
+- (void)didMoveToWindow {
+    [super didMoveToWindow];
+#endif
     [self stopTimer];
-    [super removeFromSuperview];
+    if (self.window)
+        [self startTimer];
+}
+
+- (void)dealloc {
+    [self stopTimer];
 }
 
 
 #pragma mark - Timer
 
+// The display link calls back on the main thread, in step with the display, so frames are drawn in its callback. On macOS, a view's
+// display link follows the display the view is on
 - (void)startTimer {
-    _inflight_semaphore = dispatch_semaphore_create(1);
 #if TARGET_OS_OSX
-    CVReturn cvReturn = CVDisplayLinkCreateWithCGDisplay(CGMainDisplayID(), &_displayLink);
-    cvReturn = CVDisplayLinkSetOutputCallback(_displayLink, &OnDisplayLinkFrame, (__bridge void *)self);
-    CVDisplayLinkStart(_displayLink);
+    _displayLink = [self displayLinkWithTarget:self selector:@selector(onDisplayLink:)];
 #elif TARGET_OS_IPHONE
-    if ([CADisplayLink class]) {
-        _displayLink = [CADisplayLink displayLinkWithTarget:self selector:@selector(handleTimerTick:)];
-        [_displayLink addToRunLoop:[NSRunLoop currentRunLoop] forMode:NSRunLoopCommonModes];
+    _displayLink = [CADisplayLink displayLinkWithTarget:self selector:@selector(onDisplayLink:)];
+    // ProMotion displays run up to 120Hz, but a display link defaults to 60Hz. iPhone apps also need CADisableMinimumFrameDurationOnPhone
+    if (@available(iOS 15.0, *)) {
+        float fps = UIScreen.mainScreen.maximumFramesPerSecond;
+        _displayLink.preferredFrameRateRange = CAFrameRateRangeMake(fminf(60, fps), fps, fps);
     }
 #endif
+    [_displayLink addToRunLoop:[NSRunLoop mainRunLoop] forMode:NSRunLoopCommonModes];
 }
 
 - (void)stopTimer {
-#if TARGET_OS_OSX
-    if (_displayLink)
-        CVDisplayLinkStop(_displayLink), CVDisplayLinkRelease(_displayLink), _displayLink = nil;
-#elif TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR
-    [_displayLink setPaused:YES];
-    [_displayLink invalidate];
-    _displayLink = nil;
-#endif
+    [_displayLink invalidate], _displayLink = nil;
 }
 
-- (void)handleTimerTick:(id)sender {
-    @autoreleasepool {
-        if (dispatch_semaphore_wait(_inflight_semaphore, DISPATCH_TIME_NOW) == 0)
-            dispatch_async(dispatch_get_main_queue(), ^{
-                if ([self.listDelegate respondsToSelector:@selector(shouldRedrawAtTime:width:height:)]) {
-                    float w = self.bounds.size.width, h = self.bounds.size.height;
-                    if ([self.listDelegate shouldRedrawAtTime:CACurrentMediaTime()
-                                                        width:w
-                                                       height:h]) {
-                        [self.layer setNeedsDisplay];
-                    }
-                }
-                dispatch_semaphore_signal(_inflight_semaphore);
-            });
+- (void)onDisplayLink:(CADisplayLink *)link {
+    if ([self.listDelegate respondsToSelector:@selector(shouldRedrawAtTime:scale:width:height:)]) {
+        double scale = self.layer.contentsScale, w = self.bounds.size.width, h = self.bounds.size.height;
+        if ([self.listDelegate shouldRedrawAtTime:CACurrentMediaTime()
+                                            scale:scale
+                                            width:w
+                                           height:h]) {
+            [self.layer setNeedsDisplay];
+        }
     }
 }
 
 #pragma mark - LayerDelegate
 
-- (void)writeBuffer:(Ra::Buffer *)buffer forLayer:(CALayer *)layer {
-    if ([self.listDelegate respondsToSelector:@selector(getListAtTime:width:height:)]) {
-        float scale = self.layer.contentsScale, w = self.bounds.size.width, h = self.bounds.size.height;
+- (void)writeBuffer:(RenderBuffer *)buffer forLayer:(CAMetalLayer *)layer {
+    if ([self.listDelegate respondsToSelector:@selector(getListAtTime:scale:width:height:)]) {
+        double scale = self.layer.contentsScale, w = self.bounds.size.width, h = self.bounds.size.height;
         RASceneList *list = [self.listDelegate getListAtTime:CACurrentMediaTime()
+                                                       scale:scale
                                                        width:w
                                                       height:h];
         _renderer.renderList(list.list, scale, w, h, buffer);
@@ -138,13 +110,25 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 
 #pragma mark - CALayerDelegate
 
-- (void)drawLayer:(CALayer *)layer inContext:(CGContextRef)ctx {
-    if ([self.listDelegate respondsToSelector:@selector(getListAtTime:width:height:)]) {
-        float scale = self.layer.contentsScale, w = self.bounds.size.width, h = self.bounds.size.height;
+// CG renders into a DeviceRGB bitmap, the layer's contents, as the Metal layer's colorspace is DeviceRGB, so both draw & blend the
+// same device values. The context a layer draws in is color matched to the window's color space, e.g. Display P3
+- (void)displayLayer:(CALayer *)layer {
+    if ([self.listDelegate respondsToSelector:@selector(getListAtTime:scale:width:height:)]) {
+        double scale = layer.contentsScale, w = self.bounds.size.width, h = self.bounds.size.height;
+        size_t pw = ceil(w * scale), ph = ceil(h * scale);
+        if (pw == 0 || ph == 0)
+            return;
         RASceneList *list = [self.listDelegate getListAtTime:CACurrentMediaTime()
+                                                       scale:scale
                                                        width:w
                                                       height:h];
-        RaCG::renderListToBitmap(list.list, scale, w, h, ctx);
+        CGColorSpaceRef rgb = CGColorSpaceCreateDeviceRGB();
+        CGContextRef ctx = CGBitmapContextCreate(nullptr, pw, ph, 8, pw * 4, rgb, kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little);
+        CGContextScaleCTM(ctx, scale, scale);
+        RaCG::renderListWithClear(list.list, scale, w, h, ctx);
+        CGImageRef image = CGBitmapContextCreateImage(ctx);
+        layer.contents = (__bridge id)image;
+        CGImageRelease(image), CGContextRelease(ctx), CGColorSpaceRelease(rgb);
     }
 }
 
@@ -166,7 +150,6 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     CGFloat scale = self.layer.contentsScale ?: [self convertSizeToBacking:NSMakeSize(1.f, 1.f)].width;
     if (self.useCG) {
         self.layer = [CALayer layer];
-        self.layer.contentsFormat = kCAContentsFormatRGBA8Uint;
         self.layer.delegate = self;
         self.layer.magnificationFilter = kCAFilterNearest;
     } else {

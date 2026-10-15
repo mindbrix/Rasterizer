@@ -1,0 +1,3885 @@
+//
+//  Copyright 2025 Nigel Timothy Barber - nigel@mindbrix.co.uk
+//  SPDX-License-Identifier: MIT
+//
+
+#import "Rasterizer.hpp"
+#import "RasterizerCG.hpp"
+#import "xxhash.h"
+#import <CoreGraphics/CoreGraphics.h>
+#import <CoreText/CoreText.h>
+#import <ImageIO/ImageIO.h>
+#import <algorithm>
+#import <array>
+#import <deque>
+#import <map>
+#import <memory>
+#import <string>
+#import <thread>
+#import <tuple>
+#import <vector>
+
+// The fallback color, BGRA. Tools define one that content won't use, to count fallback draws
+#ifndef RA_PDF_FALLBACK_BGRA
+#define RA_PDF_FALLBACK_BGRA 0, 0, 255, 255
+#endif
+
+struct RasterizerPDF {
+    // What the scan can't draw is drawn in red, to flag it
+    static Ra::Color fallbackColor() { return Ra::Color(RA_PDF_FALLBACK_BGRA); }
+    
+    static bool readNumbers(CGPDFDictionaryRef dict, const char *key, std::vector<float>& numbers) {
+        CGPDFArrayRef array;  CGPDFReal number;
+        if (!CGPDFDictionaryGetArray(dict, key, & array))
+            return false;
+        numbers.resize(0);
+        for (size_t i = 0, count = CGPDFArrayGetCount(array); i < count; i++) {
+            if (!CGPDFArrayGetNumber(array, i, & number))
+                return false;
+            numbers.emplace_back(number);
+        }
+        return true;
+    }
+    
+    // A function of one input, read with CGPDF: sampled (type 0), exponential (type 2) or stitching (type 3)
+    struct Function {
+        static constexpr int kCurveSteps = 16;      // Pieces for an exponential with N != 1
+        static constexpr size_t kMaxInputs = 8;     // Of a sampled function, for DeviceN tint transforms
+        int type = -1;
+        float d0 = 0.f, d1 = 1.f, N = 1.f;
+        size_t inputs = 1, outputs = 0, size = 0;
+        std::vector<size_t> sizes;                  // A sampled function's, of each input
+        std::vector<float> domain, range, c0, c1, bounds, encode, decode, samples;
+        std::vector<Function> fns;
+        // A PostScript calculator function's program, as operators, & numbers to push, with jumps for if & ifelse
+        enum Op : uint8_t { kPush, kJumpIfFalse, kJump, kAbs, kAdd, kAtan, kCeiling, kCos, kCvi, kCvr, kDiv, kExp, kFloor, kIdiv, kLn,
+            kLog, kMod, kMul, kNeg, kRound, kSin, kSqrt, kSub, kTruncate, kAnd, kBitshift, kEq, kFalse, kGe, kGt, kLe, kLt, kNe, kNot,
+            kOr, kTrue, kXor, kCopy, kDup, kExch, kIndex, kPop, kRoll };
+        struct Instruction { Op op;  double value; };      // A number, or a jump's target
+        std::vector<Instruction> program;
+        
+        bool read(CGPDFObjectRef obj) {
+            CGPDFDictionaryRef dict = nullptr;  CGPDFStreamRef stream = nullptr;  CGPDFInteger t;
+            if (CGPDFObjectGetValue(obj, kCGPDFObjectTypeStream, & stream))
+                dict = CGPDFStreamGetDictionary(stream);
+            else
+                CGPDFObjectGetValue(obj, kCGPDFObjectTypeDictionary, & dict);
+            if (dict == nullptr || !CGPDFDictionaryGetInteger(dict, "FunctionType", & t) || !readNumbers(dict, "Domain", domain) || domain.size() < 2 || domain.size() % 2 || domain[0] > domain[1])
+                return false;
+            type = int(t), d0 = domain[0], d1 = domain[1], inputs = domain.size() / 2;
+            readNumbers(dict, "Range", range);
+            if (type == 0)
+                return inputs <= kMaxInputs && readSampled(dict, stream);
+            if (type == 4)
+                return inputs <= kMaxInputs && range.size() >= 2 && range.size() % 2 == 0 && readCalculator(stream);
+            if (inputs != 1)
+                return false;
+            if (type == 2) {
+                CGPDFReal n;
+                if (!CGPDFDictionaryGetNumber(dict, "N", & n))
+                    return false;
+                N = n;
+                if (!readNumbers(dict, "C0", c0))
+                    c0 = { 0.f };
+                if (!readNumbers(dict, "C1", c1))
+                    c1 = { 1.f };
+                outputs = c0.size();
+                return c1.size() == outputs;
+            }
+            if (type == 3) {
+                CGPDFArrayRef array;  CGPDFObjectRef fn;
+                if (!CGPDFDictionaryGetArray(dict, "Functions", & array) || !readNumbers(dict, "Bounds", bounds) || !readNumbers(dict, "Encode", encode))
+                    return false;
+                size_t k = CGPDFArrayGetCount(array);
+                if (k == 0 || bounds.size() != k - 1 || encode.size() != 2 * k)
+                    return false;
+                for (size_t i = 0; i < k; i++)
+                    if (!CGPDFArrayGetObject(array, i, & fn) || !(fns.emplace_back(), fns.back().read(fn)) || fns[i].outputs != fns[0].outputs)
+                        return false;
+                outputs = fns[0].outputs;
+                return true;
+            }
+            return false;
+        }
+        bool readSampled(CGPDFDictionaryRef dict, CGPDFStreamRef stream) {
+            std::vector<float> sizesIn;  CGPDFInteger bps;  CGPDFDataFormat format;
+            if (stream == nullptr || !readNumbers(dict, "Size", sizesIn) || sizesIn.size() != inputs || !CGPDFDictionaryGetInteger(dict, "BitsPerSample", & bps) || bps < 1 || bps > 32 || range.size() < 2 || range.size() % 2)
+                return false;
+            size_t count = range.size() / 2;
+            for (float s : sizesIn) {
+                if (s < 1.f || s > 65536.f)
+                    return false;
+                sizes.emplace_back(size_t(s)), count *= size_t(s);
+            }
+            size = sizes[0], outputs = range.size() / 2;
+            if (!readNumbers(dict, "Encode", encode))
+                for (size_t s : sizes)
+                    encode.emplace_back(0.f), encode.emplace_back(float(s - 1));
+            if (!readNumbers(dict, "Decode", decode))
+                decode = range;
+            if (encode.size() != 2 * inputs || decode.size() != range.size() || count > (1 << 24))
+                return false;
+            CFDataRef data = CGPDFStreamCopyData(stream, & format);
+            if (data == nullptr)
+                return false;
+            bool ok = format == CGPDFDataFormatRaw && size_t(CFDataGetLength(data)) * 8 >= count * bps;
+            if (ok) {
+                // Samples are packed big-endian bits, the outputs of each in turn, & are stored decoded
+                const uint8_t *bytes = CFDataGetBytePtr(data);
+                double scale = 1.0 / (exp2(double(bps)) - 1.0);
+                samples.resize(count);
+                for (size_t i = 0, bit = 0; i < count; i++) {
+                    uint64_t v = 0;
+                    for (int b = 0; b < bps; b++, bit++)
+                        v = v << 1 | (bytes[bit >> 3] >> (7 - (bit & 7)) & 1);
+                    float lo = decode[2 * (i % outputs)], hi = decode[2 * (i % outputs) + 1];
+                    samples[i] = lo + float(v * scale) * (hi - lo);
+                }
+            }
+            CFRelease(data);
+            return ok;
+        }
+        // A PostScript calculator function's program, compiled, & its outputs, which are its range's
+        bool readCalculator(CGPDFStreamRef stream) {
+            CGPDFDataFormat format;  CFDataRef data = stream ? CGPDFStreamCopyData(stream, & format) : nullptr;
+            if (data == nullptr)
+                return false;
+            const char *p = (const char *)CFDataGetBytePtr(data), *end = p + CFDataGetLength(data);
+            for (; p < end && *p != '{'; p++) {}
+            bool ok = format == CGPDFDataFormatRaw && p < end && compile(++p, end, 0) && program.size() < 65536;
+            CFRelease(data);
+            outputs = range.size() / 2;
+            return ok;
+        }
+        // Compiles a brace-delimited procedure, after its {, up to its }. A procedure before if, or two before ifelse, are inline,
+        // after a jump past them if the condition is false, & an ifelse's first procedure jumps past its second
+        bool compile(const char *& p, const char *end, int depth) {
+            static const std::map<std::string, Op> ops = { { "abs", kAbs }, { "add", kAdd }, { "atan", kAtan }, { "ceiling", kCeiling },
+                { "cos", kCos }, { "cvi", kCvi }, { "cvr", kCvr }, { "div", kDiv }, { "exp", kExp }, { "floor", kFloor }, { "idiv", kIdiv },
+                { "ln", kLn }, { "log", kLog }, { "mod", kMod }, { "mul", kMul }, { "neg", kNeg }, { "round", kRound }, { "sin", kSin },
+                { "sqrt", kSqrt }, { "sub", kSub }, { "truncate", kTruncate }, { "and", kAnd }, { "bitshift", kBitshift }, { "eq", kEq },
+                { "false", kFalse }, { "ge", kGe }, { "gt", kGt }, { "le", kLe }, { "lt", kLt }, { "ne", kNe }, { "not", kNot }, { "or", kOr },
+                { "true", kTrue }, { "xor", kXor }, { "copy", kCopy }, { "dup", kDup }, { "exch", kExch }, { "index", kIndex }, { "pop", kPop },
+                { "roll", kRoll } };
+            std::vector<std::vector<Instruction>> procs;     // Pending procedures, for if & ifelse
+            auto append = [&](const std::vector<Instruction>& proc) {      // Whose jumps are to its own instructions
+                size_t start = program.size();
+                for (Instruction in : proc)
+                    program.push_back({ in.op, in.op == kJump || in.op == kJumpIfFalse ? in.value + double(start) : in.value });
+            };
+            if (depth > 32)
+                return false;
+            while (p < end) {
+                if (isspace(*p)) {
+                    p++;
+                    continue;
+                }
+                if (*p == '}') {
+                    p++;
+                    return procs.empty();
+                }
+                if (*p == '{') {
+                    std::vector<Instruction> saved;  saved.swap(program);
+                    bool ok = compile(++p, end, depth + 1);
+                    procs.emplace_back(), procs.back().swap(program), program.swap(saved);
+                    if (!ok)
+                        return false;
+                    continue;
+                }
+                const char *start = p;
+                for (; p < end && !isspace(*p) && *p != '{' && *p != '}'; p++) {}
+                std::string token(start, p);
+                char *numberEnd = nullptr;  double number = strtod(token.c_str(), & numberEnd);
+                if (token == "if" || token == "ifelse") {
+                    bool isElse = token == "ifelse";
+                    if (procs.size() != (isElse ? 2 : 1))
+                        return false;
+                    size_t jump = program.size(), skip = 0;
+                    program.push_back({ kJumpIfFalse, 0.0 });
+                    append(procs[0]);
+                    if (isElse)
+                        skip = program.size(), program.push_back({ kJump, 0.0 });
+                    program[jump].value = double(program.size());
+                    if (isElse)
+                        append(procs[1]), program[skip].value = double(program.size());
+                    procs.clear();
+                } else if (!procs.empty())
+                    return false;
+                else if (numberEnd && *numberEnd == 0 && !token.empty())
+                    program.push_back({ kPush, number });
+                else {
+                    auto it = ops.find(token);
+                    if (it == ops.end())
+                        return false;
+                    program.push_back({ it->second, 0.0 });
+                }
+            }
+            return false;
+        }
+        // Runs a PostScript calculator function's program on its inputs, clipped to its domain, & writes the outputs, clipped
+        // to its range, or zeros if it fails
+        void calculate(const float *x, float *out) const {
+            constexpr size_t kMaxStack = 100;
+            double st[kMaxStack];  size_t n = 0;
+            bool ok = true;
+            for (size_t i = 0; i < inputs; i++)
+                st[n++] = fmax(domain[2 * i], fmin(domain[2 * i + 1], x[i]));
+            for (size_t pc = 0; ok && pc < program.size(); pc++) {
+                const Instruction& in = program[pc];
+                auto need = [&](size_t k) { return n >= k ? true : (ok = false); };
+                auto room = [&](size_t k) { return n + k <= kMaxStack ? true : (ok = false); };
+                double a, b;
+                switch (in.op) {
+                    case kPush:         if (room(1)) st[n++] = in.value;  break;
+                    case kTrue:         if (room(1)) st[n++] = 1.0;  break;
+                    case kFalse:        if (room(1)) st[n++] = 0.0;  break;
+                    case kJump:         pc = size_t(in.value) - 1;  break;
+                    case kJumpIfFalse:  if (need(1) && st[--n] == 0.0) pc = size_t(in.value) - 1;  break;
+                    case kAbs:          if (need(1)) st[n - 1] = fabs(st[n - 1]);  break;
+                    case kNeg:          if (need(1)) st[n - 1] = -st[n - 1];  break;
+                    case kCeiling:      if (need(1)) st[n - 1] = ceil(st[n - 1]);  break;
+                    case kFloor:        if (need(1)) st[n - 1] = floor(st[n - 1]);  break;
+                    case kRound:        if (need(1)) st[n - 1] = floor(st[n - 1] + 0.5);  break;
+                    case kTruncate:     if (need(1)) st[n - 1] = trunc(st[n - 1]);  break;
+                    case kCvi:          if (need(1)) st[n - 1] = trunc(st[n - 1]);  break;
+                    case kCvr:          need(1);  break;
+                    case kSqrt:         if (need(1)) st[n - 1] = sqrt(fmax(0.0, st[n - 1]));  break;
+                    case kSin:          if (need(1)) st[n - 1] = sin(st[n - 1] * M_PI / 180.0);  break;
+                    case kCos:          if (need(1)) st[n - 1] = cos(st[n - 1] * M_PI / 180.0);  break;
+                    case kLn:           if (need(1)) st[n - 1] = log(st[n - 1]);  break;
+                    case kLog:          if (need(1)) st[n - 1] = log10(st[n - 1]);  break;
+                    case kNot:          if (need(1)) st[n - 1] = st[n - 1] == 0.0 || st[n - 1] == 1.0 ? 1.0 - st[n - 1] : double(~int64_t(st[n - 1]));  break;     // A boolean's, else bitwise
+                    case kDup:          if (need(1) && room(1)) st[n] = st[n - 1], n++;  break;
+                    case kPop:          if (need(1)) n--;  break;
+                    case kExch:         if (need(2)) std::swap(st[n - 1], st[n - 2]);  break;
+                    case kCopy:         if (need(1)) { size_t k = size_t(fmax(0.0, st[--n]));  if (need(k) && room(k)) { for (size_t i = 0; i < k; i++) st[n + i] = st[n - k + i];  n += k; } }  break;
+                    case kIndex:        if (need(1)) { size_t k = size_t(fmax(0.0, st[n - 1]));  if (need(k + 2)) st[n - 1] = st[n - 2 - k]; }  break;
+                    case kRoll:         if (need(2)) {
+                                            long j = long(st[--n]);  size_t k = size_t(fmax(0.0, st[--n]));
+                                            if (need(k) && k) {
+                                                j = ((j % long(k)) + long(k)) % long(k);
+                                                std::rotate(st + n - k, st + n - j, st + n);
+                                            }
+                                        }  break;
+                    default:
+                        if (!need(2))
+                            break;
+                        b = st[--n], a = st[n - 1];
+                        int64_t ia = int64_t(a), ib = int64_t(b);
+                        switch (in.op) {
+                            case kAdd:      a = a + b;  break;
+                            case kSub:      a = a - b;  break;
+                            case kMul:      a = a * b;  break;
+                            case kDiv:      a = b == 0.0 ? 0.0 : a / b;  break;
+                            case kIdiv:     a = ib == 0 ? 0.0 : double(ia / ib);  break;
+                            case kMod:      a = ib == 0 ? 0.0 : double(ia % ib);  break;
+                            case kExp:      a = pow(a, b);  break;
+                            case kAtan:     a = fmod(atan2(a, b) * 180.0 / M_PI + 360.0, 360.0);  break;
+                            case kAnd:      a = double(ia & ib);  break;
+                            case kOr:       a = double(ia | ib);  break;
+                            case kXor:      a = double(ia ^ ib);  break;
+                            case kBitshift: a = ib > 63 || ib < -63 ? 0.0 : double(ib >= 0 ? ia << ib : ia >> -ib);  break;
+                            case kEq:       a = a == b;  break;
+                            case kNe:       a = a != b;  break;
+                            case kGe:       a = a >= b;  break;
+                            case kGt:       a = a > b;  break;
+                            case kLe:       a = a <= b;  break;
+                            case kLt:       a = a < b;  break;
+                            default:        break;
+                        }
+                        st[n - 1] = a;
+                }
+            }
+            ok = ok && n >= outputs;
+            for (size_t j = 0; j < outputs; j++)
+                out[j] = ok ? fmaxf(range[2 * j], fminf(range[2 * j + 1], float(st[n - outputs + j]))) : 0.f;
+        }
+        // Writes the outputs at inputs x, interpolating a sampled function's samples multilinearly
+        void eval(const float *x, float *out) const {
+            if (type == 4)
+                return calculate(x, out);
+            if (inputs == 1)
+                return eval(x[0], false, out);
+            size_t i0[kMaxInputs], i1[kMaxInputs], stride[kMaxInputs];  float u[kMaxInputs];
+            for (size_t i = 0, s = 1; i < inputs; s *= sizes[i], i++) {
+                float a = domain[2 * i], b = domain[2 * i + 1], v = fmaxf(a, fminf(b, x[i]));
+                float e = b == a ? encode[2 * i] : encode[2 * i] + (v - a) * (encode[2 * i + 1] - encode[2 * i]) / (b - a);
+                e = fmaxf(0.f, fminf(float(sizes[i] - 1), e));
+                i0[i] = size_t(e), i1[i] = i0[i] + 1 < sizes[i] ? i0[i] + 1 : i0[i], u[i] = e - float(i0[i]), stride[i] = s;
+            }
+            for (size_t j = 0; j < outputs; j++)
+                out[j] = 0.f;
+            for (size_t corner = 0; corner < (size_t(1) << inputs); corner++) {
+                float w = 1.f;  size_t index = 0;
+                for (size_t i = 0; i < inputs; i++) {
+                    bool hi = corner >> i & 1;
+                    w *= hi ? u[i] : 1.f - u[i], index += (hi ? i1[i] : i0[i]) * stride[i];
+                }
+                for (size_t j = 0; w != 0.f && j < outputs; j++)
+                    out[j] += w * samples[index * outputs + j];
+            }
+            for (size_t j = 0; j < outputs && 2 * j + 1 < range.size(); j++)
+                out[j] = fmaxf(range[2 * j], fminf(range[2 * j + 1], out[j]));
+        }
+        // Writes the outputs at x, or at its left limit, which only differs at a stitching bound
+        void eval(float x, bool left, float *out) const {
+            x = fmaxf(d0, fminf(d1, x));
+            if (type == 0) {
+                float e = d1 == d0 ? encode[0] : encode[0] + (x - d0) * (encode[1] - encode[0]) / (d1 - d0);
+                e = fmaxf(0.f, fminf(float(size - 1), e));
+                size_t i0 = size_t(e), i1 = i0 + 1 < size ? i0 + 1 : i0;
+                float u = e - float(i0);
+                const float *s0 = & samples[i0 * outputs], *s1 = & samples[i1 * outputs];
+                for (size_t j = 0; j < outputs; j++)
+                    out[j] = s0[j] + u * (s1[j] - s0[j]);
+            } else if (type == 2) {
+                float p = N == 1.f ? x : powf(x, N);
+                for (size_t j = 0; j < outputs; j++)
+                    out[j] = c0[j] + p * (c1[j] - c0[j]);
+            } else if (type == 4) {
+                calculate(& x, out);
+            } else {
+                size_t i = 0, k = fns.size();
+                float tol = 1e-5f * (d1 - d0);      // Mapped breaks can miss a bound by float error
+                while (i < k - 1 && (left ? x > bounds[i] + tol : x >= bounds[i] - tol))
+                    i++;
+                float a = i == 0 ? d0 : bounds[i - 1], b = i == k - 1 ? d1 : bounds[i], e0 = encode[2 * i], e1 = encode[2 * i + 1];
+                fns[i].eval(b == a ? e0 : e0 + (x - a) * (e1 - e0) / (b - a), left != (e1 < e0), out);
+            }
+            for (size_t j = 0; j < outputs && 2 * j + 1 < range.size(); j++)
+                out[j] = fmaxf(range[2 * j], fminf(range[2 * j + 1], out[j]));
+        }
+        // Appends the inputs in [lo, hi] where the function's linear pieces start & end, mapped to the caller's as m * x + c
+        void breaks(float lo, float hi, float m, float c, std::vector<float>& xs) const {
+            lo = fmaxf(lo, d0), hi = fminf(hi, d1);
+            if (lo > hi)
+                return;
+            xs.emplace_back(m * lo + c), xs.emplace_back(m * hi + c);
+            if (type == 0) {
+                float s = d1 == d0 ? 0.f : (encode[1] - encode[0]) / (d1 - d0);        // e = encode0 + (x - d0) * s
+                for (size_t i = 0; s != 0.f && i < size; i++) {
+                    float x = d0 + (float(i) - encode[0]) / s;
+                    if (x > lo && x < hi)
+                        xs.emplace_back(m * x + c);
+                }
+            } else if (type == 2 || type == 4) {     // A calculator's pieces are unknown, so it's sampled as a curve's
+                for (int i = 1; (N != 1.f || type == 4) && i < kCurveSteps; i++)
+                    xs.emplace_back(m * (lo + (hi - lo) * i / kCurveSteps) + c);
+            } else {
+                for (size_t i = 0, k = fns.size(); i < k; i++) {
+                    float a = i == 0 ? d0 : bounds[i - 1], b = i == k - 1 ? d1 : bounds[i], e0 = encode[2 * i], e1 = encode[2 * i + 1];
+                    float ia = fmaxf(a, lo), ib = fminf(b, hi);
+                    if (ia > ib)
+                        continue;
+                    xs.emplace_back(m * ia + c), xs.emplace_back(m * ib + c);
+                    if (b > a && e1 != e0) {
+                        float s = (e1 - e0) / (b - a), sa = e0 + (ia - a) * s, sb = e0 + (ib - a) * s;     // x' = e0 + (x - a) * s
+                        fns[i].breaks(fminf(sa, sb), fmaxf(sa, sb), m / s, m * (a - e0 / s) + c, xs);
+                    }
+                }
+            }
+        }
+    };
+    
+    // A soft mask the scan can't read, so what it masks is a fallback, or one that paints nothing, so hides what it masks
+    enum { kNoMask = -1, kUnsupportedMask = -2, kEmptyMask = -3 };
+    
+    // An axial or radial shading, read with CGPDF, so it can be drawn as a gradient. Other shadings are invalid, so fallbacks.
+    // unit maps Rasterizer's gradient space to shading space: linear gradients run up y from 0 to 1, & radial ones out from the
+    // origin to radius 1. Unextended ends are drawn with geometry, as gradient colors extend
+    struct Shading {
+        Ra::Transform ctm, unit;        // ctm & alpha are the sh operator's
+        bool isValid = false, isRadial = false, extendLo = false, extendHi = false;
+        bool isTwoCircle = false;       // A radial whose circles aren't concentric, which CoreGraphics draws
+        bool isEmpty = false;           // A radial whose circles are identical, which paints nothing, as pdfium & CoreGraphics
+        bool hasBBox = false;           // Its BBox, in shading space, which it's clipped to
+        Ra::Bounds bbox;
+        float circles[6] = {};          // Its x0, y0, r0, x1, y1, r1, in shading space
+        float alpha = 1.f, lo = 0.f;    // lo is the gradient's start, the inner radius for a radial
+        int mask = kNoMask;             // The soft mask & blend mode of an sh operator
+        uint8_t blend = kBlendNormal;
+        std::vector<Ra::Color> colors;
+        std::vector<float> locations;
+        
+        // A luminosity soft mask's alpha at a page point, where inverse maps page space to gradient space: its luminosity, & 0
+        // beyond an unextended end, which the mask's group doesn't paint
+        float luminosityAt(float x, float y, const Ra::Transform& inverse) const {
+            float gx = inverse.a * x + inverse.c * y + inverse.tx, gy = inverse.b * x + inverse.d * y + inverse.ty;
+            float u = isTwoCircle ? twoCircleAt(gx, gy) : isRadial ? sqrtf(gx * gx + gy * gy) : gy;
+            if (isnan(u) || (!isTwoCircle && ((u < lo && !extendLo) || (u > 1.f && !extendHi))))
+                return 0.f;
+            Ra::Color m = colorAt(u, false);
+            return (0.3f * m.r + 0.59f * m.g + 0.11f * m.b) / 255.f * alpha;
+        }
+        // A two-circle radial's gradient position at a shading space point: the greatest s whose circle, interpolated from
+        // (x0, y0, r0) at 0 to (x1, y1, r1) at 1, & extended, passes through it with radius >= 0, clamped to 0-1, or NaN if none
+        float twoCircleAt(float x, float y) const {
+            const float *c = circles;
+            float dx = c[3] - c[0], dy = c[4] - c[1], dr = c[5] - c[2], px = x - c[0], py = y - c[1];
+            float a = dx * dx + dy * dy - dr * dr, b = px * dx + py * dy + c[2] * dr, cc = px * px + py * py - c[2] * c[2];
+            float roots[2];  int n = 0;
+            if (fabsf(a) < 1e-6f * (dx * dx + dy * dy + dr * dr)) {
+                if (b != 0.f)
+                    roots[n++] = 0.5f * cc / b;
+            } else {
+                float d = b * b - a * cc;
+                if (d < 0.f)
+                    return NAN;
+                float q = sqrtf(d);
+                roots[n++] = fmaxf((b + q) / a, (b - q) / a), roots[n++] = fminf((b + q) / a, (b - q) / a);
+            }
+            for (int i = 0; i < n; i++) {
+                float t = roots[i];
+                if (c[2] + t * dr >= 0.f && (t >= 0.f || extendLo) && (t <= 1.f || extendHi))
+                    return fmaxf(0.f, fminf(1.f, t));
+            }
+            return NAN;
+        }
+        // The color at u, or its left limit, which differs at a hard stop
+        Ra::Color colorAt(float u, bool left) const {
+            size_t n = locations.size();
+            if (u <= locations[0])
+                return colors[0];
+            if (u >= locations[n - 1])
+                return colors[n - 1];
+            size_t j = (left ? std::lower_bound(locations.begin(), locations.end(), u) : std::upper_bound(locations.begin(), locations.end(), u)) - locations.begin();
+            float t = locations[j] == locations[j - 1] ? 0.f : (u - locations[j - 1]) / (locations[j] - locations[j - 1]);
+            const Ra::Color& c0 = colors[j - 1], & c1 = colors[j];
+            return Ra::Color(uint8_t(c0.b + t * (c1.b - c0.b) + 0.5f), uint8_t(c0.g + t * (c1.g - c0.g) + 0.5f), uint8_t(c0.r + t * (c1.r - c0.r) + 0.5f), uint8_t(c0.a + t * (c1.a - c0.a) + 0.5f));
+        }
+        // A luminosity soft mask of a gradient, applied to a gradient with the same geometry, or to a color if shading is null.
+        // The result's alphas are the mask's luminosity. Two-circle radials have the same geometry if their circles do
+        static bool masked(const Shading *shading, Ra::Color color, const Shading& mask, Shading& result) {
+            if ((shading && shading->isEmpty) || mask.isEmpty)
+                return false;     // An empty shading or mask paints nothing
+            if (shading) {
+                Ra::Transform m0 = shading->unit.concat(shading->ctm), m1 = mask.unit.concat(mask.ctm);
+                auto close = [](float x, float y) { return fabsf(x - y) <= 1e-3f * (1.f + fabsf(x)); };
+                if (shading->isRadial != mask.isRadial || shading->isTwoCircle != mask.isTwoCircle || !close(shading->lo, mask.lo) || !close(m0.a, m1.a)
+                    || !close(m0.b, m1.b) || !close(m0.c, m1.c) || !close(m0.d, m1.d) || !close(m0.tx, m1.tx) || !close(m0.ty, m1.ty))
+                    return false;
+                for (int i = 0; i < 6 && mask.isTwoCircle; i++)
+                    if (!close(shading->circles[i], mask.circles[i]))
+                        return false;
+            }
+            result = mask, result.alpha = 1.f, result.mask = kNoMask, result.colors.resize(0), result.locations.resize(0);
+            result.extendLo = mask.extendLo && (!shading || shading->extendLo), result.extendHi = mask.extendHi && (!shading || shading->extendHi);
+            std::vector<float> us = mask.locations;
+            if (shading)
+                us.insert(us.end(), shading->locations.begin(), shading->locations.end());
+            std::sort(us.begin(), us.end());
+            us.erase(std::unique(us.begin(), us.end()), us.end());
+            auto colorAt = [&](float u, bool left) {
+                Ra::Color c = shading ? shading->colorAt(u, left) : color, m = mask.colorAt(u, left);
+                float luminosity = (0.3f * m.r + 0.59f * m.g + 0.11f * m.b) / 255.f * mask.alpha;
+                c.a = uint8_t(c.a * luminosity + 0.5f);
+                return c;
+            };
+            for (size_t k = 0; k < us.size(); k++) {
+                Ra::Color l = colorAt(us[k], true), r = colorAt(us[k], false);
+                if (k > 0)
+                    result.colors.emplace_back(l), result.locations.emplace_back(us[k]);
+                if (k == 0 || (k < us.size() - 1 && memcmp(& l, & r, sizeof(l))))
+                    result.colors.emplace_back(r), result.locations.emplace_back(us[k]);
+            }
+            return result.colors.size() > 1;
+        }
+        
+        // A color space's components, or for a Separation or DeviceN with tint, its alternate space's, with its own in inputs, & its
+        // tint transform read into tint
+        static size_t colorSpaceComponents(CGPDFObjectRef obj, CGPDFContentStreamRef cs, bool isResource = false, Function *tint = nullptr, size_t *inputs = nullptr) {
+            const char *name;  CGPDFArrayRef array, names;  CGPDFStreamRef stream;  CGPDFInteger n;  CGPDFObjectRef alternate, fn;
+            if (CGPDFObjectGetValue(obj, kCGPDFObjectTypeName, & name)) {
+                if (!strcmp(name, "DeviceGray") || !strcmp(name, "G"))
+                    return 1;
+                if (!strcmp(name, "DeviceRGB") || !strcmp(name, "RGB"))
+                    return 3;
+                if (!strcmp(name, "DeviceCMYK") || !strcmp(name, "CMYK"))
+                    return 4;
+                CGPDFObjectRef resource = isResource ? nullptr : CGPDFContentStreamGetResource(cs, "ColorSpace", name);
+                return resource ? colorSpaceComponents(resource, cs, true, tint, inputs) : 0;
+            }
+            if (CGPDFObjectGetValue(obj, kCGPDFObjectTypeArray, & array) && CGPDFArrayGetName(array, 0, & name)) {
+                bool isSeparation = !strcmp(name, "Separation"), isDeviceN = !strcmp(name, "DeviceN");
+                if (tint && inputs && (isSeparation || (isDeviceN && CGPDFArrayGetArray(array, 1, & names)))
+                    && CGPDFArrayGetObject(array, 2, & alternate) && CGPDFArrayGetObject(array, 3, & fn)) {
+                    size_t k = isSeparation ? 1 : CGPDFArrayGetCount(names), m = colorSpaceComponents(alternate, cs);
+                    if (m && k <= Function::kMaxInputs && tint->read(fn) && tint->inputs == k && tint->outputs == m)
+                        return *inputs = k, m;
+                    tint->type = -1;
+                    return 0;
+                }
+                if (!strcmp(name, "ICCBased") && CGPDFArrayGetStream(array, 1, & stream) && CGPDFDictionaryGetInteger(CGPDFStreamGetDictionary(stream), "N", & n))
+                    return n == 1 || n == 3 || n == 4 ? n : 0;
+                if (!strcmp(name, "CalGray"))
+                    return 1;
+                if (!strcmp(name, "CalRGB"))
+                    return 3;
+            }
+            return 0;
+        }
+        bool read(CGPDFDictionaryRef dict, CGPDFContentStreamRef cs) {
+            CGPDFInteger type;  CGPDFArrayRef array;  CGPDFObjectRef obj;  CGPDFBoolean e0 = false, e1 = false;
+            std::vector<float> coords, domain;  std::vector<Function> fns;
+            if (!CGPDFDictionaryGetInteger(dict, "ShadingType", & type) || (type != 2 && type != 3))
+                return false;
+            std::vector<float> box;
+            if (readNumbers(dict, "BBox", box) && box.size() == 4)
+                hasBBox = true, bbox = Ra::Bounds(fminf(box[0], box[2]), fminf(box[1], box[3]), fmaxf(box[0], box[2]), fmaxf(box[1], box[3]));
+            if (!readNumbers(dict, "Coords", coords) || coords.size() != (type == 2 ? 4 : 6))
+                return false;
+            if (!readNumbers(dict, "Domain", domain))
+                domain = { 0.f, 1.f };
+            if (domain.size() != 2 || domain[0] == domain[1])
+                return false;
+            if (CGPDFDictionaryGetArray(dict, "Extend", & array))
+                CGPDFArrayGetBoolean(array, 0, & e0), CGPDFArrayGetBoolean(array, 1, & e1);
+            Function tint;  size_t inputs = 0;      // A Separation or DeviceN's, which the functions' outputs are
+            size_t components = CGPDFDictionaryGetObject(dict, "ColorSpace", & obj) ? colorSpaceComponents(obj, cs, false, & tint, & inputs) : 0;
+            size_t outputs = tint.type >= 0 ? inputs : components;
+            if (components == 0 || !CGPDFDictionaryGetObject(dict, "Function", & obj))
+                return false;
+            if (CGPDFObjectGetValue(obj, kCGPDFObjectTypeArray, & array)) {
+                for (size_t i = 0; i < CGPDFArrayGetCount(array); i++)
+                    if (!CGPDFArrayGetObject(array, i, & obj) || !(fns.emplace_back(), fns.back().read(obj)) || fns.back().outputs != 1)
+                        return false;
+                if (fns.size() != outputs)
+                    return false;
+            } else if (!(fns.emplace_back(), fns.back().read(obj)) || fns[0].outputs != outputs)
+                return false;
+                
+            // Where the gradient is, as a unit transform & the stops' positions u = a + b * s for s in [0, 1] from (x0, y0, r0) to (x1, y1, r1)
+            float a = 0.f, b = 1.f;
+            if (type == 2) {
+                float dx = coords[2] - coords[0], dy = coords[3] - coords[1];
+                if (dx == 0.f && dy == 0.f)
+                    return false;
+                unit = Ra::Transform(-dy, dx, dx, dy, coords[0], coords[1]);
+                extendLo = e0, extendHi = e1;
+            } else {
+                float r0 = coords[2], r1 = coords[5], r = fmaxf(r0, r1);
+                if (r0 < 0.f || r1 < 0.f)
+                    return false;
+                if (r0 == r1 && coords[0] == coords[3] && coords[1] == coords[4])
+                    return isEmpty = true;
+                isRadial = true;
+                if (r0 == r1 || fabsf(coords[3] - coords[0]) > 1e-3f * r || fabsf(coords[4] - coords[1]) > 1e-3f * r) {
+                    isTwoCircle = true, std::copy(coords.begin(), coords.end(), circles), extendLo = e0, extendHi = e1;
+                } else {
+                    unit = Ra::Transform(r, 0.f, 0.f, r, coords[0], coords[1]);
+                    a = r0 / r, b = (r1 - r0) / r, lo = fminf(r0, r1) / r;
+                    extendLo = r0 < r1 ? e0 : e1, extendHi = r0 < r1 ? e1 : e0;
+                }
+            }
+            
+            // Stops where the functions' pieces start & end, with both limits at a stitching bound so its edge stays hard
+            float t0 = domain[0], t1 = domain[1], tmin = fminf(t0, t1), tmax = fmaxf(t0, t1), eps = 1e-6f * (tmax - tmin);
+            std::vector<float> ts = { tmin, tmax };
+            for (auto& fn : fns)
+                fn.breaks(tmin, tmax, 1.f, 0.f, ts);
+            for (auto& t : ts)
+                t = fmaxf(tmin, fminf(tmax, t));
+            std::sort(ts.begin(), ts.end());
+            ts.erase(std::unique(ts.begin(), ts.end(), [eps](float x, float y) { return y - x <= eps; }), ts.end());
+            ts.back() = tmax;
+            if (ts.size() < 2)
+                return false;
+            for (size_t k = 0; k < ts.size(); k++) {
+                Ra::Color l = color(fns, components, tint, ts[k], true), r = color(fns, components, tint, ts[k], false);
+                float u = a + b * (ts[k] - t0) / (t1 - t0);
+                if (k > 0)
+                    colors.emplace_back(l), locations.emplace_back(u);
+                if (k == 0 || (k < ts.size() - 1 && memcmp(& l, & r, sizeof(l))))
+                    colors.emplace_back(r), locations.emplace_back(u);
+            }
+            if (locations.front() > locations.back())
+                std::reverse(colors.begin(), colors.end()), std::reverse(locations.begin(), locations.end());
+            return true;
+        }
+        // The functions' color at t, or its left limit, through a tint transform if it has one
+        static Ra::Color color(const std::vector<Function>& fns, size_t components, const Function& tint, float t, bool left) {
+            float c[Function::kMaxInputs] = {}, *out = c;
+            for (auto& fn : fns)
+                fn.eval(t, left, out), out += fn.outputs;
+            for (auto& v : c)
+                v = fmaxf(0.f, fminf(1.f, v));
+            if (tint.type >= 0) {
+                float alternate[Function::kMaxInputs] = {};
+                tint.eval(c, alternate);
+                for (size_t i = 0; i < Function::kMaxInputs; i++)
+                    c[i] = fmaxf(0.f, fminf(1.f, alternate[i]));
+            }
+            float r = c[0], g = c[0], b = c[0];
+            if (components == 3)
+                g = c[1], b = c[2];
+            else if (components == 4) {     // By CoreGraphics, as a fill's DeviceCMYK color is
+                static CGColorSpaceRef cmyk = CGColorSpaceCreateDeviceCMYK(), rgb = CGColorSpaceCreateDeviceRGB();
+                CGFloat values[5] = { c[0], c[1], c[2], c[3], 1.0 };
+                CGColorRef color = CGColorCreate(cmyk, values);
+                CGColorRef matched = color ? CGColorCreateCopyByMatchingToColorSpace(rgb, kCGRenderingIntentDefault, color, nullptr) : nullptr;
+                const CGFloat *v = matched && CGColorGetNumberOfComponents(matched) >= 3 ? CGColorGetComponents(matched) : nullptr;
+                if (v)
+                    r = float(v[0]), g = float(v[1]), b = float(v[2]);
+                else
+                    r = (1.f - c[0]) * (1.f - c[3]), g = (1.f - c[1]) * (1.f - c[3]), b = (1.f - c[2]) * (1.f - c[3]);
+                CGColorRelease(matched), CGColorRelease(color);
+            }
+            r = fmaxf(0.f, fminf(1.f, r)), g = fmaxf(0.f, fminf(1.f, g)), b = fmaxf(0.f, fminf(1.f, b));
+            return Ra::Color(uint8_t(b * 255.f + 0.5f), uint8_t(g * 255.f + 0.5f), uint8_t(r * 255.f + 0.5f), 255);
+        }
+    };
+    
+    // A soft mask: a gradient's luminosity, or its group's luminosity or alpha, rendered into an image over bounds, in page space,
+    // beyond which it's its backdrop's, of its BC color, or 0 for an alpha mask
+    struct Mask {
+        Shading shading;                    // A gradient's, if it's valid
+        bool isImage = false;
+        std::vector<uint8_t> alphas;        // Else its image's, top row first
+        size_t width = 0, height = 0;
+        Ra::Bounds bounds = Ra::Bounds::huge();
+        Ra::Transform inverse;              // Page space to the gradient's space, or to the image's unit square
+        float outside = 0.f;
+        
+        // Its alpha at a page point, interpolated between an image's pixels' centers
+        float alphaAt(float x, float y) const {
+            if (!isImage)
+                return shading.luminosityAt(x, y, inverse);
+            float u = inverse.a * x + inverse.c * y + inverse.tx, v = inverse.b * x + inverse.d * y + inverse.ty;
+            if (u < 0.f || u > 1.f || v < 0.f || v > 1.f || width == 0 || height == 0)
+                return outside;
+            float px = fmaxf(0.f, fminf(width - 1.f, u * width - 0.5f)), py = fmaxf(0.f, fminf(height - 1.f, (1.f - v) * height - 0.5f));
+            size_t x0 = size_t(px), y0 = size_t(py), x1 = std::min(x0 + 1, width - 1), y1 = std::min(y0 + 1, height - 1);
+            float fx = px - x0, fy = py - y0;
+            auto a = [&](size_t i, size_t j) { return alphas[j * width + i] / 255.f; };
+            return (a(x0, y0) * (1.f - fx) + a(x1, y0) * fx) * (1.f - fy) + (a(x0, y1) * (1.f - fx) + a(x1, y1) * fx) * fy;
+        }
+    };
+    
+    // A font's glyphs, as CoreText paths in text space, & widths, read with CGPDF, from codes, as finding them from Unicode would
+    // lose ligatures & contextual forms. Simple fonts map codes to glyphs by their Differences' names, else by Unicode from their
+    // encoding. Type 0 fonts need an Identity CMap, & map CIDs to glyphs with their CIDToGIDMap. Other CMaps are invalid, but have
+    // their default width, so their text's boxes are drawn as fallbacks. A Type 3 font's glyphs are its CharProcs' content
+    // streams, by their Differences' names, which Shadings scans into paths
+    struct TextFont {
+        TextFont(const TextFont&) = delete;
+        TextFont(CGPDFDictionaryRef dict) {
+            const char *subtype, *name;  CGPDFDictionaryRef font = dict, desc = nullptr, enc;  CGPDFArrayRef array;  CGPDFReal number;
+            if (!CGPDFDictionaryGetName(dict, "Subtype", & subtype))
+                return;
+            if ((isType0 = !strcmp(subtype, "Type0"))) {
+                if (!CGPDFDictionaryGetArray(dict, "DescendantFonts", & array) || !CGPDFArrayGetDictionary(array, 0, & font))
+                    return;
+                if (CGPDFDictionaryGetNumber(font, "DW", & number))
+                    defaultWidth = number;
+                if (!CGPDFDictionaryGetName(dict, "Encoding", & name) || (strcmp(name, "Identity-H") && strcmp(name, "Identity-V")))
+                    return;     // Its codes aren't CIDs
+                if (CGPDFDictionaryGetArray(font, "W", & array))
+                    readCIDWidths(array);
+                CGPDFStreamRef map;
+                if (CGPDFDictionaryGetStream(font, "CIDToGIDMap", & map)) {
+                    CGPDFDataFormat format;  CFDataRef data = CGPDFStreamCopyData(map, & format);
+                    if (data) {
+                        const uint8_t *bytes = CFDataGetBytePtr(data);
+                        for (CFIndex i = 0; i + 1 < CFDataGetLength(data); i += 2)
+                            cidToGid.emplace_back(bytes[i] << 8 | bytes[i + 1]);
+                        CFRelease(data), identityGid = false;
+                    }
+                }
+            }
+            CGPDFDictionaryGetDictionary(font, "FontDescriptor", & desc);
+            if (!isType0) {
+                std::vector<float> m;      // A Type 3 font's widths are in glyph space
+                float scale = !strcmp(subtype, "Type3") && readNumbers(dict, "FontMatrix", m) && m.size() == 6 ? m[0] * 1000.f : 1.f;
+                CGPDFInteger first = 0;
+                CGPDFDictionaryGetInteger(dict, "FirstChar", & first), firstChar = int(first);
+                if (CGPDFDictionaryGetArray(dict, "Widths", & array))
+                    for (size_t i = 0; i < CGPDFArrayGetCount(array); i++)
+                        widths.emplace_back(CGPDFArrayGetNumber(array, i, & number) ? float(number) * scale : 0.f);
+                if (desc && CGPDFDictionaryGetNumber(desc, "MissingWidth", & number))
+                    missingWidth = number * scale, hasMissingWidth = true;
+                if (!strcmp(subtype, "Type3")) {
+                    if (m.size() != 6 || !CGPDFDictionaryGetDictionary(dict, "CharProcs", & charProcs))
+                        return;
+                    isType3 = true, fontMatrix = Ra::Transform(m[0], m[1], m[2], m[3], m[4], m[5]);
+                    CGPDFDictionaryGetDictionary(dict, "Resources", & resources);
+                    if (CGPDFDictionaryGetDictionary(dict, "Encoding", & enc))
+                        readDifferences(enc);
+                    isValid = true;
+                    return;
+                }
+            }
+            CGPDFStreamRef file = nullptr;
+            if (desc && (CGPDFDictionaryGetStream(desc, "FontFile3", & file) || CGPDFDictionaryGetStream(desc, "FontFile2", & file) || CGPDFDictionaryGetStream(desc, "FontFile", & file))) {
+                CGPDFDataFormat format;  CFDataRef data = CGPDFStreamCopyData(file, & format);  const char *fileType;
+                if (data && isType0 && identityGid && CGPDFDictionaryGetName(CGPDFStreamGetDictionary(file), "Subtype", & fileType) && !strcmp(fileType, "CIDFontType0C"))
+                    readCFFCharset(CFDataGetBytePtr(data), size_t(CFDataGetLength(data)));     // CID-keyed, so CIDs aren't glyphs
+                if (data) {
+                    CGDataProviderRef provider = CGDataProviderCreateWithCFData(data);
+                    cgFont = CGFontCreateWithDataProvider(provider);
+                    CGDataProviderRelease(provider), CFRelease(data);
+                }
+                if (cgFont)
+                    ctFont = CTFontCreateWithGraphicsFont(cgFont, 1.0, nullptr, nullptr);
+            }
+            if (ctFont == nullptr && (CGPDFDictionaryGetName(font, "BaseFont", & name) || CGPDFDictionaryGetName(dict, "BaseFont", & name))) {
+                CFStringRef system = systemFontName(name);
+                ctFont = CTFontCreateWithName(system, 1.0, nullptr), CFRelease(system);
+                cgFont = CTFontCopyGraphicsFont(ctFont, nullptr);
+            }
+            if (ctFont == nullptr || cgFont == nullptr)
+                return;
+            if (!isType0) {
+                CGPDFInteger flags = 0;
+                if (desc)
+                    CGPDFDictionaryGetInteger(desc, "Flags", & flags);
+                base = flags & 4 ? kSymbolic : kStandard;
+                if (CGPDFDictionaryGetName(dict, "Encoding", & name))
+                    base = encodingFor(name, base);
+                else if (CGPDFDictionaryGetDictionary(dict, "Encoding", & enc)) {
+                    if (CGPDFDictionaryGetName(enc, "BaseEncoding", & name))
+                        base = encodingFor(name, base);
+                    readDifferences(enc);
+                }
+            }
+            isValid = true;
+        }
+        // An Encoding dictionary's Differences, as names, by code
+        void readDifferences(CGPDFDictionaryRef enc) {
+            CGPDFArrayRef array;  const char *name;
+            if (CGPDFDictionaryGetArray(enc, "Differences", & array))
+                for (size_t i = 0, code = 0; i < CGPDFArrayGetCount(array); i++) {
+                    CGPDFInteger c;
+                    if (CGPDFArrayGetInteger(array, i, & c))
+                        code = size_t(c);
+                    else if (CGPDFArrayGetName(array, i, & name) && code < 256)
+                        names[code++] = name;
+                }
+        }
+        ~TextFont() {
+            if (ctFont) CFRelease(ctFont);
+            if (cgFont) CGFontRelease(cgFont);
+        }
+        // A code's glyph, or 0
+        CGGlyph glyph(uint32_t code) {
+            if (isType0)
+                return CGGlyph(identityGid ? code : code < cidToGid.size() ? cidToGid[code] : 0);
+            if (code > 255)
+                return 0;
+            if (!mapped[code]) {
+                mapped[code] = true, glyphs[code] = 0;
+                UniChar u = names[code].size() ? unicodeForName(names[code].c_str()) : unicodeForCode(code);
+                const char *name = names[code].size() ? names[code].c_str() : glyphName(u);     // A font without a cmap only has names
+                if (name) {
+                    CFStringRef string = CFStringCreateWithCString(nullptr, name, kCFStringEncodingASCII);
+                    glyphs[code] = string ? CGFontGetGlyphWithGlyphName(cgFont, string) : 0;
+                    if (string) CFRelease(string);
+                }
+                if (glyphs[code] == 0 && base == kSymbolic) {
+                    UniChar pua = UniChar(0xF000 + code);
+                    CTFontGetGlyphsForCharacters(ctFont, & pua, & glyphs[code], 1);
+                }
+                if (glyphs[code] == 0 && u)
+                    CTFontGetGlyphsForCharacters(ctFont, & u, & glyphs[code], 1);
+                if (glyphs[code] == 0) {
+                    // A TrueType font without names or a Unicode cmap, but a Mac Roman one, maps the character's Mac Roman code, or
+                    // the code of a font with that encoding, as pdfium does
+                    uint8_t mac = 0;  CFIndex used = 0;
+                    if (u) {
+                        CFStringRef string = CFStringCreateWithCharacters(nullptr, & u, 1);
+                        CFStringGetBytes(string, CFRangeMake(0, 1), kCFStringEncodingMacRoman, 0, false, & mac, 1, & used), CFRelease(string);
+                    }
+                    if (used == 0 && base == kMacRoman && names[code].empty())
+                        mac = uint8_t(code), used = 1;
+                    if (used)
+                        glyphs[code] = macCmap()[mac];
+                }
+            }
+            return glyphs[code];
+        }
+        // The font's Mac Roman (1, 0) cmap subtable, of format 0, 4 or 6, as glyphs by code, read once, which are 0 without one
+        const std::array<CGGlyph, 256>& macCmap() {
+            if (hasMacCmap)
+                return macGlyphs;
+            hasMacCmap = true;
+            CFDataRef table = cgFont ? CGFontCopyTableForTag(cgFont, 'cmap') : nullptr;
+            const uint8_t *d = table ? CFDataGetBytePtr(table) : nullptr;  size_t n = table ? size_t(CFDataGetLength(table)) : 0;
+            auto u16 = [&](size_t o) { return o + 2 <= n ? uint16_t(d[o] << 8 | d[o + 1]) : uint16_t(0); };
+            for (size_t i = 0, count = u16(2); i < count; i++) {
+                size_t e = 4 + 8 * i, o = size_t(u16(e + 4)) << 16 | u16(e + 6);
+                if (u16(e) != 1 || u16(e + 2) != 0 || o + 6 > n)
+                    continue;
+                uint16_t format = u16(o);
+                if (format == 0)
+                    for (size_t c = 0; c < 256 && o + 6 + c < n; c++)
+                        macGlyphs[c] = d[o + 6 + c];
+                else if (format == 6)
+                    for (size_t first = u16(o + 6), k = 0, entries = u16(o + 8); k < entries && first + k < 256; k++)
+                        macGlyphs[first + k] = u16(o + 10 + 2 * k);
+                else if (format == 4) {
+                    size_t segs = u16(o + 6) / 2, ends = o + 14, starts = ends + 2 * segs + 2, deltas = starts + 2 * segs, offsets = deltas + 2 * segs;
+                    for (size_t k = 0; k < segs; k++)
+                        for (uint32_t c = u16(starts + 2 * k), end = std::min<uint32_t>(u16(ends + 2 * k), 255); c <= end; c++) {
+                            uint16_t range = u16(offsets + 2 * k), delta = u16(deltas + 2 * k), g = 0;
+                            if (range == 0)
+                                g = uint16_t(c + delta);
+                            else if ((g = u16(offsets + 2 * k + range + 2 * (c - u16(starts + 2 * k)))))
+                                g = uint16_t(g + delta);
+                            macGlyphs[c] = g;
+                        }
+                }
+                break;
+            }
+            if (table)
+                CFRelease(table);
+            return macGlyphs;
+        }
+        // A code's width, in thousandths of text space
+        float width(uint32_t code, CGGlyph g) {
+            if (isType0) {
+                auto it = cidWidths.find(code);
+                return it == cidWidths.end() ? defaultWidth : it->second;
+            }
+            if (int(code) >= firstChar && code - firstChar < widths.size())
+                return widths[code - firstChar];
+            if (hasMissingWidth || ctFont == nullptr)
+                return missingWidth;
+            CGSize advance = CGSizeZero;
+            CTFontGetAdvancesForGlyphs(ctFont, kCTFontOrientationHorizontal, & g, & advance, 1);
+            return float(advance.width * 1000.0);
+        }
+        // A glyph's outline in text space, where a unit is the font size
+        Ra::Path path(CGGlyph g) {
+            auto it = paths.find(g);
+            if (it != paths.end())
+                return it->second;
+            Ra::Path path;  Ra::Path *p = & path;
+            CGPathRef cgPath = CTFontCreatePathForGlyph(ctFont, g, nullptr);
+            if (cgPath) {
+                CGPathApplyWithBlock(cgPath, ^(const CGPathElement *e) {
+                    const CGPoint *q = e->points;
+                    switch (e->type) {
+                        case kCGPathElementMoveToPoint:         (*p)->moveTo(q[0].x, q[0].y);  break;
+                        case kCGPathElementAddLineToPoint:      (*p)->lineTo(q[0].x, q[0].y);  break;
+                        case kCGPathElementAddQuadCurveToPoint: (*p)->quadTo(q[0].x, q[0].y, q[1].x, q[1].y);  break;
+                        case kCGPathElementAddCurveToPoint:     (*p)->cubicTo(q[0].x, q[0].y, q[1].x, q[1].y, q[2].x, q[2].y);  break;
+                        case kCGPathElementCloseSubpath:        (*p)->close();  break;
+                    }
+                });
+                CGPathRelease(cgPath);
+            }
+            return paths.emplace(g, path).first->second;
+        }
+        
+        enum Encoding { kStandard, kWinAnsi, kMacRoman, kSymbolic };
+        static Encoding encodingFor(const char *name, Encoding base) {
+            return !strcmp(name, "WinAnsiEncoding") ? kWinAnsi : !strcmp(name, "MacRomanEncoding") ? kMacRoman : !strcmp(name, "StandardEncoding") ? kStandard : base;
+        }
+        UniChar unicodeForCode(uint32_t code) const {
+            uint8_t byte = code;
+            if (base == kStandard && (code == 0x27 || code == 0x60))
+                return code == 0x27 ? 0x2019 : 0x2018;
+            CFStringRef s = CFStringCreateWithBytes(nullptr, & byte, 1, base == kMacRoman ? kCFStringEncodingMacRoman : base == kWinAnsi ? kCFStringEncodingWindowsLatin1 : kCFStringEncodingISOLatin1, false);
+            UniChar u = s && CFStringGetLength(s) ? CFStringGetCharacterAtIndex(s, 0) : 0;
+            if (s) CFRelease(s);
+            return u;
+        }
+        // The standard glyph name of a Latin-1 or Windows-1252 character, or null
+        static const char *glyphName(UniChar u) {
+            static const char *ascii[] = { "space", "exclam", "quotedbl", "numbersign", "dollar", "percent", "ampersand", "quotesingle",
+                "parenleft", "parenright", "asterisk", "plus", "comma", "hyphen", "period", "slash", "zero", "one", "two", "three", "four",
+                "five", "six", "seven", "eight", "nine", "colon", "semicolon", "less", "equal", "greater", "question", "at" };
+            static const char *ascii2[] = { "bracketleft", "backslash", "bracketright", "asciicircum", "underscore", "grave" };
+            static const char *ascii3[] = { "braceleft", "bar", "braceright", "asciitilde" };
+            static const char *latin1[] = { "space", "exclamdown", "cent", "sterling", "currency", "yen", "brokenbar", "section", "dieresis",
+                "copyright", "ordfeminine", "guillemotleft", "logicalnot", "hyphen", "registered", "macron", "degree", "plusminus",
+                "twosuperior", "threesuperior", "acute", "mu", "paragraph", "periodcentered", "cedilla", "onesuperior", "ordmasculine",
+                "guillemotright", "onequarter", "onehalf", "threequarters", "questiondown", "Agrave", "Aacute", "Acircumflex", "Atilde",
+                "Adieresis", "Aring", "AE", "Ccedilla", "Egrave", "Eacute", "Ecircumflex", "Edieresis", "Igrave", "Iacute", "Icircumflex",
+                "Idieresis", "Eth", "Ntilde", "Ograve", "Oacute", "Ocircumflex", "Otilde", "Odieresis", "multiply", "Oslash", "Ugrave",
+                "Uacute", "Ucircumflex", "Udieresis", "Yacute", "Thorn", "germandbls", "agrave", "aacute", "acircumflex", "atilde",
+                "adieresis", "aring", "ae", "ccedilla", "egrave", "eacute", "ecircumflex", "edieresis", "igrave", "iacute", "icircumflex",
+                "idieresis", "eth", "ntilde", "ograve", "oacute", "ocircumflex", "otilde", "odieresis", "divide", "oslash", "ugrave",
+                "uacute", "ucircumflex", "udieresis", "yacute", "thorn", "ydieresis" };
+            static const struct { UniChar u;  const char *name; } extras[] = { { 0x20AC, "Euro" }, { 0x201A, "quotesinglbase" },
+                { 0x0192, "florin" }, { 0x201E, "quotedblbase" }, { 0x2026, "ellipsis" }, { 0x2020, "dagger" }, { 0x2021, "daggerdbl" },
+                { 0x02C6, "circumflex" }, { 0x2030, "perthousand" }, { 0x0160, "Scaron" }, { 0x2039, "guilsinglleft" }, { 0x0152, "OE" },
+                { 0x017D, "Zcaron" }, { 0x2018, "quoteleft" }, { 0x2019, "quoteright" }, { 0x201C, "quotedblleft" }, { 0x201D, "quotedblright" },
+                { 0x2022, "bullet" }, { 0x2013, "endash" }, { 0x2014, "emdash" }, { 0x02DC, "tilde" }, { 0x2122, "trademark" },
+                { 0x0161, "scaron" }, { 0x203A, "guilsinglright" }, { 0x0153, "oe" }, { 0x017E, "zcaron" }, { 0x0178, "Ydieresis" },
+                { 0xFB01, "fi" }, { 0xFB02, "fl" } };
+            static char letter[2];
+            if ((u >= 'A' && u <= 'Z') || (u >= 'a' && u <= 'z'))
+                return letter[0] = char(u), letter[1] = 0, letter;
+            if (u >= 0x20 && u <= 0x40)
+                return ascii[u - 0x20];
+            if (u >= 0x5B && u <= 0x60)
+                return ascii2[u - 0x5B];
+            if (u >= 0x7B && u <= 0x7E)
+                return ascii3[u - 0x7B];
+            if (u >= 0xA0 && u <= 0xFF)
+                return latin1[u - 0xA0];
+            for (auto& e : extras)
+                if (e.u == u)
+                    return e.name;
+            return nullptr;
+        }
+        // The Unicode of a glyph name: uniXXXX, uXXXX, or one ASCII character
+        static UniChar unicodeForName(const char *name) {
+            unsigned u = 0;
+            if (strlen(name) == 1)
+                return UniChar(name[0]);
+            if ((sscanf(name, "uni%4x", & u) == 1 && strlen(name) == 7) || (sscanf(name, "u%x", & u) == 1 && strlen(name) <= 7))
+                return u <= 0xFFFF ? UniChar(u) : 0;
+            return 0;
+        }
+        // A font's PostScript name, without a subset prefix, as the standard fonts' system names
+        static CFStringRef systemFontName(const char *base) {
+            const char *plus = strchr(base, '+');
+            std::string name = plus && plus - base == 6 ? plus + 1 : base;
+            std::replace(name.begin(), name.end(), ',', '-');
+            if (name == "ZapfDingbats")
+                name = "ZapfDingbatsITC";
+            return CFStringCreateWithCString(nullptr, name.c_str(), kCFStringEncodingASCII);
+        }
+        // A CID-keyed CFF font's charset, which lists its glyphs' CIDs, as cidToGid, if its Top DICT has ROS
+        void readCFFCharset(const uint8_t *d, size_t n) {
+            auto u16 = [&](size_t o) { return o + 2 <= n ? uint32_t(d[o] << 8 | d[o + 1]) : 0u; };
+            auto offsetAt = [&](size_t o, int size) { uint32_t v = 0;  for (int i = 0; i < size && o + i < n; i++) v = v << 8 | d[o + i];  return v; };
+            // An INDEX at o: its data's range for item i, & where it ends
+            auto item = [&](size_t o, uint32_t i, size_t& begin, size_t& end) {
+                uint32_t count = u16(o);  int size = o + 2 < n ? d[o + 2] : 0;
+                if (count == 0) {
+                    begin = end = o + 2;
+                    return o + 2;
+                }
+                size_t offsets = o + 3, data = offsets + (count + 1) * size - 1;
+                begin = data + offsetAt(offsets + i * size, size), end = data + offsetAt(offsets + (i + 1) * size, size);
+                return data + offsetAt(offsets + count * size, size);
+            };
+            if (n < 4)
+                return;
+            size_t begin, end, topBegin, topEnd;
+            size_t top = item(d[2], 0, begin, end);     // Past the Name INDEX
+            item(top, 0, topBegin, topEnd);
+            bool isCID = false;  uint32_t charset = 0, charStrings = 0;  std::vector<int32_t> operands;
+            for (size_t i = topBegin; i < topEnd && topEnd <= n; ) {     // The Top DICT
+                uint8_t b = d[i];
+                if (b >= 32 && b <= 246)
+                    operands.push_back(b - 139), i += 1;
+                else if (b >= 247 && b <= 250 && i + 1 < n)
+                    operands.push_back((b - 247) * 256 + d[i + 1] + 108), i += 2;
+                else if (b >= 251 && b <= 254 && i + 1 < n)
+                    operands.push_back(-(b - 251) * 256 - d[i + 1] - 108), i += 2;
+                else if (b == 28)
+                    operands.push_back(int16_t(u16(i + 1))), i += 3;
+                else if (b == 29)
+                    operands.push_back(int32_t(offsetAt(i + 1, 4))), i += 5;
+                else if (b == 30) {     // A real, of nibbles until 0xF
+                    for (i++; i < topEnd && (d[i] & 0xF) != 0xF && (d[i] >> 4) != 0xF; i++) {}
+                    operands.push_back(0), i++;
+                } else {
+                    int op = b == 12 && i + 1 < n ? 1200 + d[i + 1] : b;
+                    i += b == 12 ? 2 : 1;
+                    if (op == 1230)
+                        isCID = true;
+                    else if (op == 15 && operands.size())
+                        charset = uint32_t(operands.back());
+                    else if (op == 17 && operands.size())
+                        charStrings = uint32_t(operands.back());
+                    operands.clear();
+                }
+            }
+            if (!isCID || charset == 0 || charStrings == 0 || charStrings >= n)
+                return;
+            uint32_t glyphCount = u16(charStrings);
+            std::vector<uint32_t> cids(1, 0);     // GID 0, .notdef, is CID 0
+            size_t o = charset + 1;
+            if (charset < n && d[charset] == 0)
+                for (; cids.size() < glyphCount && o + 2 <= n; o += 2)
+                    cids.push_back(u16(o));
+            else if (charset < n && (d[charset] == 1 || d[charset] == 2))
+                for (int big = d[charset] == 2; cids.size() < glyphCount && o + 3 + big <= n; o += 3 + big)
+                    for (uint32_t first = u16(o), left = big ? u16(o + 2) : d[o + 2], c = 0; c <= left && cids.size() < glyphCount; c++)
+                        cids.push_back(first + c);
+            for (size_t g = 0; g < cids.size(); g++) {
+                if (cids[g] >= cidToGid.size())
+                    cidToGid.resize(cids[g] + 1, 0);
+                cidToGid[cids[g]] = uint16_t(g);
+            }
+            identityGid = false;
+        }
+        void readCIDWidths(CGPDFArrayRef w) {
+            CGPDFInteger first, last;  CGPDFArrayRef array;  CGPDFReal number;
+            for (size_t i = 0, n = CGPDFArrayGetCount(w); i + 1 < n; ) {
+                if (!CGPDFArrayGetInteger(w, i, & first))
+                    return;
+                if (CGPDFArrayGetArray(w, i + 1, & array)) {
+                    for (size_t j = 0; j < CGPDFArrayGetCount(array); j++)
+                        if (CGPDFArrayGetNumber(array, j, & number))
+                            cidWidths[uint32_t(first + j)] = number;
+                    i += 2;
+                } else if (i + 2 < n && CGPDFArrayGetInteger(w, i + 1, & last) && CGPDFArrayGetNumber(w, i + 2, & number)) {
+                    for (CGPDFInteger c = first; c <= last && c - first < 65536; c++)
+                        cidWidths[uint32_t(c)] = number;
+                    i += 3;
+                } else
+                    return;
+            }
+        }
+        
+        bool isValid = false, isType0 = false, isType3 = false, identityGid = true, hasMissingWidth = false;
+        CTFontRef ctFont = nullptr;  CGFontRef cgFont = nullptr;
+        CGPDFDictionaryRef charProcs = nullptr, resources = nullptr;    // A Type 3 font's, & its FontMatrix, glyph to text space
+        Ra::Transform fontMatrix;
+        // A Type 3 glyph, in text space: its shape, filled even-odd if its only fill is, & a colored (d0) glyph's parts, each
+        // filled with its own color
+        struct Type3Glyph {
+            struct Part { Ra::Path path;  Ra::Color color;  bool evenOdd; };
+            Ra::Path path;
+            bool evenOdd = false;
+            std::vector<Part> parts;
+        };
+        std::map<uint32_t, Type3Glyph> type3Glyphs;     // By code
+        Encoding base = kStandard;
+        int firstChar = 0;  std::vector<float> widths;  float missingWidth = 0.f, defaultWidth = 1000.f;
+        std::map<uint32_t, float> cidWidths;  std::vector<uint16_t> cidToGid;
+        std::array<std::string, 256> names;  std::array<CGGlyph, 256> glyphs = {};  std::array<bool, 256> mapped = {};
+        bool hasMacCmap = false;  std::array<CGGlyph, 256> macGlyphs = {};
+        std::map<CGGlyph, Ra::Path> paths;
+    };
+    
+    // An image XObject or inline image, decoded with CGPDF, ImageIO & CoreGraphics, which converts its color space to RGB, as
+    // straight alpha BGRA. An image mask's pixels are its alpha, painted with the fill color. Images too large for a texture
+    // are drawn smaller
+    struct PDFImage {
+        static constexpr size_t kMaxSize = 16384;
+        bool isValid = false, isMask = false;
+        size_t width = 0, height = 0;
+        std::vector<Ra::Color> pixels;
+        
+        PDFImage(CGPDFStreamRef stream, CGPDFContentStreamRef cs) {
+            CGPDFDictionaryRef dict = CGPDFStreamGetDictionary(stream);
+            CGPDFBoolean imageMask = false;
+            CGPDFDictionaryGetBoolean(dict, "ImageMask", & imageMask) || CGPDFDictionaryGetBoolean(dict, "IM", & imageMask);
+            Samples samples;
+            CGImageRef image = createImage(stream, cs, imageMask, samples);
+            if (image == nullptr)
+                return;
+            float scale = fminf(1.f, float(kMaxSize) / fmaxf(CGImageGetWidth(image), CGImageGetHeight(image)));
+            width = fmaxf(1.f, roundf(CGImageGetWidth(image) * scale)), height = fmaxf(1.f, roundf(CGImageGetHeight(image) * scale));
+            pixels.resize(width * height);
+            isMask = imageMask, isValid = true;
+            if (isMask) {
+                std::vector<uint8_t> alpha = drawAlpha(image);
+                for (size_t i = 0; i < pixels.size(); i++)
+                    pixels[i] = Ra::Color(0, 0, 0, alpha[i]);
+            } else {
+                draw(image, pixels.data(), false);
+                CGImageAlphaInfo info = CGImageGetAlphaInfo(image);
+                if (info != kCGImageAlphaNone && info != kCGImageAlphaNoneSkipFirst && info != kCGImageAlphaNoneSkipLast)     // A JPX's own alpha
+                    for (auto& p : pixels)
+                        if (p.a != 0 && p.a != 255)
+                            p = Ra::Color(p.b * 255 / p.a, p.g * 255 / p.a, p.r * 255 / p.a, p.a);
+                CGPDFStreamRef mask;  CGPDFArrayRef key;
+                Samples maskSamples;
+                CGImageRef maskImage = nullptr;
+                if (CGPDFDictionaryGetStream(dict, "SMask", & mask))
+                    maskImage = createImage(mask, cs, false, maskSamples);
+                else if (CGPDFDictionaryGetStream(dict, "Mask", & mask))
+                    maskImage = createImage(mask, cs, true, maskSamples);
+                if (maskImage) {
+                    std::vector<uint8_t> alpha = drawAlpha(maskImage);
+                    for (size_t i = 0; i < pixels.size(); i++)
+                        pixels[i].a = alpha[i];
+                    CGImageRelease(maskImage);
+                } else if (CGPDFDictionaryGetArray(dict, "Mask", & key))
+                    applyColorKey(key, samples);
+            }
+            CGImageRelease(image);
+        }
+        // A stream's raw samples, for a color key mask, if they weren't a JPEG's
+        struct Samples {
+            CFDataRef data = nullptr;
+            size_t width = 0, height = 0, components = 0, bpc = 0, rowBytes = 0;
+            ~Samples() { if (data) CFRelease(data); }
+        };
+        static CGPDFObjectRef getObject(CGPDFDictionaryRef dict, const char *key, const char *abbreviation) {
+            CGPDFObjectRef obj = nullptr;
+            CGPDFDictionaryGetObject(dict, key, & obj) || CGPDFDictionaryGetObject(dict, abbreviation, & obj);
+            return obj;
+        }
+        static size_t getInteger(CGPDFDictionaryRef dict, const char *key, const char *abbreviation) {
+            CGPDFObjectRef obj = getObject(dict, key, abbreviation);  CGPDFInteger value = 0;  CGPDFReal real;
+            if (obj && !CGPDFObjectGetValue(obj, kCGPDFObjectTypeInteger, & value) && CGPDFObjectGetValue(obj, kCGPDFObjectTypeReal, & real))
+                value = CGPDFInteger(real);
+            return value > 0 ? size_t(value) : 0;
+        }
+        static bool hasFilter(CGPDFDictionaryRef dict, std::initializer_list<const char *> names) {
+            CGPDFObjectRef obj = getObject(dict, "Filter", "F");  CGPDFArrayRef array;  const char *name;
+            auto isOne = [&](const char *filter) { return std::any_of(names.begin(), names.end(), [&](const char *n) { return !strcmp(n, filter); }); };
+            if (obj && CGPDFObjectGetValue(obj, kCGPDFObjectTypeName, & name))
+                return isOne(name);
+            for (size_t i = 0; obj && CGPDFObjectGetValue(obj, kCGPDFObjectTypeArray, & array) && i < CGPDFArrayGetCount(array); i++)
+                if (CGPDFArrayGetName(array, i, & name) && isOne(name))
+                    return true;
+            return false;
+        }
+        static uint32_t sample(const uint8_t *row, size_t i, size_t bpc) {     // The ith sample of a row
+            if (bpc == 8)
+                return row[i];
+            if (bpc == 16)
+                return row[2 * i] << 8 | row[2 * i + 1];
+            size_t bit = i * bpc;
+            return (row[bit >> 3] >> (8 - bpc - (bit & 7))) & ((1 << bpc) - 1);
+        }
+        // The image of a stream, in its color space, with its decode array, or for a mask, gray, with 1 where it's painted
+        static CGImageRef createImage(CGPDFStreamRef stream, CGPDFContentStreamRef cs, bool isMask, Samples& samples) {
+            CGPDFDictionaryRef dict = CGPDFStreamGetDictionary(stream);
+            CGPDFDataFormat format;
+            CFDataRef data = CGPDFStreamCopyData(stream, & format);
+            if (data == nullptr)
+                return nullptr;
+            CGImageRef image = nullptr;
+            size_t width = getInteger(dict, "Width", "W"), height = getInteger(dict, "Height", "H"), bpc = isMask ? 1 : getInteger(dict, "BitsPerComponent", "BPC");
+            std::vector<CGFloat> decode;  CGPDFArrayRef array;  CGPDFObjectRef obj;  CGPDFReal number;
+            if ((obj = getObject(dict, "Decode", "D")) && CGPDFObjectGetValue(obj, kCGPDFObjectTypeArray, & array))
+                for (size_t i = 0; i < CGPDFArrayGetCount(array) && CGPDFArrayGetNumber(array, i, & number); i++)
+                    decode.emplace_back(number);
+            Function tint;
+            CGColorSpaceRef space = isMask ? CGColorSpaceCreateDeviceGray() : nullptr;
+            if (!isMask && (obj = getObject(dict, "ColorSpace", "CS")))
+                space = createColorSpace(obj, cs, & tint);
+            size_t components = isMask ? 1 : tint.type >= 0 ? tint.inputs : space ? CGColorSpaceGetNumberOfComponents(space) : 0;
+            if (isMask)     // A mask's sample of 0 is painted, unless its decode array is [1 0]
+                decode = decode.size() == 2 && decode[0] > decode[1] ? std::vector<CGFloat>{ 0, 1 } : std::vector<CGFloat>{ 1, 0 };
+            if (format != CGPDFDataFormatRaw) {
+                CGImageSourceRef source = CGImageSourceCreateWithData(data, nullptr);
+                CGImageRef decoded = source ? CGImageSourceCreateImageAtIndex(source, 0, nullptr) : nullptr;
+                if (source)
+                    CFRelease(source);
+                if (decoded && space && tint.type >= 0 && tint.inputs == 1) {
+                    // A Separation or DeviceN JPEG's samples, as ImageIO's 8 bit gray, by its tint transform, with its decode array
+                    size_t w = CGImageGetWidth(decoded), h = CGImageGetHeight(decoded), rowBytes;
+                    CFDataRef gray = copyGraySamples(decoded, rowBytes);
+                    CFDataRef pixels = gray ? createTinted(gray, w, h, 8, rowBytes, decode, tint, CGColorSpaceGetNumberOfComponents(space)) : nullptr;
+                    if (pixels) {
+                        size_t n = CGColorSpaceGetNumberOfComponents(space);
+                        CGDataProviderRef provider = CGDataProviderCreateWithCFData(pixels);
+                        image = CGImageCreate(w, h, 8, 8 * n, w * n, space, CGBitmapInfo(kCGImageAlphaNone), provider, nullptr, false, kCGRenderingIntentDefault);
+                        CGDataProviderRelease(provider), CFRelease(pixels);
+                    }
+                    if (gray)
+                        CFRelease(gray);
+                    if (image)
+                        CGImageRelease(decoded);
+                    else
+                        image = decoded;
+                } else if (decoded && space && tint.type < 0 && CGImageGetColorSpace(decoded) && components == CGColorSpaceGetNumberOfComponents(CGImageGetColorSpace(decoded))) {
+                    // Its stored samples in the PDF's color space, with its decode array, not ImageIO's, which inverts an Adobe
+                    // CMYK JPEG's, as a PDF's DCTDecode doesn't. Photoshop's PDFs invert them with a decode array instead
+                    size_t n = components, bpp = CGImageGetBitsPerPixel(decoded);
+                    CFDataRef pixels = CGImageGetBitsPerComponent(decoded) == 8 && bpp == 8 * n && CGImageGetAlphaInfo(decoded) == kCGImageAlphaNone
+                        ? CGDataProviderCopyData(CGImageGetDataProvider(decoded)) : nullptr;
+                    if (pixels) {
+                        CGDataProviderRef provider = CGDataProviderCreateWithCFData(pixels);
+                        image = CGImageCreate(CGImageGetWidth(decoded), CGImageGetHeight(decoded), 8, bpp, CGImageGetBytesPerRow(decoded), space, CGBitmapInfo(kCGImageAlphaNone), provider, decode.size() == 2 * n ? decode.data() : nullptr, false, kCGRenderingIntentDefault);
+                        CGDataProviderRelease(provider), CFRelease(pixels), CGImageRelease(decoded);
+                    } else if ((image = CGImageCreateCopyWithColorSpace(decoded, space)))
+                        CGImageRelease(decoded);
+                    else
+                        image = decoded;
+                } else
+                    image = decoded;
+            } else if (width && height && space && (bpc == 1 || bpc == 2 || bpc == 4 || bpc == 8 || bpc == 16) && components) {
+                size_t rowBytes = (width * components * bpc + 7) / 8;
+                if (size_t(CFDataGetLength(data)) < rowBytes * height) {
+                    // Short data is padded, as pdfium does, but CCITT & JBIG2 data is short if CGPDF couldn't decode it, so is a fallback
+                    if (hasFilter(dict, { "CCITTFaxDecode", "CCF", "JBIG2Decode" })) {
+                        CGColorSpaceRelease(space), CFRelease(data);
+                        return nullptr;
+                    }
+                    CFMutableDataRef padded = CFDataCreateMutableCopy(nullptr, rowBytes * height, data);
+                    CFDataSetLength(padded, rowBytes * height), CFRelease(data), data = padded;
+                }
+                if (CGPDFDictionaryGetArray(dict, "Mask", & array)) {
+                    samples.width = width, samples.height = height, samples.components = components, samples.bpc = bpc, samples.rowBytes = rowBytes;
+                    samples.data = (CFDataRef)CFRetain(data);
+                }
+                CFDataRef pixels = tint.type >= 0 ? createTinted(data, width, height, bpc, rowBytes, decode, tint, CGColorSpaceGetNumberOfComponents(space)) : (CFDataRef)CFRetain(data);
+                if (pixels) {
+                    bool tinted = tint.type >= 0;
+                    size_t n = tinted ? CGColorSpaceGetNumberOfComponents(space) : components, depth = tinted ? 8 : bpc;
+                    CGDataProviderRef provider = CGDataProviderCreateWithCFData(pixels);
+                    image = CGImageCreate(width, height, depth, depth * n, tinted ? width * n : rowBytes, space, CGBitmapInfo(kCGImageAlphaNone), provider,
+                        !tinted && decode.size() == 2 * n ? decode.data() : nullptr, false, kCGRenderingIntentDefault);
+                    CGDataProviderRelease(provider), CFRelease(pixels);
+                }
+            }
+            CGColorSpaceRelease(space);
+            CFRelease(data);
+            return image;
+        }
+        // A decoded image's samples as 8 bit gray with their row bytes: its own if it's 8 bit gray, else drawn into device gray
+        static CFDataRef copyGraySamples(CGImageRef image, size_t& rowBytes) {
+            CGColorSpaceRef space = CGImageGetColorSpace(image);
+            if (space && CGColorSpaceGetNumberOfComponents(space) == 1 && CGImageGetBitsPerComponent(image) == 8 && CGImageGetBitsPerPixel(image) == 8 && CGImageGetAlphaInfo(image) == kCGImageAlphaNone) {
+                rowBytes = CGImageGetBytesPerRow(image);
+                return CGDataProviderCopyData(CGImageGetDataProvider(image));
+            }
+            size_t w = CGImageGetWidth(image), h = CGImageGetHeight(image);
+            CFMutableDataRef data = CFDataCreateMutable(nullptr, w * h);
+            CFDataSetLength(data, w * h);
+            CGColorSpaceRef gray = CGColorSpaceCreateDeviceGray();
+            CGContextRef ctx = CGBitmapContextCreate(CFDataGetMutableBytePtr(data), w, h, 8, w, gray, CGBitmapInfo(kCGImageAlphaNone));
+            if (ctx)
+                CGContextDrawImage(ctx, CGRectMake(0, 0, w, h), image), CGContextRelease(ctx);
+            CGColorSpaceRelease(gray);
+            rowBytes = w;
+            return data;
+        }
+        // A Separation or DeviceN's samples, as 8 bit samples of its alternate space, by its tint transform. One component's are
+        // looked up from each sample value's, as bpc is at most 16, & others' are evaluated, but for a run of the same samples
+        static CFDataRef createTinted(CFDataRef data, size_t width, size_t height, size_t bpc, size_t rowBytes, std::vector<CGFloat>& decode, Function& tint, size_t n) {
+            size_t k = tint.inputs;
+            if (tint.outputs != n || k == 0 || k > Function::kMaxInputs)
+                return nullptr;
+            float max = float((1 << bpc) - 1), in[Function::kMaxInputs];
+            auto decoded = [&](size_t i, uint32_t s) {
+                float d0 = decode.size() == 2 * k ? decode[2 * i] : 0.f, d1 = decode.size() == 2 * k ? decode[2 * i + 1] : 1.f;
+                return d0 + s * (d1 - d0) / max;
+            };
+            std::vector<float> out(n);
+            auto tinted = [&](uint8_t *dst) {
+                tint.eval(in, out.data());
+                for (size_t j = 0; j < n; j++)
+                    dst[j] = uint8_t(fmaxf(0.f, fminf(1.f, out[j])) * 255.f + 0.5f);
+            };
+            CFMutableDataRef pixels = CFDataCreateMutable(nullptr, width * height * n);
+            CFDataSetLength(pixels, width * height * n);
+            const uint8_t *src = CFDataGetBytePtr(data);  uint8_t *dst = CFDataGetMutableBytePtr(pixels);
+            if (k == 1) {
+                std::vector<uint8_t> lut(n << bpc);
+                for (uint32_t s = 0; s < (1u << bpc); s++)
+                    in[0] = decoded(0, s), tinted(& lut[s * n]);
+                for (size_t y = 0; y < height; y++, src += rowBytes)
+                    for (size_t x = 0; x < width; x++, dst += n)
+                        memcpy(dst, & lut[sample(src, x, bpc) * n], n);
+                return pixels;
+            }
+            uint32_t last[Function::kMaxInputs];  bool hasLast = false;
+            for (size_t y = 0; y < height; y++, src += rowBytes)
+                for (size_t x = 0; x < width; x++, dst += n) {
+                    uint32_t s[Function::kMaxInputs];
+                    for (size_t i = 0; i < k; i++)
+                        s[i] = sample(src, x * k + i, bpc);
+                    if (hasLast && !memcmp(s, last, k * sizeof(uint32_t))) {
+                        memcpy(dst, dst - n, n);
+                        continue;
+                    }
+                    for (size_t i = 0; i < k; i++)
+                        in[i] = decoded(i, s[i]);
+                    tinted(dst), memcpy(last, s, k * sizeof(uint32_t)), hasLast = true;
+                }
+            return pixels;
+        }
+        // An Indexed space's lookup table over a Separation or DeviceN, of k components, as an Indexed DeviceRGB's, by the tint
+        // transform to its alternate space, converted by CoreGraphics
+        static CGColorSpaceRef createTintedIndexed(CGColorSpaceRef alternate, Function& tint, size_t hival, const uint8_t *lookup) {
+            size_t k = tint.inputs, n = CGColorSpaceGetNumberOfComponents(alternate);
+            if (tint.outputs != n || n > 4)
+                return nullptr;
+            CGColorSpaceRef rgb = CGColorSpaceCreateDeviceRGB();
+            std::vector<uint8_t> table((hival + 1) * 3);
+            for (size_t e = 0; e <= hival; e++) {
+                float in[Function::kMaxInputs], out[4];
+                for (size_t i = 0; i < k; i++)
+                    in[i] = lookup[e * k + i] / 255.f;
+                tint.eval(in, out);
+                CGFloat components[5] = { 0, 0, 0, 0, 1 };
+                for (size_t j = 0; j < n; j++)
+                    components[j] = out[j];
+                components[n] = 1;
+                CGColorRef color = CGColorCreate(alternate, components);
+                CGColorRef matched = color ? CGColorCreateCopyByMatchingToColorSpace(rgb, kCGRenderingIntentDefault, color, nullptr) : nullptr;
+                const CGFloat *c = matched ? CGColorGetComponents(matched) : nullptr;
+                for (size_t j = 0; j < 3; j++)
+                    table[e * 3 + j] = c ? uint8_t(fmax(0.0, fmin(1.0, c[j])) * 255.0 + 0.5) : 0;
+                CGColorRelease(matched), CGColorRelease(color);
+            }
+            CGColorSpaceRef space = CGColorSpaceCreateIndexed(rgb, hival, table.data());
+            CGColorSpaceRelease(rgb);
+            return space;
+        }
+        // The CGColorSpace of a PDF color space, or null if CoreGraphics can't draw it. A Separation or DeviceN is its alternate
+        // space, & its tint transform is read into tint. Its samples are tinted as bytes, so its alternate must be gray, RGB or
+        // CMYK, but for an Indexed space's base, whose colors CoreGraphics converts
+        static CGColorSpaceRef createColorSpace(CGPDFObjectRef obj, CGPDFContentStreamRef cs, Function *tint, int depth = 0, bool isIndexedBase = false) {
+            const char *name;  CGPDFArrayRef array, names;  CGPDFStreamRef stream;  CGPDFDictionaryRef dict;  CGPDFObjectRef object;
+            if (depth > 4)
+                return nullptr;
+            if (CGPDFObjectGetValue(obj, kCGPDFObjectTypeName, & name)) {
+                if (!strcmp(name, "DeviceGray") || !strcmp(name, "G") || !strcmp(name, "CalGray"))
+                    return CGColorSpaceCreateDeviceGray();
+                if (!strcmp(name, "DeviceRGB") || !strcmp(name, "RGB") || !strcmp(name, "CalRGB"))
+                    return CGColorSpaceCreateDeviceRGB();
+                if (!strcmp(name, "DeviceCMYK") || !strcmp(name, "CMYK"))
+                    return CGColorSpaceCreateDeviceCMYK();
+                CGPDFObjectRef resource = CGPDFContentStreamGetResource(cs, "ColorSpace", name);
+                return resource ? createColorSpace(resource, cs, tint, depth + 1, isIndexedBase) : nullptr;
+            }
+            if (!CGPDFObjectGetValue(obj, kCGPDFObjectTypeArray, & array) || !CGPDFArrayGetName(array, 0, & name))
+                return nullptr;
+            if (!strcmp(name, "ICCBased") && CGPDFArrayGetStream(array, 1, & stream)) {
+                CGPDFDataFormat format;
+                CFDataRef data = CGPDFStreamCopyData(stream, & format);
+                CGColorSpaceRef space = data ? CGColorSpaceCreateWithICCData(data) : nullptr;
+                if (data)
+                    CFRelease(data);
+                if (space)
+                    return space;
+                dict = CGPDFStreamGetDictionary(stream);
+                if (CGPDFDictionaryGetObject(dict, "Alternate", & object))
+                    return createColorSpace(object, cs, nullptr, depth + 1);
+                CGPDFInteger n = 0;
+                CGPDFDictionaryGetInteger(dict, "N", & n);
+                return n == 1 ? CGColorSpaceCreateDeviceGray() : n == 3 ? CGColorSpaceCreateDeviceRGB() : n == 4 ? CGColorSpaceCreateDeviceCMYK() : nullptr;
+            }
+            if ((!strcmp(name, "CalGray") || !strcmp(name, "CalRGB") || !strcmp(name, "Lab")) && CGPDFArrayGetDictionary(array, 1, & dict)) {
+                std::vector<float> white, black, gamma, matrix, range;
+                readNumbers(dict, "WhitePoint", white), readNumbers(dict, "BlackPoint", black), readNumbers(dict, "Gamma", gamma);
+                readNumbers(dict, "Matrix", matrix), readNumbers(dict, "Range", range);
+                CGFloat w[3] = { 0.9505, 1, 1.089 }, b[3] = { 0, 0, 0 }, g[3] = { 1, 1, 1 }, m[9] = { 1, 0, 0, 0, 1, 0, 0, 0, 1 }, r[4] = { -100, 100, -100, 100 };
+                for (size_t i = 0; i < 3 && white.size() == 3; i++)
+                    w[i] = white[i];
+                for (size_t i = 0; i < 3 && black.size() == 3; i++)
+                    b[i] = black[i];
+                if (!strcmp(name, "CalGray"))
+                    return CGColorSpaceCreateCalibratedGray(w, b, gamma.size() == 1 ? gamma[0] : 1.f);
+                if (!strcmp(name, "Lab")) {
+                    for (size_t i = 0; i < 4 && range.size() == 4; i++)
+                        r[i] = range[i];
+                    return CGColorSpaceCreateLab(w, b, r);
+                }
+                for (size_t i = 0; i < 3 && gamma.size() == 3; i++)
+                    g[i] = gamma[i];
+                for (size_t i = 0; i < 9 && matrix.size() == 9; i++)
+                    m[i] = matrix[i];
+                return CGColorSpaceCreateCalibratedRGB(w, b, g, m);
+            }
+            if ((!strcmp(name, "Indexed") || !strcmp(name, "I")) && CGPDFArrayGetObject(array, 1, & object)) {
+                Function baseTint;      // A Separation or DeviceN base's, whose alternate space is base
+                CGColorSpaceRef base = createColorSpace(object, cs, & baseTint, depth + 1, true);
+                CGPDFInteger hival = -1;  CGPDFStringRef string;  CFDataRef data = nullptr;  CGPDFDataFormat format;
+                if (base && CGPDFArrayGetInteger(array, 2, & hival) && hival >= 0 && hival < 256) {
+                    if (CGPDFArrayGetString(array, 3, & string))
+                        data = CFDataCreate(nullptr, CGPDFStringGetBytePtr(string), CGPDFStringGetLength(string));
+                    else if (CGPDFArrayGetStream(array, 3, & stream))
+                        data = CGPDFStreamCopyData(stream, & format);
+                }
+                size_t size = data ? (hival + 1) * (baseTint.type >= 0 ? baseTint.inputs : CGColorSpaceGetNumberOfComponents(base)) : 0;
+                CGColorSpaceRef space = nullptr;
+                if (data && size_t(CFDataGetLength(data)) >= size)
+                    space = baseTint.type >= 0 ? createTintedIndexed(base, baseTint, hival, CFDataGetBytePtr(data)) : CGColorSpaceCreateIndexed(base, hival, CFDataGetBytePtr(data));
+                if (data)
+                    CFRelease(data);
+                CGColorSpaceRelease(base);
+                return space;
+            }
+            // A tint transform's alternate space must be of components in [0, 1]
+            bool isSeparation = !strcmp(name, "Separation"), isDeviceN = !strcmp(name, "DeviceN");
+            if (tint && (isSeparation || (isDeviceN && CGPDFArrayGetArray(array, 1, & names)))
+                && CGPDFArrayGetObject(array, 2, & object) && CGPDFArrayGetObject(array, 3, & obj) && tint->read(obj)
+                && tint->inputs == (isSeparation ? 1 : CGPDFArrayGetCount(names))) {
+                CGColorSpaceRef space = createColorSpace(object, cs, nullptr, depth + 1);
+                CGColorSpaceModel model = space ? CGColorSpaceGetModel(space) : kCGColorSpaceModelUnknown;
+                if (model == kCGColorSpaceModelMonochrome || model == kCGColorSpaceModelRGB || model == kCGColorSpaceModelCMYK || (space && isIndexedBase))
+                    return space;
+                CGColorSpaceRelease(space);
+            }
+            if (tint)
+                tint->type = -1;
+            return nullptr;
+        }
+        // Draws an image into pixels, width x height, in DeviceRGB, or DeviceGray for alpha, which is scaled to the image as
+        // pdfium does, without interpolation
+        void draw(CGImageRef image, void *pixels, bool isGray) const {
+            CGColorSpaceRef space = isGray ? CGColorSpaceCreateDeviceGray() : CGColorSpaceCreateDeviceRGB();
+            CGContextRef ctx = CGBitmapContextCreate(pixels, width, height, 8, isGray ? width : width * sizeof(Ra::Color), space,
+                isGray ? uint32_t(kCGImageAlphaNone) : uint32_t(kCGImageAlphaPremultipliedFirst) | kCGBitmapByteOrder32Little);
+            if (ctx) {
+                bool same = CGImageGetWidth(image) == width && CGImageGetHeight(image) == height;
+                CGContextSetInterpolationQuality(ctx, same || isGray ? kCGInterpolationNone : kCGInterpolationDefault);
+                CGContextDrawImage(ctx, CGRectMake(0, 0, width, height), image);
+                CGContextRelease(ctx);
+            }
+            CGColorSpaceRelease(space);
+        }
+        std::vector<uint8_t> drawAlpha(CGImageRef image) const {
+            std::vector<uint8_t> alpha(width * height);
+            draw(image, alpha.data(), true);
+            return alpha;
+        }
+        // Pixels whose samples are all in the color key's ranges are transparent
+        void applyColorKey(CGPDFArrayRef key, Samples& samples) {
+            size_t n = samples.components;  CGPDFInteger value;
+            std::vector<uint32_t> ranges;
+            for (size_t i = 0; i < CGPDFArrayGetCount(key) && CGPDFArrayGetInteger(key, i, & value); i++)
+                ranges.emplace_back(uint32_t(value));
+            if (samples.data == nullptr || ranges.size() != 2 * n)
+                return;
+            const uint8_t *base = CFDataGetBytePtr(samples.data);
+            for (size_t y = 0; y < height; y++) {
+                const uint8_t *row = base + (y * samples.height / height) * samples.rowBytes;
+                for (size_t x = 0; x < width; x++) {
+                    size_t sx = x * samples.width / width;  bool inRange = true;
+                    for (size_t j = 0; j < n && inRange; j++) {
+                        uint32_t s = sample(row, sx * n + j, samples.bpc);
+                        inRange = s >= ranges[2 * j] && s <= ranges[2 * j + 1];
+                    }
+                    if (inRange)
+                        pixels[y * width + x] = Ra::Color(0, 0, 0, 0);
+                }
+            }
+        }
+    };
+    
+    // A color space of fill & stroke colors, which converts them to RGB: device gray & RGB exactly, CalGray, CalRGB & Lab
+    // as pdfium does, & CMYK & ICC spaces with CoreGraphics, as images' are, cached as it's slow. An Indexed space looks up
+    // its base's colors, & a Separation or DeviceN uses its tint transform, as does a Pattern space with a base, for uncolored
+    // tiling patterns. A space the scan can't convert has no colors, so they're fallbacks
+    struct ColorSpace {
+        enum Family { kGray, kRGB, kCalRGB, kLab, kOther, kIndexed, kTint, kPattern, kUnsupported };
+        Family family = kUnsupported;
+        size_t components = 1;
+        float white[3] = { 0.9505f, 1.f, 1.089f }, gamma[3] = { 1.f, 1.f, 1.f }, matrix[9] = { 1, 0, 0, 0, 1, 0, 0, 0, 1 }, range[4] = { -100, 100, -100, 100 };
+        bool hasMatrix = false;
+        CGColorSpaceRef space = nullptr;        // An other space's
+        const ColorSpace *base = nullptr;       // An Indexed or tint transform's base, in its Shadings' cache
+        std::vector<uint8_t> lookup;
+        size_t hival = 0;
+        Function tint;
+        mutable std::map<std::vector<float>, Ra::Color> colors;
+        
+        ColorSpace(Family family = kUnsupported, size_t components = 1, CGColorSpaceRef space = nullptr) : family(family), components(components), space(space) {}
+        ColorSpace(const ColorSpace&) = delete;
+        ~ColorSpace() { CGColorSpaceRelease(space); }
+        static uint8_t quantize(float v) { return uint8_t(fmaxf(0.f, fminf(1.f, v)) * 255.f + 0.5f); }
+        static float encode(float c) {      // sRGB's transfer function
+            c = fmaxf(0.f, fminf(1.f, c));
+            return c <= 0.0031308f ? 12.92f * c : 1.055f * powf(c, 1.f / 2.4f) - 0.055f;
+        }
+        // XYZ to sRGB, as pdfium does: with sRGB's primaries & the white point for CalRGB, & pdfium's fixed matrix for Lab
+        static Ra::Color rgbForXYZ(float X, float Y, float Z, const float *white) {
+            float r, g, b;
+            if (white == nullptr)
+                r = 3.2410f * X - 1.5374f * Y - 0.4986f * Z, g = -0.9692f * X + 1.8760f * Y + 0.0416f * Z, b = 0.0556f * X - 0.2040f * Y + 1.0570f * Z;
+            else {
+                // M = P diag(S), where P's columns are the primaries' xyz, & P S = white, so RGB = M^-1 XYZ = S^-1 P^-1 XYZ
+                const float P[9] = { 0.64f, 0.30f, 0.15f, 0.33f, 0.60f, 0.06f, 0.03f, 0.10f, 0.79f };
+                float inv[9], det = P[0] * (P[4] * P[8] - P[5] * P[7]) - P[1] * (P[3] * P[8] - P[5] * P[6]) + P[2] * (P[3] * P[7] - P[4] * P[6]);
+                inv[0] = (P[4] * P[8] - P[5] * P[7]) / det, inv[1] = (P[2] * P[7] - P[1] * P[8]) / det, inv[2] = (P[1] * P[5] - P[2] * P[4]) / det;
+                inv[3] = (P[5] * P[6] - P[3] * P[8]) / det, inv[4] = (P[0] * P[8] - P[2] * P[6]) / det, inv[5] = (P[2] * P[3] - P[0] * P[5]) / det;
+                inv[6] = (P[3] * P[7] - P[4] * P[6]) / det, inv[7] = (P[1] * P[6] - P[0] * P[7]) / det, inv[8] = (P[0] * P[4] - P[1] * P[3]) / det;
+                auto apply = [&](float x, float y, float z, float *v) {
+                    v[0] = inv[0] * x + inv[1] * y + inv[2] * z, v[1] = inv[3] * x + inv[4] * y + inv[5] * z, v[2] = inv[6] * x + inv[7] * y + inv[8] * z;
+                };
+                float S[3], v[3];
+                apply(white[0], white[1], white[2], S), apply(X, Y, Z, v);
+                r = S[0] == 0.f ? 0.f : v[0] / S[0], g = S[1] == 0.f ? 0.f : v[1] / S[1], b = S[2] == 0.f ? 0.f : v[2] / S[2];
+            }
+            return Ra::Color(quantize(encode(b)), quantize(encode(g)), quantize(encode(r)), 255);
+        }
+        // The color of components c, as RGB, if the space has one
+        bool color(const float *c, size_t n, Ra::Color& out) const {
+            if (n < components)
+                return false;
+            switch (family) {
+                case kGray:
+                    return out = Ra::Color(quantize(c[0]), quantize(c[0]), quantize(c[0]), 255), true;
+                case kRGB:
+                    return out = Ra::Color(quantize(c[2]), quantize(c[1]), quantize(c[0]), 255), true;
+                case kCalRGB: {
+                    float a = powf(fmaxf(0.f, c[0]), gamma[0]), b = powf(fmaxf(0.f, c[1]), gamma[1]), d = powf(fmaxf(0.f, c[2]), gamma[2]);
+                    const float *m = matrix;
+                    return out = hasMatrix ? rgbForXYZ(a * m[0] + b * m[3] + d * m[6], a * m[1] + b * m[4] + d * m[7], a * m[2] + b * m[5] + d * m[8], white) : rgbForXYZ(a, b, d, white), true;
+                }
+                case kLab: {
+                    float L = fmaxf(0.f, fminf(100.f, c[0])), A = fmaxf(range[0], fminf(range[1], c[1])), B = fmaxf(range[2], fminf(range[3], c[2]));
+                    float M = (L + 16.f) / 116.f, l = M + A / 500.f, n = M - B / 200.f;
+                    auto f = [](float t) { return t < 0.2069f ? 0.12842f * (t - 0.1379f) : t * t * t; };
+                    return out = rgbForXYZ(0.957f * f(l), f(M), 1.0889f * f(n), nullptr), true;
+                }
+                case kOther: {
+                    std::vector<float> key(c, c + components);
+                    auto it = colors.find(key);
+                    if (it != colors.end())
+                        return out = it->second, true;
+                    std::vector<CGFloat> values(c, c + components);
+                    values.emplace_back(1.0);
+                    CGColorRef color = CGColorCreate(space, values.data());
+                    CGColorSpaceRef rgb = CGColorSpaceCreateDeviceRGB();
+                    CGColorRef matched = color ? CGColorCreateCopyByMatchingToColorSpace(rgb, kCGRenderingIntentDefault, color, nullptr) : nullptr;
+                    bool converted = matched && CGColorGetNumberOfComponents(matched) >= 3;
+                    if (converted) {
+                        const CGFloat *v = CGColorGetComponents(matched);
+                        out = colors[key] = Ra::Color(quantize(v[2]), quantize(v[1]), quantize(v[0]), 255);
+                    }
+                    CGColorRelease(matched), CGColorRelease(color), CGColorSpaceRelease(rgb);
+                    return converted;
+                }
+                case kIndexed: {
+                    size_t i = size_t(fmaxf(0.f, fminf(float(hival), roundf(c[0])))), m = base->components;
+                    std::vector<float> values(m);
+                    for (size_t j = 0; j < m && (i + 1) * m <= lookup.size(); j++)
+                        values[j] = lookup[i * m + j] / 255.f;
+                    return (i + 1) * m <= lookup.size() && base->color(values.data(), m, out);
+                }
+                case kPattern:      // An uncolored tiling pattern's color, of its base space
+                    return base && base->color(c, n, out);
+                case kTint: {
+                    std::vector<float> values(tint.outputs);
+                    tint.eval(c, values.data());
+                    return base->color(values.data(), values.size(), out);
+                }
+                default:
+                    return false;
+            }
+        }
+    };
+    
+    // A content stream's lexer & interpreter, in place of CGPDFScanner, whose lexer is slow & serial. A stream's decoded bytes are
+    // cut into chunks, which are lexed in parallel, cpus at a time, into tapes of tokens, with numbers parsed & operators looked up.
+    // The tapes are then interpreted in order, calling an operator table's callbacks with their operands. A chunk after the first
+    // can start inside a string, a comment or an inline image's data, so it's only used from the token where the chunk before it
+    // stops, as lexing from a token is the same as lexing from the stream's start, & is lexed again from there if it has none
+    struct Scanner;
+    typedef void (*Callback)(Scanner& scanner, void *info);
+    struct OperatorTable {
+        static uint32_t key(const uint8_t *s, size_t n) {
+            uint32_t k = 0;
+            for (size_t i = 0; n <= 4 && i < n; i++)
+                k = k << 8 | s[i];
+            return k;
+        }
+        void set(const char *name, Callback callback) {
+            uint32_t k = key((const uint8_t *)name, strlen(name));
+            size_t h = hash(k);
+            while (keys[h] && keys[h] != k)
+                h = (h + 1) & (kSize - 1);
+            keys[h] = k, indices[h] = int16_t(callbacks.size()), callbacks.emplace_back(callback);
+        }
+        int find(uint32_t k) const {     // A callback's index, or -1
+            for (size_t h = hash(k); k && keys[h]; h = (h + 1) & (kSize - 1))
+                if (keys[h] == k)
+                    return indices[h];
+            return -1;
+        }
+        static size_t hash(uint32_t k) { return (k * 2654435761u) >> (32 - kBits); }
+        static constexpr int kBits = 8, kSize = 1 << kBits;
+        uint32_t keys[kSize] = {};  int16_t indices[kSize] = {};
+        std::vector<Callback> callbacks;
+    };
+    struct Token {
+        enum Type : uint8_t { kNumber, kInteger, kName, kString, kBool, kNull, kArrayBegin, kArrayEnd, kDictBegin, kDictEnd, kInlineData, kOperator };
+        uint8_t type;
+        int16_t op;             // An operator's callback, or -1
+        uint32_t length;        // Of a name or string in its chunk's bytes, or inline image data in the stream
+        size_t position;        // Of its first byte in the stream
+        union { double number;  size_t offset;  bool flag; };
+    };
+    struct Chunk {
+        std::vector<Token> tokens;
+        std::vector<uint8_t> bytes;     // Decoded names & strings, each null terminated
+        size_t begin = 0, end = 0, stop = 0;    // stop is where the first token at or after end starts, or the stream's end
+    };
+    struct String { const uint8_t *bytes = nullptr;  size_t length = 0; };
+    struct Operand {
+        enum Type : uint8_t { kNumber, kInteger, kName, kString, kBool, kNull, kArray, kDict, kInlineData, kArrayMark, kDictMark };
+        uint8_t type;
+        size_t length;          // Of a name, string or inline data, or the items of an array or dict
+        union { double number;  const uint8_t *bytes;  size_t begin;  bool flag; };
+        bool getNumber(CGPDFReal *value) const { return (type == kNumber || type == kInteger) && (*value = number, true); }
+        bool getName(const char **name) const { return type == kName && (*name = (const char *)bytes, true); }
+        bool getString(String *string) const { return type == kString && (string->bytes = bytes, string->length = length, true); }
+    };
+    struct Array {
+        const Operand *items = nullptr;  size_t count = 0;
+        bool getNumber(size_t i, CGPDFReal *value) const { return i < count && items[i].getNumber(value); }
+        bool getString(size_t i, String *string) const { return i < count && items[i].getString(string); }
+    };
+    
+    // Characters' classes: white space, or a delimiter, else regular
+    enum { kWhite = 1, kDelimiter = 2 };
+    struct CharClasses {
+        uint8_t classes[256] = {};
+        CharClasses() {
+            for (uint8_t c : { ' ', '\n', '\r', '\t', '\f', '\0' })
+                classes[c] = kWhite;
+            for (uint8_t c : { '(', ')', '<', '>', '[', ']', '{', '}', '/', '%' })
+                classes[c] = kDelimiter;
+        }
+    };
+    static inline uint8_t charClass(uint8_t c) { static const CharClasses table;  return table.classes[c]; }
+    static inline bool isWhite(uint8_t c) { return charClass(c) == kWhite; }
+    static inline bool isRegular(uint8_t c) { return charClass(c) == 0; }
+    static int hexValue(uint8_t c) { return c >= '0' && c <= '9' ? c - '0' : c >= 'a' && c <= 'f' ? c - 'a' + 10 : c >= 'A' && c <= 'F' ? c - 'A' + 10 : -1; }
+    // A number, as [+-]digits[.digits], or .digits
+    static bool parseNumber(const uint8_t *s, size_t n, double& value, bool& isInteger) {
+        size_t k = 0, digits = 0;  bool negative = false;  double whole = 0.0, fraction = 0.0, scale = 1.0;
+        for (; k < n && (s[k] == '+' || s[k] == '-'); k++)
+            negative = negative != (s[k] == '-');
+        for (; k < n && s[k] >= '0' && s[k] <= '9'; k++, digits++)
+            whole = whole * 10.0 + (s[k] - '0');
+        isInteger = !(k < n && s[k] == '.');
+        if (!isInteger)
+            for (k++; k < n && s[k] >= '0' && s[k] <= '9'; k++, digits++)
+                fraction = fraction * 10.0 + (s[k] - '0'), scale *= 10.0;
+        value = (negative ? -1.0 : 1.0) * (whole + fraction / scale);
+        return k == n && digits > 0;
+    }
+    // An inline image's unfiltered data length, from its dictionary's tokens, or 0 if it's filtered, unknown or implausibly large
+    static size_t inlineLength(const Token *tokens, size_t count, const Chunk& chunk) {
+        double width = 0, height = 0, bpc = 0;  size_t components = 0;  bool isMask = false;
+        for (size_t i = 0; i + 1 < count; i++) {
+            if (tokens[i].type != Token::kName)
+                continue;
+            const char *key = (const char *)chunk.bytes.data() + tokens[i].offset;
+            const Token& v = tokens[i + 1];
+            const char *name = v.type == Token::kName ? (const char *)chunk.bytes.data() + v.offset : "";
+            if (!strcmp(key, "F") || !strcmp(key, "Filter"))
+                return 0;
+            if (!strcmp(key, "W") || !strcmp(key, "Width"))
+                width = v.type == Token::kInteger ? v.number : 0;
+            else if (!strcmp(key, "H") || !strcmp(key, "Height"))
+                height = v.type == Token::kInteger ? v.number : 0;
+            else if (!strcmp(key, "BPC") || !strcmp(key, "BitsPerComponent"))
+                bpc = v.type == Token::kInteger ? v.number : 0;
+            else if (!strcmp(key, "IM") || !strcmp(key, "ImageMask"))
+                isMask = v.type == Token::kBool && v.flag;
+            else if (!strcmp(key, "CS") || !strcmp(key, "ColorSpace"))
+                components = !strcmp(name, "G") || !strcmp(name, "DeviceGray") ? 1 : !strcmp(name, "RGB") || !strcmp(name, "DeviceRGB") ? 3
+                    : !strcmp(name, "CMYK") || !strcmp(name, "DeviceCMYK") ? 4 : v.type == Token::kArrayBegin && i + 2 < count && tokens[i + 2].type == Token::kName
+                    && (!strcmp((const char *)chunk.bytes.data() + tokens[i + 2].offset, "I") || !strcmp((const char *)chunk.bytes.data() + tokens[i + 2].offset, "Indexed")) ? 1 : 0;
+        }
+        if (isMask)
+            components = 1, bpc = 1;
+        double length = height * ceil(width * components * bpc / 8.0);
+        return width > 0 && height > 0 && bpc > 0 && components && length < 1e12 ? size_t(length) : 0;
+    }
+    // Lexes the tokens starting from begin up to the first at or after end, but for an inline image's, into chunk
+    static void lex(const uint8_t *data, size_t size, size_t begin, size_t end, const OperatorTable& table, Chunk& chunk) {
+        static const uint32_t kBI = OperatorTable::key((const uint8_t *)"BI", 2), kID = OperatorTable::key((const uint8_t *)"ID", 2), kEI = OperatorTable::key((const uint8_t *)"EI", 2);
+        std::vector<Token>& tokens = chunk.tokens;  std::vector<uint8_t>& bytes = chunk.bytes;
+        tokens.clear(), bytes.clear(), chunk.begin = begin, chunk.end = end;
+        size_t i = begin, inlineBegin = SIZE_MAX;      // The tokens of an inline image's dictionary, from its BI
+        while (true) {
+            while (i < size && (isWhite(data[i]) || data[i] == '%'))
+                if (data[i++] == '%')
+                    while (i < size && data[i] != '\n' && data[i] != '\r')
+                        i++;
+            if (i >= size || (i >= end && inlineBegin == SIZE_MAX))
+                break;
+            Token t;  t.position = i, t.op = -1, t.length = 0, t.number = 0.0;
+            uint8_t c = data[i];
+            if (c == '(') {         // A literal string, with balanced parentheses & escapes
+                t.type = Token::kString, t.offset = bytes.size();
+                int depth = 1;
+                for (i++; i < size; i++) {
+                    c = data[i];
+                    if (c == '\\' && i + 1 < size) {
+                        c = data[++i];
+                        if (c >= '0' && c <= '7') {
+                            int v = c - '0';
+                            for (int k = 0; k < 2 && i + 1 < size && data[i + 1] >= '0' && data[i + 1] <= '7'; k++)
+                                v = v * 8 + (data[++i] - '0');
+                            bytes.push_back(uint8_t(v));
+                        } else if (c == '\r')
+                            i += i + 1 < size && data[i + 1] == '\n';
+                        else if (c != '\n')
+                            bytes.push_back(c == 'n' ? '\n' : c == 'r' ? '\r' : c == 't' ? '\t' : c == 'b' ? '\b' : c == 'f' ? '\f' : c);
+                    } else if (c == '(' || (c == ')' && --depth > 0))
+                        depth += c == '(', bytes.push_back(c);
+                    else if (c == ')') {
+                        i++;
+                        break;
+                    } else if (c == '\r') {
+                        i += i + 1 < size && data[i + 1] == '\n';
+                        bytes.push_back('\n');
+                    } else
+                        bytes.push_back(c);
+                }
+                t.length = uint32_t(bytes.size() - t.offset), bytes.push_back(0);
+            } else if (c == '<' && i + 1 < size && data[i + 1] == '<')
+                t.type = Token::kDictBegin, i += 2;
+            else if (c == '<') {    // A hex string
+                t.type = Token::kString, t.offset = bytes.size();
+                int hi = -1;
+                for (i++; i < size && data[i] != '>'; i++) {
+                    int v = hexValue(data[i]);
+                    if (v >= 0 && hi < 0)
+                        hi = v;
+                    else if (v >= 0)
+                        bytes.push_back(uint8_t(hi << 4 | v)), hi = -1;
+                }
+                if (hi >= 0)
+                    bytes.push_back(uint8_t(hi << 4));
+                i += i < size;
+                t.length = uint32_t(bytes.size() - t.offset), bytes.push_back(0);
+            } else if (c == '>' && i + 1 < size && data[i + 1] == '>')
+                t.type = Token::kDictEnd, i += 2;
+            else if (c == '[' || c == ']')
+                t.type = c == '[' ? Token::kArrayBegin : Token::kArrayEnd, i++;
+            else if (c == '/') {    // A name, with #xx escapes
+                t.type = Token::kName, t.offset = bytes.size();
+                for (i++; i < size && isRegular(data[i]); i++)
+                    if (data[i] == '#' && i + 2 < size && hexValue(data[i + 1]) >= 0 && hexValue(data[i + 2]) >= 0)
+                        bytes.push_back(uint8_t(hexValue(data[i + 1]) << 4 | hexValue(data[i + 2]))), i += 2;
+                    else
+                        bytes.push_back(data[i]);
+                t.length = uint32_t(bytes.size() - t.offset), bytes.push_back(0);
+            } else if (!isRegular(c)) {      // A stray delimiter
+                i++;
+                continue;
+            } else {
+                size_t j = i;
+                while (j < size && isRegular(data[j]))
+                    j++;
+                bool isInteger;
+                if (parseNumber(data + i, j - i, t.number, isInteger))
+                    t.type = isInteger ? Token::kInteger : Token::kNumber;
+                else if ((j - i == 4 && !memcmp(data + i, "true", 4)) || (j - i == 5 && !memcmp(data + i, "false", 5)))
+                    t.type = Token::kBool, t.flag = data[i] == 't';
+                else if (j - i == 4 && !memcmp(data + i, "null", 4))
+                    t.type = Token::kNull;
+                else {
+                    uint32_t k = OperatorTable::key(data + i, j - i);
+                    t.type = Token::kOperator, t.op = int16_t(table.find(k));
+                    if (k == kBI)
+                        inlineBegin = tokens.size() + 1;
+                    else if (k == kEI)
+                        inlineBegin = SIZE_MAX;
+                    else if (k == kID) {
+                        // The data, after one white space, to an EI after white space, which is at its length if it's unfiltered &
+                        // that length is right, else the first after its start
+                        size_t start = j + (j < size && isWhite(data[j])), n = 0, e;
+                        if (inlineBegin != SIZE_MAX && inlineBegin <= tokens.size())
+                            n = inlineLength(tokens.data() + inlineBegin, tokens.size() - inlineBegin, chunk);
+                        auto isEI = [&](size_t p) { return p + 1 < size && data[p] == 'E' && data[p + 1] == 'I' && (p + 2 == size || !isRegular(data[p + 2])); };
+                        for (e = std::min(size, start + n); e < size && isWhite(data[e]); e++)
+                            ;
+                        bool isAtLength = n && isEI(e);
+                        if (!isAtLength)
+                            for (e = start; e < size && !(isEI(e) && e > start && isWhite(data[e - 1])); e++)
+                                ;
+                        t.type = Token::kInlineData, t.offset = start, t.length = uint32_t((isAtLength ? start + n : e < size ? e - 1 : size) - start);
+                        tokens.push_back(t), i = e;
+                        continue;
+                    }
+                }
+                i = j;
+            }
+            tokens.push_back(t);
+        }
+        chunk.stop = i;
+    }
+    // The interpreter's operand stack, which a callback pops, & the content stream, for its resources
+    struct Scanner {
+        CGPDFContentStreamRef cs;
+        size_t count = 0, capacity = 64;
+        std::unique_ptr<Operand[]> stack;           // The operands, as a vector is slow in debug builds
+        std::vector<Operand> items;                 // Arrays' & dicts' items
+        std::vector<std::vector<uint8_t>> owned;    // Copies of names & strings, from chunks lexed again before their operator
+        Scanner(CGPDFContentStreamRef cs) : cs(cs), stack(new Operand[capacity]) {}
+        void grow() {
+            Operand *operands = new Operand[capacity * 2];
+            std::copy(stack.get(), stack.get() + count, operands), stack.reset(operands), capacity *= 2;
+        }
+        // Copies the operands' names & strings, before their chunks are reused
+        void own() {
+            auto copy = [&](Operand& o) {
+                if (o.type == Operand::kName || o.type == Operand::kString)
+                    owned.emplace_back(o.bytes, o.bytes + o.length + 1), o.bytes = owned.back().data();
+            };
+            for (size_t i = 0; i < count; i++)
+                copy(stack[i]);
+            for (Operand& o : items)
+                copy(o);
+        }
+        bool popObject(Operand *operand) { return count && (*operand = stack[--count], true); }
+        bool popNumber(CGPDFReal *value) { Operand o;  return popObject(& o) && o.getNumber(value); }
+        bool popInteger(CGPDFInteger *value) { Operand o;  return popObject(& o) && o.type == Operand::kInteger && (*value = CGPDFInteger(o.number), true); }
+        bool popName(const char **name) { Operand o;  return popObject(& o) && o.getName(name); }
+        bool popString(String *string) { Operand o;  return popObject(& o) && o.getString(string); }
+        bool popArray(Array *array) {
+            Operand o;
+            return popObject(& o) && o.type == Operand::kArray && (array->items = items.data() + o.begin, array->count = o.length, true);
+        }
+        // An inline image, as a stream of a PDF of it, with its dictionary's filter keys & names unabbreviated, as CGPDF decodes it
+        CGPDFStreamRef popInlineImage(CGPDFDocumentRef *doc) {
+            Operand data;
+            *doc = nullptr;
+            if (!popObject(& data) || data.type != Operand::kInlineData)
+                return nullptr;
+            std::string dict = "<<";
+            for (size_t i = 0; i + 1 < count; i += 2) {
+                const char *key;
+                if (!stack[i].getName(& key))
+                    continue;
+                key = !strcmp(key, "F") ? "Filter" : !strcmp(key, "DP") ? "DecodeParms" : key;
+                bool isFilter = !strcmp(key, "Filter");
+                dict += " /", writeName(dict, key), dict += " ", writeOperand(dict, stack[i + 1], isFilter);
+            }
+            dict += " /Length " + std::to_string(data.length) + " >>";
+            std::string pdf = "%PDF-1.4\n";
+            size_t offsets[4];
+            offsets[0] = pdf.size(), pdf += "1 0 obj << /Type /Catalog /Pages 2 0 R /RaImage 3 0 R >> endobj\n";
+            offsets[1] = pdf.size(), pdf += "2 0 obj << /Type /Pages /Kids [4 0 R] /Count 1 >> endobj\n";
+            offsets[2] = pdf.size(), pdf += "3 0 obj " + dict + " stream\n", pdf.append((const char *)data.bytes, data.length), pdf += "\nendstream endobj\n";
+            offsets[3] = pdf.size(), pdf += "4 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 1 1] >> endobj\n";
+            size_t xref = pdf.size();
+            pdf += "xref\n0 5\n0000000000 65535 f \n";
+            char line[32];
+            for (size_t offset : offsets)
+                snprintf(line, sizeof(line), "%010zu 00000 n \n", offset), pdf += line;
+            pdf += "trailer << /Size 5 /Root 1 0 R >>\nstartxref\n" + std::to_string(xref) + "\n%%EOF\n";
+            CFDataRef bytes = CFDataCreate(nullptr, (const UInt8 *)pdf.data(), pdf.size());
+            CGDataProviderRef provider = CGDataProviderCreateWithCFData(bytes);
+            *doc = CGPDFDocumentCreateWithProvider(provider);
+            CGDataProviderRelease(provider), CFRelease(bytes);
+            CGPDFStreamRef stream = nullptr;
+            if (*doc)
+                CGPDFDictionaryGetStream(CGPDFDocumentGetCatalog(*doc), "RaImage", & stream);
+            return stream;
+        }
+        static void writeName(std::string& out, const char *name) {
+            for (const char *c = name; *c; c++) {
+                char escape[4];
+                if (isRegular(uint8_t(*c)) && *c != '#' && uint8_t(*c) > 32 && uint8_t(*c) < 127)
+                    out += *c;
+                else
+                    snprintf(escape, sizeof(escape), "#%02X", uint8_t(*c)), out += escape;
+            }
+        }
+        void writeOperand(std::string& out, const Operand& o, bool isFilter) {
+            static const char *filters[][2] = { { "AHx", "ASCIIHexDecode" }, { "A85", "ASCII85Decode" }, { "LZW", "LZWDecode" }, { "Fl", "FlateDecode" },
+                { "RL", "RunLengthDecode" }, { "CCF", "CCITTFaxDecode" }, { "DCT", "DCTDecode" } };
+            char number[32];
+            switch (o.type) {
+                case Operand::kInteger:  snprintf(number, sizeof(number), "%lld", (long long)o.number), out += number;  break;
+                case Operand::kNumber:   snprintf(number, sizeof(number), "%.9g", o.number), out += number;  break;
+                case Operand::kBool:     out += o.flag ? "true" : "false";  break;
+                case Operand::kName: {
+                    const char *name = (const char *)o.bytes;
+                    for (auto& f : filters)
+                        if (isFilter && !strcmp(name, f[0]))
+                            name = f[1];
+                    out += "/", writeName(out, name);
+                    break;
+                }
+                case Operand::kString:
+                    out += "<";
+                    for (size_t i = 0; i < o.length; i++)
+                        snprintf(number, sizeof(number), "%02X", o.bytes[i]), out += number;
+                    out += ">";
+                    break;
+                case Operand::kArray:
+                case Operand::kDict:
+                    out += o.type == Operand::kArray ? "[" : "<<";
+                    for (size_t i = 0; i < o.length; i++)
+                        out += " ", writeOperand(out, items[o.begin + i], isFilter && o.type == Operand::kArray);
+                    out += o.type == Operand::kArray ? " ]" : " >>";
+                    break;
+                default:
+                    out += "null";
+            }
+        }
+        // Interprets tokens from first, calling operators' callbacks, & clearing the stack after each operator
+        void interpret(const Chunk& chunk, size_t first, const OperatorTable& table, void *info) {
+            const Token *tokens = chunk.tokens.data();  const uint8_t *bytes = chunk.bytes.data();
+            for (size_t i = first, n = chunk.tokens.size(); i < n; i++) {
+                const Token& t = tokens[i];
+                Operand o;  o.length = 0, o.number = 0.0;
+                switch (t.type) {
+                    case Token::kNumber:
+                    case Token::kInteger:
+                        o.type = t.type == Token::kNumber ? Operand::kNumber : Operand::kInteger, o.number = t.number;
+                        break;
+                    case Token::kName:
+                    case Token::kString:
+                        o.type = t.type == Token::kName ? Operand::kName : Operand::kString, o.bytes = bytes + t.offset, o.length = t.length;
+                        break;
+                    case Token::kBool:
+                        o.type = Operand::kBool, o.flag = t.flag;
+                        break;
+                    case Token::kNull:
+                        o.type = Operand::kNull;
+                        break;
+                    case Token::kInlineData:
+                        o.type = Operand::kInlineData, o.bytes = data + t.offset, o.length = t.length;
+                        break;
+                    case Token::kArrayBegin:
+                    case Token::kDictBegin:
+                        o.type = t.type == Token::kArrayBegin ? Operand::kArrayMark : Operand::kDictMark;
+                        break;
+                    case Token::kArrayEnd:
+                    case Token::kDictEnd: {     // Its items move from the stack, after its mark, to items
+                        uint8_t mark = t.type == Token::kArrayEnd ? Operand::kArrayMark : Operand::kDictMark;
+                        size_t m = count;
+                        while (m > 0 && stack[m - 1].type != mark)
+                            m--;
+                        if (m == 0)
+                            continue;
+                        Operand& array = stack[m - 1];
+                        array.type = mark == Operand::kArrayMark ? Operand::kArray : Operand::kDict, array.begin = items.size(), array.length = count - m;
+                        items.insert(items.end(), stack.get() + m, stack.get() + count), count = m;
+                        continue;
+                    }
+                    case Token::kOperator:
+                        if (t.op >= 0)
+                            table.callbacks[t.op](*this, info);
+                        count = 0;
+                        if (items.size() || owned.size())
+                            items.clear(), owned.clear();
+                        continue;
+                }
+                if (count == capacity)
+                    grow();
+                stack[count++] = o;
+            }
+        }
+        const uint8_t *data = nullptr;
+    };
+    static constexpr size_t kChunkSize = 64 * 1024;
+    // A batch of chunks, of cpus * kChunkSize bytes from begin, lexed in parallel
+    struct Batch {
+        const uint8_t *data;  size_t size, begin, count;
+        const OperatorTable *table;
+        std::vector<Chunk> chunks;
+        static void lexChunk(void *context, size_t t) {
+            Batch& b = *(Batch *)context;  Chunk& chunk = b.chunks[t];
+            lex(b.data, b.size, b.begin + t * kChunkSize, std::min(b.size, b.begin + (t + 1) * kChunkSize), *b.table, chunk);
+        }
+        void lexAll() {
+            dispatch_apply_f(count, DISPATCH_APPLY_AUTO, this, lexChunk);
+        }
+    };
+    // Scans a content stream's bytes. A large one's batches are lexed while the one before is interpreted, in two sets of chunks,
+    // so the operands of an operator in the next batch are copied before their chunks are lexed again
+    static void scanBytes(const uint8_t *data, size_t size, CGPDFContentStreamRef cs, const OperatorTable& table, void *info) {
+        static const long online = sysconf(_SC_NPROCESSORS_ONLN);
+        size_t cpus = online < 2 ? 1 : std::min(size_t(online), size_t(16)), pos = 0, step = cpus * kChunkSize;
+        Scanner scanner(cs);  scanner.data = data;
+        if (size <= 2 * kChunkSize || cpus == 1) {
+            Chunk chunk;
+            lex(data, size, 0, size, table, chunk);
+            return scanner.interpret(chunk, 0, table, info);
+        }
+        Batch batches[2];
+        for (Batch& b : batches)
+            b.data = data, b.size = size, b.table = & table, b.chunks.resize(cpus);
+        auto prepare = [&](Batch& b, size_t begin) { b.begin = begin, b.count = std::min(cpus, (size - begin + kChunkSize - 1) / kChunkSize); };
+        prepare(batches[0], 0), batches[0].lexAll();
+        for (size_t i = 0, begin = 0; begin < size; i++, begin += step) {
+            Batch& batch = batches[i & 1], & next = batches[(i + 1) & 1];
+            std::thread lexer;
+            if (begin + step < size)
+                prepare(next, begin + step), lexer = std::thread(& Batch::lexAll, & next);
+            for (size_t t = 0; t < batch.count; t++) {
+                Chunk& chunk = batch.chunks[t];
+                if (chunk.stop <= pos && pos > 0)
+                    continue;
+                auto it = std::lower_bound(chunk.tokens.begin(), chunk.tokens.end(), pos, [](const Token& a, size_t p) { return a.position < p; });
+                if (it == chunk.tokens.end() || it->position != pos)
+                    lex(data, size, pos, std::max(pos, chunk.end), table, chunk), it = chunk.tokens.begin();
+                scanner.interpret(chunk, size_t(it - chunk.tokens.begin()), table, info);
+                pos = chunk.stop;
+            }
+            scanner.own();
+            if (lexer.joinable())
+                lexer.join();
+        }
+    }
+    
+    struct Shadings {
+        static constexpr size_t kMaxDepth = 32;
+        // A path's draw mode is its fill rule, or none, & kStroke if it's stroked, as pdfium's. Line caps & joins are as the PDF's
+        enum { kFillNone = 0, kFillEvenOdd = 1, kFillWinding = 2, kStroke = 4 };
+        enum { kRoundCap = 1, kSquareCap = 2, kRoundJoin = 1 };
+        // The objects of each content stream, as pdfium makes them, in order, each with its record in paths, texts, images,
+        // shadings or forms, & its clip in clips, or -1 if it's unclipped
+        enum Kind : uint8_t { kPathObject, kTextObject, kImageObject, kShadingObject, kFormObject, kNoObject };
+        struct Object {
+            uint8_t kind;
+            uint32_t index;
+            int clip;
+        };
+        std::vector<std::vector<Object>> streams;   // The page's, then each form's, by form index + 1
+        struct Colors {             // An object's fill & stroke colors, with their alphas, if the scan has them
+            Ra::Color fill = Ra::Color(0, 0, 0, 255), stroke = Ra::Color(0, 0, 0, 255);
+            bool hasFill = true, hasStroke = true;
+        };
+        // The scan's color spaces, by their object, & the device ones, as fill & stroke colors' spaces are pointers to them
+        ColorSpace graySpace { ColorSpace::kGray, 1 }, rgbSpace { ColorSpace::kRGB, 3 };
+        ColorSpace cmykSpace { ColorSpace::kOther, 4, CGColorSpaceCreateDeviceCMYK() }, patternSpace { ColorSpace::kPattern }, unsupportedSpace;
+        std::map<CGPDFObjectRef, std::unique_ptr<ColorSpace>> colorSpaces;
+        // An image object's image in images, or -1 if it couldn't be decoded, & its graphics state
+        struct ImageObject {
+            int image = -1;
+            Ra::Transform ctm;      // The unit square to page space
+            float alpha = 1.f;
+            int mask = kNoMask;     // Its soft mask, in masks
+            uint8_t blend = kBlendNormal;
+            Colors colors;          // An image mask's
+        };
+        std::vector<ImageObject> imageObjects;
+        std::deque<PDFImage> images;
+        std::map<CGPDFStreamRef, int> imageIndices;         // An XObject's image, decoded once
+        std::map<std::tuple<int, float, uint32_t, int, std::array<float, 6>>, Ra::Paint> imagePaints;
+        static constexpr float kMaxMaskSize = 4096.f;       // Of a masked image enlarged for its mask
+        bool readsImages = true;                            // Not for a soft mask's group
+        Ra::Transform pageCTM;                              // The page's media box & rotation to the scene's space
+        // A path painting operator's path, in user space, & its paint, but for its colors
+        // Its path is built from its points, in pathPoints, after the scan, with its bounds, in parallel, but for a clip's
+        struct PathObject {
+            Ra::Path path = nullptr;
+            size_t pointBegin = 0, pointCount = 0;
+            Ra::Bounds bounds;      // In page space, as pdfium's: of its points, outset by half a stroke's width, or a hairline's
+            Ra::Transform ctm;      // User space to page space
+            int pattern = -1;       // The fill's shading pattern in patterns, or -1 for a color
+            int tiling = -1;        // Or its tiling pattern, in tilings
+            int mask = kNoMask;     // In masks
+            float alpha = 1.f, width = 1.f, dashPhase = 0.f;
+            int dash = -1;          // In dashes, or -1 for a solid stroke
+            uint8_t blend = kBlendNormal, mode = 0, cap = 0, join = 0;
+            Colors colors;
+        };
+        std::deque<PathObject> paths;       // A deque, as there can be very many, which a vector would copy as it grows
+        std::vector<std::vector<float>> dashes;
+        // A clip state's paths, in page space, as pdfium's: the content stream's own, then those of its form's Do, each with its fill
+        // rule, of W or W*. Draws are only clipped to the first path, & the bounds of all, so sorted puts the non-rect ones first
+        struct Clip {
+            std::vector<Ra::Path> paths, sorted;
+            std::vector<bool> evenOdds, sortedEvenOdds;     // Of paths & sorted
+            size_t own = 0;
+            int inherited = -1;     // The clip of the paths that aren't the stream's own
+            Ra::Bounds bounds = Ra::Bounds::huge();
+            // A draw's clip path, the first of sorted if it isn't a rect, & the flag of its rule
+            Ra::Path *path() { return sorted.size() && !sorted[0]->isRect() ? & sorted[0] : nullptr; }
+            uint8_t flags() { return path() && sortedEvenOdds[0] ? Ra::Draw::kClipEvenOdd : 0; }
+            // The clip path of a draw that fills sorted[i], a non-rect path, so is already clipped to it: the first of the others
+            // if it isn't a rect, & the flag of its rule
+            Ra::Path *otherPath(size_t i) { size_t j = i == 0; return j < sorted.size() && !sorted[j]->isRect() ? & sorted[j] : nullptr; }
+            uint8_t otherFlags(size_t i) { return otherPath(i) && sortedEvenOdds[i == 0] ? Ra::Draw::kClipEvenOdd : 0; }
+        };
+        std::vector<Clip> clips;
+        std::map<size_t, Ra::Path> clipPaths;       // By hash, so draws with the same clip share its path, & so its clip mask
+        std::vector<Shading> shadings, patterns;
+        std::vector<Mask> masks;
+        // A tiling pattern cell's scene, written when it's first drawn, & its images, rendered for fills, by size & an uncolored
+        // pattern's color, shared by each use of its pattern
+        struct CellCache {
+            static constexpr size_t kMaxImages = 8;
+            Ra::SceneRef scene = nullptr;
+            std::map<std::tuple<size_t, size_t, uint32_t>, CGImageRef> images;
+            CellCache() {}
+            CellCache(const CellCache&) = delete;
+            ~CellCache() {
+                for (auto& it : images)
+                    CGImageRelease(it.second);
+            }
+        };
+        // A use of a tiling pattern: its cell's objects, scanned in pattern space, once for each pattern, & its tiles, from pattern
+        // space to page space
+        struct Tiling {
+            std::shared_ptr<Shadings> cell;
+            std::shared_ptr<CellCache> cache;
+            Ra::Bounds bbox;
+            float xStep = 0.f, yStep = 0.f;
+            Ra::Transform ctm;
+            bool isColored = true;
+        };
+        std::vector<Tiling> tilings;
+        std::map<CGPDFStreamRef, std::pair<std::shared_ptr<Shadings>, std::shared_ptr<CellCache>>> cells;
+        struct Group {              // A transparency group form's soft mask, opacity & blend mode, which its contents start without
+            int mask = kNoMask;
+            float alpha = 1.f;
+            uint8_t blend = kBlendNormal;
+            int clip = -1;          // Its contents' clip at their start, in clips
+            bool isTooDeep = false; // Its contents aren't scanned, as it's nested kMaxDepth deep
+        };
+        // A text showing operator's glyphs, as pdfium's text objects, each with its text rendering matrix, from text space to page space
+        // A Type 3 glyph's fill rule, & its parts if it's colored, which the run's font owns
+        struct Glyph { Ra::Path path;  Ra::Transform ctm;  bool evenOdd = false;  const TextFont::Type3Glyph *colored = nullptr; };
+        struct TextRun {
+            bool isValid = true, isType3 = false;
+            int mask = kNoMask;         // Its soft mask, in masks
+            uint8_t mode = 0;           // Its text rendering mode
+            Colors colors;
+            std::vector<Glyph> glyphs;
+            float unitsPerEm = 1.f, width = 0.f;    // User space units in text space's, & the stroke width
+        };
+        std::vector<TextRun> texts;
+        std::map<CGPDFDictionaryRef, std::unique_ptr<TextFont>> fonts;
+        TextFont *fontFor(CGPDFDictionaryRef dict) {
+            auto it = fonts.find(dict);
+            if (it == fonts.end())
+                it = fonts.emplace(dict, std::unique_ptr<TextFont>(new TextFont(dict))).first;
+            return it->second.get();
+        }
+        // A Type 3 font's glyph for a code, cached. Its procedure is scanned from its FontMatrix, & its fills, image masks, as rects
+        // of their set pixels, & valid glyphs make its shape. A d1 glyph's colors & everyone's strokes are ignored, & images but
+        // for masks aren't drawn
+        const TextFont::Type3Glyph& type3Glyph(TextFont& font, uint32_t code, CGPDFContentStreamRef cs, const OperatorTable *table, size_t depth) {
+            auto it = font.type3Glyphs.find(code);
+            if (it != font.type3Glyphs.end())
+                return it->second;
+            TextFont::Type3Glyph& glyph = font.type3Glyphs[code];     // Empty while it's scanned, so a glyph that shows itself is
+            CGPDFStreamRef proc;
+            if (code > 255 || font.names[code].empty() || !CGPDFDictionaryGetStream(font.charProcs, font.names[code].c_str(), & proc) || depth >= kMaxDepth)
+                return glyph;
+            State state;
+            state.ctm = state.space = font.fontMatrix;
+            Shadings contents;
+            CGPDFContentStreamRef content = CGPDFContentStreamCreateWithStream(proc, font.resources, cs);
+            CFDataRef data = copyContents(proc);
+            bool isColored = data && isColoredGlyph(CFDataGetBytePtr(data), size_t(CFDataGetLength(data)));
+            contents.scan(content, data, table, state, depth + 1);
+            contents.buildPaths();
+            if (data)
+                CFRelease(data);
+            CGPDFContentStreamRelease(content);
+            
+            std::vector<TextFont::Type3Glyph::Part> parts;
+            auto add = [&](Ra::Path path, Ra::Transform ctm, Ra::Color color, bool evenOdd) {
+                parts.push_back({ transformedPath(path, ctm), color, evenOdd });
+                glyph.path = transformedPath(path, ctm, glyph.path.ptr ? glyph.path : Ra::Path());
+            };
+            for (auto& p : contents.paths)
+                if (p.path.ptr && (p.mode & ~kStroke) != kFillNone)
+                    add(p.path, p.ctm, objectColor(p.colors, false, 1.f), (p.mode & ~kStroke) == kFillEvenOdd);
+            for (auto& run : contents.texts)
+                for (size_t i = 0; run.isValid && i < run.glyphs.size(); i++)
+                    add(run.glyphs[i].path, run.glyphs[i].ctm, objectColor(run.colors, false, 1.f), run.glyphs[i].evenOdd);
+            for (auto& object : contents.imageObjects)
+                if (object.image >= 0 && contents.images[object.image].isMask) {
+                    Ra::Path rects = maskRects(contents.images[object.image]);
+                    if (rects->types.end)
+                        add(rects, object.ctm, objectColor(object.colors, false, 1.f), false);
+                }
+            glyph.evenOdd = parts.size() == 1 && parts[0].evenOdd;
+            if (isColored)
+                glyph.parts.swap(parts);
+            return glyph;
+        }
+        // Whether a glyph procedure starts with d0, so it's colored, after its operands
+        static bool isColoredGlyph(const uint8_t *bytes, size_t n) {
+            size_t i = 0;
+            for (; i < n && (isspace(bytes[i]) || isdigit(bytes[i]) || bytes[i] == '.' || bytes[i] == '-' || bytes[i] == '+'); i++) {}
+            return i + 1 < n && bytes[i] == 'd' && bytes[i + 1] == '0' && (i + 2 == n || !isalnum(bytes[i + 2]));
+        }
+        // An image mask's set pixels, as rects in the unit square, of each row's runs, merged with the same runs in the rows above
+        static Ra::Path maskRects(const PDFImage& image) {
+            Ra::Path rects;
+            size_t w = image.width, h = image.height;
+            std::map<std::pair<size_t, size_t>, size_t> open, next;      // Runs, from x to x, & the row they start
+            auto close = [&](std::pair<size_t, size_t> run, size_t top, size_t bottom) {    // Rows run down from the square's top
+                rects->addBounds(Ra::Bounds(float(run.first) / w, 1.f - float(bottom) / h, float(run.second) / w, 1.f - float(top) / h));
+            };
+            for (size_t y = 0; y <= h; y++, open.swap(next), next.clear()) {
+                for (size_t x = 0; y < h && x < w; ) {
+                    for (; x < w && image.pixels[y * w + x].a < 128; x++) {}
+                    size_t x0 = x;
+                    for (; x < w && image.pixels[y * w + x].a >= 128; x++) {}
+                    if (x > x0) {
+                        auto run = std::make_pair(x0, x);  auto o = open.find(run);
+                        next[run] = o == open.end() ? y : o->second;
+                        if (o != open.end())
+                            open.erase(o);
+                    }
+                }
+                for (auto& o : open)
+                    close(o.first, o.second, y);
+            }
+            return rects;
+        }
+        typedef std::pair<CGPDFDictionaryRef, std::array<float, 6>> MaskKey;     // A soft mask & the ctm it's set at
+        std::map<MaskKey, int> maskIndices;
+        // A soft mask's group, scanned in group space: the gradient it paints, if it's one, & its contents, BBox & Matrix
+        struct MaskGroup {
+            Shading shading;
+            std::shared_ptr<Shadings> contents;
+            Ra::Bounds bbox = Ra::Bounds::huge();
+            Ra::Transform matrix;
+        };
+        std::map<CGPDFDictionaryRef, MaskGroup> maskGroups;
+        std::vector<Group> forms;
+        
+        struct State {
+            Ra::Transform ctm, space;   // space is the content stream's default space, which pattern matrices map to
+            float alpha = 1.f, strokeAlpha = 1.f;     // The fill & stroke alphas, ca & CA
+            const ColorSpace *fillSpace = nullptr, *strokeSpace = nullptr;     // Null for DeviceGray
+            Colors colors;              // Without their alphas
+            bool isPatternSpace = false;
+            int pattern = -1, tiling = -1, mask = kNoMask, clip = -1;
+            uint8_t blend = kBlendNormal;
+            float lineWidth = 1.f, dashPhase = 0.f;     // The stroke state
+            int dash = -1;
+            uint8_t cap = 0, join = 0;
+            TextFont *font = nullptr;   // The text state, which q & Q save & restore
+            bool hasFont = false;       // pdfium's font for a Tf of a missing font is Helvetica, but it makes no text before a Tf
+            uint8_t textMode = 0;       // The text rendering mode, Tr
+            float fontSize = 0.f, charSpace = 0.f, wordSpace = 0.f, hScale = 1.f, leading = 0.f, rise = 0.f;
+        };
+        struct PathPoint {              // As pdfium's path points: a move, line or one of a cubic's three, which can close
+            float x, y;
+            uint8_t type;
+            bool close;
+        };
+        std::vector<PathPoint> pathPoints;  // Of paths, till they're built
+        struct Scan {
+            State state;
+            std::vector<State> stack;
+            Shadings *shadings;
+            const OperatorTable *table;
+            size_t depth = 0;
+            std::vector<PathPoint> points;     // The current path, in user space
+            float startX = 0.f, startY = 0.f, x = 0.f, y = 0.f;    // Its subpath's start & current point
+            uint8_t clipMode = 0;              // The fill rule of a pending W or W*, applied at the next painting operator
+            int container = -1;                // The form index of the content stream, or -1 for the page's
+            int entryClip = -1;                // The clip at the stream's form's Do, whose paths aren't the stream's own
+            Ra::Transform tm, tlm;             // The text matrix & text line matrix
+            // The glyphs of a text object's runs in clipping text rendering modes, in page space, which clip at ET, as pdfium's
+            // do, if there are at most kMaxClipTexts, & the scan has their glyphs
+            static constexpr size_t kMaxClipTexts = 1024;
+            Ra::Path textClip = nullptr;
+            size_t clipTexts = 0;
+            bool hasClipGlyphs = true;
+        };
+        // Scans a page, the last if there are fewer, & returns whether there is one
+        bool read(const char *filename, size_t index) {
+            CFURLRef url = CFURLCreateFromFileSystemRepresentation(nullptr, (const UInt8 *)filename, strlen(filename), false);
+            CGPDFDocumentRef doc = url ? CGPDFDocumentCreateWithURL(url) : nullptr;
+            size_t count = doc ? CGPDFDocumentGetNumberOfPages(doc) : 0;
+            CGPDFPageRef page = doc ? CGPDFDocumentGetPage(doc, (count && index > count - 1 ? count - 1 : index) + 1) : nullptr;
+            if (page) {
+                pageCTM = transformForPage(CGPDFPageGetBoxRect(page, kCGPDFMediaBox), CGPDFPageGetRotationAngle(page));
+                CGPDFContentStreamRef cs = CGPDFContentStreamCreateWithPage(page);
+                OperatorTable *table = createTable();
+                CFDataRef data = copyContents(nullptr, page);
+                scan(cs, data, table, State(), 0);
+                buildPaths();
+                delete table;
+                if (data)
+                    CFRelease(data);
+                CGPDFContentStreamRelease(cs);
+            }
+            CGPDFDocumentRelease(doc);
+            if (url)
+                CFRelease(url);
+            return page != nullptr;
+        }
+        void scan(CGPDFContentStreamRef cs, CFDataRef data, const OperatorTable *table, State state, size_t depth, int container = -1, int entryClip = -1) {
+            Scan scan;  scan.shadings = this, scan.table = table, scan.state = state, scan.depth = depth, scan.container = container, scan.entryClip = entryClip;
+            if (streams.size() < size_t(container + 2))
+                streams.resize(container + 2);
+            if (data)
+                scanBytes(CFDataGetBytePtr(data), size_t(CFDataGetLength(data)), cs, *table, & scan);
+        }
+        // A content stream's decoded bytes, of a stream, or of a page's Contents stream or array of them, separated by white space
+        static CFDataRef copyContents(CGPDFStreamRef stream, CGPDFPageRef page = nullptr) {
+            CGPDFDataFormat format;  CGPDFArrayRef array;
+            if (stream) {
+                CFDataRef data = CGPDFStreamCopyData(stream, & format);
+                if (data && format != CGPDFDataFormatRaw)
+                    CFRelease(data), data = nullptr;
+                return data;
+            }
+            CGPDFDictionaryRef dict = page ? CGPDFPageGetDictionary(page) : nullptr;
+            if (dict && CGPDFDictionaryGetStream(dict, "Contents", & stream))
+                return copyContents(stream);
+            if (!dict || !CGPDFDictionaryGetArray(dict, "Contents", & array))
+                return nullptr;
+            // The streams are decoded in parallel
+            struct Part { CGPDFStreamRef stream = nullptr;  CFDataRef data = nullptr; };
+            std::vector<Part> parts(CGPDFArrayGetCount(array));
+            for (size_t i = 0; i < parts.size(); i++)
+                CGPDFArrayGetStream(array, i, & parts[i].stream);
+            dispatch_apply_f(parts.size(), DISPATCH_APPLY_AUTO, parts.data(), [](void *context, size_t i) {
+                Part& part = ((Part *)context)[i];
+                part.data = part.stream ? copyContents(part.stream) : nullptr;
+            });
+            CFMutableDataRef contents = CFDataCreateMutable(nullptr, 0);
+            for (Part& part : parts)
+                if (part.data)
+                    CFDataAppendBytes(contents, CFDataGetBytePtr(part.data), CFDataGetLength(part.data)), CFDataAppendBytes(contents, (const UInt8 *)"\n", 1), CFRelease(part.data);
+            return contents;
+        }
+        static void addObject(Scan& scan, uint8_t kind, size_t index = 0) {
+            scan.shadings->streams[scan.container + 1].emplace_back(Object{ kind, uint32_t(index), scan.state.clip });
+        }
+        // An image object, whose image is decoded once if it's an XObject's
+        static void addImage(Scan& scan, CGPDFStreamRef stream, CGPDFContentStreamRef cs, bool isXObject) {
+            Shadings& s = *scan.shadings;
+            ImageObject object;
+            object.ctm = scan.state.ctm, object.alpha = scan.state.alpha, object.mask = scan.state.mask, object.blend = scan.state.blend;
+            object.colors = objectColors(scan.state);
+            if (s.readsImages && stream) {
+                auto it = isXObject ? s.imageIndices.find(stream) : s.imageIndices.end();
+                if (it != s.imageIndices.end())
+                    object.image = it->second;
+                else {
+                    s.images.emplace_back(stream, cs);
+                    if (s.images.back().isValid)
+                        object.image = int(s.images.size() - 1);
+                    else
+                        s.images.pop_back();
+                    if (isXObject)
+                        s.imageIndices[stream] = object.image;
+                }
+            }
+            addObject(scan, kImageObject, s.imageObjects.size());
+            s.imageObjects.emplace_back(object);
+        }
+        // An image's paint, with opacity, an image mask's color, & a soft mask, in masks, for the image drawn at ctm, cached as a
+        // paint copies its pixels
+        Ra::Paint imagePaint(int index, float opacity, Ra::Color color, int mask, Ra::Transform ctm) {
+            const PDFImage& image = images[index];
+            std::array<float, 6> m = {};
+            if (mask >= 0)
+                m = { ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx, ctm.ty };
+            auto key = std::make_tuple(index, opacity, image.isMask ? uint32_t(color.r << 16 | color.g << 8 | color.b) : 0u, mask, m);
+            auto it = imagePaints.find(key);
+            if (it != imagePaints.end())
+                return it->second;
+            std::vector<Ra::Color> pixels = image.pixels;
+            size_t width = image.width, height = image.height;
+            if (image.isMask)
+                for (auto& p : pixels)
+                    p = Ra::Color(color.b, color.g, color.r, p.a);
+            if (mask >= 0) {
+                // The mask is sampled at the pixels' centers, so a small image is enlarged to 2 pixels per unit, as a mask's
+                // alpha is smooth
+                size_t w = std::max(width, size_t(fminf(kMaxMaskSize, ceilf(2.f * hypotf(ctm.a, ctm.b))))), h = std::max(height, size_t(fminf(kMaxMaskSize, ceilf(2.f * hypotf(ctm.c, ctm.d)))));
+                if (w != width || h != height) {
+                    std::vector<Ra::Color> enlarged(w * h);
+                    for (size_t y = 0; y < h; y++)
+                        for (size_t x = 0; x < w; x++)
+                            enlarged[y * w + x] = pixels[(y * height / h) * width + x * width / w];
+                    pixels.swap(enlarged), width = w, height = h;
+                }
+                applyMask(pixels.data(), width, height, width * sizeof(Ra::Color), ctm, masks[mask]);
+            }
+            premultiply(pixels.data(), width, height, width * sizeof(Ra::Color), opacity);
+            return imagePaints[key] = Ra::Paint(pixels.data(), width, height, width * sizeof(Ra::Color));
+        }
+        // The clip of parent & path, in page space, filled even-odd or non-zero. pdfium drops the stream's last path if it's a rect
+        // that contains a new path, but not text, & a clip to nothing, from a path of one point or no area, clips everything out
+        int addClip(int parent, Ra::Path path, bool isEntry, bool isText = false, bool isEvenOdd = false) {
+            Clip clip;
+            if (parent >= 0)
+                clip = clips[parent];
+            size_t own = isEntry ? 0 : clip.own;
+            clip.inherited = isEntry ? parent : clip.inherited;
+            path = clipPaths.emplace(path->hash(), path).first->second;
+            if (!isText && own > 0 && clip.paths[own - 1]->isRect() && clip.paths[own - 1]->bounds.contains(path->bounds))
+                --own, clip.paths.erase(clip.paths.begin() + own), clip.evenOdds.erase(clip.evenOdds.begin() + own);
+            clip.paths.insert(clip.paths.begin() + own, path), clip.evenOdds.insert(clip.evenOdds.begin() + own, isEvenOdd), clip.own = own + 1;
+            clip.bounds = Ra::Bounds::huge(), clip.sorted.resize(0), clip.sortedEvenOdds.resize(0);
+            for (int isRect = 0; isRect < 2; isRect++)      // The non-rect paths first, in order
+                for (size_t i = 0; i < clip.paths.size(); i++)
+                    if (clip.paths[i]->isValid() && clip.paths[i]->isRect() == bool(isRect))
+                        clip.sorted.emplace_back(clip.paths[i]), clip.sortedEvenOdds.push_back(clip.evenOdds[i]);
+            for (auto& p : clip.paths)
+                clip.bounds = clip.bounds.intersect(p->isValid() ? p->bounds : Ra::Bounds(0.f, 0.f, 0.f, 0.f));
+            clips.emplace_back(std::move(clip));
+            return int(clips.size() - 1);
+        }
+        static OperatorTable *createTable() {
+            OperatorTable *table = new OperatorTable();
+            table->set("q", [](Scanner& scanner, void *info) {
+                Scan& scan = *(Scan *)info;
+                scan.stack.emplace_back(scan.state);
+            });
+            table->set("Q", [](Scanner& scanner, void *info) {
+                Scan& scan = *(Scan *)info;
+                if (scan.stack.size())
+                    scan.state = scan.stack.back(), scan.stack.pop_back();
+            });
+            table->set("cm", [](Scanner& scanner, void *info) {
+                Scan& scan = *(Scan *)info;  CGPDFReal m[6];
+                for (int i = 5; i >= 0; i--)
+                    if (!scanner.popNumber(& m[i]))
+                        return;
+                scan.state.ctm = Ra::Transform(m[0], m[1], m[2], m[3], m[4], m[5]).concat(scan.state.ctm);
+            });
+            table->set("gs", [](Scanner& scanner, void *info) {
+                Scan& scan = *(Scan *)info;  const char *name;  CGPDFDictionaryRef dict, smask;  CGPDFReal ca;
+                if (!scanner.popName(& name))
+                    return;
+                CGPDFContentStreamRef cs = scanner.cs;
+                CGPDFObjectRef obj = CGPDFContentStreamGetResource(cs, "ExtGState", name);
+                if (obj == nullptr || !CGPDFObjectGetValue(obj, kCGPDFObjectTypeDictionary, & dict))
+                    return;
+                if (CGPDFDictionaryGetNumber(dict, "ca", & ca))
+                    scan.state.alpha = fmaxf(0.f, fminf(1.f, ca));
+                if (CGPDFDictionaryGetNumber(dict, "CA", & ca))
+                    scan.state.strokeAlpha = fmaxf(0.f, fminf(1.f, ca));
+                CGPDFReal lw;  CGPDFInteger lc, lj;  CGPDFArrayRef d, dash;
+                if (CGPDFDictionaryGetNumber(dict, "LW", & lw))
+                    scan.state.lineWidth = lw;
+                if (CGPDFDictionaryGetInteger(dict, "LC", & lc))
+                    scan.state.cap = uint8_t(lc);
+                if (CGPDFDictionaryGetInteger(dict, "LJ", & lj))
+                    scan.state.join = uint8_t(lj);
+                if (CGPDFDictionaryGetArray(dict, "D", & d) && CGPDFArrayGetArray(d, 0, & dash) && CGPDFArrayGetNumber(d, 1, & lw)) {
+                    std::vector<float> lengths;  CGPDFReal number;
+                    for (size_t i = 0; i < CGPDFArrayGetCount(dash); i++)
+                        if (CGPDFArrayGetNumber(dash, i, & number))
+                            lengths.emplace_back(number);
+                    setDash(scan, lengths, lw);
+                }
+                CGPDFObjectRef bm;
+                if (CGPDFDictionaryGetObject(dict, "BM", & bm))
+                    scan.state.blend = readBlendMode(bm);
+                if (CGPDFDictionaryGetName(dict, "SMask", & name))
+                    scan.state.mask = kNoMask;
+                else if (CGPDFDictionaryGetDictionary(dict, "SMask", & smask))
+                    scan.state.mask = scan.shadings->readMask(smask, cs, scan.state.ctm, scan.depth);
+            });
+            table->set("sh", [](Scanner& scanner, void *info) {
+                Scan& scan = *(Scan *)info;  const char *name;  CGPDFDictionaryRef dict;
+                if (!scanner.popName(& name))
+                    return;
+                CGPDFContentStreamRef cs = scanner.cs;
+                CGPDFObjectRef obj = CGPDFContentStreamGetResource(cs, "Shading", name);
+                if (obj == nullptr)     // pdfium makes no object for it
+                    return;
+                addObject(scan, kShadingObject, scan.shadings->shadings.size());
+                scan.shadings->shadings.emplace_back();
+                Shading& shading = scan.shadings->shadings.back();
+                shading.ctm = scan.state.ctm, shading.alpha = scan.state.alpha, shading.mask = scan.state.mask, shading.blend = scan.state.blend;
+                shading.isValid = obj && CGPDFObjectGetValue(obj, kCGPDFObjectTypeDictionary, & dict) && shading.read(dict, cs);
+            });
+            table->set("Do", [](Scanner& scanner, void *info) {
+                Scan& scan = *(Scan *)info;  const char *name;  CGPDFStreamRef stream;  CGPDFDictionaryRef dict, resources = nullptr;
+                std::vector<float> m;
+                if (!scanner.popName(& name))
+                    return;
+                CGPDFContentStreamRef cs = scanner.cs;
+                CGPDFObjectRef obj = CGPDFContentStreamGetResource(cs, "XObject", name);
+                if (obj == nullptr || !CGPDFObjectGetValue(obj, kCGPDFObjectTypeStream, & stream)
+                    || !CGPDFDictionaryGetName(dict = CGPDFStreamGetDictionary(stream), "Subtype", & name))
+                    return;
+                if (!strcmp(name, "Image"))
+                    return addImage(scan, stream, cs, true);
+                if (strcmp(name, "Form"))
+                    return;
+                // A transparency group's soft mask, opacity & blend mode apply to the group, so its contents start without them. Other
+                // forms' contents inherit them, as pdfium's objects in them do
+                CGPDFDictionaryRef groupDict;
+                bool isGroup = CGPDFDictionaryGetDictionary(dict, "Group", & groupDict) && CGPDFDictionaryGetName(groupDict, "S", & name) && !strcmp(name, "Transparency");
+                Group group;
+                if (isGroup)
+                    group.mask = scan.state.mask, group.alpha = scan.state.alpha, group.blend = scan.state.blend;
+                int container = int(scan.shadings->forms.size());
+                addObject(scan, kFormObject, container);
+                // Its contents are clipped to its BBox, in form space, as pdfium's are
+                State state = scan.state;
+                if (readNumbers(dict, "Matrix", m) && m.size() == 6)
+                    state.ctm = Ra::Transform(m[0], m[1], m[2], m[3], m[4], m[5]).concat(state.ctm);
+                if (readNumbers(dict, "BBox", m) && m.size() == 4) {
+                    Ra::Path bbox;  bbox->addBounds(Ra::Bounds(fminf(m[0], m[2]), fminf(m[1], m[3]), fmaxf(m[0], m[2]), fmaxf(m[1], m[3])));
+                    state.clip = scan.shadings->addClip(state.clip, transformedPath(bbox, state.ctm), true);
+                }
+                group.clip = state.clip, group.isTooDeep = scan.depth >= kMaxDepth;
+                scan.shadings->forms.emplace_back(group);
+                if (scan.depth < kMaxDepth) {
+                    if (isGroup)
+                        state.alpha = 1.f, state.mask = kNoMask, state.blend = kBlendNormal;
+                    state.space = state.ctm;
+                    CGPDFDictionaryGetDictionary(dict, "Resources", & resources);
+                    CGPDFContentStreamRef form = CGPDFContentStreamCreateWithStream(stream, resources, cs);
+                    CFDataRef data = copyContents(stream);
+                    scan.shadings->scan(form, data, scan.table, state, scan.depth + 1, container, scan.state.clip);
+                    if (data)
+                        CFRelease(data);
+                    CGPDFContentStreamRelease(form);
+                }
+            });
+            table->set("EI", [](Scanner& scanner, void *info) {      // An inline image
+                CGPDFDocumentRef doc = nullptr;
+                CGPDFStreamRef stream = ((Scan *)info)->shadings->readsImages ? scanner.popInlineImage(& doc) : nullptr;
+                addImage(*(Scan *)info, stream, scanner.cs, false);
+                CGPDFDocumentRelease(doc);
+            });
+            addPathCallbacks(table);
+            addTextCallbacks(table);
+            return table;
+        }
+        // Tracks the text state, & records each text showing operator's glyphs as a text run
+        static void addTextCallbacks(OperatorTable *table) {
+            table->set("BT", [](Scanner& scanner, void *info) {
+                Scan& scan = *(Scan *)info;
+                scan.tm = scan.tlm = Ra::Transform();
+                scan.textClip = nullptr, scan.clipTexts = 0, scan.hasClipGlyphs = true;
+            });
+            table->set("ET", [](Scanner& scanner, void *info) {     // pdfium clips if the mode still clips
+                Scan& scan = *(Scan *)info;  State& st = scan.state;
+                if (scan.clipTexts && st.textMode >= 4 && st.textMode <= 7 && scan.clipTexts <= Scan::kMaxClipTexts && scan.hasClipGlyphs)
+                    st.clip = scan.shadings->addClip(st.clip, scan.textClip.ptr ? scan.textClip : Ra::Path(), st.clip == scan.entryClip, true);
+                scan.textClip = nullptr, scan.clipTexts = 0, scan.hasClipGlyphs = true;
+            });
+            table->set("Tr", [](Scanner& scanner, void *info) {
+                CGPDFInteger mode;
+                if (scanner.popInteger(& mode) && mode >= 0 && mode <= 7)
+                    ((Scan *)info)->state.textMode = uint8_t(mode);
+            });
+            table->set("Tf", [](Scanner& scanner, void *info) {
+                Scan& scan = *(Scan *)info;  CGPDFReal size;  const char *name;  CGPDFDictionaryRef dict;
+                if (!scanner.popNumber(& size) || !scanner.popName(& name))
+                    return;
+                CGPDFObjectRef obj = CGPDFContentStreamGetResource(scanner.cs, "Font", name);
+                scan.state.fontSize = size, scan.state.hasFont = true;
+                scan.state.font = obj && CGPDFObjectGetValue(obj, kCGPDFObjectTypeDictionary, & dict) ? scan.shadings->fontFor(dict) : nullptr;
+            });
+            table->set("Tc", [](Scanner& scanner, void *info) { popNumber(scanner, ((Scan *)info)->state.charSpace); });
+            table->set("Tw", [](Scanner& scanner, void *info) { popNumber(scanner, ((Scan *)info)->state.wordSpace); });
+            table->set("TL", [](Scanner& scanner, void *info) { popNumber(scanner, ((Scan *)info)->state.leading); });
+            table->set("Ts", [](Scanner& scanner, void *info) { popNumber(scanner, ((Scan *)info)->state.rise); });
+            table->set("Tz", [](Scanner& scanner, void *info) {
+                Scan& scan = *(Scan *)info;  float scale;
+                if (popNumber(scanner, scale))
+                    scan.state.hScale = scale / 100.f;
+            });
+            table->set("Td", [](Scanner& scanner, void *info) {
+                Scan& scan = *(Scan *)info;  CGPDFReal tx, ty;
+                if (scanner.popNumber(& ty) && scanner.popNumber(& tx))
+                    moveLine(scan, tx, ty);
+            });
+            table->set("TD", [](Scanner& scanner, void *info) {
+                Scan& scan = *(Scan *)info;  CGPDFReal tx, ty;
+                if (scanner.popNumber(& ty) && scanner.popNumber(& tx))
+                    scan.state.leading = -ty, moveLine(scan, tx, ty);
+            });
+            table->set("Tm", [](Scanner& scanner, void *info) {
+                Scan& scan = *(Scan *)info;  CGPDFReal m[6];
+                for (int i = 5; i >= 0; i--)
+                    if (!scanner.popNumber(& m[i]))
+                        return;
+                scan.tm = scan.tlm = Ra::Transform(m[0], m[1], m[2], m[3], m[4], m[5]);
+            });
+            table->set("T*", [](Scanner& scanner, void *info) {
+                Scan& scan = *(Scan *)info;
+                moveLine(scan, 0.f, -scan.state.leading);
+            });
+            table->set("Tj", [](Scanner& scanner, void *info) {
+                Scan& scan = *(Scan *)info;  String string;
+                if (scanner.popString(& string))
+                    showText(scan, scanner.cs, & string, nullptr);
+            });
+            table->set("'", [](Scanner& scanner, void *info) {
+                Scan& scan = *(Scan *)info;  String string;
+                if (scanner.popString(& string))
+                    moveLine(scan, 0.f, -scan.state.leading), showText(scan, scanner.cs, & string, nullptr);
+            });
+            table->set("\"", [](Scanner& scanner, void *info) {
+                Scan& scan = *(Scan *)info;  String string;  CGPDFReal ac, aw;
+                if (scanner.popString(& string) && scanner.popNumber(& ac) && scanner.popNumber(& aw))
+                    scan.state.wordSpace = aw, scan.state.charSpace = ac, moveLine(scan, 0.f, -scan.state.leading), showText(scan, scanner.cs, & string, nullptr);
+            });
+            table->set("TJ", [](Scanner& scanner, void *info) {
+                Scan& scan = *(Scan *)info;  Array array;
+                if (scanner.popArray(& array))
+                    showText(scan, scanner.cs, nullptr, & array);
+            });
+        }
+        static bool popNumber(Scanner& scanner, float& value) {
+            CGPDFReal number;
+            return scanner.popNumber(& number) ? (value = number, true) : false;
+        }
+        static void moveLine(Scan& scan, float tx, float ty) {
+            scan.tm = scan.tlm = Ra::Transform(1.f, 0.f, 0.f, 1.f, tx, ty).concat(scan.tlm);
+        }
+        // Records a text run of a string, or a TJ array of strings & adjustments, advancing the text matrix. pdfium makes no text
+        // object before a Tf, or for an empty Tj string, or a TJ array without strings
+        static void showText(Scan& scan, CGPDFContentStreamRef cs, const String *string, const Array *array) {
+            Shadings& s = *scan.shadings;  State& st = scan.state;  String str;
+            bool hasStrings = string && string->length > 0;
+            for (size_t i = 0; array && !hasStrings && i < array->count; i++)
+                hasStrings = array->getString(i, & str);
+            if (array && !hasStrings)       // But it applies the adjustments
+                for (size_t i = 0; i < array->count; i++) {
+                    CGPDFReal adjust;
+                    if (array->getNumber(i, & adjust))
+                        scan.tm = Ra::Transform(1.f, 0.f, 0.f, 1.f, -adjust / 1000.f * st.fontSize * st.hScale, 0.f).concat(scan.tm);
+                }
+            if (!st.hasFont || !hasStrings)
+                return;
+            TextFont *font = st.font;
+            addObject(scan, kTextObject, s.texts.size());
+            s.texts.emplace_back();
+            TextRun& run = s.texts.back();
+            run.mode = st.textMode, run.colors = objectColors(st), run.mask = st.mask;
+            bool clips = st.textMode >= 4 && st.textMode <= 7;
+            scan.clipTexts += clips;
+            // A font the scan can't read, or a missing one, has a box for each code, of its width, or half the font size, which is
+            // drawn as a fallback, & doesn't clip
+            run.isValid = font && font->isValid, run.isType3 = run.isValid && font->isType3, scan.hasClipGlyphs = scan.hasClipGlyphs && (run.isValid || !clips);
+            Ra::Transform size(st.fontSize * st.hScale, 0.f, 0.f, st.fontSize, 0.f, st.rise);
+            run.unitsPerEm = sqrtf(fabsf(size.concat(scan.tm).det())), run.width = st.lineWidth;
+            auto show = [&](const String& str) {
+                const uint8_t *bytes = str.bytes;  size_t length = str.length, step = font && font->isType0 ? 2 : 1;
+                for (size_t i = 0; i + step <= length; i += step) {
+                    uint32_t code = step == 2 ? bytes[i] << 8 | bytes[i + 1] : bytes[i];
+                    CGGlyph g = run.isValid && !font->isType3 ? font->glyph(code) : 0;
+                    const TextFont::Type3Glyph *type3 = run.isType3 ? & s.type3Glyph(*font, code, cs, scan.table, scan.depth) : nullptr;
+                    Ra::Path path = !run.isValid ? Ra::Path() : type3 ? type3->path : font->path(g);
+                    float width = font ? font->width(code, g) / 1000.f : 0.5f;
+                    if (!run.isValid && !(step == 1 && code == 32) && width > 0.f)
+                        path->addBounds(Ra::Bounds(0.1f * width, 0.f, 0.9f * width, 0.7f));
+                    if (path->types.end) {
+                        run.glyphs.push_back({ path, size.concat(scan.tm).concat(st.ctm), type3 && type3->evenOdd, type3 && type3->parts.size() ? type3 : nullptr });
+                        if (clips && run.isValid)
+                            scan.textClip = transformedPath(path, run.glyphs.back().ctm, scan.textClip.ptr ? scan.textClip : Ra::Path());
+                    }
+                    float tx = (width * st.fontSize + st.charSpace + (step == 1 && code == 32 ? st.wordSpace : 0.f)) * st.hScale;
+                    scan.tm = Ra::Transform(1.f, 0.f, 0.f, 1.f, tx, 0.f).concat(scan.tm);
+                }
+            };
+            if (string)
+                show(*string);
+            else
+                for (size_t i = 0; i < array->count; i++) {
+                    CGPDFReal adjust;
+                    if (array->getString(i, & str))
+                        show(str);
+                    else if (array->getNumber(i, & adjust))
+                        scan.tm = Ra::Transform(1.f, 0.f, 0.f, 1.f, -adjust / 1000.f * st.fontSize * st.hScale, 0.f).concat(scan.tm);
+                }
+        }
+        // Tracks the fill color space & pattern, & records a path fill for each path painting operator
+        static void addPathCallbacks(OperatorTable *table) {
+            // Fill colors, & their pattern, & stroke colors
+            table->set("cs", [](Scanner& scanner, void *info) { setColorSpace(scanner, *(Scan *)info, false); });
+            table->set("CS", [](Scanner& scanner, void *info) { setColorSpace(scanner, *(Scan *)info, true); });
+            for (const char *op : { "sc", "scn" })
+                table->set(op, [](Scanner& scanner, void *info) { setColor(scanner, *(Scan *)info, false); });
+            for (const char *op : { "SC", "SCN" })
+                table->set(op, [](Scanner& scanner, void *info) { setColor(scanner, *(Scan *)info, true); });
+            table->set("g", [](Scanner& scanner, void *info) { setDeviceColor(scanner, *(Scan *)info, false, nullptr); });
+            table->set("G", [](Scanner& scanner, void *info) { setDeviceColor(scanner, *(Scan *)info, true, nullptr); });
+            table->set("rg", [](Scanner& scanner, void *info) { setDeviceColor(scanner, *(Scan *)info, false, & ((Scan *)info)->shadings->rgbSpace); });
+            table->set("RG", [](Scanner& scanner, void *info) { setDeviceColor(scanner, *(Scan *)info, true, & ((Scan *)info)->shadings->rgbSpace); });
+            table->set("k", [](Scanner& scanner, void *info) { setDeviceColor(scanner, *(Scan *)info, false, & ((Scan *)info)->shadings->cmykSpace); });
+            table->set("K", [](Scanner& scanner, void *info) { setDeviceColor(scanner, *(Scan *)info, true, & ((Scan *)info)->shadings->cmykSpace); });
+            table->set("m", [](Scanner& scanner, void *info) {
+                Scan& scan = *(Scan *)info;  float p[2];
+                if (popNumbers(scanner, p, 2))
+                    addPoint(scan, p[0], p[1], Ra::Geometry::kMove);
+            });
+            table->set("l", [](Scanner& scanner, void *info) {
+                Scan& scan = *(Scan *)info;  float p[2];
+                if (popNumbers(scanner, p, 2))
+                    addPoint(scan, p[0], p[1], Ra::Geometry::kLine);
+            });
+            table->set("c", [](Scanner& scanner, void *info) {
+                Scan& scan = *(Scan *)info;  float p[6];
+                if (popNumbers(scanner, p, 6))
+                    for (int i = 0; i < 6; i += 2)
+                        addPoint(scan, p[i], p[i + 1], Ra::Geometry::kCubic);
+            });
+            table->set("v", [](Scanner& scanner, void *info) {      // The first control point is the current point
+                Scan& scan = *(Scan *)info;  float p[4];
+                if (popNumbers(scanner, p, 4))
+                    addPoint(scan, scan.x, scan.y, Ra::Geometry::kCubic), addPoint(scan, p[0], p[1], Ra::Geometry::kCubic), addPoint(scan, p[2], p[3], Ra::Geometry::kCubic);
+            });
+            table->set("y", [](Scanner& scanner, void *info) {      // The second is the end point
+                Scan& scan = *(Scan *)info;  float p[4];
+                if (popNumbers(scanner, p, 4))
+                    addPoint(scan, p[0], p[1], Ra::Geometry::kCubic), addPoint(scan, p[2], p[3], Ra::Geometry::kCubic), addPoint(scan, p[2], p[3], Ra::Geometry::kCubic);
+            });
+            table->set("re", [](Scanner& scanner, void *info) {
+                Scan& scan = *(Scan *)info;  float p[4];
+                if (popNumbers(scanner, p, 4)) {
+                    float x = p[0], y = p[1], w = p[2], h = p[3];
+                    addPoint(scan, x, y, Ra::Geometry::kMove), addPoint(scan, x + w, y, Ra::Geometry::kLine);
+                    addPoint(scan, x + w, y + h, Ra::Geometry::kLine), addPoint(scan, x, y + h, Ra::Geometry::kLine), closePath(scan, x, y);
+                }
+            });
+            table->set("h", [](Scanner& scanner, void *info) { closeSubpath(*(Scan *)info); });
+            table->set("W", [](Scanner& scanner, void *info) { ((Scan *)info)->clipMode = kFillWinding; });
+            table->set("W*", [](Scanner& scanner, void *info) { ((Scan *)info)->clipMode = kFillEvenOdd; });
+            table->set("n", [](Scanner& scanner, void *info) { addPath(*(Scan *)info, kFillNone); });
+            table->set("f", [](Scanner& scanner, void *info) { addPath(*(Scan *)info, kFillWinding); });
+            table->set("F", [](Scanner& scanner, void *info) { addPath(*(Scan *)info, kFillWinding); });
+            table->set("f*", [](Scanner& scanner, void *info) { addPath(*(Scan *)info, kFillEvenOdd); });
+            table->set("B", [](Scanner& scanner, void *info) { addPath(*(Scan *)info, kFillWinding | kStroke); });
+            table->set("B*", [](Scanner& scanner, void *info) { addPath(*(Scan *)info, kFillEvenOdd | kStroke); });
+            table->set("S", [](Scanner& scanner, void *info) { addPath(*(Scan *)info, kStroke); });
+            table->set("b", [](Scanner& scanner, void *info) { closeSubpath(*(Scan *)info), addPath(*(Scan *)info, kFillWinding | kStroke); });
+            table->set("b*", [](Scanner& scanner, void *info) { closeSubpath(*(Scan *)info), addPath(*(Scan *)info, kFillEvenOdd | kStroke); });
+            table->set("s", [](Scanner& scanner, void *info) { closeSubpath(*(Scan *)info), addPath(*(Scan *)info, kStroke); });
+            
+            table->set("w", [](Scanner& scanner, void *info) { popNumber(scanner, ((Scan *)info)->state.lineWidth); });
+            table->set("J", [](Scanner& scanner, void *info) {
+                CGPDFInteger cap;
+                if (scanner.popInteger(& cap))
+                    ((Scan *)info)->state.cap = uint8_t(cap);
+            });
+            table->set("j", [](Scanner& scanner, void *info) {
+                CGPDFInteger join;
+                if (scanner.popInteger(& join))
+                    ((Scan *)info)->state.join = uint8_t(join);
+            });
+            table->set("d", [](Scanner& scanner, void *info) {
+                CGPDFReal phase, number;  Array array;
+                if (scanner.popNumber(& phase) && scanner.popArray(& array)) {
+                    std::vector<float> lengths;
+                    for (size_t i = 0; i < array.count; i++)
+                        if (array.getNumber(i, & number))
+                            lengths.emplace_back(number);
+                    setDash(*(Scan *)info, lengths, phase);
+                }
+            });
+        }
+        static bool popNumbers(Scanner& scanner, float *numbers, int count) {
+            CGPDFReal number;
+            for (int i = count - 1; i >= 0; i--)
+                if (scanner.popNumber(& number))
+                    numbers[i] = number;
+                else
+                    return false;
+            return true;
+        }
+        // The color space of a name, of a device space or a resource, or of a resource's object, cached by its object
+        const ColorSpace *colorSpace(const char *name, CGPDFContentStreamRef cs, int depth = 0) {
+            if (!strcmp(name, "DeviceGray") || !strcmp(name, "G"))
+                return & graySpace;
+            if (!strcmp(name, "DeviceRGB") || !strcmp(name, "RGB"))
+                return & rgbSpace;
+            if (!strcmp(name, "DeviceCMYK") || !strcmp(name, "CMYK"))
+                return & cmykSpace;
+            if (!strcmp(name, "Pattern"))
+                return & patternSpace;
+            CGPDFObjectRef obj = depth < 4 ? CGPDFContentStreamGetResource(cs, "ColorSpace", name) : nullptr;
+            return obj ? colorSpace(obj, cs, depth + 1) : & unsupportedSpace;
+        }
+        const ColorSpace *colorSpace(CGPDFObjectRef obj, CGPDFContentStreamRef cs, int depth) {
+            const char *name;  CGPDFArrayRef array, names = nullptr;  CGPDFObjectRef object;  CGPDFStringRef string;  CGPDFStreamRef stream;
+            CGPDFInteger hival;  CGPDFDataFormat format;
+            if (CGPDFObjectGetValue(obj, kCGPDFObjectTypeName, & name))
+                return colorSpace(name, cs, depth);
+            auto it = colorSpaces.find(obj);
+            if (it != colorSpaces.end())
+                return it->second.get();
+            ColorSpace *space = new ColorSpace();
+            colorSpaces.emplace(obj, std::unique_ptr<ColorSpace>(space));
+            if (depth > 4 || !CGPDFObjectGetValue(obj, kCGPDFObjectTypeArray, & array) || !CGPDFArrayGetName(array, 0, & name))
+                return space;
+            CGPDFDictionaryRef dict;
+            if (!strcmp(name, "ICCBased")) {
+                if ((space->space = PDFImage::createColorSpace(obj, cs, nullptr)))
+                    space->family = ColorSpace::kOther, space->components = CGColorSpaceGetNumberOfComponents(space->space);
+            } else if (!strcmp(name, "CalGray"))
+                space->family = ColorSpace::kGray;      // pdfium ignores its gamma
+            else if ((!strcmp(name, "CalRGB") || !strcmp(name, "Lab")) && CGPDFArrayGetDictionary(array, 1, & dict)) {
+                std::vector<float> white, gamma, matrix, range;
+                bool isLab = !strcmp(name, "Lab");
+                space->family = isLab ? ColorSpace::kLab : ColorSpace::kCalRGB, space->components = 3;
+                if (readNumbers(dict, "WhitePoint", white) && white.size() == 3)
+                    std::copy(white.begin(), white.end(), space->white);
+                if (readNumbers(dict, "Gamma", gamma) && gamma.size() == 3)
+                    std::copy(gamma.begin(), gamma.end(), space->gamma);
+                if (readNumbers(dict, "Matrix", matrix) && matrix.size() == 9)
+                    std::copy(matrix.begin(), matrix.end(), space->matrix), space->hasMatrix = true;
+                if (readNumbers(dict, "Range", range) && range.size() == 4)
+                    std::copy(range.begin(), range.end(), space->range);
+            } else if ((!strcmp(name, "Indexed") || !strcmp(name, "I")) && CGPDFArrayGetObject(array, 1, & object) && CGPDFArrayGetInteger(array, 2, & hival) && hival >= 0 && hival < 256) {
+                const ColorSpace *base = colorSpace(object, cs, depth + 1);
+                CFDataRef data = nullptr;
+                if (CGPDFArrayGetString(array, 3, & string))
+                    space->lookup.assign(CGPDFStringGetBytePtr(string), CGPDFStringGetBytePtr(string) + CGPDFStringGetLength(string));
+                else if (CGPDFArrayGetStream(array, 3, & stream) && (data = CGPDFStreamCopyData(stream, & format)))
+                    space->lookup.assign(CFDataGetBytePtr(data), CFDataGetBytePtr(data) + CFDataGetLength(data)), CFRelease(data);
+                if (base->family <= ColorSpace::kOther)
+                    space->family = ColorSpace::kIndexed, space->base = base, space->hival = size_t(hival);
+            } else if ((!strcmp(name, "Separation") || (!strcmp(name, "DeviceN") && CGPDFArrayGetArray(array, 1, & names)))
+                && CGPDFArrayGetObject(array, 2, & object) && CGPDFArrayGetObject(array, 3, & obj) && space->tint.read(obj)) {
+                const ColorSpace *base = colorSpace(object, cs, depth + 1);
+                size_t n = !strcmp(name, "Separation") ? 1 : CGPDFArrayGetCount(names);
+                if (base->family <= ColorSpace::kOther && space->tint.outputs == base->components && space->tint.inputs == n)
+                    space->family = ColorSpace::kTint, space->base = base, space->components = n;
+            } else if (!strcmp(name, "Pattern")) {
+                space->family = ColorSpace::kPattern;
+                if (CGPDFArrayGetObject(array, 1, & object)) {
+                    const ColorSpace *base = colorSpace(object, cs, depth + 1);
+                    if (base->family <= ColorSpace::kOther || base->family == ColorSpace::kIndexed || base->family == ColorSpace::kTint)
+                        space->base = base, space->components = base->components;
+                }
+            }
+            return space;
+        }
+        // pdfium keeps the color until sc or scn, & doesn't set the space's initial color
+        static void setColorSpace(Scanner& scanner, Scan& scan, bool isStroke) {
+            State& st = scan.state;  const char *name;
+            if (!isStroke)
+                st.isPatternSpace = false, st.pattern = -1, st.tiling = -1;
+            if (!scanner.popName(& name))
+                return;
+            const ColorSpace *space = scan.shadings->colorSpace(name, scanner.cs);
+            (isStroke ? st.strokeSpace : st.fillSpace) = space;
+            if (!isStroke)
+                st.isPatternSpace = space->family == ColorSpace::kPattern;
+        }
+        // sc, scn, SC or SCN: components, & for scn, a pattern's name
+        static void setColor(Scanner& scanner, Scan& scan, bool isStroke) {
+            State& st = scan.state;  Operand obj;  CGPDFReal number;  const char *name = nullptr;
+            std::vector<float> components;
+            while (components.size() < 32 && scanner.popObject(& obj))
+                if (obj.getNumber(& number))
+                    components.emplace_back(number);
+                else if (!obj.getName(& name))
+                    break;
+            std::reverse(components.begin(), components.end());
+            if (!isStroke && st.isPatternSpace && name) {
+                CGPDFContentStreamRef cs = scanner.cs;
+                CGPDFObjectRef pattern = CGPDFContentStreamGetResource(cs, "Pattern", name);
+                CGPDFStreamRef stream;  CGPDFInteger type = 0;
+                st.pattern = -1, st.tiling = -1;
+                if (pattern && CGPDFObjectGetValue(pattern, kCGPDFObjectTypeStream, & stream) && CGPDFDictionaryGetInteger(CGPDFStreamGetDictionary(stream), "PatternType", & type) && type == 1)
+                    st.tiling = scan.shadings->addTiling(stream, cs, st.space, scan);
+                else {
+                    std::vector<Shading>& patterns = scan.shadings->patterns;
+                    patterns.emplace_back();
+                    Shading& shading = patterns.back();
+                    shading.isValid = pattern && readPattern(pattern, cs, shading);
+                    shading.ctm = shading.ctm.concat(st.space);
+                    st.pattern = int(patterns.size() - 1);
+                }
+            }
+            setColor(scan, isStroke, components.data(), components.size());
+        }
+        // A tiling pattern used at space, the default space of the content stream, whose cell is scanned once
+        int addTiling(CGPDFStreamRef stream, CGPDFContentStreamRef cs, Ra::Transform space, const Scan& scan) {
+            CGPDFDictionaryRef dict = CGPDFStreamGetDictionary(stream), resources = nullptr;
+            std::vector<float> bbox, m;  CGPDFReal xStep, yStep;  CGPDFInteger paintType = 1;
+            if (!readNumbers(dict, "BBox", bbox) || bbox.size() != 4 || !CGPDFDictionaryGetNumber(dict, "XStep", & xStep) || !CGPDFDictionaryGetNumber(dict, "YStep", & yStep)
+                || xStep == 0.0 || yStep == 0.0 || scan.depth >= kMaxDepth)
+                return -1;
+            Tiling tiling;
+            CGPDFDictionaryGetInteger(dict, "PaintType", & paintType);
+            tiling.bbox = Ra::Bounds(fminf(bbox[0], bbox[2]), fminf(bbox[1], bbox[3]), fmaxf(bbox[0], bbox[2]), fmaxf(bbox[1], bbox[3]));
+            tiling.xStep = xStep, tiling.yStep = yStep, tiling.isColored = paintType != 2;
+            tiling.ctm = readNumbers(dict, "Matrix", m) && m.size() == 6 ? Ra::Transform(m[0], m[1], m[2], m[3], m[4], m[5]).concat(space) : space;
+            auto it = cells.find(stream);
+            if (it == cells.end()) {
+                std::shared_ptr<Shadings> cell = std::make_shared<Shadings>();
+                cell->readsImages = readsImages;
+                CGPDFDictionaryGetDictionary(dict, "Resources", & resources);
+                CGPDFContentStreamRef content = CGPDFContentStreamCreateWithStream(stream, resources, cs);
+                CFDataRef data = copyContents(stream);
+                cell->scan(content, data, scan.table, State(), scan.depth + 1);
+                cell->buildPaths();
+                if (data)
+                    CFRelease(data);
+                CGPDFContentStreamRelease(content);
+                it = cells.emplace(stream, std::make_pair(cell, std::make_shared<CellCache>())).first;
+            }
+            tiling.cell = it->second.first, tiling.cache = it->second.second;
+            tilings.emplace_back(tiling);
+            return int(tilings.size() - 1);
+        }
+        static void setDeviceColor(Scanner& scanner, Scan& scan, bool isStroke, const ColorSpace *space) {
+            float c[4];
+            size_t n = space ? space->components : 1;
+            if (!isStroke)
+                scan.state.isPatternSpace = false, scan.state.pattern = -1, scan.state.tiling = -1;
+            if (popNumbers(scanner, c, int(n)))
+                (isStroke ? scan.state.strokeSpace : scan.state.fillSpace) = space, setColor(scan, isStroke, c, n);
+        }
+        static void setColor(Scan& scan, bool isStroke, const float *c, size_t n) {
+            Colors& colors = scan.state.colors;
+            const ColorSpace *space = isStroke ? scan.state.strokeSpace : scan.state.fillSpace;
+            space = space ? space : & scan.shadings->graySpace;
+            (isStroke ? colors.hasStroke : colors.hasFill) = space->color(c, n, isStroke ? colors.stroke : colors.fill);
+        }
+        // The fill & stroke colors, with their alphas
+        static Colors objectColors(const State& st) {
+            Colors colors = st.colors;
+            colors.fill.a = ColorSpace::quantize(st.alpha), colors.stroke.a = ColorSpace::quantize(st.strokeAlpha);
+            return colors;
+        }
+        static void setDash(Scan& scan, const std::vector<float>& dash, float phase) {
+            std::vector<std::vector<float>>& dashes = scan.shadings->dashes;
+            scan.state.dashPhase = phase, scan.state.dash = dash.empty() ? -1 : int(dashes.size());
+            if (dash.size())
+                dashes.emplace_back(dash);
+        }
+        // Adds a point as pdfium does: a move after a move replaces it, & a line or curve needs a current point
+        static void addPoint(Scan& scan, float x, float y, uint8_t type) {
+            std::vector<PathPoint>& points = scan.points;
+            bool afterMove = points.size() && points.back().type == Ra::Geometry::kMove && !points.back().close;
+            if (type == Ra::Geometry::kMove && afterMove && scan.x == x && scan.y == y)
+                return;
+            scan.x = x, scan.y = y;
+            if (type == Ra::Geometry::kMove) {
+                scan.startX = x, scan.startY = y;
+                if (afterMove) {
+                    points.back().x = x, points.back().y = y;
+                    return;
+                }
+            } else if (points.empty())
+                return;
+            points.emplace_back(PathPoint{ x, y, type, false });
+        }
+        static void closePath(Scan& scan, float x, float y) {      // With a line to x, y
+            scan.x = x, scan.y = y;
+            if (scan.points.size())
+                scan.points.emplace_back(PathPoint{ x, y, Ra::Geometry::kLine, true });
+        }
+        static void closeSubpath(Scan& scan) {
+            if (scan.points.empty())
+                return;
+            if (scan.startX != scan.x || scan.startY != scan.y)
+                closePath(scan, scan.startX, scan.startY);
+            else
+                scan.points.back().close = true;
+        }
+        // A painting operator makes a path object of a path of more than one point, & for a pending W or W*, clips to it
+        static void addPath(Scan& scan, uint8_t mode) {
+            Shadings& s = *scan.shadings;  State& st = scan.state;  std::vector<PathPoint>& points = scan.points;
+            uint8_t clipMode = scan.clipMode;  scan.clipMode = 0;
+            if (points.empty())
+                return;
+            bool isEntry = st.clip == scan.entryClip;
+            if (points.size() == 1) {      // But a closed point is stroked, as a dot for round caps
+                if (clipMode)
+                    st.clip = s.addClip(st.clip, Ra::Path(), isEntry);
+                if (!points[0].close || !(mode & kStroke))
+                    return points.clear();
+                clipMode = 0;
+            }
+            if (points.back().type == Ra::Geometry::kMove && !points.back().close)
+                points.pop_back();
+            if (!clipMode && mode == kStroke && appendDot(scan))
+                return points.clear();
+            Ra::Path path = clipMode ? buildPath(points.data(), points.size(), (mode & kStroke) && st.cap == kRoundCap) : nullptr;
+            if (mode != kFillNone) {
+                PathObject object;
+                object.path = path, object.ctm = st.ctm, object.mode = mode;
+                if (!clipMode)
+                    object.pointBegin = s.pathPoints.size(), object.pointCount = points.size(), s.pathPoints.insert(s.pathPoints.end(), points.begin(), points.end());
+                object.pattern = (mode & 3) && st.isPatternSpace ? st.pattern : -1, object.mask = st.mask, object.alpha = st.alpha, object.blend = st.blend;
+                object.tiling = (mode & 3) && st.isPatternSpace ? st.tiling : -1;
+                object.width = st.lineWidth, object.cap = st.cap, object.join = st.join, object.dash = st.dash, object.dashPhase = st.dashPhase;
+                object.colors = objectColors(st);
+                addObject(scan, kPathObject, s.paths.size());
+                s.paths.emplace_back(object);
+            }
+            if (clipMode)
+                st.clip = s.addClip(st.clip, transformedPath(path, st.ctm), isEntry, false, clipMode == kFillEvenOdd);
+            points.clear();
+        }
+        // A dot, a round capped stroke of one point, joins the previous object, as a subpath, if that's an opaque stroke with the same
+        // state & clip, as drawings can have very many, & each object is a draw. Overlaps are the same, as they're opaque
+        static bool appendDot(Scan& scan) {
+            Shadings& s = *scan.shadings;  State& st = scan.state;  std::vector<PathPoint>& points = scan.points;
+            for (const PathPoint& p : points)
+                if (p.x != points[0].x || p.y != points[0].y)
+                    return false;
+            std::vector<Object>& objects = s.streams[scan.container + 1];
+            if (st.cap != kRoundCap || objects.empty() || objects.back().kind != kPathObject || objects.back().index != s.paths.size() - 1 || objects.back().clip != st.clip)
+                return false;
+            PathObject& prev = s.paths.back();
+            Colors colors = objectColors(st);
+            const Ra::Transform& m = prev.ctm, & n = st.ctm;
+            if (prev.path.ptr || prev.pointBegin + prev.pointCount != s.pathPoints.size() || prev.mode != kStroke || prev.cap != kRoundCap
+                    || prev.width != st.lineWidth || prev.dash != -1 || st.dash != -1 || prev.mask != kNoMask || st.mask != kNoMask
+                    || prev.alpha != 1.f || st.alpha != 1.f || prev.blend != kBlendNormal || st.blend != kBlendNormal
+                    || colors.stroke.a != 255 || !colors.hasStroke || !prev.colors.hasStroke || memcmp(& prev.colors.stroke, & colors.stroke, sizeof(Ra::Color))
+                    || m.a != n.a || m.b != n.b || m.c != n.c || m.d != n.d || m.tx != n.tx || m.ty != n.ty)
+                return false;
+            s.pathPoints.insert(s.pathPoints.end(), points.begin(), points.end());
+            prev.pointCount += points.size();
+            return true;
+        }
+        // A path from its points. A round capped stroke paints a dot for a degenerate subpath, of a closed point, or of segments to
+        // its start, so for dots, one gets a line of a small length, as geometries drop subpaths with zero size
+        static Ra::Path buildPath(const PathPoint *points, size_t count, bool dots) {
+            Ra::Path path;  float cubic[6], sx = 0.f, sy = 0.f;  int n = 0;  bool isDegenerate = false, hasSegment = false;
+            auto addDot = [&]() {
+                if (dots && isDegenerate && hasSegment)
+                    path->lineTo(sx + fmaxf(1e-4f, 1e-6f * fabsf(sx)), sy);
+                isDegenerate = false;
+            };
+            path->prealloc(count);
+            for (const PathPoint *p = points, *end = points + count; p < end; p++) {
+                if (p->type == Ra::Geometry::kMove) {
+                    addDot();
+                    sx = p->x, sy = p->y, isDegenerate = true, hasSegment = false;
+                    path->moveTo(p->x, p->y);
+                } else {
+                    hasSegment = true, isDegenerate = isDegenerate && p->x == sx && p->y == sy;
+                    if (p->type == Ra::Geometry::kLine)
+                        path->lineTo(p->x, p->y);
+                    else {
+                        cubic[n++] = p->x, cubic[n++] = p->y;
+                        if (n == 6)
+                            path->cubicTo(cubic[0], cubic[1], cubic[2], cubic[3], cubic[4], cubic[5]), n = 0;
+                    }
+                }
+                if (p->close) {
+                    hasSegment = true, addDot();
+                    path->close();
+                }
+            }
+            addDot();
+            return path;
+        }
+        // Builds & validates paths from their points, with their bounds, in parallel chunks for many, as there's an allocation for
+        // each of a geometry's rows. Invalid ones, which draw nothing, are released, so they aren't freed with the scan
+        static constexpr size_t kPathsPerChunk = 2048;
+        void buildPaths() {
+            size_t chunks = (paths.size() + kPathsPerChunk - 1) / kPathsPerChunk;
+            auto build = [](void *context, size_t t) {
+                Shadings& s = *(Shadings *)context;
+                for (size_t i = t * kPathsPerChunk, end = std::min(s.paths.size(), i + kPathsPerChunk); i < end; i++) {
+                    PathObject& p = s.paths[i];
+                    if (p.path.ptr == nullptr)
+                        p.path = buildPath(s.pathPoints.data() + p.pointBegin, p.pointCount, (p.mode & kStroke) && p.cap == kRoundCap);
+                    if (!p.path->isValid()) {
+                        p.path = nullptr;
+                        continue;
+                    }
+                    Ra::Bounds b = p.path->bounds;
+                    bool stroke = p.mode & kStroke;
+                    if (stroke && p.width != 0.f)
+                        b = Ra::Bounds(b.lx - p.width, b.ly - p.width, b.ux + p.width, b.uy + p.width);
+                    p.bounds = Ra::Bounds(b.quad(p.ctm));
+                    if (stroke && p.width == 0.f)
+                        p.bounds = Ra::Bounds(p.bounds.lx - 0.5f, p.bounds.ly - 0.5f, p.bounds.ux + 0.5f, p.bounds.uy + 0.5f);
+                }
+            };
+            if (chunks > 1)
+                dispatch_apply_f(chunks, DISPATCH_APPLY_AUTO, this, build);
+            else if (chunks)
+                build(this, 0);
+            std::vector<PathPoint>().swap(pathPoints);
+        }
+        // A /BM name, or the first known in an array of them
+        static uint8_t readBlendMode(CGPDFObjectRef obj) {
+            static const char *names[] = { "Normal", "Multiply", "Screen", "Overlay", "Darken", "Lighten", "ColorDodge", "ColorBurn",
+                "SoftLight", "HardLight", "Difference", "Exclusion", "Hue", "Saturation", "Color", "Luminosity" };
+            const char *name;  CGPDFArrayRef array;
+            if (CGPDFObjectGetValue(obj, kCGPDFObjectTypeName, & name)) {
+                for (uint8_t i = 0; i < kBlendModeCount; i++)
+                    if (!strcmp(name, names[i]))
+                        return i;
+            } else if (CGPDFObjectGetValue(obj, kCGPDFObjectTypeArray, & array))
+                for (size_t j = 0; j < CGPDFArrayGetCount(array); j++)
+                    if (CGPDFArrayGetName(array, j, & name))
+                        for (uint8_t i = 0; i < kBlendModeCount; i++)
+                            if (!strcmp(name, names[i]))
+                                return i;
+            return kBlendNormal;    // Including Compatible
+        }
+        // A shading pattern's shading, whose ctm is the pattern matrix, which maps to its content stream's default space
+        static bool readPattern(CGPDFObjectRef obj, CGPDFContentStreamRef cs, Shading& shading) {
+            CGPDFDictionaryRef dict, shadingDict, gs;  CGPDFInteger type;  std::vector<float> m;
+            if (!CGPDFObjectGetValue(obj, kCGPDFObjectTypeDictionary, & dict) || !CGPDFDictionaryGetInteger(dict, "PatternType", & type) || type != 2
+                || !CGPDFDictionaryGetDictionary(dict, "Shading", & shadingDict) || CGPDFDictionaryGetDictionary(dict, "ExtGState", & gs))
+                return false;
+            if (readNumbers(dict, "Matrix", m) && m.size() == 6)
+                shading.ctm = Ra::Transform(m[0], m[1], m[2], m[3], m[4], m[5]);
+            return shading.read(shadingDict, cs);
+        }
+        // A soft mask, of its group's luminosity over its backdrop, or of its alpha. A luminosity group that paints one shading,
+        // with a pattern fill or sh, is the alpha of a gradient, e.g. from Cairo, & other groups are rendered into an image. Its
+        // group's space is the ctm when the mask is set. A group with its own resources is scanned once, in group space, & each
+        // mask & ctm is one entry in masks, as content often sets the same mask before each object
+        int readMask(CGPDFDictionaryRef smask, CGPDFContentStreamRef cs, Ra::Transform ctm, size_t depth) {
+            const char *name;  CGPDFStreamRef group;  CGPDFObjectRef tr;  CGPDFDictionaryRef resources = nullptr;
+            if (!CGPDFDictionaryGetName(smask, "S", & name) || (strcmp(name, "Luminosity") && strcmp(name, "Alpha")) || !CGPDFDictionaryGetStream(smask, "G", & group)
+                || (CGPDFDictionaryGetObject(smask, "TR", & tr) && !(CGPDFObjectGetValue(tr, kCGPDFObjectTypeName, & name) && !strcmp(name, "Identity")))
+                || depth >= kMaxDepth)
+                return kUnsupportedMask;
+            CGPDFDictionaryGetName(smask, "S", & name);
+            bool isAlpha = !strcmp(name, "Alpha");
+            std::vector<float> bc;      // The backdrop, in the group's color space, black by default
+            readNumbers(smask, "BC", bc);
+            float r = 0.f, g = 0.f, b = 0.f;
+            if (bc.size() == 1)
+                r = g = b = bc[0];
+            else if (bc.size() == 3)
+                r = bc[0], g = bc[1], b = bc[2];
+            else if (bc.size() == 4)
+                r = (1.f - bc[0]) * (1.f - bc[3]), g = (1.f - bc[1]) * (1.f - bc[3]), b = (1.f - bc[2]) * (1.f - bc[3]);
+            Ra::Color backdrop(uint8_t(fminf(1.f, b) * 255.f + 0.5f), uint8_t(fminf(1.f, g) * 255.f + 0.5f), uint8_t(fminf(1.f, r) * 255.f + 0.5f), 255);
+            if (!CGPDFDictionaryGetDictionary(CGPDFStreamGetDictionary(group), "Resources", & resources))     // It inherits cs's
+                return addMask(readMaskGroup(group, resources, cs, depth), ctm, isAlpha, backdrop);
+            MaskKey key = { smask, { ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx, ctm.ty } };
+            auto it = maskIndices.find(key);
+            if (it != maskIndices.end())
+                return it->second;
+            auto cached = maskGroups.find(smask);
+            if (cached == maskGroups.end())
+                cached = maskGroups.emplace(smask, readMaskGroup(group, resources, cs, depth)).first;
+            return maskIndices[key] = addMask(cached->second, ctm, isAlpha, backdrop);
+        }
+        // The mask of a group, at ctm: a luminosity group's gradient, else its contents rendered over their bounds within its
+        // BBox, at 2 pixels per unit, up to kMaxMaskSize, onto its backdrop, or transparent for an alpha mask
+        int addMask(const MaskGroup& group, Ra::Transform ctm, bool isAlpha, Ra::Color backdrop) {
+            Mask mask;
+            if (!isAlpha && group.shading.isValid) {
+                if (group.shading.isEmpty)
+                    return kEmptyMask;
+                mask.shading = group.shading, mask.shading.ctm = group.shading.ctm.concat(ctm);
+                mask.inverse = mask.shading.unit.concat(mask.shading.ctm).invert();
+                masks.emplace_back(std::move(mask));
+                return int(masks.size() - 1);
+            }
+            if (group.contents == nullptr)
+                return kUnsupportedMask;
+            Ra::SceneRef content;
+            writeStreamToScene(-1, kNoMask, 1.f, kBlendNormal, *group.contents, content);
+            float outside = isAlpha ? 0.f : (0.3f * backdrop.r + 0.59f * backdrop.g + 0.11f * backdrop.b) / 255.f;
+            Ra::Bounds b = Ra::Bounds(group.bbox.quad(group.matrix.concat(ctm)));
+            if (content->count())
+                b = b.intersect(Ra::Bounds(content->bounds().quad(ctm)));
+            if (!content->count() || b.lx >= b.ux || b.ly >= b.uy)      // It's all backdrop
+                return outside == 0.f ? kEmptyMask : outside == 1.f ? kNoMask : addUniformMask(outside);
+            float bw = b.ux - b.lx, bh = b.uy - b.ly, scale = fminf(2.f, fminf(kMaxMaskSize / bw, kMaxMaskSize / bh));
+            size_t w = std::max(size_t(1), size_t(ceilf(bw * scale))), h = std::max(size_t(1), size_t(ceilf(bh * scale)));
+            std::vector<Ra::Color> pixels(w * h, isAlpha ? Ra::Color(0, 0, 0, 0) : backdrop);
+            CGColorSpaceRef rgb = CGColorSpaceCreateDeviceRGB();
+            CGContextRef ctx = CGBitmapContextCreate(pixels.data(), w, h, 8, w * sizeof(Ra::Color), rgb, kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little);
+            if (ctx) {
+                Ra::SceneList list;
+                list.addScene(content);
+                list.ctm = ctm.concat(Ra::Transform(w / bw, 0.f, 0.f, h / bh, -b.lx * w / bw, -b.ly * h / bh));
+                RasterizerCG::renderList(list, Ra::Bounds(0.f, 0.f, w, h), ctx);
+            }
+            CGContextRelease(ctx), CGColorSpaceRelease(rgb);
+            mask.isImage = true, mask.width = w, mask.height = h, mask.bounds = b, mask.outside = outside, mask.alphas.resize(w * h);
+            for (size_t i = 0; i < w * h; i++)
+                mask.alphas[i] = isAlpha ? pixels[i].a : uint8_t(0.3f * pixels[i].r + 0.59f * pixels[i].g + 0.11f * pixels[i].b + 0.5f);
+            mask.inverse = Ra::Transform(bw, 0.f, 0.f, bh, b.lx, b.ly).invert();
+            masks.emplace_back(std::move(mask));
+            return int(masks.size() - 1);
+        }
+        // A mask of the same alpha everywhere
+        int addUniformMask(float alpha) {
+            Mask mask;
+            mask.isImage = true, mask.outside = alpha;
+            masks.emplace_back(std::move(mask));
+            return int(masks.size() - 1);
+        }
+        // A mask's group, scanned in group space, with the shading it paints if it's only one, with the group's alpha
+        MaskGroup readMaskGroup(CGPDFStreamRef group, CGPDFDictionaryRef resources, CGPDFContentStreamRef cs, size_t depth) {
+            MaskGroup result;
+            std::vector<float> m;
+            State state;
+            if (readNumbers(CGPDFStreamGetDictionary(group), "Matrix", m) && m.size() == 6)
+                result.matrix = state.ctm = Ra::Transform(m[0], m[1], m[2], m[3], m[4], m[5]);
+            if (readNumbers(CGPDFStreamGetDictionary(group), "BBox", m) && m.size() == 4)
+                result.bbox = Ra::Bounds(fminf(m[0], m[2]), fminf(m[1], m[3]), fmaxf(m[0], m[2]), fmaxf(m[1], m[3]));
+            state.space = state.ctm;
+            CGPDFContentStreamRef content = CGPDFContentStreamCreateWithStream(group, resources, cs);
+            OperatorTable *table = createTable();
+            CFDataRef data = copyContents(group);
+            result.contents = std::make_shared<Shadings>();
+            Shadings& contents = *result.contents;
+            contents.scan(content, data, table, state, depth + 1);
+            contents.buildPaths();
+            delete table;
+            if (data)
+                CFRelease(data);
+            CGPDFContentStreamRelease(content);
+            
+            const Shading *shading = nullptr;  float alpha = 1.f;
+            if (contents.forms.empty() && contents.paths.size() == 1 && contents.shadings.empty() && contents.imageObjects.empty() && contents.texts.empty() && contents.paths[0].pattern >= 0)
+                shading = & contents.patterns[contents.paths[0].pattern], alpha = contents.paths[0].alpha;
+            else if (contents.forms.empty() && contents.paths.empty() && contents.imageObjects.empty() && contents.texts.empty() && contents.shadings.size() == 1)
+                shading = & contents.shadings[0], alpha = shading->alpha;
+            if (shading && shading->isValid)
+                result.shading = *shading, result.shading.alpha = alpha;
+            return result;
+        }
+        const Shading *pattern(const PathObject& object) const {
+            return object.pattern >= 0 && patterns[object.pattern].isValid ? & patterns[object.pattern] : nullptr;
+        }
+        Clip& clip(int index) {
+            static Clip none;
+            return index < 0 ? none : clips[index];
+        }
+    };
+    
+    static int getPageCount(const char *filename) {
+        CFURLRef url = CFURLCreateFromFileSystemRepresentation(nullptr, (const UInt8 *)filename, strlen(filename), false);
+        CGPDFDocumentRef doc = url ? CGPDFDocumentCreateWithURL(url) : nullptr;
+        int count = doc ? int(CGPDFDocumentGetNumberOfPages(doc)) : 0;
+        CGPDFDocumentRelease(doc);
+        if (url)
+            CFRelease(url);
+        return count;
+    }
+    
+    // Writes a page from the CGPDF scan
+    static Ra::Transform addPdfPageToScene(const char *filename, size_t pageIndex, Ra::SceneRef& scene) {
+        Shadings shadings;
+        if (!shadings.read(filename, pageIndex))
+            return Ra::Transform();
+        writeStreamToScene(-1, kNoMask, 1.f, kBlendNormal, shadings, scene);
+        return shadings.pageCTM;
+    }
+    
+    // Writes the scan's objects of the page's content stream, or a form's, which are in page space, & for a transparency group,
+    // under its soft mask, opacity & blend mode. Under a gradient mask, fills of colors & gradients with its geometry are
+    // gradients with its alpha, & images' alphas are scaled by its, & other objects, or a group under a mask of an image, are
+    // rendered into masked images. Objects under a mask the scan can't read are fallbacks. The opacity & blend mode are applied
+    // to each object, but for a group rendered into an image, & an object's own blend mode replaces the group's. A form nested
+    // too deep for the scan is a fallback, over its BBox
+    static void writeStreamToScene(int container, int mask, float opacity, uint8_t blend, Shadings& shadings, Ra::SceneRef& scene) {
+        static const std::vector<Shadings::Object> none;
+        const std::vector<Shadings::Object>& objects = size_t(container + 1) < shadings.streams.size() ? shadings.streams[container + 1] : none;
+        for (const Shadings::Object& object : objects) {
+            int clipIndex = object.kind == Shadings::kShadingObject || object.kind == Shadings::kFormObject ? object.clip : objectClip(object, shadings);
+            Shadings::Clip& objectClip = shadings.clip(clipIndex);
+            Ra::Bounds *clipBounds = clipIndex < 0 ? nullptr : & objectClip.bounds;
+            
+            switch (object.kind) {
+                case Shadings::kTextObject:
+                    writeTextRunToScene(shadings.texts[object.index], mask, opacity, blend, shadings, clipBounds, objectClip, scene);
+                    break;
+                case Shadings::kPathObject:
+                    writePathToScene(shadings.paths[object.index], mask, opacity, blend, shadings, clipBounds, objectClip, scene);
+                    break;
+                case Shadings::kImageObject:
+                    writeImageToScene(shadings.imageObjects[object.index], mask, opacity, blend, shadings, clipBounds, objectClip, scene);
+                    break;
+                case Shadings::kShadingObject:
+                    writeShadingToScene(shadings.shadings[object.index], mask, opacity, blend, shadings, clipBounds, objectClip, scene);
+                    break;
+                case Shadings::kFormObject: {
+                    const Shadings::Group& group = shadings.forms[object.index];
+                    int formMask = group.mask != kNoMask ? group.mask : mask;
+                    float formOpacity = opacity * group.alpha;
+                    uint8_t formBlend = group.blend != kBlendNormal ? group.blend : blend;
+                    if (group.isTooDeep)
+                        writeFallbackToScene(shadings.clip(group.clip), scene);
+                    else if (formMask >= 0 && shadings.masks[formMask].isImage && formOpacity != 0.f)
+                        writeMaskedToScene(shadings.masks[formMask], formOpacity, formBlend, [&](Ra::SceneRef& content) {
+                            writeStreamToScene(int(object.index), kNoMask, 1.f, kBlendNormal, shadings, content);
+                        }, scene);
+                    else if (formMask != kEmptyMask && formOpacity != 0.f)      // Else it's skipped, & its contents
+                        writeStreamToScene(int(object.index), formMask, formOpacity, formBlend, shadings, scene);
+                    break;
+                }
+                default:
+                    break;
+            }
+        }
+    }
+    // Writes what write writes into a scene, under a mask: CoreGraphics renders it into an image of its bounds, within the
+    // mask's, at 2 pixels per unit, up to kMaxMaskSize, whose pixels are scaled by the mask's alpha at their centers & by
+    // opacity, drawn with blend
+    template<typename Write>
+    static void writeMaskedToScene(const Mask& mask, float opacity, uint8_t blend, Write write, Ra::SceneRef& scene) {
+        Ra::SceneRef content;
+        write(content);
+        Ra::Bounds b = content->count() ? content->bounds() : Ra::Bounds();
+        if (mask.outside == 0.f)
+            b = b.intersect(mask.bounds);
+        if (b.isNull() || b.lx >= b.ux || b.ly >= b.uy)
+            return;
+        float bw = b.ux - b.lx, bh = b.uy - b.ly, scale = fminf(2.f, fminf(Shadings::kMaxMaskSize / bw, Shadings::kMaxMaskSize / bh));
+        size_t w = std::max(size_t(1), size_t(ceilf(bw * scale))), h = std::max(size_t(1), size_t(ceilf(bh * scale)));
+        std::vector<Ra::Color> pixels(w * h, Ra::Color(0, 0, 0, 0));
+        CGColorSpaceRef rgb = CGColorSpaceCreateDeviceRGB();
+        CGContextRef ctx = CGBitmapContextCreate(pixels.data(), w, h, 8, w * sizeof(Ra::Color), rgb, kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little);
+        if (ctx) {
+            Ra::SceneList list;
+            list.addScene(content);
+            list.ctm = Ra::Transform(w / bw, 0.f, 0.f, h / bh, -b.lx * w / bw, -b.ly * h / bh);
+            RasterizerCG::renderList(list, Ra::Bounds(0.f, 0.f, w, h), ctx);
+            for (size_t y = 0; y < h; y++)      // Rows run down from the top
+                for (size_t x = 0; x < w; x++) {
+                    Ra::Color& p = pixels[y * w + x];
+                    if (p.a == 0)
+                        continue;
+                    float alpha = opacity * mask.alphaAt(b.lx + (x + 0.5f) * bw / w, b.uy - (y + 0.5f) * bh / h);
+                    p = Ra::Color(uint8_t(p.b * alpha + 0.5f), uint8_t(p.g * alpha + 0.5f), uint8_t(p.r * alpha + 0.5f), uint8_t(p.a * alpha + 0.5f));
+                }
+            Ra::Path unitRectPath;  unitRectPath->addBounds(Ra::Bounds(0, 0, 1, 1));
+            scene->addPath(unitRectPath, Ra::Transform(bw, 0.f, 0.f, bh, b.lx, b.ly), Ra::Paint(pixels.data(), w, h, w * sizeof(Ra::Color)), 0.f, 0, nullptr, nullptr, blend);
+        }
+        CGContextRelease(ctx), CGColorSpaceRelease(rgb);
+    }
+    // Fills a clip, of a shading or form the scan can't read, with the fallback color
+    static void writeFallbackToScene(Shadings::Clip& clip, Ra::SceneRef& scene) {
+        if (clip.sorted.size() && clip.sorted[0]->isValid())
+            scene->addPath(clip.sorted[0], Ra::Transform(), fallbackColor(), 0.f, clip.sortedEvenOdds[0] ? Ra::Draw::kFillEvenOdd : 0, & clip.bounds, nullptr, kBlendNormal);
+    }
+    // An object's clip: pdfium drops it if it's one rect of the object's stream's that contains the object, but for a shading
+    // or form. The scan's bounds only differ from pdfium's in how a stroke outsets a path's, so which clips at an object's edge
+    // are dropped
+    static int objectClip(const Shadings::Object& object, Shadings& shadings) {
+        int clip = object.clip;
+        if (clip < 0)
+            return clip;
+        Shadings::Clip& c = shadings.clips[clip];
+        if (c.own != 1 || !c.paths[0]->isRect())
+            return clip;
+        Ra::Bounds bounds = objectBounds(object, shadings);
+        return !bounds.isNull() && c.paths[0]->bounds.contains(bounds) ? c.inherited : clip;
+    }
+    // A scan object's bounds in page space, as pdfium's: of a path's points, outset by half a stroke's width, or for a hairline
+    // by half a unit in page space, a text run's glyphs, or an image's unit square
+    static Ra::Bounds objectBounds(const Shadings::Object& object, Shadings& shadings) {
+        Ra::Bounds bounds;
+        if (object.kind == Shadings::kPathObject)
+            bounds = shadings.paths[object.index].bounds;
+        else if (object.kind == Shadings::kTextObject) {
+            for (const Shadings::Glyph& glyph : shadings.texts[object.index].glyphs) {
+                Ra::Path path = glyph.path;
+                path->validate();
+                if (!path->bounds.isNull())
+                    bounds.extend(Ra::Bounds(path->bounds.quad(glyph.ctm)));
+            }
+        } else if (object.kind == Shadings::kImageObject)
+            bounds = Ra::Bounds(Ra::Bounds(0.f, 0.f, 1.f, 1.f).quad(shadings.imageObjects[object.index].ctm));
+        return bounds;
+    }
+    
+    // The media box's origin, & its rotation, in quarter turns clockwise, as pdfium's
+    static inline Ra::Transform transformForPage(CGRect box, int degrees) {
+        float left = box.origin.x, bottom = box.origin.y, right = left + box.size.width, top = bottom + box.size.height, tx = 0.f, ty = 0.f, sine, cosine;
+        int rot = ((degrees / 90) % 4 + 4) % 4;
+        __sincosf(-rot * 0.5f * M_PI, & sine, & cosine);
+        tx = rot == 2 ? right - left : rot == 3 ? top - bottom : tx;
+        ty = rot == 1 ? right - left : rot == 2 ? top - bottom : ty;
+        Ra::Transform originCTM(1.f, 0.f, 0.f, 1.f, -left, -bottom);
+        Ra::Transform pageCTM(cosine, sine, -sine, cosine, tx, ty);
+        return pageCTM.concat(originCTM);
+    }
+    
+    // Writes a text object's glyphs from the scan, filled and or stroked as its text rendering mode says, & not if it's invisible
+    // or only clips. The boxes of a font the scan can't read are filled with the fallback color. Its soft mask, or else the
+    // group's, makes its fills gradients of their color, but a mask of an image, or strokes, render it into a masked image, &
+    // under a mask the scan can't read, its glyphs are fallbacks
+    static void writeTextRunToScene(const Shadings::TextRun& run, int mask, float opacity, uint8_t blend, Shadings& shadings, Ra::Bounds *clipBounds, Shadings::Clip& clip, Ra::SceneRef& scene) {
+        mask = run.mask != kNoMask ? run.mask : mask;
+        if (mask == kEmptyMask)
+            return;
+        bool fills = run.mode % 4 == 0 || run.mode % 4 == 2, strokes = run.mode % 4 == 1 || run.mode % 4 == 2;
+        Ra::Path *clipPath = clip.path();  uint8_t clipFlags = clip.flags();
+        Ra::Color fill = objectColor(run.colors, false, opacity), stroke = objectColor(run.colors, true, opacity);
+        if (!run.isValid || mask == kUnsupportedMask)
+            fills = fills || strokes, strokes = false, fill = fallbackColor(), blend = kBlendNormal, mask = kNoMask;
+        else if (run.isType3)       // Its glyphs paint themselves, with the fill color, if they're visible, as CoreGraphics & pdf.js
+            fills = fills || strokes, strokes = false;
+        if (mask >= 0 && (shadings.masks[mask].isImage || strokes)) {
+            Shadings::TextRun unmasked = run;
+            unmasked.mask = kNoMask;
+            return writeMaskedToScene(shadings.masks[mask], 1.f, blend, [&](Ra::SceneRef& content) {
+                writeTextRunToScene(unmasked, kNoMask, opacity, kBlendNormal, shadings, clipBounds, clip, content);
+            }, scene);
+        }
+        float width = run.width == 0.f ? -1.f : run.width / run.unitsPerEm;     // In text space, which glyphs' paths are in
+        // Fills a glyph's path, under a mask as a gradient of the color with the mask's alpha, or the fallback color if it can't be
+        auto fillPath = [&](Ra::Path path, Ra::Transform ctm, Ra::Color color, bool evenOdd) {
+            uint8_t flags = clipFlags | (evenOdd ? Ra::Draw::kFillEvenOdd : 0);
+            Shading masked;
+            if (mask < 0)
+                scene->addPath(path, ctm, color, 0.f, flags, clipBounds, clipPath, blend);
+            else if (Shading::masked(nullptr, color, shadings.masks[mask].shading, masked))
+                writeGradientToScene(masked, 1.f, blend, path, ctm, flags, clipBounds, clipPath, scene);
+            else
+                scene->addPath(path, ctm, fallbackColor(), 0.f, flags, clipBounds, clipPath, kBlendNormal);
+        };
+        for (auto& glyph : run.glyphs) {
+            if (fills && glyph.colored) {       // Its parts' colors, with the text's alpha
+                for (auto& part : glyph.colored->parts) {
+                    Ra::Color color = part.color;
+                    color.a = uint8_t(color.a * fill.a / 255.f + 0.5f);
+                    fillPath(part.path, glyph.ctm, color, part.evenOdd);
+                }
+            } else if (fills)
+                fillPath(glyph.path, glyph.ctm, fill, glyph.evenOdd);
+            if (strokes)
+                scene->addPath(glyph.path, glyph.ctm, stroke, width, clipFlags, clipBounds, clipPath, blend);
+        }
+    }
+    
+    // The scan's fill or stroke color, with opacity, or the fallback color for one it can't convert
+    static Ra::Color objectColor(const Shadings::Colors& colors, bool isStroke, float opacity) {
+        if (!(isStroke ? colors.hasStroke : colors.hasFill))
+            return fallbackColor();
+        Ra::Color color = isStroke ? colors.stroke : colors.fill;
+        color.a = color.a * opacity + 0.5f;
+        return color;
+    }
+    // Writes the scan's path. A fill of a pattern the scan can't read, as for a mesh or function shading, is the fallback color
+    static void writePathToScene(const Shadings::PathObject& object, int mask, float opacity, uint8_t blend, Shadings& shadings, Ra::Bounds* clipBounds, Shadings::Clip& clip, Ra::SceneRef& scene) {
+        if (object.path.ptr == nullptr)     // It's invalid
+            return;
+        int fillmode = object.mode & ~Shadings::kStroke;
+        bool stroke = object.mode & Shadings::kStroke;
+        const Shading *pattern = shadings.pattern(object);
+        Shadings::Tiling *tiling = object.tiling >= 0 ? & shadings.tilings[object.tiling] : nullptr;
+        bool isPattern = object.pattern >= 0 || tiling;
+        float alpha = object.alpha * opacity;
+        mask = object.mask != kNoMask ? object.mask : mask;
+        blend = object.blend != kBlendNormal ? object.blend : blend;
+        Ra::Path *clipPath = clip.path();  uint8_t clipFlags = clip.flags();
+        
+        if (mask == kEmptyMask)
+            return;
+        // Under a mask, a fill of a color, or a gradient with its geometry, is a gradient with its alpha, & else it's rendered
+        // into a masked image
+        if (mask >= 0) {
+            const Mask& m = shadings.masks[mask];
+            Shading masked;
+            bool isGradient = !m.isImage && !stroke && !tiling && fillmode != Shadings::kFillNone && (pattern || !isPattern)
+                && Shading::masked(pattern, objectColor(object.colors, false, opacity), m.shading, masked);
+            if (!isGradient) {
+                Shadings::PathObject unmasked = object;
+                unmasked.mask = kNoMask, unmasked.blend = kBlendNormal;
+                return writeMaskedToScene(m, 1.f, blend, [&](Ra::SceneRef& content) {
+                    writePathToScene(unmasked, kNoMask, opacity, kBlendNormal, shadings, clipBounds, clip, content);
+                }, scene);
+            }
+        }
+        Ra::Path path = object.path;
+        Ra::Transform ctm = object.ctm;
+        if (fillmode != Shadings::kFillNone) {
+            Ra::Color color = objectColor(object.colors, false, opacity);
+            Ra::Path fill = path;
+            Ra::Path *fillClipPath = clipPath;
+            Ra::Transform fillCTM = ctm;
+            Ra::Bounds *fillClipBounds = clipBounds, rectClip;
+            uint8_t flags = (fillmode == Shadings::kFillEvenOdd ? Ra::Draw::kFillEvenOdd : 0) | clipFlags;
+            if (fill->isRect() && ctm.det() != 0.f) {
+                // A rect fill that covers a non-rect clip paints the clip itself, with its rule, still clipped to another non-rect
+                // one, so a draw can have two. An upright rect needn't cover it, as it narrows the clip bounds instead. Clip paths
+                // are in page space
+                bool isUpright = (ctm.b == 0.f && ctm.c == 0.f) || (ctm.a == 0.f && ctm.d == 0.f);
+                Ra::Transform inv = ctm.invert();
+                for (size_t i = 0; i < clip.sorted.size(); i++) {
+                    Ra::Path& c = clip.sorted[i];
+                    if (!c->isRect() && c->isValid() && (isUpright || path->bounds.contains(Ra::Bounds(c->bounds.quad(inv))))) {
+                        if (isUpright) {
+                            rectClip = Ra::Bounds(path->bounds.quad(ctm));
+                            rectClip = clipBounds ? rectClip.intersect(*clipBounds) : rectClip;
+                            fillClipBounds = & rectClip;
+                        }
+                        fill = c, fillClipPath = clip.otherPath(i), fillCTM = Ra::Transform();
+                        flags = (clip.sortedEvenOdds[i] ? Ra::Draw::kFillEvenOdd : 0) | clip.otherFlags(i);
+                        break;
+                    }
+                }
+            }
+            bool isEmpty = fillClipBounds == & rectClip && (rectClip.lx >= rectClip.ux || rectClip.ly >= rectClip.uy);
+            bool isGradient = !isEmpty && fill->isValid() && fillCTM.det() != 0.f;
+            Shading masked;
+            bool isFallback = mask == kUnsupportedMask;
+            if (mask >= 0) {
+                if (isGradient && (pattern || !isPattern) && Shading::masked(pattern, color, shadings.masks[mask].shading, masked))
+                    writeGradientToScene(masked, pattern ? alpha : 1.f, blend, fill, fillCTM, flags, fillClipBounds, fillClipPath, scene);
+                else
+                    isFallback = !(pattern && pattern->isEmpty);      // A mask it can't apply, but an empty gradient paints nothing
+            } else if (!isFallback && pattern && isGradient)
+                writeGradientToScene(*pattern, alpha, blend, fill, fillCTM, flags, fillClipBounds, fillClipPath, scene);
+            else if (!isFallback && tiling && isGradient)
+                writeTilingToScene(*tiling, color, alpha, blend, fill, fillCTM, flags, fillClipBounds, fillClipPath, scene);
+            else if (!isFallback && !isEmpty && fill->isValid() && !(isPattern && (pattern || tiling)))
+                scene->addPath(fill, fillCTM, isPattern ? fallbackColor() : color, 0.f, flags, fillClipBounds, fillClipPath, isPattern ? kBlendNormal : blend);
+            if (isFallback && !isEmpty && fill->isValid())
+                scene->addPath(fill, fillCTM, fallbackColor(), 0.f, flags, fillClipBounds, fillClipPath, kBlendNormal);
+        }
+        if (stroke) {       // Under a mask the scan can't read, a fallback
+            Ra::Color color = mask == kNoMask ? objectColor(object.colors, true, opacity) : fallbackColor();
+            uint8_t flags = clipFlags;
+            float width = object.width == 0.f ? -1.f : object.width;
+            flags |= object.cap == Shadings::kRoundCap ? Ra::Draw::kRoundCap : 0;
+            flags |= object.cap == Shadings::kSquareCap ? Ra::Draw::kSquareCap : 0;
+            flags |= object.join == Shadings::kRoundJoin ? Ra::Draw::kRoundJoin : 0;
+            if (object.dash >= 0) {
+                std::vector<float>& lengths = shadings.dashes[object.dash];
+                path = Ra::Dasher::CreateDashedPath(path, object.dashPhase, lengths.data(), lengths.size());
+            }
+            if (path->isValid())
+                scene->addPath(path, ctm, color, width, flags, clipBounds, clipPath, blend);
+        }
+    }
+    
+    // Writes the scan's image, clipped to the clip, or for one it couldn't decode, or under a soft mask the scan can't read, the
+    // fallback color over its unit square. An image mask is painted with the fill color, which has the fill alpha. The image's
+    // soft mask, or else the group's, scales its alpha
+    static void writeImageToScene(const Shadings::ImageObject& object, int mask, float opacity, uint8_t blend, Shadings& shadings, Ra::Bounds* clipBounds, Shadings::Clip& clip, Ra::SceneRef& scene) {
+        mask = object.mask != kNoMask ? object.mask : mask;
+        if (mask == kEmptyMask)
+            return;
+        Ra::Path *clipPath = clip.path();  uint8_t clipFlags = clip.flags();
+        Ra::Path unitRectPath;  unitRectPath->addBounds(Ra::Bounds(0, 0, 1, 1));
+        if (object.image < 0 || mask == kUnsupportedMask)
+            return scene->addPath(unitRectPath, object.ctm, fallbackColor(), 0, clipFlags, clipBounds, clipPath, kBlendNormal);
+        bool isMask = shadings.images[object.image].isMask;
+        Ra::Color color = isMask ? objectColor(object.colors, false, 1.f) : Ra::Color(0, 0, 0, 255);
+        blend = object.blend != kBlendNormal ? object.blend : blend;
+        Ra::Paint image = shadings.imagePaint(object.image, opacity * (isMask ? color.a / 255.f : object.alpha), Ra::Color(color.b, color.g, color.r, 255), mask, object.ctm);
+        if (image.isImage())
+            scene->addPath(unitRectPath, object.ctm, image, 0, clipFlags, clipBounds, clipPath, blend);
+    }
+    
+    // Writes the scan's shading, which paints its clip, or for one it can't read, or under a soft mask it can't read, the fallback
+    // color. Under a mask of a gradient with its geometry, it's a gradient with the mask's alpha, & else it's rendered into a
+    // masked image
+    static void writeShadingToScene(const Shading& shading, int mask, float opacity, uint8_t blend, Shadings& shadings, Ra::Bounds* clipBounds, Shadings::Clip& clip, Ra::SceneRef& scene) {
+        mask = shading.mask != kNoMask ? shading.mask : mask;
+        blend = shading.blend != kBlendNormal ? shading.blend : blend;
+        Shading masked;
+        if (clip.sorted.size() == 0 || mask == kEmptyMask || !clip.sorted[0]->isValid())
+            return;
+        // It fills its clip, with its rule, clipped to the next if it isn't a rect
+        uint8_t flags = (clip.sortedEvenOdds[0] ? Ra::Draw::kFillEvenOdd : 0) | clip.otherFlags(0);
+        Ra::Path *clipPath = clip.otherPath(0);
+        bool isMasked = mask >= 0 && shading.isValid && !shading.isEmpty;      // An empty shading paints nothing
+        if (isMasked && (shadings.masks[mask].isImage || !Shading::masked(& shading, Ra::Color(), shadings.masks[mask].shading, masked))) {
+            Shading unmasked = shading;
+            unmasked.mask = kNoMask, unmasked.blend = kBlendNormal;
+            return writeMaskedToScene(shadings.masks[mask], 1.f, blend, [&](Ra::SceneRef& content) {
+                writeShadingToScene(unmasked, kNoMask, opacity, kBlendNormal, shadings, clipBounds, clip, content);
+            }, scene);
+        }
+        if (!shading.isValid || mask == kUnsupportedMask)
+            scene->addPath(clip.sorted[0], Ra::Transform(), fallbackColor(), 0.f, flags, clipBounds, clipPath, kBlendNormal);
+        else if (shading.ctm.det() != 0.f)
+            writeGradientToScene(isMasked ? masked : shading, shading.alpha * opacity, blend, clip.sorted[0], Ra::Transform(), flags, clipBounds, clipPath, scene);
+    }
+    
+    // Fills path, in ctm space, with the gradient, clipped where an unextended end is inside it to the gradient's extent, & to clipPath
+    static void writeGradientToScene(const Shading& shading, float alpha, uint8_t blend, Ra::Path& path, Ra::Transform ctm, uint8_t flags, Ra::Bounds* clipBounds, Ra::Path *clipPath, Ra::SceneRef& scene) {
+        if (alpha == 0.f || shading.isEmpty)
+            return;
+        // A BBox clips the shading. One upright on the page narrows the clip bounds, but a rotated one isn't drawn, as draws have
+        // one clip path, which the shading's clip may need, so it paints its fill as if it had none
+        Ra::Bounds boxClip;
+        if (shading.hasBBox && ((shading.ctm.b == 0.f && shading.ctm.c == 0.f) || (shading.ctm.a == 0.f && shading.ctm.d == 0.f))) {
+            boxClip = Ra::Bounds(shading.bbox.quad(shading.ctm));
+            boxClip = clipBounds ? boxClip.intersect(*clipBounds) : boxClip;
+            if (boxClip.lx >= boxClip.ux || boxClip.ly >= boxClip.uy)
+                return;
+            clipBounds = & boxClip;
+        }
+        if (shading.isTwoCircle)
+            return writeTwoCircleGradientToScene(shading, alpha, blend, path, ctm, flags, clipBounds, clipPath, scene);
+        std::vector<Ra::Color> colors = shading.colors;
+        std::vector<float> locations = shading.locations;
+        for (auto& color : colors)
+            color.a = uint8_t(color.a * alpha + 0.5f);
+        Ra::Transform unit = shading.unit.concat(shading.ctm);      // Gradient space to page space
+        Ra::Bounds extent = Ra::Bounds(path->bounds.quad(ctm));
+        if (clipBounds)
+            extent = extent.intersect(*clipBounds);
+        Ra::Bounds g = Ra::Bounds(extent.quad(unit.invert()));      // The fill's extent in gradient space
+        bool clipLo, clipHi;
+        if (shading.isRadial) {
+            float nx = fmaxf(0.f, fmaxf(g.lx, -g.ux)), ny = fmaxf(0.f, fmaxf(g.ly, -g.uy));
+            float fx = fmaxf(fabsf(g.lx), fabsf(g.ux)), fy = fmaxf(fabsf(g.ly), fabsf(g.uy));
+            clipLo = !shading.extendLo && nx * nx + ny * ny < shading.lo * shading.lo;
+            clipHi = !shading.extendHi && fx * fx + fy * fy > 1.f;
+        } else
+            clipLo = !shading.extendLo && g.ly < 0.f, clipHi = !shading.extendHi && g.uy > 1.f;
+            
+        if (!clipLo && !clipHi) {
+            Ra::Paint paint(colors.data(), locations.data(), colors.size(), unit.concat(ctm.invert()), shading.isRadial);
+            scene->addPath(path, ctm, paint, 0.f, flags, clipBounds, clipPath, blend);
+            return;
+        }
+        Ra::Path region;  uint8_t regionFlags = 0;
+        if (shading.isRadial) {
+            if (clipHi)
+                region->addEllipse(Ra::Bounds(-1.f, -1.f, 1.f, 1.f));
+            else
+                region->addBounds(g);
+            if (clipLo)
+                region->addEllipse(Ra::Bounds(-shading.lo, -shading.lo, shading.lo, shading.lo)), regionFlags = Ra::Draw::kFillEvenOdd;
+        } else {
+            Ra::Bounds band(g.lx, clipLo ? 0.f : g.ly, g.ux, clipHi ? 1.f : g.uy);
+            if (band.ly >= band.uy)
+                return;
+            region->addBounds(band);
+        }
+        // An axis-aligned rect fill is the region within its bounds
+        if (clipPath == nullptr && path->isRect() && ((ctm.b == 0.f && ctm.c == 0.f) || (ctm.a == 0.f && ctm.d == 0.f))) {
+            Ra::Paint paint(colors.data(), locations.data(), colors.size(), Ra::Transform(), shading.isRadial);
+            scene->addPath(region, unit, paint, 0.f, regionFlags, & extent, nullptr, blend);
+            return;
+        }
+        // Otherwise the fill is clipped to the region, in page space, & to clipPath. Draws have one clip path, so for both, the
+        // flattened clip path is clipped to the region's convex parts, its disc or band, & hole, reversed, so it's subtracted with
+        // either of clipPath's rules
+        Ra::Path clip;
+        if (clipPath == nullptr)
+            clip = transformedPath(region, unit), flags = (flags & ~Ra::Draw::kClipEvenOdd) | (regionFlags ? Ra::Draw::kClipEvenOdd : 0);
+        else {
+            auto polygon = [&](float x, float y) {      // Gradient space to page space
+                return std::vector<float>{ x * unit.a + y * unit.c + unit.tx, x * unit.b + y * unit.d + unit.ty };
+            };
+            auto disc = [&](float r) {
+                float R = r * fmaxf(hypotf(unit.a, unit.b), hypotf(unit.c, unit.d));     // Its page radius, at most
+                int n = R > kFlatness ? int(fminf(4096.f, ceilf(float(M_PI) / acosf(1.f - kFlatness / R)))) : 16;
+                std::vector<float> xy;
+                for (int i = 0; i < n; i++) {
+                    auto p = polygon(r * cosf(2.f * float(M_PI) * i / n), r * sinf(2.f * float(M_PI) * i / n));
+                    xy.insert(xy.end(), p.begin(), p.end());
+                }
+                return xy;
+            };
+            std::vector<float> outer, hole;
+            if (shading.isRadial) {
+                if (clipHi)
+                    outer = disc(1.f);
+                if (clipLo)
+                    hole = disc(shading.lo);
+            } else {
+                region->validate();
+                Ra::Bounds b = region->bounds;      // The band
+                for (auto p : { polygon(b.lx, b.ly), polygon(b.ux, b.ly), polygon(b.ux, b.uy), polygon(b.lx, b.uy) })
+                    outer.insert(outer.end(), p.begin(), p.end());
+            }
+            for (auto& subject : flattenedPath(*clipPath, kFlatness)) {
+                addPolygon(clip, outer.size() ? clippedPolygon(subject, outer) : subject);
+                if (hole.size())
+                    addPolygon(clip, reversedPolygon(clippedPolygon(subject, hole)));
+            }
+        }
+        Ra::Paint paint(colors.data(), locations.data(), colors.size(), unit.concat(ctm.invert()), shading.isRadial);
+        scene->addPath(path, ctm, paint, 0.f, flags, clipBounds, & clip, blend);
+    }
+    
+    // Fills path, in ctm space, with a radial gradient of two circles that aren't concentric, which Rasterizer's radial gradients
+    // are. CoreGraphics draws it into an image of the path's bounds, which an image paint covers, at 2 pixels per unit, up to
+    // kMaxGradientSize, as it's smooth, & without its unextended ends
+    static constexpr float kMaxGradientSize = 2048.f;
+    static void writeTwoCircleGradientToScene(const Shading& shading, float alpha, uint8_t blend, Ra::Path& path, Ra::Transform ctm, uint8_t flags, Ra::Bounds* clipBounds, Ra::Path *clipPath, Ra::SceneRef& scene) {
+        path->validate();
+        Ra::Bounds b = path->bounds;
+        float bw = b.ux - b.lx, bh = b.uy - b.ly;
+        if (b.isNull() || bw <= 0.f || bh <= 0.f || ctm.det() == 0.f)
+            return;
+        size_t w = fmaxf(1.f, fminf(kMaxGradientSize, ceilf(2.f * hypotf(ctm.a, ctm.b) * bw)));
+        size_t h = fmaxf(1.f, fminf(kMaxGradientSize, ceilf(2.f * hypotf(ctm.c, ctm.d) * bh)));
+        std::vector<Ra::Color> pixels(w * h, Ra::Color(0, 0, 0, 0));
+        CGColorSpaceRef rgb = CGColorSpaceCreateDeviceRGB();
+        CGContextRef ctx = CGBitmapContextCreate(pixels.data(), w, h, 8, w * sizeof(Ra::Color), rgb, kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little);
+        std::vector<CGFloat> components, locations(shading.locations.begin(), shading.locations.end());
+        for (const Ra::Color& c : shading.colors)
+            components.insert(components.end(), { c.r / 255.0, c.g / 255.0, c.b / 255.0, c.a / 255.0 * alpha });
+        CGGradientRef gradient = CGGradientCreateWithColorComponents(rgb, components.data(), locations.data(), locations.size());
+        if (ctx && gradient) {
+            // Shading space to page space, to the path's space, to its bounds' image
+            Ra::Transform m = shading.ctm.concat(ctm.invert()).concat(Ra::Transform(w / bw, 0.f, 0.f, h / bh, -b.lx * w / bw, -b.ly * h / bh));
+            CGContextConcatCTM(ctx, CGAffineTransformMake(m.a, m.b, m.c, m.d, m.tx, m.ty));
+            const float *c = shading.circles;
+            CGGradientDrawingOptions options = (shading.extendLo ? kCGGradientDrawsBeforeStartLocation : 0) | (shading.extendHi ? kCGGradientDrawsAfterEndLocation : 0);
+            CGContextDrawRadialGradient(ctx, gradient, CGPointMake(c[0], c[1]), c[2], CGPointMake(c[3], c[4]), c[5], options);
+            scene->addPath(path, ctm, Ra::Paint(pixels.data(), w, h, w * sizeof(Ra::Color)), 0.f, flags, clipBounds, clipPath, blend);
+        }
+        CGGradientRelease(gradient), CGContextRelease(ctx), CGColorSpaceRelease(rgb);
+    }
+    
+    // Fills path, in ctm space, with a tiling pattern. RasterizerCG draws its cell's objects into an image of its bounding box,
+    // which a CGPattern tiles into an image of the path's bounds, at 2 pixels per unit, up to kMaxGradientSize, which an image
+    // paint covers, as Rasterizer's can't tile. An uncolored pattern's cell is painted with color
+    static void writeTilingToScene(Shadings::Tiling& tiling, Ra::Color color, float alpha, uint8_t blend, Ra::Path& path, Ra::Transform ctm, uint8_t flags, Ra::Bounds* clipBounds, Ra::Path *clipPath, Ra::SceneRef& scene) {
+        path->validate();
+        Ra::Bounds b = path->bounds, cb = tiling.bbox;
+        float bw = b.ux - b.lx, bh = b.uy - b.ly, cw = cb.ux - cb.lx, ch = cb.uy - cb.ly;
+        if (b.isNull() || bw <= 0.f || bh <= 0.f || cw <= 0.f || ch <= 0.f || ctm.det() == 0.f || tiling.ctm.det() == 0.f)
+            return;
+        Shadings::CellCache& cache = *tiling.cache;
+        if (cache.scene.ptr == nullptr)
+            cache.scene = Ra::SceneRef(), writeStreamToScene(-1, kNoMask, 1.f, kBlendNormal, *tiling.cell, cache.scene);
+        size_t w = fmaxf(1.f, fminf(kMaxGradientSize, ceilf(2.f * hypotf(ctm.a, ctm.b) * bw)));
+        size_t h = fmaxf(1.f, fminf(kMaxGradientSize, ceilf(2.f * hypotf(ctm.c, ctm.d) * bh)));
+        Ra::Transform m = tiling.ctm.concat(ctm.invert()).concat(Ra::Transform(w / bw, 0.f, 0.f, h / bh, -b.lx * w / bw, -b.ly * h / bh));    // Pattern space to the image
+        // The cell's image, at the image's scale, rendered once for each size & color
+        float scale = sqrtf(fabsf(m.det()));
+        size_t iw = fmaxf(1.f, fminf(kMaxGradientSize, ceilf(cw * scale))), ih = fmaxf(1.f, fminf(kMaxGradientSize, ceilf(ch * scale)));
+        auto key = std::make_tuple(iw, ih, tiling.isColored ? 0u : uint32_t(1 << 24 | color.r << 16 | color.g << 8 | color.b));
+        auto cached = cache.images.find(key);
+        CGImageRef image = cached == cache.images.end() ? nullptr : CGImageRetain(cached->second);
+        std::vector<Ra::Color> pixels(w * h, Ra::Color(0, 0, 0, 0));
+        CGColorSpaceRef rgb = CGColorSpaceCreateDeviceRGB();
+        if (image == nullptr) {
+            std::vector<Ra::Color> cell(iw * ih, Ra::Color(0, 0, 0, 0));
+            CGContextRef cellCtx = CGBitmapContextCreate(cell.data(), iw, ih, 8, iw * sizeof(Ra::Color), rgb, kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little);
+            if (cellCtx) {
+                Ra::SceneList list;
+                list.addScene(cache.scene);
+                list.ctm = Ra::Transform(iw / cw, 0.f, 0.f, ih / ch, -cb.lx * iw / cw, -cb.ly * ih / ch);
+                RasterizerCG::renderList(list, Ra::Bounds(0.f, 0.f, iw, ih), cellCtx);
+                if (!tiling.isColored)
+                    for (auto& p : cell)
+                        p = Ra::Color(color.b * p.a / 255, color.g * p.a / 255, color.r * p.a / 255, p.a);
+                image = CGBitmapContextCreateImage(cellCtx);
+                if (image && cache.images.size() < Shadings::CellCache::kMaxImages)
+                    cache.images.emplace(key, CGImageRetain(image));
+            }
+            CGContextRelease(cellCtx);
+        }
+        CGContextRef ctx = CGBitmapContextCreate(pixels.data(), w, h, 8, w * sizeof(Ra::Color), rgb, kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little);
+        if (image && ctx) {
+            struct Info { CGImageRef image;  CGRect rect; } info = { image, CGRectMake(cb.lx, cb.ly, cw, ch) };
+            CGPatternCallbacks callbacks = { 0, [](void *info, CGContextRef c) { CGContextDrawImage(c, ((Info *)info)->rect, ((Info *)info)->image); }, nullptr };
+            CGPatternRef cgPattern = CGPatternCreate(& info, info.rect, CGAffineTransformMake(m.a, m.b, m.c, m.d, m.tx, m.ty), tiling.xStep, tiling.yStep, kCGPatternTilingConstantSpacing, true, & callbacks);
+            CGColorSpaceRef patternSpace = CGColorSpaceCreatePattern(nullptr);
+            CGFloat one = 1.0;
+            CGContextSetFillColorSpace(ctx, patternSpace), CGContextSetFillPattern(ctx, cgPattern, & one), CGContextSetAlpha(ctx, alpha);
+            CGContextFillRect(ctx, CGRectMake(0, 0, w, h));
+            CGColorSpaceRelease(patternSpace), CGPatternRelease(cgPattern);
+            scene->addPath(path, ctm, Ra::Paint(pixels.data(), w, h, w * sizeof(Ra::Color)), 0.f, flags, clipBounds, clipPath, blend);
+        }
+        CGImageRelease(image), CGContextRelease(ctx), CGColorSpaceRelease(rgb);
+    }
+    
+    static constexpr float kFlatness = 1e-2f;      // The page space error of flattened clip paths
+    
+    // The path's subpaths as polygons of x, y pairs, with curves flattened to within tolerance
+    static std::vector<std::vector<float>> flattenedPath(Ra::Path& path, float tolerance) {
+        std::vector<std::vector<float>> polygons;
+        path->validate();
+        const float *pts = path->points.base;  const uint8_t *types = path->types.base;
+        float x0 = 0.f, y0 = 0.f;
+        auto add = [&](float x, float y) {
+            if (polygons.empty())
+                polygons.emplace_back();
+            polygons.back().emplace_back(x), polygons.back().emplace_back(y), x0 = x, y0 = y;
+        };
+        auto steps = [&](float d) { return int(fminf(256.f, fmaxf(1.f, ceilf(sqrtf(d / tolerance))))); };
+        for (size_t i = 0; i < path->types.end; i += path->TypeSizes[types[i]]) {
+            const float *p = pts + 2 * i;
+            switch (types[i]) {
+                case Ra::Geometry::kMove:
+                    polygons.emplace_back(), add(p[0], p[1]);
+                    break;
+                case Ra::Geometry::kLine:
+                    add(p[0], p[1]);
+                    break;
+                case Ra::Geometry::kQuadratic: {
+                    float ax = x0, ay = y0;
+                    for (int k = 1, n = steps(0.25f * hypotf(ax - 2.f * p[0] + p[2], ay - 2.f * p[1] + p[3])); k <= n; k++) {
+                        float t = float(k) / n, s = 1.f - t;
+                        add(s * s * ax + 2.f * s * t * p[0] + t * t * p[2], s * s * ay + 2.f * s * t * p[1] + t * t * p[3]);
+                    }
+                    break;
+                }
+                case Ra::Geometry::kCubic: {
+                    float ax = x0, ay = y0;
+                    float d = fmaxf(hypotf(ax - 2.f * p[0] + p[2], ay - 2.f * p[1] + p[3]), hypotf(p[0] - 2.f * p[2] + p[4], p[1] - 2.f * p[3] + p[5]));
+                    for (int k = 1, n = steps(0.75f * d); k <= n; k++) {
+                        float t = float(k) / n, s = 1.f - t;
+                        add(s * s * s * ax + 3.f * s * t * (s * p[0] + t * p[2]) + t * t * t * p[4], s * s * s * ay + 3.f * s * t * (s * p[1] + t * p[3]) + t * t * t * p[5]);
+                    }
+                    break;
+                }
+                default:
+                    break;
+            }
+        }
+        return polygons;
+    }
+    // The subject polygon clipped to the convex one (Sutherland-Hodgman), which keeps the subject's winding within it
+    static std::vector<float> clippedPolygon(std::vector<float> subject, std::vector<float> convex) {
+        size_t m = convex.size() / 2;
+        float area = 0.f;
+        for (size_t i = 0; i < m; i++)
+            area += convex[2 * i] * convex[2 * ((i + 1) % m) + 1] - convex[2 * ((i + 1) % m)] * convex[2 * i + 1];
+        if (area < 0.f)     // Counter-clockwise, so its inside is left of each edge
+            for (size_t i = 0, j = m - 1; i < j; i++, j--)
+                std::swap(convex[2 * i], convex[2 * j]), std::swap(convex[2 * i + 1], convex[2 * j + 1]);
+        std::vector<float> input;
+        for (size_t e = 0; e < m && subject.size(); e++) {
+            float ax = convex[2 * e], ay = convex[2 * e + 1], bx = convex[2 * ((e + 1) % m)], by = convex[2 * ((e + 1) % m) + 1];
+            auto side = [&](float x, float y) { return (bx - ax) * (y - ay) - (by - ay) * (x - ax); };
+            input.swap(subject), subject.clear();
+            for (size_t n = input.size() / 2, i = 0; i < n; i++) {
+                size_t j = (i + n - 1) % n;
+                float px = input[2 * j], py = input[2 * j + 1], cx = input[2 * i], cy = input[2 * i + 1], sp = side(px, py), sc = side(cx, cy);
+                if ((sp >= 0.f) != (sc >= 0.f)) {
+                    float t = sp / (sp - sc);
+                    subject.emplace_back(px + t * (cx - px)), subject.emplace_back(py + t * (cy - py));
+                }
+                if (sc >= 0.f)
+                    subject.emplace_back(cx), subject.emplace_back(cy);
+            }
+        }
+        return subject;
+    }
+    static std::vector<float> reversedPolygon(const std::vector<float>& xy) {
+        std::vector<float> r(xy.size());
+        for (size_t i = 0; i + 1 < xy.size(); i += 2)
+            r[xy.size() - 2 - i] = xy[i], r[xy.size() - 1 - i] = xy[i + 1];
+        return r;
+    }
+    static void addPolygon(Ra::Path& path, const std::vector<float>& xy) {
+        if (xy.size() < 6)
+            return;
+        path->moveTo(xy[0], xy[1]);
+        for (size_t i = 2; i < xy.size(); i += 2)
+            path->lineTo(xy[i], xy[i + 1]);
+        path->close();
+    }
+    
+    // The path transformed, appended to p
+    static Ra::Path transformedPath(Ra::Path& path, Ra::Transform m, Ra::Path p = Ra::Path()) {
+        path->validate();
+        const float *pts = path->points.base;  const uint8_t *types = path->types.base;
+        auto x = [&](size_t i) { return pts[2 * i] * m.a + pts[2 * i + 1] * m.c + m.tx; };
+        auto y = [&](size_t i) { return pts[2 * i] * m.b + pts[2 * i + 1] * m.d + m.ty; };
+        for (size_t i = 0; i < path->types.end; i += path->TypeSizes[types[i]]) {
+            switch (types[i]) {
+                case Ra::Geometry::kMove:
+                    p->moveTo(x(i), y(i));
+                    break;
+                case Ra::Geometry::kLine:
+                    p->lineTo(x(i), y(i));
+                    break;
+                case Ra::Geometry::kQuadratic:
+                    p->quadTo(x(i), y(i), x(i + 1), y(i + 1));
+                    break;
+                case Ra::Geometry::kCubic:
+                    p->cubicTo(x(i), y(i), x(i + 1), y(i + 1), x(i + 2), y(i + 2));
+                    break;
+                case Ra::Geometry::kClose:
+                    p->close();
+                    break;
+            }
+        }
+        return p;
+    }
+    
+    // Multiplies the alpha of straight alpha pixels, of an image drawn at ctm, by a soft mask's at their centers
+    static void applyMask(Ra::Color *pixels, size_t width, size_t height, size_t stride, Ra::Transform ctm, const Mask& mask) {
+        for (size_t y = 0; y < height; y++, pixels += stride / sizeof(Ra::Color))
+            for (size_t x = 0; x < width; x++) {
+                float u = (x + 0.5f) / width, v = 1.f - (y + 0.5f) / height;    // Rows run down from the unit square's top
+                float alpha = mask.alphaAt(u * ctm.a + v * ctm.c + ctm.tx, u * ctm.b + v * ctm.d + ctm.ty);
+                pixels[x].a = uint8_t(pixels[x].a * alpha + 0.5f);
+            }
+    }
+    
+    // Straight alpha BGRA pixels, premultiplied, as Rasterizer's images are. Their alpha is scaled by opacity first
+    static void premultiply(Ra::Color *buffer, size_t width, size_t height, size_t stride, float opacity = 1.f) {
+        for (size_t y = 0; y < height; y++, buffer += stride / sizeof(Ra::Color))
+            for (size_t x = 0; x < width; x++)
+                if (opacity != 1.f)
+                    buffer[x] = buffer[x].withOpacity(opacity).premultiplied();
+                else if (buffer[x].a != 255)
+                    buffer[x] = buffer[x].premultiplied();
+    }
+};
+
+typedef RasterizerPDF RaPDF;

@@ -1734,7 +1734,7 @@ static int nsvg__parseAttr(NSVGparser* p, const char* name, const char* value)
 			attr->fillColor = nsvg__parseColor(value);
 		}
 	} else if (strcmp(name, "opacity") == 0) {
-		attr->opacity = nsvg__parseOpacity(value);
+		attr->opacity *= nsvg__parseOpacity(value);
 	} else if (strcmp(name, "fill-opacity") == 0) {
 		attr->fillOpacity = nsvg__parseOpacity(value);
 	} else if (strcmp(name, "stroke") == 0) {
@@ -2153,6 +2153,11 @@ static void nsvg__pathArcTo(NSVGparser* p, float* cpx, float* cpy, float* args, 
 	else if (fs == 1 && da < 0)
 		da += 2 * NSVG_PI;
 
+    // A large arc sweeps at least half a turn. Near-closed arcs (end point within float precision of the start, as
+    // Inkscape writes ellipses) lose that to rounding, leaving da near zero, so take the long way round.
+    if (fa && fabsf(da) < NSVG_PI)
+        da = (fs ? 1.0f : -1.0f) * (2 * NSVG_PI - fabsf(da));
+    
 	// Approximate the arc using cubic spline segments.
 	t[0] = cosrx; t[1] = sinrx;
 	t[2] = -sinrx; t[3] = cosrx;
@@ -2162,7 +2167,7 @@ static void nsvg__pathArcTo(NSVGparser* p, float* cpx, float* cpy, float* args, 
 	// The loop assumes an iteration per end point (including start and end), this +1.
 	ndivs = (int)(fabsf(da) / (NSVG_PI*0.5f) + 1.0f);
 	hda = (da / (float)ndivs) / 2.0f;
-	kappa = fabsf(4.0f / 3.0f * (1.0f - cosf(hda)) / sinf(hda));
+    kappa = hda == 0.0f ? 0.0f : fabsf(4.0f / 3.0f * (1.0f - cosf(hda)) / sinf(hda));
 	if (da < 0.0f)
 		kappa = -kappa;
 

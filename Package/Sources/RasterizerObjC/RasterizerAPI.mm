@@ -1,9 +1,6 @@
 //
-//  RasterizerAPI.mm
-//  Rasterizer
-//
-//  Created by Nigel Barber on 03/09/2025.
-//  Copyright © 2025 @mindbrix. All rights reserved.
+//  Copyright 2025 Nigel Timothy Barber - nigel@mindbrix.co.uk
+//  SPDX-License-Identifier: MIT
 //
 
 #import <Foundation/Foundation.h>
@@ -11,6 +8,7 @@
 #import "RasterizerAPI+Internal.h"
 #import "RasterizerCG.hpp"
 #import "RasterizerSVG.hpp"
+#import "RasterizerPDF.hpp"
 #import "RasterizerCoreText.hpp"
 #import <map>
 
@@ -154,9 +152,7 @@
     self = [super init];
     if (!self)
         return nil;
-    CGPathRef cgPath = CGPathCreateWithRoundedRect(rect, cornerWidth, cornerHeight, NULL);
-    [self addCGPath:cgPath];
-    CGPathRelease(cgPath);
+    [self addRoundedRect:rect cornerWidth:cornerWidth cornerHeight:cornerHeight];
     return self;
 }
 
@@ -192,11 +188,7 @@
 - (void)addRoundedRect:(CGRect)rect
            cornerWidth:(double)cornerWidth
           cornerHeight:(double)cornerHeight {
-    if (CGRectGetWidth(rect) > 0 && CGRectGetHeight(rect) > 0) {
-        CGPathRef cgPath = CGPathCreateWithRoundedRect(rect, cornerWidth, cornerHeight, NULL);
-        [self addCGPath:cgPath];
-        CGPathRelease(cgPath);
-    }
+    _path->addRoundedRect(RaCG::BoundsFromCGRect(rect), cornerWidth, cornerHeight);
 }
 - (void)addCGPath:(CGPathRef)cgPath {
     RaCG::writeCGPathToPath(cgPath, _path);
@@ -218,86 +210,162 @@
 @end
 
 
-@implementation RAFrame: NSObject
-+ (double)lineHeightForFont:(nonnull NSString *)named size:(double)size {
-    return RaCT::lineHeightFor(named.UTF8String, size);
+#pragma mark - RADraw
+
+static uint8_t capFlags(RACapStyle capStyle) {
+    return capStyle == kCapButt ? 0 : capStyle == kCapSquare ? Ra::Draw::kSquareCap : Ra::Draw::kRoundCap;
+}
+static uint8_t joinFlags(RAJoinStyle joinStyle) {
+    return joinStyle == kJoinMiter ? 0 : Ra::Draw::kRoundJoin;
 }
 
-- (id)initWithAttributedString:(nonnull NSAttributedString *)attributedString inRect:(CGRect)rect {
+@implementation RADraw {
+    Ra::Draw *_d;      // The draw edited: _draw, or a scene's draw during -[RAScene updateDrawsInRange:usingBlock:]
+}
+@synthesize draw = _draw;
+
+- (id)init {
     self = [super init];
     if (!self)
         return nil;
-    CTFramesetterRef framesetter = CTFramesetterCreateWithAttributedString((__bridge CFAttributedStringRef)attributedString);
-    CGPathRef rectPath = CGPathCreateWithRect(rect, NULL);
-    _frame = CTFramesetterCreateFrame(framesetter, CFRangeMake(0, 0), rectPath, NULL);
-    CGPathRelease(rectPath);
-    CFRelease(framesetter);
+    _d = & _draw, _draw.clip = Ra::Bounds::huge();
     return self;
 }
 
-- (void)applyRuns:(nonnull CTRunApplyBlock)block {
-    [self applyLines:^(CTLineRef _Nonnull ctLine, CGPoint origin) {
-        CFArrayRef glyphRuns = CTLineGetGlyphRuns(ctLine);
-        for (int run = 0; run < CFArrayGetCount(glyphRuns); run++) {
-            CTRunRef ctRun = (CTRunRef)CFArrayGetValueAtIndex(glyphRuns, run);
-            CGRect image = CTRunGetImageBounds(ctRun, NULL, CFRangeMake(0, 0));
-            if (image.size.width > 0 && image.size.height > 0) {
-                CFRange range = CTRunGetStringRange(ctRun);
-                block(
-                    NSMakeRange(range.location, range.length),
-                    CGRectApplyAffineTransform(image, CGAffineTransformMakeTranslation(origin.x, origin.y))
-                );
-            }
-        }
-    }];
+- (id)initWithPath:(RAPath *)path ctm:(CGAffineTransform)ctm color:(RAPaint *)color {
+    self = [super init];
+    if (!self)
+        return nil;
+    _d = & _draw, _draw = Ra::Draw(path.path, RaCG::transformFromCG(ctm), color.paint, 0.f, 0);
+    return self;
 }
-- (void)applyLines:(nonnull CTLineApplyBlock)block {
-    CGRect rect = CGPathGetBoundingBox(CTFrameGetPath(_frame));
-    CFArrayRef lines = CTFrameGetLines(_frame);
-    CFIndex lineCount = CFArrayGetCount(lines);
-    Ra::Vector<CGPoint> origins(lineCount);
-    CTFrameGetLineOrigins(_frame, CFRangeMake(0, 0), & origins[0]);
-    for (int line = 0; line < lineCount; line++) {
-        block(
-            (CTLineRef)CFArrayGetValueAtIndex(lines, line),
-            CGPointMake(rect.origin.x + origins[line].x, rect.origin.y + origins[line].y)
-        );
-    }
+
+- (Ra::Draw)draw {
+    return *_d;
 }
-- (void)dealloc {
-    CFRelease(_frame);
+- (void)setDraw:(Ra::Draw)draw {
+    *_d = draw;
 }
+- (void)setTarget:(Ra::Draw *)target {
+    _d = target ?: & _draw;
+}
+
+- (RAPath *)path {
+    RAPath *path = [RAPath new];
+    path.path = _d->path;
+    return path;
+}
+- (void)setPath:(RAPath *)path {
+    _d->path = path.path, _d->validate();
+}
+- (CGAffineTransform)ctm {
+    return RaCG::CGFromTransform(_d->ctm);
+}
+- (void)setCtm:(CGAffineTransform)ctm {
+    _d->ctm = RaCG::transformFromCG(ctm);
+}
+- (RAPaint *)color {
+    RAPaint *color = [RAPaint new];
+    color.paint = _d->paint;
+    return color;
+}
+- (void)setColor:(RAPaint *)color {
+    _d->paint = color.paint, _d->validate();
+}
+- (double)width {
+    return _d->width;
+}
+- (void)setWidth:(double)width {
+    _d->width = width;
+}
+- (BOOL)evenOdd {
+    return (_d->flags & Ra::Draw::kFillEvenOdd) != 0;
+}
+- (void)setEvenOdd:(BOOL)evenOdd {
+    _d->flags = (_d->flags & ~Ra::Draw::kFillEvenOdd) | (evenOdd ? Ra::Draw::kFillEvenOdd : 0);
+}
+- (RACapStyle)capStyle {
+    return _d->flags & Ra::Draw::kSquareCap ? kCapSquare : _d->flags & Ra::Draw::kRoundCap ? kCapRound : kCapButt;
+}
+- (void)setCapStyle:(RACapStyle)capStyle {
+    _d->flags = (_d->flags & ~(Ra::Draw::kSquareCap | Ra::Draw::kRoundCap)) | capFlags(capStyle);
+}
+- (RAJoinStyle)joinStyle {
+    return _d->flags & Ra::Draw::kRoundJoin ? kJoinRound : kJoinMiter;
+}
+- (void)setJoinStyle:(RAJoinStyle)joinStyle {
+    _d->flags = (_d->flags & ~Ra::Draw::kRoundJoin) | joinFlags(joinStyle);
+}
+- (CGRect)clip {
+    return _d->clip.isHuge() ? CGRectInfinite : RaCG::CGRectFromBounds(_d->clip);
+}
+- (void)setClip:(CGRect)clip {
+    _d->clip = CGRectIsNull(clip) || CGRectIsEmpty(clip) || CGRectIsInfinite(clip) ? Ra::Bounds::huge() : RaCG::BoundsFromCGRect(clip);
+}
+- (RAPath *)clipPath {
+    if (_d->clipPath.ptr == nullptr)
+        return nil;
+    RAPath *path = [RAPath new];
+    path.path = _d->clipPath;
+    return path;
+}
+- (void)setClipPath:(RAPath *)clipPath {
+    _d->clipPath = clipPath ? clipPath.path : Ra::Path(nullptr), _d->validate();
+}
+- (BOOL)clipEvenOdd {
+    return (_d->flags & Ra::Draw::kClipEvenOdd) != 0;
+}
+- (void)setClipEvenOdd:(BOOL)clipEvenOdd {
+    _d->flags = (_d->flags & ~Ra::Draw::kClipEvenOdd) | (clipEvenOdd ? Ra::Draw::kClipEvenOdd : 0);
+}
+- (BOOL)hidden {
+    return (_d->flags & Ra::Draw::kHidden) != 0;
+}
+- (void)setHidden:(BOOL)hidden {
+    _d->flags = (_d->flags & ~Ra::Draw::kHidden) | (hidden ? Ra::Draw::kHidden : 0), _d->validate();
+}
+- (RABlendMode)blendMode {
+    return RABlendMode(_d->blendMode);
+}
+- (void)setBlendMode:(RABlendMode)blendMode {
+    _d->blendMode = blendMode < kBlendModeCount ? uint8_t(blendMode) : kBlendNormal;
+}
+
 @end
+
 
 #pragma mark - RAScene
 
-@implementation RAScene: NSObject
+@implementation RAScene: NSObject {
+    NSInteger _updates;     // The nesting depth of -updateDrawsInRange:usingBlock:, whose draws adding to the scene would move
+}
+
+// Raises if the scene's draws are being updated, as adding a draw can move them, & the RADraw a block edits points into them
+- (void)checkNotUpdating {
+    if (_updates)
+        [NSException raise:NSInternalInconsistencyException format:@"%@ was added to while its draws were being updated", self];
+}
 
 - (CGRect)bounds {
     return RaCG::CGRectFromBounds(_scene->bounds());
 }
-
-- (void)addFill:(RAPath *)path
-            ctm:(CGAffineTransform)ctm
-           color:(RAPaint *)color
-        evenOdd:(BOOL)evenOdd {
-    [self addFill:path ctm:ctm color:color evenOdd:evenOdd clip:CGRectZero clipPath:nil];
+- (NSInteger)count {
+    return _scene->count();
 }
 
-- (void)addStroke:(RAPath *)path
-              ctm:(CGAffineTransform)ctm
-            color:(RAPaint *)color
-            width:(double)width
-         capStyle:(RACapStyle)capStyle
-        joinStyle:(RAJoinStyle)joinStyle {
-    [self addStroke:path ctm:ctm color:color width:width capStyle:capStyle joinStyle:joinStyle clip:CGRectZero clipPath:nil];
+- (void)addDraw:(RADraw *)draw {
+    [self checkNotUpdating];
+    Ra::Draw d = draw.draw;
+    _scene->addDraw(d);
 }
 
 - (void)addImage:(nonnull RAPaint *)image
              ctm:(CGAffineTransform)ctm {
-    CGRect rect = CGRectMake(0, 0, image.paint.w, image.paint.h);
-    RAPath *path = [[RAPath alloc] initWithRect:rect];
-    [self addFill:path ctm:ctm color:image evenOdd:false];
+    if (image.paint.isImage()) {
+        CGRect rect = CGRectMake(0, 0, image.paint.bitmap->w, image.paint.bitmap->h);
+        RAPath *path = [[RAPath alloc] initWithRect:rect];
+        [self addFill:path ctm:ctm color:image evenOdd:false clip:CGRectInfinite clipPath:nil blendMode:kRABlendNormal];
+    }
 }
 
 - (void)addFill:(RAPath *)path
@@ -305,12 +373,14 @@
            color:(RAPaint *)color
         evenOdd:(BOOL)evenOdd
            clip:(CGRect)clip
-       clipPath:(RAPath *)clipPath {
+       clipPath:(RAPath *)clipPath
+      blendMode:(RABlendMode)blendMode{
     Ra::Path p = path.path;
     Ra::Bounds clipBounds = CGRectIsNull(clip) || CGRectIsEmpty(clip) || CGRectIsInfinite(clip) ? Ra::Bounds::huge() : RaCG::BoundsFromCGRect(clip);
     auto m = RaCG::transformFromCG(ctm);
-    Ra::Path clp = clipPath != nil ? clipPath.path : Ra::Path();
-    _scene->addPath(p, m, color.paint, 0, evenOdd ? Ra::Scene::kFillEvenOdd : 0, & clipBounds, clipPath != nil ? & clp : nullptr);
+    [self checkNotUpdating];
+    Ra::Path clp = clipPath != nil ? clipPath.path : Ra::Path(nullptr);
+    _scene->addPath(p, m, color.paint, 0, (evenOdd ? Ra::Draw::kFillEvenOdd : 0) | Ra::Draw::kClipEvenOdd, & clipBounds, clipPath != nil ? & clp : nullptr, blendMode);    // Clips even-odd, as they did
 }
 
 - (void)addStroke:(RAPath *)path
@@ -320,29 +390,50 @@
          capStyle:(RACapStyle)capStyle
         joinStyle:(RAJoinStyle)joinStyle
              clip:(CGRect)clip
-         clipPath:(RAPath *)clipPath {
+         clipPath:(RAPath *)clipPath
+        blendMode:(RABlendMode)blendMode{
     Ra::Path p = path.path;
     Ra::Bounds clipBounds = CGRectIsNull(clip) || CGRectIsEmpty(clip) || CGRectIsInfinite(clip) ? Ra::Bounds::huge() : RaCG::BoundsFromCGRect(clip);
     auto m = RaCG::transformFromCG(ctm);
-    uint8_t capFlags = capStyle == kCapButt ? 0 : capStyle == kCapSquare ? Ra::Scene::kSquareCap : Ra::Scene::kRoundCap;
-    uint8_t joinFlags = joinStyle == kJoinMiter ? 0 : Ra::Scene::kRoundJoin;
-    _scene->addPath(p, m, color.paint, width, capFlags | joinFlags, & clipBounds);
-}
-
-- (CGRect)addFrame:(RAFrame *)frame
-          excludes:(NSArray<NSValue *> *)excludes
-               ctm:(CGAffineTransform)ctm
-              clip:(CGRect)clip {
-    GlyphCache cache;
-    return RaCT::addFrameToScene(frame.frame, excludes, ctm, clip, _scene, cache);
+    [self checkNotUpdating];
+    Ra::Path clp = clipPath != nil ? clipPath.path : Ra::Path(nullptr);
+    _scene->addPath(p, m, color.paint, width, capFlags(capStyle) | joinFlags(joinStyle) | Ra::Draw::kClipEvenOdd, & clipBounds, clipPath != nil ? & clp : nullptr, blendMode);
 }
 
 - (CGRect)addText:(NSAttributedString *)string inRect:(CGRect)rect ctm:(CGAffineTransform)ctm clip:(CGRect)clip {
     GlyphCache cache;
+    [self checkNotUpdating];
     return RaCT::addTextToSceneInRect((__bridge CFAttributedStringRef)string, rect, ctm, clip, _scene, cache);
 }
+
++ (NSInteger)pdfPageCountFromUrl:(nonnull NSURL *)url {
+    return RaPDF::getPageCount(url.path.UTF8String);
+}
+- (CGAffineTransform)addPdfFromUrl:(nonnull NSURL *)url pageIndex:(NSInteger)pageIndex {
+    [self checkNotUpdating];
+    return RaCG::CGFromTransform(RaPDF::addPdfPageToScene(url.path.UTF8String, pageIndex, _scene));
+}
+
 - (CGAffineTransform)addSvgFromUrl:(NSURL *)url {
+    [self checkNotUpdating];
     return RaCG::CGFromTransform(RaSVG::addSvgToScene(url.path.UTF8String, _scene));
+}
+
+- (void)updateDrawsInRange:(NSRange)range usingBlock:(RADrawUpdateBlock __attribute__((noescape)))block {
+    size_t count = _scene->count(), i0 = range.location;
+    if (i0 >= count)
+        return;
+    RADraw *alias = [RADraw new];
+    _updates++;
+    @try {
+        _scene->update(i0, range.length > count - i0 ? count : i0 + range.length, [&](size_t i, Ra::Draw& draw) {
+            [alias setTarget:& draw];
+            return bool(block(NSInteger(i), alias));
+        });
+    } @finally {
+        _updates--;
+        [alias setTarget:nullptr];      // So an alias kept past the block edits its own draw
+    }
 }
 
 @end

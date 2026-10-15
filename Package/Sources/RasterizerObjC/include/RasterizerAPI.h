@@ -1,9 +1,6 @@
 //
-//  RasterizerAPI.h
-//  Rasterizer
-//
-//  Created by Nigel Barber on 03/09/2025.
-//  Copyright © 2025 @mindbrix. All rights reserved.
+//  Copyright 2025 Nigel Timothy Barber - nigel@mindbrix.co.uk
+//  SPDX-License-Identifier: MIT
 //
 
 #import <Foundation/Foundation.h>
@@ -56,18 +53,6 @@
 @end
 
 
-typedef void (^CTRunApplyBlock)(NSRange range, CGRect bounds);
-typedef void (^CTLineApplyBlock)(CTLineRef _Nonnull, CGPoint origin);
-
-@interface RAFrame: NSObject
-+ (double)lineHeightForFont:(nonnull NSString *)named size:(double)size;
-
-- (nonnull id)initWithAttributedString:(nonnull NSAttributedString *)attributedString inRect:(CGRect)rect;
-- (void)applyRuns:(nonnull CTRunApplyBlock)block;
-- (void)applyLines:(nonnull CTLineApplyBlock)block;
-@end
-
-
 typedef NS_ENUM(NSUInteger, RACapStyle) {
     kCapButt = 0, kCapSquare, kCapRound
 };
@@ -76,20 +61,40 @@ typedef NS_ENUM(NSUInteger, RAJoinStyle) {
     kJoinMiter = 0, kJoinRound
 };
 
+// As CGBlendMode's separable & non-separable modes. Without framebuffer fetch, e.g. in the iOS Simulator, all draw as Normal
+typedef NS_ENUM(NSUInteger, RABlendMode) {
+    kRABlendNormal = 0, kRABlendMultiply, kRABlendScreen, kRABlendOverlay, kRABlendDarken, kRABlendLighten, kRABlendColorDodge,
+    kRABlendColorBurn, kRABlendSoftLight, kRABlendHardLight, kRABlendDifference, kRABlendExclusion, kRABlendHue, kRABlendSaturation,
+    kRABlendColor, kRABlendLuminosity
+};
+
+// A draw: make one to add with -[RAScene addDraw:], or edit a scene's draws in place with -[RAScene updateDrawsInRange:usingBlock:]
+@interface RADraw: NSObject
+@property(nonnull, nonatomic) RAPath *path;
+@property(nonatomic) CGAffineTransform ctm;
+@property(nonnull, nonatomic) RAPaint *color;
+@property(nonatomic) double width;      // 0 fills, > 0 strokes
+@property(nonatomic) BOOL evenOdd;
+@property(nonatomic) RACapStyle capStyle;
+@property(nonatomic) RAJoinStyle joinStyle;
+@property(nonatomic) CGRect clip;       // Empty, null or infinite clips nothing
+@property(nullable, nonatomic) RAPath *clipPath;
+@property(nonatomic) BOOL clipEvenOdd;  // The clip path's fill rule, else non-zero
+@property(nonatomic) BOOL hidden;       // Hidden draws keep their index, but are not drawn
+@property(nonatomic) RABlendMode blendMode;
+
+- (nonnull id)initWithPath:(nonnull RAPath *)path ctm:(CGAffineTransform)ctm color:(nonnull RAPaint *)color;
+@end
+
+
+// Returns YES if it changed draw, which is the scene's draw at index, edited in place: it is only valid during the call
+typedef BOOL (^RADrawUpdateBlock)(NSInteger index, RADraw * _Nonnull draw);
+
 @interface RAScene: NSObject
 @property(nonatomic, readonly) CGRect bounds;
+@property(nonatomic, readonly) NSInteger count;
 
-- (void)addFill:(nonnull RAPath *)path
-            ctm:(CGAffineTransform)ctm
-           color:(nonnull RAPaint *)color
-        evenOdd:(BOOL)evenOdd;
-
-- (void)addStroke:(nonnull RAPath *)path
-              ctm:(CGAffineTransform)ctm
-            color:(nonnull RAPaint *)color
-            width:(double)width
-         capStyle:(RACapStyle)capStyle
-        joinStyle:(RAJoinStyle)joinStyle;
+- (void)addDraw:(nonnull RADraw *)draw;
 
 - (void)addImage:(nonnull RAPaint *)image
              ctm:(CGAffineTransform)ctm;
@@ -99,7 +104,8 @@ typedef NS_ENUM(NSUInteger, RAJoinStyle) {
            color:(nonnull RAPaint *)color
         evenOdd:(BOOL)evenOdd
            clip:(CGRect)clip
-       clipPath:(nullable RAPath *)clipPath;
+       clipPath:(nullable RAPath *)clipPath
+      blendMode:(RABlendMode)blendMode;
 
 - (void)addStroke:(nonnull RAPath *)path
               ctm:(CGAffineTransform)ctm
@@ -108,18 +114,23 @@ typedef NS_ENUM(NSUInteger, RAJoinStyle) {
          capStyle:(RACapStyle)capStyle
         joinStyle:(RAJoinStyle)joinStyle
              clip:(CGRect)clip
-         clipPath:(nullable RAPath *)clipPath;
-
-- (CGRect)addFrame:(nonnull RAFrame *)frame
-          excludes:(nonnull NSArray<NSValue *> *)excludes
-               ctm:(CGAffineTransform)ctm
-              clip:(CGRect)clip;
+         clipPath:(nullable RAPath *)clipPath
+        blendMode:(RABlendMode)blendMode;
 
 - (CGRect)addText:(nonnull NSAttributedString *)string
            inRect:(CGRect)rect
               ctm:(CGAffineTransform)ctm
              clip:(CGRect)clip;
+
++ (NSInteger)pdfPageCountFromUrl:(nonnull NSURL *)url;
+- (CGAffineTransform)addPdfFromUrl:(nonnull NSURL *)url pageIndex:(NSInteger)pageIndex;
+
 - (CGAffineTransform)addSvgFromUrl:(nonnull NSURL *)url;
+
+// Calls block for each draw in range, clamped to count, to read or edit it. Changes to a draw's transform, color or stroke width
+// need no re-prepare, but changes to its path or visibility, or a stroke becoming a fill, do. Adding to the scene from the block
+// raises NSInternalInconsistencyException, as it can move the draws being edited
+- (void)updateDrawsInRange:(NSRange)range usingBlock:(nonnull NS_NOESCAPE RADrawUpdateBlock)block;
 @end
 
 
@@ -140,6 +151,6 @@ typedef NS_ENUM(NSUInteger, RAJoinStyle) {
 
 
 @protocol RASceneListDelegate <NSObject>
-- (BOOL)shouldRedrawAtTime:(double)time width:(double)width height:(double)height;
-- (nonnull RASceneList *)getListAtTime:(double)time width:(double)width height:(double)height;
+- (BOOL)shouldRedrawAtTime:(double)time scale:(double)scale width:(double)width height:(double)height;
+- (nonnull RASceneList *)getListAtTime:(double)time scale:(double)scale width:(double)width height:(double)height;
 @end

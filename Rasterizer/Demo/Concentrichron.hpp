@@ -1,21 +1,6 @@
 //
 //  Copyright 2025 Nigel Timothy Barber - nigel@mindbrix.co.uk
-//
-//  This software is provided 'as-is', without any express or implied
-//  warranty. In no event will the authors be held liable for any damages
-//  arising from the use of this software.
-//
-//  Permission is granted to anyone to use this software for personal use
-//  (for a commercial licence please contact the author), and to alter it and
-//  redistribute it freely, subject to the following restrictions:
-//
-//  1. The origin of this software must not be misrepresented; you must not
-//  claim that you wrote the original software. If you use this software
-//  in a product, an acknowledgment in the product documentation would be
-//  appreciated but is not required.
-//  2. Altered source versions must be plainly marked as such, and must not be
-//  misrepresented as being the original software.
-//  3. This notice may not be removed or altered from any source distribution.
+//  SPDX-License-Identifier: MIT
 //
 
 #import "Rasterizer.hpp"
@@ -122,7 +107,7 @@ struct Concentrichron {
                     strcpy(str.alloc(strlen(strbuf) + 1), strbuf);
                 }
                 Ra::SceneRef glyphs;
-                Ra::Bounds gb = RaCT::addCStringToSceneInRect(str.base, fontName, inset * 0.666f, black, b, Ra::Transform(), Ra::Bounds(), glyphs);
+                Ra::Bounds gb = RaCT::addCStringToSceneInRect(str.base, fontName, inset * 0.666f, black, b, Ra::Transform(), glyphs);
                 da = (gb.ux - gb.lx) / r, a0 = theta0 + j * -step - 0.5f * (step - da);
                 
                 layoutGlyphsOnArc(glyphs, cx, cy, r, a0, ring);
@@ -138,14 +123,14 @@ struct Concentrichron {
     
     static void layoutGlyphsOnArc(Ra::SceneRef& glyphs, float cx, float cy, float r, float theta, Ra::SceneRef& scene) {
         Ra::Path path;  Ra::Transform m, ctm;  Ra::Bounds b;  float lx = 0.f, bx, by, rot, px, py, sine, cosine;
-        for (int i = 0; i < glyphs->count; i++) {
-            path = glyphs->paths[i], m = glyphs->ctms[i], b = Ra::Bounds(path->bounds.quad(m));
+        for (int i = 0; i < glyphs->count(); i++) {
+            path = glyphs->draws[i].path, m = glyphs->draws[i].ctm, b = Ra::Bounds(path->bounds.quad(m));
             lx = i == 0 ? b.lx : lx;
             bx = 0.5f * (b.lx + b.ux), by = m.ty, rot = theta - (bx - lx) / r;
             px = cx + r * cosf(rot), py = cy + r * sinf(rot);
             __sincosf(rot - 0.5 * M_PI, & sine, & cosine);
             ctm = m.concatAroundCenter(Ra::Transform(cosine, sine, -sine, cosine, 0, 0), bx, by), ctm.tx += px - bx, ctm.ty += py - by;
-            scene->addPath(path, ctm, glyphs->colors[i], 0.f, 0);
+            scene->addPath(path, ctm, glyphs->draws[i].paint, 0.f, 0);
         }
     }
 };

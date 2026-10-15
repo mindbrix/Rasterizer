@@ -1,21 +1,6 @@
 //
 //  Copyright 2025 Nigel Timothy Barber - nigel@mindbrix.co.uk
-//
-//  This software is provided 'as-is', without any express or implied
-//  warranty. In no event will the authors be held liable for any damages
-//  arising from the use of this software.
-//
-//  Permission is granted to anyone to use this software for personal use
-//  (for a commercial licence please contact the author), and to alter it and
-//  redistribute it freely, subject to the following restrictions:
-//
-//  1. The origin of this software must not be misrepresented; you must not
-//  claim that you wrote the original software. If you use this software
-//  in a product, an acknowledgment in the product documentation would be
-//  appreciated but is not required.
-//  2. Altered source versions must be plainly marked as such, and must not be
-//  misrepresented as being the original software.
-//  3. This notice may not be removed or altered from any source distribution.
+//  SPDX-License-Identifier: MIT
 //
 
 #define kTau 6.283185307179586f
@@ -33,8 +18,15 @@
 #define kFastSegments 4
 #define kNullIndex 0xFFFF
 #define kPathIndexMask 0xFFFFF
-#define kPageSize 4096
 #define kMiterLimit -0.866025403784439
 #define kCubicSolverLimit 5e-2f
 #define kDepthRange 0.1f
 #define kColorTextureWidth 64
+
+// Blend modes, as PDF & CSS compositing define them, & in CGBlendMode's order. Draws other than Normal blend with what's beneath
+// them, read with framebuffer fetch
+enum BlendMode {
+    kBlendNormal = 0, kBlendMultiply, kBlendScreen, kBlendOverlay, kBlendDarken, kBlendLighten, kBlendColorDodge, kBlendColorBurn,
+    kBlendSoftLight, kBlendHardLight, kBlendDifference, kBlendExclusion, kBlendHue, kBlendSaturation, kBlendColor, kBlendLuminosity,
+    kBlendModeCount
+};

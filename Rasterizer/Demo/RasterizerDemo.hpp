@@ -1,21 +1,6 @@
 //
 //  Copyright 2025 Nigel Timothy Barber - nigel@mindbrix.co.uk
-//
-//  This software is provided 'as-is', without any express or implied
-//  warranty. In no event will the authors be held liable for any damages
-//  arising from the use of this software.
-//
-//  Permission is granted to anyone to use this software for personal use
-//  (for a commercial licence please contact the author), and to alter it and
-//  redistribute it freely, subject to the following restrictions:
-//
-//  1. The origin of this software must not be misrepresented; you must not
-//  claim that you wrote the original software. If you use this software
-//  in a product, an acknowledgment in the product documentation would be
-//  appreciated but is not required.
-//  2. Altered source versions must be plainly marked as such, and must not be
-//  misrepresented as being the original software.
-//  3. This notice may not be removed or altered from any source distribution.
+//  SPDX-License-Identifier: MIT
 //
 
 #import "Rasterizer.hpp"
@@ -53,7 +38,7 @@ struct RasterizerDemo {
     };
     
 #pragma mark - Event handlers
-
+    
     void onPaste(const char *string, Ra::Bounds bounds) {
         this->bounds = bounds;
         
@@ -62,7 +47,7 @@ struct RasterizerDemo {
         setPastedString(string);
     }
     void onFlags(size_t keyFlags) {
-        flags = keyFlags;
+        flags = keyFlags, shift = flags & Flags::kShift;
         redraw = true;
     }
     bool onKeyDown(unsigned short keyCode, size_t keyFlags) {
@@ -85,77 +70,281 @@ struct RasterizerDemo {
         else if (keyCode == KeyCode::kO)
             params.showOutlines = !params.showOutlines, keyUsed = true, clearHUD();
         else if (keyCode == KeyCode::kP)
-            mouseMove = !mouseMove, indices = mouseMove ? indices : RaWnd::IndexPair(), keyUsed = true, clearHUD();
-        else if (keyCode == KeyCode::kL)
-            locked = locked.i0 != INT_MAX ? RaWnd::IndexPair() : indices, keyUsed = true;
-        else if (keyCode == KeyCode::kS)
+            pathMouseOver = !pathMouseOver, resetMouse(), keyUsed = true, clearHUD();
+        else if (keyCode == KeyCode::kL) {
+            toggleLocked(), keyUsed = true;
+        } else if (keyCode == KeyCode::kS)
             list.ctm = ctm, RaCG::screenGrabToPDF(list, bounds), keyUsed = true;
         else if (keyCode == KeyCode::kT) {
+            clearList();
             showGlyphGrid = false;
             showTime = !showTime;
             setPastedString(nullptr);
             keyUsed = true, clearHUD();
         } else if (keyCode == KeyCode::kG) {
+            clearList();
             showTime = false;
             showGlyphGrid = !showGlyphGrid;
             setPastedString(nullptr);
             keyUsed = true, clearHUD();
         } else if (keyCode == KeyCode::kMinus) {
             if (pageIndex > 0) {
+                clearList();
                 pageIndex--;
                 document = Ra::SceneList();
                 keyUsed = true;
             }
-            
         } else if (keyCode == KeyCode::kPlus) {
             if (pageIndex < pageCount - 1) {
+                clearList();
                 pageIndex++;
                 document = Ra::SceneList();
                 keyUsed = true;
             }
         }
         redraw = keyUsed;
-        
         return keyUsed;
     }
     void onKeyUp(unsigned short keyCode) {
     }
     void onMouseMove(float x, float y) {
-        mx = x, my = y;
-        if (mouseMove)
-            redraw = true;
+        mx = x, my = y, mouseMoved = true;
     }
     void onMouseDown(float x, float y) {
         mouseDown = true;
+        if (locked) {
+            Ra::Transform m = lockedCTM().invert();
+            auto saved = last;
+            if (!lockedDraw().path->bounds.contains(x * m.a + y * m.c + m.tx, x * m.b + y * m.d + m.ty))
+                toggleLocked(), setMouse(saved);
+        }
+        if (!locked)
+            toggleLocked(), redraw = true;
     }
     void onMouseUp(float x, float y) {
         mouseDown = false;
     }
-    void onMagnify(float s) {
-        float cx = (flags & Flags::kShift) ? mx : bounds.cx();
-        float cy = (flags & Flags::kShift) ? my : bounds.cy();
-        ctm = ctm.concatAroundCenter(Ra::Transform(s, 0.f, 0.f, s, 0.f, 0.f), cx, cy);
-        redraw = true;
+    void onMagnify(float s, bool ended) {
+        if (rotating)
+            return;
+        magnifying = !ended;
+        concat(Ra::Transform(s, 0.f, 0.f, s, 0.f, 0.f));
     }
-    void onRotate(float a) {
-        float cx = (flags & Flags::kShift) ? mx : bounds.cx();
-        float cy = (flags & Flags::kShift) ? my : bounds.cy();
-        float sine, cosine;  __sincosf(a, & sine, & cosine);
-        ctm = ctm.concatAroundCenter(Ra::Transform(cosine, sine, - sine, cosine, 0, 0), cx, cy);
-        redraw = true;
+    void onRotate(float a, bool ended) {
+        if (magnifying)
+            return;
+        rotating = !ended;
+        bool flipped = locked && list.ctms[mouse.i0].concat(ctm).det() < 0;
+        float sine, cosine;  __sincosf(flipped ? -a : a, & sine, & cosine);
+        concat(Ra::Transform(cosine, sine, -sine, cosine, 0, 0));
     }
     void onDrag(float dx, float dy) {
-        ctm.tx += dx, ctm.ty += dy;
+        translate(dx, dy);
         mx += dx, my += dy;
-        redraw = true;
     }
     void onTranslate(float dx, float dy) {
-        ctm.tx += dx, ctm.ty += dy;
+        translate(dx, dy);
+    }
+    
+#pragma mark - Properties
+    void clearList() {
+        resetMouse();
+        list = Ra::SceneList();
+    }
+    const Ra::Draw& lockedDraw() const {
+        return list.scenes[mouse.i0]->draws[mouse.i1];
+    }
+    // Edits the draw at pair with Scene::update(), which only re-prepares the scene for a new path, width or visibility
+    template<typename F>
+    void updateDraw(RaWnd::Pair pair, F f) {
+        list.scenes[pair.i0]->update(pair.i1, pair.i1 + 1, [&](size_t i, Ra::Draw& draw) { f(draw); return true; });
+    }
+    Ra::Transform lockedCTM() const {
+        return lockedDraw().ctm.concat(list.ctms[mouse.i0]).concat(ctm);
+    }
+    void toggleLocked() {
+        locked = locked ? false : mouse.i0 != INT_MAX;
+        if (!locked)
+            resetMouse();
+    }
+    void concat(Ra::Transform transform) {
+        if (locked) {
+            const Ra::Draw& draw = lockedDraw();
+            Ra::Transform m = shift ? list.ctms[mouse.i0].concat(ctm).invert() : draw.ctm;
+            float bx = shift ? mx : draw.path->bounds.cx(), by = shift ? my : draw.path->bounds.cy();
+            Ra::Transform moved = draw.ctm.concatAroundCenter(transform, bx * m.a + by * m.c + m.tx, bx * m.b + by * m.d + m.ty);
+            updateDraw(mouse, [&](Ra::Draw& d) { d.ctm = moved; });
+        } else
+            ctm = ctm.concatAroundCenter(transform, shift ? mx : bounds.cx(), shift ? my : bounds.cy());
+        redraw = true;
+    }
+    void translate(float dx, float dy) {
+        if (locked) {
+            Ra::Transform m = lockedCTM().invert();
+            Ra::Transform translate = Ra::Transform(1, 0, 0, 1, m.a * dx + m.c * dy, m.b * dx + m.d * dy);
+            updateDraw(mouse, [&](Ra::Draw& d) { d.ctm = translate.concat(d.ctm); });
+        } else
+            ctm.tx += dx, ctm.ty += dy;
         redraw = true;
     }
     
-   
-#pragma mark - Properties
+    void setMouse(RaWnd::Pair pair) {
+        restore(mouse), mouse = pair, save(mouse);
+        if (pair.i0 != INT_MAX)
+            mouseScene = makeMouseScene(list.scenes[pair.i0]->draws[pair.i1]);
+    }
+    void resetMouse() {
+        restore(mouse), mouse = RaWnd::Pair(), last = mouse, locked = false, mouseMoved = true;
+    }
+    void save(RaWnd::Pair pair) {
+        if (pair.i0 != INT_MAX)
+            mouseDraw = list.scenes[pair.i0]->draws[pair.i1];
+    }
+    void restore(RaWnd::Pair pair) {
+        if (pair.i0 != INT_MAX)
+            updateDraw(pair, [&](Ra::Draw& d) { d = mouseDraw; });
+    }
+    
+    void setFont(const char *url, const char *name, float size) {
+        fontSize = size;
+        if (name)
+            strcpy(fontName.resize(strlen(name) + 1), name);
+        resetMouse();
+        concentrichron.resetFace();
+        pasted = Ra::SceneList();
+        text = Ra::SceneList();
+        clearHUD();
+        redraw = true;
+    }
+    void setPastedString(const char *string) {
+        if (string)
+            strcpy((char *)pastedString.resize(strlen(string) + 1), string);
+        else
+            pastedString = Ra::Memory<char>();
+        resetMouse();
+        pasted = Ra::SceneList();
+        redraw = true;
+    }
+    void setPdfUrl(const char *url) {
+        if (url)
+            strcpy((char *)pdfUrl.resize(strlen(url) + 1), url);
+        else
+            pdfUrl = Ra::Memory<char>();
+        resetMouse();
+        pageCount = url ? RaPDF::getPageCount(url) : 0;
+        redraw = true;
+    }
+    void setSvgUrl(const char *url) {
+        if (url)
+            strcpy((char *)svgUrl.resize(strlen(url) + 1), url);
+        else
+            svgUrl = Ra::Memory<char>();
+        resetMouse();
+        redraw = true;
+    }
+    void setUseGPU(bool useGPU) {
+        gpu = useGPU;
+        redraw = true, clearHUD();
+    }
+    
+#pragma mark - Delegate
+    
+    bool getShouldRedraw(double time, float w, float h) {
+        redraw = redraw || showTime || (pathMouseOver && mouseMoved);
+
+        if (redraw)
+            lastTime = time;
+        else if (lastTime && time - lastTime > 2)
+            lastTime = 0;
+        
+        return redraw;
+    }
+    Ra::SceneList getDrawList(double time, float w, float h) {
+        redraw = false, mouseMoved = false;
+        
+        bounds = Ra::Bounds(0.f, 0.f, w, h);
+        list = Ra::SceneList();
+        if (pastedString.size) {
+            if (pasted.pathsCount() == 0) {
+                Ra::SceneRef glyphs;
+                RaCT::addCStringToSceneInRect(pastedString.addr, fontName.addr, fontSize, textColor, bounds, Ra::Transform(), glyphs);
+                pasted.addScene(glyphs);
+            }
+            list.addList(pasted);
+        } else if (showGlyphGrid) {
+            if (text.pathsCount() == 0) {
+                text.addScene(RaCT::writeGlyphGrid(fontName.addr, fontSize, textColor));
+            }
+            list.addList(text);
+        } else if (showTime) {
+            list.addList(concentrichron.writeList(fontName.addr));
+        } else if (svgUrl.size) {
+            if (document.pathsCount() == 0) {
+                Ra::SceneRef scene;
+                Ra::Transform m = RaSVG::addSvgToScene(svgUrl.addr, scene);
+                document.addScene(scene, m);
+                shouldFit = true;
+            }
+            list.addList(document);
+        } else if (pdfUrl.size) {
+            if (document.pathsCount() == 0) {
+                Ra::SceneRef scene;
+                Ra::Transform m = RaPDF::addPdfPageToScene(pdfUrl.addr, pageIndex, scene);
+                document.addScene(scene, m);
+                shouldFit = true;
+            }
+            list.addList(document);
+        }
+        if (shouldFit)
+            ctm = bounds.fitTransform(list.bounds()), shouldFit = false;
+        Ra::SceneList draw = list;  draw.ctm = ctm, list.ctm = ctm, draw.params = params, list.params = params;
+        
+        if (pathMouseOver) {
+            Ra::Bounds pixRect = Ra::Bounds(floorf(mx), floorf(my), floorf(mx) + 1.f, floorf(my) + 1.f);
+            indices = RasterizerWinding::indicesForRect(list, pixRect);
+            RaWnd::Pair pair = indices.end() ? indices.back() : RaWnd::Pair();
+
+            if (!locked && (last.i0 != pair.i0 || last.i1 != pair.i1))
+                setMouse(pair), last = pair;
+            
+            Ra::Bounds mouseRect = Ra::Bounds(mx, my, mx, my).inset(-64, -64).intersect(bounds);
+            indices = RasterizerWinding::indicesForRect(list, mouseRect);
+                
+            Ra::SceneRef rectScene;
+            Ra::Bounds unit(0, 0, 1, 1);
+            Ra::Path unitRect, unitEllipse;
+            unitRect->addBounds(unit);
+            unitEllipse->addEllipse(unit);
+            for (size_t i = 0; i < indices.end(); i++) {
+                const Ra::Color red(0, 0, 224, 255);
+                const RaWnd::Pair pair = indices[i];
+                const Ra::Scene& scene = *list.scenes[pair.i0].ptr;
+                const Ra::Draw& drw = scene.draws[pair.i1];
+                Ra::Transform m = drw.ctm.concat(list.ctms[pair.i0]), quad = drw.bnds.quad(m);
+                rectScene->addPath(unitRect, quad, red, -1, 0);
+            }
+            rectScene->addPath(unitRect, mouseRect.quad(ctm.invert()), Ra::Color(0, 0, 0, 255), -1, 0);
+            
+            draw.addScene(rectScene);
+        }
+        if (0 && mouse.i0 != INT_MAX) {
+            const Ra::Draw& drw = lockedDraw();
+            if (drw.width != 0)
+                updateDraw(mouse, [](Ra::Draw& d) { d.paint = Ra::Color(0, 0, 224, 255); });
+            draw.addScene(mouseScene, drw.ctm.concat(list.ctms[mouse.i0]), list.clips[mouse.i0]);
+        }
+        
+        if (showHud) {
+            Ra::Bounds hudBounds = Ra::Bounds(0, 0, kHudWidth, kHudHeight);
+            if (hud->count() == 0)
+                hud = getHUD(hudBounds);
+            Ra::Transform m = Ra::Transform(1, 0, 0, 1, kHudInset, bounds.uy - kHudInset - kHudHeight).concat(ctm.invert());
+            draw.addScene(hud, m, hudBounds);
+        }
+        return draw;
+    }
+    
+#pragma mark - Drawing
     
     void clearHUD() {
         hud = Ra::SceneRef();
@@ -166,7 +355,7 @@ struct RasterizerDemo {
         float padding = 0.666 * hudBounds.height() / (kHudItemCount + 2);
         Ra::Bounds text = hudBounds.inset(padding, 0.666 * padding);
         
-        Ra::Path bgPath;  bgPath->addBounds(hudBounds.inset(0.5 * kHudBorder, 0.5 * kHudBorder)), bgPath->close();
+        Ra::Path bgPath;  bgPath->addBounds(hudBounds.inset(0.5 * kHudBorder, 0.5 * kHudBorder));
         hud->addPath(bgPath, Ra::Transform(), bgColor, 0, 0);
         
         float lineHeight = text.height() / kHudItemCount, uy;
@@ -181,146 +370,74 @@ struct RasterizerDemo {
                 || (*item.key == 'G' && showGlyphGrid)
                 || (*item.key == 'I' && params.showOpaques)
                 || (*item.key == 'O' && params.showOutlines)
-                || (*item.key == 'P' && mouseMove)
+                || (*item.key == 'P' && pathMouseOver)
                 || (*item.key == 'T' && showTime)
                 || (*item.key == 'C' && params.useCurves))
                 color = activeColor;
-            RaCT::addCStringToSceneInRect(item.key, fontName.addr, fontSize, textColor, Ra::Bounds(text.lx, hudBounds.ly, text.ux, uy), Ra::Transform(), Ra::Bounds(), hud);
+            RaCT::addCStringToSceneInRect(item.key, fontName.addr, fontSize, textColor, Ra::Bounds(text.lx, hudBounds.ly, text.ux, uy), Ra::Transform(), hud);
             char const *label = item.text;
             if (*item.key == '0' && !gpu)
                 label = item.alt;
-            RaCT::addCStringToSceneInRect(label, fontName.addr, fontSize, color, Ra::Bounds(text.lx + 2 * fontSize, hudBounds.ly, text.ux, uy), Ra::Transform(), Ra::Bounds(), hud);
+            RaCT::addCStringToSceneInRect(label, fontName.addr, fontSize, color, Ra::Bounds(text.lx + 2 * fontSize, hudBounds.ly, text.ux, uy), Ra::Transform(), hud);
         }
         hud->addPath(bgPath, Ra::Transform(), textColor, kHudBorder, 0);
         return hud;
     }
-    Ra::SceneList getDrawList(double time, float w, float h) {
-        bounds = Ra::Bounds(0.f, 0.f, w, h);
-        redraw = false;
-        if (mouseMove) {
-            list.ctm = ctm;
-            indices = RasterizerWinding::indicesForPoint(list, bounds, mx, my);
+    Ra::SceneRef makeMouseScene(Ra::Draw mouseDraw) {
+        Ra::SceneRef mouseScene;
+        Ra::Bounds bounds = Ra::Bounder::GetBounds(mouseDraw.path, Ra::Transform());
+        const float width = mouseDraw.width;
+        mouseDraw.ctm = Ra::Transform();
+        
+        if (width == 0.f) {
+            mouseDraw.paint = Ra::Color(255, 255, 255, 192);
+            mouseDraw.width = -4.f;
+            mouseScene->addDraw(mouseDraw);
+            
+            mouseDraw.paint = Ra::Color(0, 0, 224, 255);
+            mouseDraw.width = -2.f;
+            mouseScene->addDraw(mouseDraw);
         }
         
-        clock = time * timeScale;
-        list = Ra::SceneList();
-        if (pastedString.size) {
-            if (pasted.pathsCount == 0) {
-                Ra::SceneRef glyphs;
-                RaCT::addCStringToSceneInRect(pastedString.addr, fontName.addr, fontSize, textColor, bounds, Ra::Transform(), Ra::Bounds(), glyphs);
-                pasted.addScene(glyphs);
-            }
-            list.addList(pasted);
-        } else if (showGlyphGrid) {
-            if (text.pathsCount == 0) {
-                text.addScene(RaCT::writeGlyphGrid(fontName.addr, fontSize, textColor));
-            }
-            list.addList(text);
-        } else if (showTime) {
-            list.addList(concentrichron.writeList(fontName.addr));
-        } else if (svgUrl.size) {
-            if (document.pathsCount == 0) {
-                Ra::SceneRef scene;
-                Ra::Transform m = RaSVG::addSvgToScene(svgUrl.addr, scene);
-                document.addScene(scene, m);
-                fit = true;
-            }
-            list.addList(document);
-        } else if (pdfUrl.size) {
-            if (document.pathsCount == 0) {
-                Ra::SceneRef scene;
-                Ra::Transform m = RaPDF::addPdfPageToScene(pdfUrl.addr, pageIndex, scene);
-                document.addScene(scene, m);
-                fit = true;
-            }
-            list.addList(document);
+        if (width > 0.f) {
+            mouseDraw.paint = Ra::Color(0, 0, 0, 255);
+            mouseDraw.width = -1.f;
+            mouseScene->addDraw(mouseDraw);
         }
-        if (fit)
-            ctm = bounds.fitTransform(list.bounds()), fit = false;
-        Ra::SceneList draw = list;
-        draw.ctm = ctm, draw.params = params;
-        if (mouseMove) {
-            list.ctm = ctm;
-            indices = RasterizerWinding::indicesForPoint(list, bounds, mx, my);
-            if (indices.i0 != INT_MAX) {
-                size_t i0 = indices.i0, i1 = indices.i1;
-                const Ra::SceneRef& scene = list.scenes[i0];
-                const Ra::Path& path = scene->paths[i1];
-                const Ra::Transform& ctm = scene->ctms[i1];
-                const float width = scene->widths[i1];
-                auto flags = scene->flags[i1];
-                Ra::Color red(0, 0, 255, 64);
-                Ra::SceneRef mouseScene;
-                mouseScene->addPath(path, ctm, red, width, flags);
-                draw.addScene(mouseScene, list.ctms[i0], list.clips[i0]);
-            }
+        Ra::Huller hull(mouseDraw.path);
+        mouseScene->addPath(hull.hull, mouseDraw.ctm, Ra::Color(255, 255, 255, 192), -4.f, 0);
+        mouseScene->addPath(hull.hull, mouseDraw.ctm, Ra::Color(0, 0, 0, 255), -2.f, 0);
+        mouseScene->addPath(hull.points, mouseDraw.ctm, Ra::Color(255, 255, 255, 192), -8.f, Ra::Draw::Flags::kRoundCap);
+        mouseScene->addPath(hull.points, mouseDraw.ctm, Ra::Color(0, 0, 0, 255), -6.f, Ra::Draw::Flags::kRoundCap);
+        
+        Ra::Path boundsPath;
+        boundsPath->addBounds(bounds);
+        boundsPath->addBounds(mouseDraw.path->bounds);
+        mouseScene->addPath(boundsPath, mouseDraw.ctm, Ra::Color(0, 0, 0, 255), -1.f, 0);
+        if (!mouseDraw.clip.isHuge()) {
+            Ra::Path clipPath;
+            clipPath->addBounds(mouseDraw.clip);
+            mouseScene->addPath(clipPath, Ra::Transform(), Ra::Color(0, 0, 255, 255), -1.f, 0);
         }
-        if (showHud) {
-            Ra::Bounds hudBounds = Ra::Bounds(0, 0, kHudWidth, kHudHeight);
-            if (hud->weight == 0)
-                hud = getHUD(hudBounds);
-            Ra::Transform m = Ra::Transform(1, 0, 0, 1, kHudInset, bounds.uy - kHudInset - kHudHeight).concat(ctm.invert());
-            draw.addScene(hud, m, hudBounds);
-        }
-        return draw;
+        return mouseScene;
     }
-    bool getShouldRedraw() const {
-        return redraw || showTime;
-    }
-    void setFont(const char *url, const char *name, float size) {
-        fontSize = size;
-        if (name)
-            strcpy(fontName.resize(strlen(name) + 1), name);
-        concentrichron.resetFace();
-        pasted = Ra::SceneList();
-        text = Ra::SceneList();
-        clearHUD();
-        redraw = true;
-    }
-    void setPastedString(const char *string) {
-        if (string)
-            strcpy((char *)pastedString.resize(strlen(string) + 1), string);
-        else
-            pastedString = Ra::Memory<char>();
-        pasted = Ra::SceneList();
-        redraw = true;
-    }
-    void setPdfUrl(const char *url) {
-        if (url)
-            strcpy((char *)pdfUrl.resize(strlen(url) + 1), url);
-        else
-            pdfUrl = Ra::Memory<char>();
-        pageCount = url ? RaPDF::getPageCount(url) : 0;
-        redraw = true;
-    }
-    void setSvgUrl(const char *url) {
-        if (url)
-            strcpy((char *)svgUrl.resize(strlen(url) + 1), url);
-        else
-            svgUrl = Ra::Memory<char>();
-        redraw = true;
-    }
-    void setUseGPU(bool useGPU) {
-        gpu = useGPU;
-        redraw = true, clearHUD();
-    }
+    
+    Ra::Transform ctm;  Ra::Bounds bounds;  Ra::Params params;
     
     Ra::Color textColor = Ra::Color(0, 0, 0, 255), activeColor = Ra::Color(0, 0, 255, 255), bgColor = Ra::Color(255, 255, 255, 192);
     float fontSize = 14;
     Concentrichron concentrichron;
     Ra::SceneList list, document, pasted, text;
-    Ra::SceneRef hud;
+    Ra::SceneRef hud, mouseScene;
     Ra::Memory<char> pastedString, fontName, pdfUrl, svgUrl;
-    bool showGlyphGrid = false, showTime = false, showHud = true;
+    bool showGlyphGrid = false, showTime = false, showHud = true, gpu = true, pathMouseOver = false, shouldFit = false;
     size_t pageCount, pageIndex;
     
-    Ra::Transform ctm;
-    Ra::Bounds bounds;
-
-    Ra::Params params;
-    bool gpu = true, redraw = false, fit = false, mouseDown = false, mouseMove = false;
-    double clock = 0.0, timeScale = 0.333;
+    bool redraw = false, mouseDown = false, mouseMoved = false, shift = false, locked = false, magnifying = false, rotating = false;
+    double lastTime = 0.0;
     float mx, my;
-    RaWnd::IndexPair indices = RaWnd::IndexPair(), locked = RaWnd::IndexPair();
+    Ra::Draw mouseDraw;
+    Ra::Vector<RaWnd::Pair> indices;
+    RaWnd::Pair mouse = RaWnd::Pair(), last = RaWnd::Pair();
     size_t flags = 0;
 };

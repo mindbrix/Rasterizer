@@ -1,21 +1,6 @@
 //
 //  Copyright 2025 Nigel Timothy Barber - nigel@mindbrix.co.uk
-//
-//  This software is provided 'as-is', without any express or implied
-//  warranty. In no event will the authors be held liable for any damages
-//  arising from the use of this software.
-//
-//  Permission is granted to anyone to use this software for personal use
-//  (for a commercial licence please contact the author), and to alter it and
-//  redistribute it freely, subject to the following restrictions:
-//
-//  1. The origin of this software must not be misrepresented; you must not
-//  claim that you wrote the original software. If you use this software
-//  in a product, an acknowledgment in the product documentation would be
-//  appreciated but is not required.
-//  2. Altered source versions must be plainly marked as such, and must not be
-//  misrepresented as being the original software.
-//  3. This notice may not be removed or altered from any source distribution.
+//  SPDX-License-Identifier: MIT
 //
 
 #if TARGET_OS_OSX
@@ -31,13 +16,13 @@
 typedef std::map<CFIndex, Ra::Path> GlyphCache;
 
 struct RasterizerCoreText {
-    static Ra::Bounds addCStringToSceneInRect(const char *string, const char *fontName, float fontSize, Ra::Color color, Ra::Bounds rect, Ra::Transform ctm, Ra::Bounds clip, Ra::SceneRef& scene) {
+    static Ra::Bounds addCStringToSceneInRect(const char *string, const char *fontName, float fontSize, Ra::Color color, Ra::Bounds rect, Ra::Transform ctm, Ra::SceneRef& scene) {
         CGColorRef cgColor = RaCG::CGColorCreateFromColor(color);
         CFStringRef cfString = CFStringCreateWithCString(kCFAllocatorDefault, string, kCFStringEncodingUTF8);
         CFDictionaryRef attributes = createAttributes(fontName, fontSize, cgColor);
         CFAttributedStringRef attr = CFAttributedStringCreate(kCFAllocatorDefault, cfString, attributes);
         GlyphCache cache;
-        CGRect bounds = addTextToSceneInRect(attr, RaCG::CGRectFromBounds(rect), RaCG::CGFromTransform(ctm), clip.isNull() ? CGRectNull : RaCG::CGRectFromBounds(clip), scene, cache);
+        CGRect bounds = addTextToSceneInRect(attr, RaCG::CGRectFromBounds(rect), RaCG::CGFromTransform(ctm), CGRectNull, scene, cache);
         CGColorRelease(cgColor);
         CFRelease(cfString);
         CFRelease(attributes);
@@ -118,15 +103,18 @@ struct RasterizerCoreText {
                 Ra::Transform m = RaCG::transformFromCG(CGAffineTransformTranslate(ctm, positions[j].x, positions[j].y));
                 auto key = hash + glyphs[j];
                 auto it = cache.find(key);
-                if (it != cache.end())
-                    scene->addPath(it->second, m, color, 0, 0, & clipBounds);
+                if (it != cache.end()) {
+                    if (it->second->isValid())
+                        scene->addPath(it->second, m, color, 0, 0, & clipBounds);
+                }
                 else {
                     Ra::Path path;
                     CGPathRef cgPath = CTFontCreatePathForGlyph(font, glyphs[j], NULL);
                     RaCG::writeCGPathToPath(cgPath, path);
                     CGPathRelease(cgPath);
                     cache.emplace(key, path);
-                    scene->addPath(path, m, color, 0, 0, & clipBounds);
+                    if (path->isValid())
+                        scene->addPath(path, m, color, 0, 0, & clipBounds);
                 }
             }
         }
@@ -188,7 +176,8 @@ struct RasterizerCoreText {
                 CGPathRef cgPath = CTFontCreatePathForGlyph(ctFont, glyph, NULL);
                 Ra::Path path;
                 RaCG::writeCGPathToPath(cgPath, path);
-                scene->addPath(path, Ra::Transform(1, 0.f, 0.f, 1, lineHeight * float(glyph % d), lineHeight * float(glyph / d)), color, 0.f, 0);
+                if (path->isValid())
+                    scene->addPath(path, Ra::Transform(1, 0.f, 0.f, 1, lineHeight * float(glyph % d), lineHeight * float(glyph / d)), color, 0.f, 0);
                 CGPathRelease(cgPath);
             }
         }

@@ -1,21 +1,6 @@
 //
 //  Copyright 2025 Nigel Timothy Barber - nigel@mindbrix.co.uk
-//
-//  This software is provided 'as-is', without any express or implied
-//  warranty. In no event will the authors be held liable for any damages
-//  arising from the use of this software.
-//
-//  Permission is granted to anyone to use this software for personal use
-//  (for a commercial licence please contact the author), and to alter it and
-//  redistribute it freely, subject to the following restrictions:
-//
-//  1. The origin of this software must not be misrepresented; you must not
-//  claim that you wrote the original software. If you use this software
-//  in a product, an acknowledgment in the product documentation would be
-//  appreciated but is not required.
-//  2. Altered source versions must be plainly marked as such, and must not be
-//  misrepresented as being the original software.
-//  3. This notice may not be removed or altered from any source distribution.
+//  SPDX-License-Identifier: MIT
 //
 
 #import "DemoView.h"
@@ -49,11 +34,11 @@
 
 #pragma mark - SceneListDelegate
 
-- (BOOL)shouldRedrawAtTime:(double)time width:(double)width height:(double)height {
-    return _demo.getShouldRedraw();
+- (BOOL)shouldRedrawAtTime:(double)time scale:(double)scale width:(double)width height:(double)height {
+    return _demo.getShouldRedraw(time, width, height);
 }
 
-- (RASceneList *)getListAtTime:(double)time width:(double)width height:(double)height {
+- (RASceneList *)getListAtTime:(double)time scale:(double)scale width:(double)width height:(double)height {
     RASceneList *list = [RASceneList new];
     list.list = _demo.getDrawList(time, width, height);
     return list;
@@ -107,14 +92,15 @@
 }
 
 - (void)magnifyWithEvent:(NSEvent *)event {
-    _demo.onMagnify(float(1 + event.magnification));
+    _demo.onMagnify(float(1 + event.magnification), (event.phase & (NSEventPhaseEnded | NSEventPhaseCancelled)) != 0);
 }
 - (void)rotateWithEvent:(NSEvent *)event {
-    _demo.onRotate(float(event.rotation / 10));
+    _demo.onRotate(float(event.rotation / 10), (event.phase & (NSEventPhaseEnded | NSEventPhaseCancelled)) != 0);
 }
 - (void)scrollWheel:(NSEvent *)event {
     CGFloat inversion = ([event respondsToSelector:@selector(isDirectionInvertedFromDevice)] && [event isDirectionInvertedFromDevice]) ? 1.0f : -1.0f;
-    _demo.onTranslate(float(event.deltaX * inversion), float(-event.deltaY * inversion));
+    CGFloat dx = event.hasPreciseScrollingDeltas ? event.scrollingDeltaX : event.deltaX, dy = event.hasPreciseScrollingDeltas ? event.scrollingDeltaY : event.deltaY;
+    _demo.onTranslate(float(dx * inversion), float(-dy * inversion));
 }
 - (void)mouseDown:(NSEvent *)event {
     _demo.onMouseDown(float(event.locationInWindow.x), float(event.locationInWindow.y));

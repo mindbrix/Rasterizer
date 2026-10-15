@@ -1,21 +1,6 @@
 //
 //  Copyright 2025 Nigel Timothy Barber - nigel@mindbrix.co.uk
-//
-//  This software is provided 'as-is', without any express or implied
-//  warranty. In no event will the authors be held liable for any damages
-//  arising from the use of this software.
-//
-//  Permission is granted to anyone to use this software for personal use
-//  (for a commercial licence please contact the author), and to alter it and
-//  redistribute it freely, subject to the following restrictions:
-//
-//  1. The origin of this software must not be misrepresented; you must not
-//  claim that you wrote the original software. If you use this software
-//  in a product, an acknowledgment in the product documentation would be
-//  appreciated but is not required.
-//  2. Altered source versions must be plainly marked as such, and must not be
-//  misrepresented as being the original software.
-//  3. This notice may not be removed or altered from any source distribution.
+//  SPDX-License-Identifier: MIT
 //
 
 #import "Rasterizer.hpp"
@@ -23,7 +8,7 @@
 
 
 struct RasterizerCG {
-    static void renderListToBitmap(const Ra::SceneList& list, float scale, float w, float h, CGContextRef ctx) {
+    static void renderListWithClear(const Ra::SceneList& list, float scale, float w, float h, CGContextRef ctx) {
         CGContextSaveGState(ctx);
         const auto color = list.params.clearColor;
         CGContextSetRGBFillColor(ctx, color.r / 255.0, color.g / 255.0, color.b / 255.0, color.a / 255.0);
@@ -36,6 +21,9 @@ struct RasterizerCG {
     }
     
     static void renderList(const Ra::SceneList& list, Ra::Bounds bounds, CGContextRef ctx) {
+        CGAffineTransform m = CGContextGetCTM(ctx);
+        CGFloat scale = sqrt(abs(m.a * m.d - m.b * m.c));
+        
         CGContextConcatCTM(ctx, CGFromTransform(list.ctm));
         
         for (int j = 0; j < list.scenes.size(); j++) {
@@ -48,42 +36,49 @@ struct RasterizerCG {
             CGContextSaveGState(ctx);
             
             const Ra::Scene& scn = * list.scenes[j].ptr;
-            for (size_t i = 0; i < scn.count; i++) {
-                bool newClip = memcmp(& scn.clips[i], & lastClip, sizeof(Ra::Bounds)) != 0;
+            for (size_t i = 0; i < scn.count(); i++) {
+                Ra::Draw& draw = scn.draws[i];
+                if (draw.flags & Ra::Draw::kInvisible)
+                    continue;
+                bool newClip = memcmp(& draw.clip, & lastClip, sizeof(Ra::Bounds)) != 0;
                 if (newClip) {
-                    lastClip = scn.clips[i];
+                    lastClip = draw.clip;
                     clip = lastClip.quad(ctm);
                     CGContextRestoreGState(ctx);
                     CGContextSaveGState(ctx);
                     if (list.params.useClips)
                         CGContextClipToRect(ctx, CGRectFromBounds(lastClip));
                 }
-                Ra::Geometry *g = scn.paths[i].ptr;
-                Ra::Transform t = scn.ctms[i];
+                const Ra::Geometry *g = draw.path.ptr;
                 
-                if (!list.params.useClips || isVisible(g->bounds, t.concat(ctm), clip, bounds, scn.widths[i])) {
+                if (!list.params.useClips || isVisible(g->bounds, draw.ctm.concat(ctm), clip, bounds, draw.width)) {
                     CGContextSaveGState(ctx);
-                    if (list.params.useClips && ~scn.clipIndices[i]) {
-                        writePathToCGContext(scn.clipPaths[scn.clipIndices[i]].ptr, ctx);
-                        CGContextEOClip(ctx);
+                    CGContextSetBlendMode(ctx, CGBlendMode(draw.blendMode));     // BlendMode is in CGBlendMode's order
+                    if (list.params.useClips && draw.clipPath.ptr) {
+                        writePathToCGContext(draw.clipPath.ptr, ctx);
+                        draw.flags & Ra::Draw::kClipEvenOdd ? CGContextEOClip(ctx) : CGContextClip(ctx);
                     }
-                    CGContextConcatCTM(ctx, CGFromTransform(t));
+                    CGContextConcatCTM(ctx, CGFromTransform(draw.ctm));
                     writePathToCGContext(g, ctx);
-                    const auto& paint = scn.paints[i];
+                    const auto& paint = draw.paint;
                     const auto color = paint.color;
                     if (list.params.showOutlines) {
-                        CGContextSetLineWidth(ctx, (CGFloat)-109.05473e+14);
-                        if (scn.widths[i])
+                        CGAffineTransform m = CGContextGetCTM(ctx);
+                        CGFloat s = sqrt(abs(m.a * m.d - m.b * m.c));
+                        CGContextSetLineWidth(ctx, scale * 0.5 / s);
+                        if (draw.width)
                             CGContextSetRGBStrokeColor(ctx, 1, 0, 0, 1);
                         else
                             CGContextSetRGBStrokeColor(ctx, 0, 0, 0, 1);
                         CGContextStrokePath(ctx);
-                    } else if (scn.widths[i]) {
-                        CGContextSetLineWidth(ctx, scn.widths[i] < 0.f ? (CGFloat)-109.05473e+14 : scn.widths[i]);
-                        bool square = scn.flags[i] & Ra::Scene::kSquareCap;
-                        bool round = scn.flags[i] & Ra::Scene::kRoundCap;
+                    } else if (draw.width) {
+                        CGAffineTransform m = CGContextGetCTM(ctx);
+                        CGFloat s = sqrt(abs(m.a * m.d - m.b * m.c));
+                        CGContextSetLineWidth(ctx, draw.width < 0.f ? -scale * draw.width / s : draw.width);
+                        bool square = draw.flags & Ra::Draw::kSquareCap;
+                        bool round = draw.flags & Ra::Draw::kRoundCap;
                         CGContextSetLineCap(ctx, round ? kCGLineCapRound : square ? kCGLineCapSquare : kCGLineCapButt);
-                        bool roundJoin = scn.flags[i] & Ra::Scene::kRoundJoin;
+                        bool roundJoin = draw.flags & Ra::Draw::kRoundJoin;
                         CGContextSetLineJoin(ctx, roundJoin ? kCGLineJoinRound : kCGLineJoinMiter);
                         
                         if (paint.isGradient() || paint.isImage()) {
@@ -102,7 +97,7 @@ struct RasterizerCG {
                     } else {
                         if (paint.isGradient() || paint.isImage()) {
                             CGContextSaveGState(ctx);
-                            if (scn.flags[i] & Ra::Scene::kFillEvenOdd)
+                            if (draw.flags & Ra::Draw::kFillEvenOdd)
                                 CGContextEOClip(ctx);
                             else
                                 CGContextClip(ctx);
@@ -113,7 +108,7 @@ struct RasterizerCG {
                             CGContextRestoreGState(ctx);
                         } else {
                             CGContextSetRGBFillColor(ctx, color.r / 255.0, color.g / 255.0, color.b / 255.0, color.a / 255.0);
-                            if (scn.flags[i] & Ra::Scene::kFillEvenOdd)
+                            if (draw.flags & Ra::Draw::kFillEvenOdd)
                                 CGContextEOFillPath(ctx);
                             else
                                 CGContextFillPath(ctx);
@@ -141,7 +136,7 @@ struct RasterizerCG {
         CGGradientRef gradient = CGGradientFromPaint(paint);
         CGPoint zero = CGPointMake(0.0, 0.0), end = CGPointMake(0.0, 1.0);
         auto options = kCGGradientDrawsBeforeStartLocation | kCGGradientDrawsAfterEndLocation;
-        CGContextConcatCTM(ctx, CGFromTransform(paint.ctm));
+        CGContextConcatCTM(ctx, CGFromTransform(paint.bitmap->ctm));
         if (paint.type == Ra::Paint::kRadial)
             CGContextDrawRadialGradient(ctx, gradient, zero, 0, zero, 1, options);
         else
@@ -156,24 +151,24 @@ struct RasterizerCG {
     }
     
     static CGImageRef CGImageFromPaint(const Ra::Paint& paint) {
-        CGDataProviderRef provider = CGDataProviderCreateWithData(NULL, & paint.colors[0], paint.colors.end() * sizeof(Ra::Color), NULL);
+        CGDataProviderRef provider = CGDataProviderCreateWithData(NULL, & paint.bitmap->colors[0], paint.bitmap->colors.end() * sizeof(Ra::Color), NULL);
         CGColorSpaceRef rgb = CGColorSpaceCreateDeviceRGB();
-        CGImageRef image = CGImageCreate(paint.w, paint.h, 8, 32, paint.w * sizeof(Ra::Color), rgb, kCGImageAlphaFirst | kCGBitmapByteOrder32Little, provider, NULL, false, kCGRenderingIntentDefault);
+        CGImageRef image = CGImageCreate(paint.bitmap->w, paint.bitmap->h, 8, 32, paint.bitmap->w * sizeof(Ra::Color), rgb, kCGImageAlphaFirst | kCGBitmapByteOrder32Little, provider, NULL, false, kCGRenderingIntentDefault);
         CGColorSpaceRelease(rgb);
         CGDataProviderRelease(provider);
         return image;
     }
     
     static CGGradientRef CGGradientFromPaint(Ra::Paint paint) {
-        size_t count = paint.colors.end();
-        auto stop = & paint.colors[0];
+        size_t count = paint.bitmap->colors.end();
+        auto stop = & paint.bitmap->colors[0];
         Ra::Vector<CGFloat> components(4 * count);
         CGFloat *rgba = & components[0];
         for (size_t i = 0; i < count; i++, stop++)
             *rgba++ = stop->r / 255.0, *rgba++ = stop->g / 255.0, *rgba++ = stop->b / 255.0, *rgba++ = stop->a / 255.0;
         Ra::Vector<CGFloat> locations(count);
         for (size_t i = 0; i < count; i++)
-            locations[i] = paint.locs[i];
+            locations[i] = paint.bitmap->locs[i];
         CGColorSpaceRef space = CGColorSpaceCreateDeviceRGB();
         CGGradientRef gradient = CGGradientCreateWithColorComponents(space, & components[0], & locations[0], count);
         CGColorSpaceRelease(space);
@@ -187,6 +182,7 @@ struct RasterizerCG {
         CGColorSpaceRef rgb = CGColorSpaceCreateDeviceRGB();
         CGBitmapInfo bitmapInfo = (CGBitmapInfo)(kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little);
         CGContextRef ctx = CGBitmapContextCreate(NULL, width, height, 8, width * sizeof(Ra::Color), rgb, bitmapInfo);
+        CGContextSetBlendMode(ctx, kCGBlendModeCopy);
         CGContextDrawImage(ctx, CGRectMake(0, 0, width, height), image);
         auto buffer = (Ra::Color *)CGBitmapContextGetData(ctx);
         paint = Ra::Paint(buffer, width, height, width * sizeof(Ra::Color));
@@ -267,7 +263,7 @@ struct RasterizerCG {
         });
     }
     
-    static void writePathToCGContext(Ra::Geometry *g, CGContextRef ctx) {
+    static void writePathToCGContext(const Ra::Geometry *g, CGContextRef ctx) {
         for (size_t index = 0; index < g->types.end; ) {
             float *p = g->points.base + index * 2;
             switch (*(g->types.base + index)) {

@@ -1,21 +1,6 @@
 //
 //  Copyright 2025 Nigel Timothy Barber - nigel@mindbrix.co.uk
-//
-//  This software is provided 'as-is', without any express or implied
-//  warranty. In no event will the authors be held liable for any damages
-//  arising from the use of this software.
-//
-//  Permission is granted to anyone to use this software for personal use
-//  (for a commercial licence please contact the author), and to alter it and
-//  redistribute it freely, subject to the following restrictions:
-//
-//  1. The origin of this software must not be misrepresented; you must not
-//  claim that you wrote the original software. If you use this software
-//  in a product, an acknowledgment in the product documentation would be
-//  appreciated but is not required.
-//  2. Altered source versions must be plainly marked as such, and must not be
-//  misrepresented as being the original software.
-//  3. This notice may not be removed or altered from any source distribution.
+//  SPDX-License-Identifier: MIT
 //
 
 #import "Rasterizer.h"
@@ -25,12 +10,30 @@ using namespace metal;
 constexpr sampler s = sampler(coord::normalized, address::clamp_to_zero, mag_filter::nearest, min_filter::nearest, mip_filter::linear);
 constexpr sampler cs = sampler(coord::normalized, address::clamp_to_edge, mag_filter::linear, min_filter::linear, mip_filter::linear);
 
+// Images are sampled from an argument buffer of the frame's image textures, indexed per draw, which needs tier 2 argument buffers.
+// Without them, e.g. in the iOS Simulator, kImages is false, & images aren't drawn
+constant bool kImages [[function_constant(0)]];
+constant uint kNoImage = 0xFFFFFFFF;
+struct Image {
+    texture2d<float> texture;
+};
+// A draw's color texture sample, or its image's
+inline float4 paintColor(float3 tex, uint image, texture2d<float> colorTexture, const device Image *images) {
+    if (image != kNoImage)
+        return kImages ? images[image].texture.sample(cs, tex.xy) : float4(0.0);
+    return colorTexture.sample(cs, float2(tex.z == 0.0 ? tex.x : sqrt(tex.x * tex.x + tex.z * tex.z), tex.y));
+}
+
 struct Transform {
     float a, b, c, d, tx, ty;
 };
 
 struct Bounds {
     float lx, ly, ux, uy;
+};
+
+struct PathData {
+    Transform ctm, clip, texCtm;  float width;  uint32_t texIdx, mode;
 };
 
 struct Colorant {
@@ -65,18 +68,19 @@ struct Outline {
 
 struct Instance {
     enum Flags {
-        kRoundJoin = 1 << 21,   kStencil = 1 << 21,
-        kIsRadial = 1 << 22,    kDisableImage = 1 << 22,
-        kIsGradient = 1 << 23,  kNextImage = 1 << 23,
+        kBlend = 1 << 20,       // A draw with a blend mode, whose instances read it
+        kRoundJoin = 1 << 21,   kClip = 1 << 21,
+        kIsRadial = 1 << 22,
+        kIsGradient = 1 << 23,
         kIsImage = 1 << 24,     kIsCurve = 1 << 24,
         kMolecule = 1 << 25,    kPCap = 1 << 25,
         kFastEdges = 1 << 26,   kNCap = 1 << 26,
         kEdge = 1 << 27,        kF0 = 1 << 27,
         kRoundCap = 1 << 28,    kF1 = 1 << 28,
         kOutlines = 1 << 29,
-        kSquareCap = 1 << 30,
+        kSquareCap = 1 << 30,   kClipClear = 1 << 30,
         kEvenOdd = 1 << 31,
-        kFragmentMask = (kOutlines | kSquareCap | kEvenOdd)
+        kFragmentMask = (kBlend | kOutlines | kSquareCap | kEvenOdd)
     };
     uint32_t iz;  union { Quad quad;  Outline outline; };
 };
@@ -120,9 +124,10 @@ float sqBezier(float2 p0, float2 p1, float2 p2) {
         float2 pt = fma(fma(va, t, vb), t, p0);
         return dot(pt, pt);
     }
-    float v = acos(-sqrt(-27.0 / p3) * 0.5 * q) * third;
+    float r = sqrt(-p * third);
+    float v = acos(-0.5 * q / (r * r * r)) * third;
     float m = cos(v), n = sin(v) * 1.732050808;
-    float2 ts = saturate(float2(m + m, -n - m) * sqrt(-p * third) - a);
+    float2 ts = saturate(float2(m + m, -n - m) * r - a);
     float2 pt0 = fma(fma(va, ts.x, vb), ts.x, p0);
     float2 pt1 = fma(fma(va, ts.y, vb), ts.y, p0);
     return min(dot(pt0, pt0), dot(pt1, pt1));
@@ -191,45 +196,17 @@ float quadraticWinding(float x0, float y0, float x1, float y1, float x2, float y
     return w;
 }
 
-#pragma mark - Stencil
-
-struct StencilVertex
-{
-    float4 position [[position]];
-};
-
-vertex StencilVertex stencil_vertex_main(const device Opaque *stencils [[buffer(1)]],
-                                         constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
-                                         uint vid [[vertex_id]], uint iid [[instance_id]])
-{
-    const device Opaque& inst = stencils[iid];
-    const device Quadratic& quad = inst.quad;
-    float x = vid == 0 ? quad.x0 : vid == 1 ? quad.x1 : quad.x2;
-    float y = vid == 0 ? quad.y0 : vid == 1 ? quad.y1 : quad.y2;
-    StencilVertex vert;
-    vert.position = {
-        x / *width * 2.0 - 1.0,
-        y / *height * 2.0 - 1.0,
-        1.0,
-        1.0
-    };
-    return vert;
-}
-
-
 #pragma mark - Opaques
 
 struct OpaquesVertex
 {
     float4 position [[position]];
     float3 tex;
+    uint image [[flat]];
 };
 
-vertex OpaquesVertex opaques_vertex_main(const device Colorant *colors [[buffer(0)]],
-                                         const device Opaque *opaques [[buffer(1)]],
-                                         const device float *widths [[buffer(6)]],
-                                         const device Transform *texCtms [[buffer(8)]],
-                                         const device uint32_t *texIdxs [[buffer(9)]],
+vertex OpaquesVertex opaques_vertex_main(const device Opaque *opaques [[buffer(1)]],
+                                         const device PathData *paths [[buffer(4)]],
                                          constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
                                          constant uint *reverse [[buffer(12)]],
                                          constant uint *pathCount [[buffer(13)]],
@@ -241,13 +218,15 @@ vertex OpaquesVertex opaques_vertex_main(const device Colorant *colors [[buffer(
     const uint iz = inst.iz & kPathIndexMask;
     const bool isGradient = inst.iz & Instance::kIsGradient;
     const bool isRadial = inst.iz & Instance::kIsRadial;
-    const device Transform& texCtm = texCtms[iz];
+    const bool isImage = inst.iz & Instance::kIsImage;
+    const device PathData& path = paths[iz];
+    const device Transform& texCtm = path.texCtm;
     const device Cell& cell = inst.cell;
     const device Quadratic& quad = inst.quad;
     float x, y, z = kDepthRange * float((inst.iz & kPathIndexMask) + 1) / float(*pathCount);
     
     if (inst.iz & Instance::kOutlines) {
-        const float dw = 0.5 * (widths[inst.iz & kPathIndexMask] - 1.0);
+        const float dw = 0.5 * (path.width - 1.0);
         const float x0 = quad.x0, y0 = quad.y0, x1 = quad.x1, y1 = quad.y1, x2 = quad.x2, y2 = quad.y2;
         const bool isFlat = x1 == FLT_MAX;
         const bool isTop = vid >> 1, isRight = vid & 1;
@@ -286,19 +265,27 @@ vertex OpaquesVertex opaques_vertex_main(const device Colorant *colors [[buffer(
     vert.tex.x = (0.5 + (tiz % tw)) / float(tw);
     vert.tex.y = (0.5 + (tiz / tw)) / float(th + *texCount);
     vert.tex.z = 0.0;
+    vert.image = kNoImage;
     
     if (params->showOpaques && isGradient) {
         vert.tex.x = x * texCtm.b + y * texCtm.d + texCtm.ty;
-        vert.tex.y = (0.5 + (th + texIdxs[iz])) / float(th + *texCount);
+        vert.tex.y = (0.5 + (th + path.texIdx)) / float(th + *texCount);
         vert.tex.z = isRadial ? x * texCtm.a + y * texCtm.c + texCtm.tx : 0;
+    } else if (params->showOpaques && isImage) {
+        vert.tex.x = x * texCtm.a + y * texCtm.c + texCtm.tx;
+        vert.tex.y = 1.0 - (x * texCtm.b + y * texCtm.d + texCtm.ty);
+        vert.image = path.texIdx;
     }
     return vert;
 }
 
-fragment float4 opaques_fragment_main(OpaquesVertex vert [[stage_in]], texture2d<float> colorTexture [[texture(1)]])
+fragment float4 opaques_fragment_main(OpaquesVertex vert [[stage_in]],
+                                      texture2d<float> colorTexture [[texture(1)]],
+                                      const device Image *images [[buffer(2), function_constant(kImages)]])
 {
-    float x = vert.tex.x, y = vert.tex.y, z = vert.tex.z;
-    return colorTexture.sample(cs, float2(z == 0.0 ? x : sqrt(x * x + z * z), y));
+    if (!kImages && vert.image != kNoImage)
+        discard_fragment();
+    return paintColor(vert.tex, vert.image, colorTexture, images);
 }
 
 #pragma mark - Fast Molecules
@@ -311,9 +298,8 @@ struct FastMoleculesVertex
 
 vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [[buffer(1)]],
                                 const device Segment *segments [[buffer(2)]],
-                                const device Transform *ctms [[buffer(4)]],
+                                const device PathData *paths [[buffer(4)]],
                                 const device Instance *instances [[buffer(5)]],
-                                const device Bounds *bounds [[buffer(7)]],
                                 const device Point16 *points [[buffer(8)]],
                                 constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
                                 uint vid [[vertex_id]], uint iid [[instance_id]])
@@ -323,20 +309,16 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
     const device Edge& edge = edges[iid];
     const device Instance& inst = instances[edge.ic & Edge::kMask];
     int segcount = edge.i0, i;
-    const device Transform& m = ctms[inst.iz & kPathIndexMask];
-    const device Bounds& b = bounds[inst.iz & kPathIndexMask];
+    const device Transform& m = paths[inst.iz & kPathIndexMask].ctm;
     const device Cell& cell = inst.quad.cell;
     const device Point16 *pts = & points[inst.quad.base + (iid - inst.quad.biid) * kFastSegments];
     const device Point16 *molecule = & points[inst.quad.base + (inst.quad.molsbase + edge.ux) * 2];
     thread float *dst = & vert.x0;
-    float tx, ty, scale, ma, mb, mc, md, x16, y16, slx, sux, sly, suy, x0, y0;
+    float x16, y16, slx, sux, sly, suy, x0, y0;
     bool skip = false;
-    tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
-    scale = max(b.ux - b.lx, b.uy - b.ly) / kMoleculesRange;
-    ma = m.a * scale, mb = m.b * scale, mc = m.c * scale, md = m.d * scale;
     
     x16 = pts->x & Point16::kMask, y16 = pts->y & Point16::kMask, pts++;
-    x0 = x16 * ma + y16 * mc + tx, y0 = x16 * mb + y16 * md + ty;
+    x0 = x16 * m.a + y16 * m.c + m.tx, y0 = x16 * m.b + y16 * m.d + m.ty;
     
     *dst++ = slx = sux = x0, *dst++ = sly = suy = y0;
 
@@ -344,19 +326,19 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
         skip |= i >= segcount;
         
         x16 = pts->x & Point16::kMask, y16 = pts->y & Point16::kMask;
-        x0 = skip ? x0 : x16 * ma + y16 * mc + tx, slx = min(slx, x0), sux = max(sux, x0);
-        y0 = skip ? y0 : x16 * mb + y16 * md + ty, sly = min(sly, y0), suy = max(suy, y0);
+        x0 = skip ? x0 : x16 * m.a + y16 * m.c + m.tx, slx = min(slx, x0), sux = max(sux, x0);
+        y0 = skip ? y0 : x16 * m.b + y16 * m.d + m.ty, sly = min(sly, y0), suy = max(suy, y0);
         dst[0] = x0, dst[1] = y0;
     }
     
     float molx = molecule[m.a > 0.0 ? 1 : 0].x;
     float moly = molecule[m.c > 0.0 ? 1 : 0].y;
-    float ux = ceil(molx * ma + moly * mc + tx);
+    float ux = ceil(molx * m.a + moly * m.c + m.tx);
     
     float dx = clamp(select(floor(slx), ux, vid & 1), float(cell.lx), float(cell.ux));
     float dy = clamp(select(floor(sly), ceil(suy), vid >> 1), float(cell.ly), float(cell.uy));
     float x = (cell.ox - cell.lx + dx) / *width * 2.0 - 1.0, offx = 0.5 - dx;
-    float y = (cell.oy - cell.ly + dy) / *height * 2.0 - 1.0, offy = 0.5 - dy;
+    float y = 1.0 - (cell.oy - cell.ly + dy) / *height * 2.0, offy = 0.5 - dy;
     vert.position = float4(x, y, 1.0, slx == sux && sly == suy ? 0.0 : 1.0);
     for (dst = & vert.x0, i = 0; i < kFastSegments + 1; i++, dst += 2)
         dst[0] += offx, dst[1] += offy;
@@ -386,9 +368,8 @@ struct QuadMoleculesVertex
 
 vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [[buffer(1)]],
                                 const device Segment *segments [[buffer(2)]],
-                                const device Transform *ctms [[buffer(4)]],
+                                const device PathData *paths [[buffer(4)]],
                                 const device Instance *instances [[buffer(5)]],
-                                const device Bounds *bounds [[buffer(7)]],
                                 const device Point16 *points [[buffer(8)]],
                                 constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
                                 uint vid [[vertex_id]], uint iid [[instance_id]])
@@ -397,8 +378,7 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
     
     const device Edge& edge = edges[iid];
     const device Instance& inst = instances[edge.ic & Edge::kMask];
-    const device Transform& m = ctms[inst.iz & kPathIndexMask];
-    const device Bounds& b = bounds[inst.iz & kPathIndexMask];
+    const device Transform& m = paths[inst.iz & kPathIndexMask].ctm;
     const device Cell& cell = inst.quad.cell;
     const device Point16 *p = & points[inst.quad.base + ((edge.ic & Edge::ue0) >> 12) + edge.i0];
     const device Point16 *molecule = & points[inst.quad.base + (inst.quad.molsbase + edge.ux) * 2];
@@ -406,15 +386,12 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
     const float ix0 = p->x & Point16::kMask, iy0 = p->y & Point16::kMask;
     const float ix1 = (p + 1)->x & Point16::kMask, iy1 = (p + 1)->y & Point16::kMask;
     const float ix2 = (p + 2)->x & Point16::kMask, iy2 = (p + 2)->y & Point16::kMask;
-    float tx, ty, scale, ma, mb, mc, md, x0, y0, x1, y1, x2, y2, slx, sux, sly, suy;
-    tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
-    scale = max(b.ux - b.lx, b.uy - b.ly) / kMoleculesRange;
-    ma = m.a * scale, mb = m.b * scale, mc = m.c * scale, md = m.d * scale;
+    float x0, y0, x1, y1, x2, y2, slx, sux, sly, suy;
     
-    x0 = ix0 * ma + iy0 * mc + tx, y0 = ix0 * mb + iy0 * md + ty;
-    x1 = ix1 * ma + iy1 * mc + tx, y1 = ix1 * mb + iy1 * md + ty;
+    x0 = ix0 * m.a + iy0 * m.c + m.tx, y0 = ix0 * m.b + iy0 * m.d + m.ty;
+    x1 = ix1 * m.a + iy1 * m.c + m.tx, y1 = ix1 * m.b + iy1 * m.d + m.ty;
     if (isCurve) {
-        x2 = ix2 * ma + iy2 * mc + tx, y2 = ix2 * mb + iy2 * md + ty;
+        x2 = ix2 * m.a + iy2 * m.c + m.tx, y2 = ix2 * m.b + iy2 * m.d + m.ty;
         x1 = 2.f * x1 - 0.5f * (x0 + x2), y1 = 2.f * y1 - 0.5f * (y0 + y2);
     } else {
         x2 = x1, x1 = 0.5 * (x0 + x2);
@@ -427,12 +404,12 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
     
     float molx = molecule[m.a > 0.0 ? 1 : 0].x;
     float moly = molecule[m.c > 0.0 ? 1 : 0].y;
-    sux = ceil(molx * ma + moly * mc + tx);
+    sux = ceil(molx * m.a + moly * m.c + m.tx);
     
     float dx = clamp(select(floor(slx), ceil(sux), vid & 1), float(cell.lx), float(cell.ux));
     float dy = clamp(select(floor(sly), ceil(suy), vid >> 1), float(cell.ly), float(cell.uy));
     float x = (cell.ox - cell.lx + dx) / *width * 2.0 - 1.0, offx = 0.5 - dx;
-    float y = (cell.oy - cell.ly + dy) / *height * 2.0 - 1.0, offy = 0.5 - dy;
+    float y = 1.0 - (cell.oy - cell.ly + dy) / *height * 2.0, offy = 0.5 - dy;
     
     vert.position = float4(x, y, 1.0, 1.0);
     vert.x0 = x0 + offx, vert.y0 = y0 + offy;
@@ -457,7 +434,6 @@ struct EdgesVertex
 
 vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
                                      const device Segment *segments [[buffer(2)]],
-                                     const device Transform *ctms [[buffer(4)]],
                                      const device Instance *instances [[buffer(5)]],
                                      constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
                                      constant Params *params [[buffer(14)]],
@@ -515,7 +491,7 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
     float dx = select(max(floor(slx), float(cell.lx)), float(cell.ux), vid & 1);
     float dy = select(max(floor(sly), float(cell.ly)), min(ceil(suy), float(cell.uy)), vid >> 1);
     float x = (cell.ox - cell.lx + dx) / *width * 2.0 - 1.0;
-    float y = (cell.oy - cell.ly + dy) / *height * 2.0 - 1.0;
+    float y = 1.0 - (cell.oy - cell.ly + dy) / *height * 2.0;
     vert.position = float4(x, y, 1.0, visible);
     
     for (int i = 0; i < 12; i += 2)
@@ -541,19 +517,15 @@ struct InstancesVertex
     float4 position [[position]];
     float2 clip;
     float3 tex;
-    float u, v, w, cover, alpha;
-    float x, y, z;
+    float u, v, w;
+    float cover [[flat]];
     uint32_t iz;
+    uint image [[flat]];
 };
 
 vertex InstancesVertex instances_vertex_main(
             const device Instance *instances [[buffer(1)]],
-            const device Transform *ctms [[buffer(4)]],
-            const device Transform *clips [[buffer(5)]],
-            const device float *widths [[buffer(6)]],
-            const device Bounds *bounds [[buffer(7)]],
-            const device Transform *texCtms [[buffer(8)]],
-            const device uint32_t *texIdxs [[buffer(9)]],
+            const device PathData *paths [[buffer(4)]],
             constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
             constant uint *pathCount [[buffer(13)]],
             constant uint *texCount [[buffer(14)]],
@@ -570,12 +542,14 @@ vertex InstancesVertex instances_vertex_main(
     const bool isRadial = inst.iz & Instance::kIsRadial;
     const bool isImage = inst.iz & Instance::kIsImage;
     
-    const device Transform& clip = clips[iz];
-    const device Transform& texCtm = texCtms[iz];
+    const device PathData& path = paths[iz];
+    const device Transform& clip = path.clip;
+    const device Transform& texCtm = path.texCtm;
     
-    float w = widths[iz], cw = max(1.0, w), dw = 0.5 * (1.0 + cw);
-    float alpha = select(1.0, w / cw, w != 0), dx, dy;
+    float dx, dy;
     if (inst.iz & Instance::kOutlines) {
+        float w = path.width, cw = max(1.0, w), dw = 0.5 * (1.0 + cw);
+        
         float x0, y0, x1, y1, x2, y2;
         bool pcap, ncap;
         const bool roundCap = w > 1.0 && inst.iz & Instance::kRoundCap;
@@ -601,11 +575,10 @@ vertex InstancesVertex instances_vertex_main(
         ax = x1 - x2, bx = x1 - x0, cx = x2 - x0;
         ay = y1 - y2, by = y1 - y0, cy = y2 - y0;
         float cdot = cx * cx + cy * cy, rc = rsqrt(cdot);
-        float area = cx * by - cy * bx;
-        float tc = abs(area / cdot);
-        
-        isCurve = params->useCurves && x1 != FLT_MAX && tc > 1e-3;
-        ow = isCurve ? 0.5 * tc / rc : 0.0;
+        float area = abs(cx * by - cy * bx);
+
+        isCurve = params->useCurves && x1 != FLT_MAX && area > 1e-3 * cdot;
+        ow = isCurve ? 0.5 * area * rc : 0.0;
         
         float caplimit = dw == 1.0 ? 0.0 : kMiterLimit;
         
@@ -623,14 +596,14 @@ vertex InstancesVertex instances_vertex_main(
         next = normalize({ (isCurve ? x1 : x2) - x0, (isCurve ? y1 : y2) - y0 });
         prev = rsqrt(pdot) * float2(px0, py0);
         pcap = pcap || pdot < 1e-6 || dot(prev, next) < caplimit;
-        tangent = pcap ? no : normalize(prev + next);
-        m0 = 1.0 / abs(dot(no, tangent)) * float2(-tangent.y, tangent.x);
+        tangent = pcap ? no : prev + next;
+        m0 = float2(-tangent.y, tangent.x) / abs(dot(no, tangent));
         
         prev = normalize({ x2 - (isCurve ? x1 : x0), y2 - (isCurve ? y1 : y0) });
         next = rsqrt(ndot) * float2(nx1, ny1);
         ncap = ncap || ndot < 1e-6 || dot(prev, next) < caplimit;
-        tangent = ncap ? no : normalize(prev + next);
-        m1 = 1.0 / abs(dot(no, tangent)) * float2(-tangent.y, tangent.x);
+        tangent = ncap ? no : prev + next;
+        m1 = float2(-tangent.y, tangent.x) / abs(dot(no, tangent));
         
         float lcap = (isCurve ? 0.41 * dw : 0.0) + (squareCap || roundCap ? dw : 0.5);
         
@@ -650,41 +623,42 @@ vertex InstancesVertex instances_vertex_main(
             float offset = roundCap ? 0.0 : squareCap ? dw : 0.5;
             float d0 = (dx - x0) * no.x + (dy - y0) * no.y;
             float d1 = (dx - x2) * -no.x + (dy - y2) * -no.y;
-            vert.w = pcap ? offset + d0 : roundJoin ? d0 : FLT_MAX;
-            vert.z = ncap ? offset + d1 : roundJoin ? d1 : FLT_MAX;
+            vert.v = pcap ? offset + d0 : roundJoin ? d0 : FLT_MAX;
+            vert.w = ncap ? offset + d1 : roundJoin ? d1 : FLT_MAX;
             
             flags = flags | ((pcap && roundCap) || (!pcap && roundJoin)) * Instance::kF0;
             flags = flags | ((ncap && roundCap) || (!ncap && roundJoin)) * Instance::kF1;
         } else
         {
-            vert.u = x0 - dx, vert.v = x1 - dx, vert.w = x2 - dx;
-            vert.x = y0 - dy, vert.y = y1 - dy, vert.z = y2 - dy;
+            // The vertex's barycentric coordinates in the control triangle, from which the fragment recovers the control points
+            float ex = dx - x2, ey = dy - y2, rdet = 1.0 / (cx * ay - ax * cy);
+            vert.u = (ey * ax - ex * ay) * rdet, vert.v = (ey * cx - ex * cy) * rdet;
             
             flags = flags | Instance::kIsCurve;
             flags = flags | (pcap ? !roundCap : !roundJoin) * Instance::kF0;
             flags = flags | (ncap ? !roundCap : !roundJoin) * Instance::kF1;
         }
-        vert.cover = dw;
+        vert.cover = w != 0 && w < 1.0 ? -w : dw;     // A thin stroke's dw is 1, so its cover is its alpha, negated
         flags = flags | pcap * Instance::kPCap | ncap * Instance::kNCap;
     } else {
         const device Cell& cell = inst.quad.cell;
         dx = isRight ? cell.ux : cell.lx;
         dy = isTop ? cell.uy : cell.ly;
         vert.u = cell.ox == kNullIndex ? FLT_MAX : (dx - (cell.lx - cell.ox)) / *width;
-        vert.v = 1.0 - (dy - (cell.ly - cell.oy)) / *height;
+        vert.v = (dy - (cell.ly - cell.oy)) / *height;     // Cells fill the accumulation texture from its top, so edges passes can be shorter
         vert.cover = inst.quad.cover;
     }
     float x = dx / *width * 2.0 - 1.0, y = dy / *height * 2.0 - 1.0;
     float z = kDepthRange * float(iz + 1) / float(*pathCount);
     vert.position = float4(x, y, z, 1.0);
     vert.clip = params->useClips ? float2(dx * clip.a + dy * clip.c + clip.tx, dx * clip.b + dy * clip.d + clip.ty) : 0.5;
-    vert.alpha = alpha;
     vert.iz = iz | flags;
+    vert.image = isImage ? path.texIdx : kNoImage;
     
     int tw = kColorTextureWidth, th = (*pathCount + tw - 0) / tw;
     if (isGradient) {
         vert.tex.x = dx * texCtm.b + dy * texCtm.d + texCtm.ty;
-        vert.tex.y = (0.5 + (th + texIdxs[iz])) / float(th + *texCount);
+        vert.tex.y = (0.5 + (th + path.texIdx)) / float(th + *texCount);
         vert.tex.z = isRadial ? dx * texCtm.a + dy * texCtm.c + texCtm.tx : 0;
     } else if (isImage) {
         vert.tex.x = dx * texCtm.a + dy * texCtm.c + texCtm.tx;
@@ -699,10 +673,15 @@ vertex InstancesVertex instances_vertex_main(
     return vert;
 }
 
-fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
-                                        texture2d<float> accumulation [[texture(0)]],
-                                        texture2d<float> colorTexture [[texture(1)]]
-)
+// A fill's coverage of its edge cell from the accumulated winding, or 1 for its solid cells
+inline float fillCoverage(InstancesVertex vert, texture2d<float> accumulation) {
+    if (vert.u == FLT_MAX)
+        return 1.0;
+    float cover = abs(vert.cover + accumulation.sample(s, float2(vert.u, vert.v)).x);
+    return vert.iz & Instance::kEvenOdd ? 1.0 - abs(fmod(cover, 2.0) - 1.0) : min(1.0, cover);
+}
+
+inline float4 instanceColor(InstancesVertex vert, texture2d<float> accumulation, texture2d<float> colorTexture, const device Image *images)
 {
     float alpha = 1.0;
     if (vert.iz & Instance::kOutlines) {
@@ -710,19 +689,21 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
         bool squareCap = vert.iz & Instance::kSquareCap;
         bool pcap = vert.iz & Instance::kPCap, ncap = vert.iz & Instance::kNCap;
         bool f0 = vert.iz & Instance::kF0, f1 = vert.iz & Instance::kF1;
-        const float dw = vert.cover;
+        const float dw = max(1.0, vert.cover);
         
         if (!isCurve) {
-            float dx = vert.u, dy = min(vert.w, vert.z), ry = min(0.0, dy);
+            float dx = vert.u, dy = min(vert.v, vert.w), ry = min(0.0, dy);
             float rect = saturate(dw - abs(dx)) * saturate(dy);
             float lozenge = saturate(dw - sqrt(dx * dx + ry * ry));
-            alpha = vert.w < vert.z ? (f0 ? lozenge : rect) : (f1 ? lozenge : rect);
+            alpha = vert.v < vert.w ? (f0 ? lozenge : rect) : (f1 ? lozenge : rect);
         } else
         {
             float x0, y0, x1, y1, x2, y2, d0, dm0, d1, dm1, sqdist, sd0, sd1, cap, cap0, cap1;
                 
-            x0 = vert.u, x1 = vert.v, x2 = vert.w;
-            y0 = vert.x, y1 = vert.y, y2 = vert.z;
+            // Barycentrics are affine in screen space, so their derivatives invert to the control triangle's edges, p0 - p2 & p1 - p2
+            float a = dfdx(vert.u), b = -dfdy(vert.u), c = dfdx(vert.v), d = -dfdy(vert.v), rdet = 1.0 / (a * d - b * c);
+            float2 e0 = float2(d, -c) * rdet, e1 = float2(-b, a) * rdet, p2 = -(e0 * vert.u + e1 * vert.v), p0 = p2 + e0, p1 = p2 + e1;
+            x0 = p0.x, y0 = p0.y, x1 = p1.x, y1 = p1.y, x2 = p2.x, y2 = p2.y;
             
             sqdist = sqBezier(float2(x0, y0), float2(x1, y1), float2(x2, y2));
             float outline = saturate(dw - sqrt(sqdist));
@@ -741,15 +722,134 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
             
             alpha = cap0 * (1.0 - sd0) + cap1 * (1.0 - sd1) + (sd0 + sd1 - 1.0) * outline;
         }
+        alpha *= select(1.0, -vert.cover, vert.cover < 0.0);
     } else
-    if (vert.u != FLT_MAX) {
-        float cover = abs(vert.cover + accumulation.sample(s, float2(vert.u, vert.v)).x);
-        alpha = vert.iz & Instance::kEvenOdd ? 1.0 - abs(fmod(cover, 2.0) - 1.0) : min(1.0, cover);
-    }
+        alpha = fillCoverage(vert, accumulation);
     float clx = vert.clip.x, cly = vert.clip.y, a = dfdx(clx), b = dfdy(clx), c = dfdx(cly), d = dfdy(cly);
     float sx = rsqrt(a * a + b * b), sy = rsqrt(c * c + d * d);
     float clip = saturate(0.5 + clx * sx) * saturate(0.5 + (1.0 - clx) * sx) * saturate(0.5 + cly * sy) * saturate(0.5 + (1.0 - cly) * sy);
     
-    float x = vert.tex.x, y = vert.tex.y, z = vert.tex.z;
-    return alpha * vert.alpha * clip * colorTexture.sample(cs, float2(z == 0.0 ? x : sqrt(x * x + z * z), y));
+    return alpha * clip * paintColor(vert.tex, vert.image, colorTexture, images);
+}
+
+fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
+                                        texture2d<float> accumulation [[texture(0)]],
+                                        texture2d<float> colorTexture [[texture(1)]],
+                                        const device Image *images [[buffer(2), function_constant(kImages)]])
+{
+    return instanceColor(vert, accumulation, colorTexture, images);
+}
+
+// Clipped by the clip mask, the drawable pass's color attachment 1, read with framebuffer fetch. Only the current clip's bounds
+// (x, y, width, height in framebuffer pixels) hold its coverage, so the mask is zero outside them
+fragment float4 instances_clip_fragment_main(InstancesVertex vert [[stage_in]],
+                                             texture2d<float> accumulation [[texture(0)]],
+                                             texture2d<float> colorTexture [[texture(1)]],
+                                             float clipMask [[color(1)]],
+                                             constant uint4 *maskBounds [[buffer(0)]],
+                                             const device Image *images [[buffer(2), function_constant(kImages)]])
+{
+    uint2 p = uint2(vert.position.xy), b0 = maskBounds->xy, b1 = b0 + maskBounds->zw;
+    return instanceColor(vert, accumulation, colorTexture, images) * (all(p >= b0) && all(p < b1) ? clipMask : 0.0);
+}
+
+#pragma mark - Blend modes
+
+inline float lum(float3 c) {
+    return dot(c, float3(0.3, 0.59, 0.11));
+}
+inline float3 clipColor(float3 c) {
+    float l = lum(c), n = min(c.r, min(c.g, c.b)), x = max(c.r, max(c.g, c.b));
+    c = n < 0.0 ? l + (c - l) * l / (l - n) : c;
+    return x > 1.0 ? l + (c - l) * (1.0 - l) / (x - l) : c;
+}
+inline float3 setLum(float3 c, float l) {
+    return clipColor(c + (l - lum(c)));
+}
+inline float sat(float3 c) {
+    return max(c.r, max(c.g, c.b)) - min(c.r, min(c.g, c.b));
+}
+inline float3 setSat(float3 c, float s) {
+    float n = min(c.r, min(c.g, c.b)), x = max(c.r, max(c.g, c.b));
+    return x > n ? (c - n) * s / (x - n) : float3(0.0);
+}
+inline float3 hardLight(float3 cb, float3 cs) {
+    float3 s2 = 2.0 * cs, multiply = cb * s2, screen = cb + (s2 - 1.0) - cb * (s2 - 1.0);
+    return select(screen, multiply, cs <= 0.5);
+}
+
+// The W3C compositing spec's blend function of unpremultiplied backdrop cb & source cs
+inline float3 blendFunction(float3 cb, float3 cs, uint mode) {
+    switch (mode) {
+        case kBlendMultiply:    return cb * cs;
+        case kBlendScreen:      return cb + cs - cb * cs;
+        case kBlendOverlay:     return hardLight(cs, cb);
+        case kBlendDarken:      return min(cb, cs);
+        case kBlendLighten:     return max(cb, cs);
+        case kBlendColorDodge:  return select(select(min(1.0, cb / (1.0 - cs)), float3(1.0), cs >= 1.0), float3(0.0), cb <= 0.0);
+        case kBlendColorBurn:   return select(select(1.0 - min(1.0, (1.0 - cb) / cs), float3(0.0), cs <= 0.0), float3(1.0), cb >= 1.0);
+        case kBlendSoftLight: {
+            float3 d = select(sqrt(cb), ((16.0 * cb - 12.0) * cb + 4.0) * cb, cb <= 0.25);
+            return select(cb + (2.0 * cs - 1.0) * (d - cb), cb - (1.0 - 2.0 * cs) * cb * (1.0 - cb), cs <= 0.5);
+        }
+        case kBlendHardLight:   return hardLight(cb, cs);
+        case kBlendDifference:  return abs(cb - cs);
+        case kBlendExclusion:   return cb + cs - 2.0 * cb * cs;
+        case kBlendHue:         return setLum(setSat(cs, sat(cb)), lum(cb));
+        case kBlendSaturation:  return setLum(setSat(cb, sat(cs)), lum(cb));
+        case kBlendColor:       return setLum(cs, lum(cb));
+        case kBlendLuminosity:  return setLum(cb, lum(cs));
+        default:                return cs;
+    }
+}
+// Composites premultiplied src over dst with the blend mode
+inline float4 blendColor(float4 src, float4 dst, uint mode) {
+    if (mode == kBlendNormal || src.a == 0.0)
+        return src + dst * (1.0 - src.a);
+    float3 cs = src.rgb / src.a, cb = dst.a == 0.0 ? float3(0.0) : dst.rgb / dst.a;
+    float3 rgb = (1.0 - dst.a) * src.rgb + (1.0 - src.a) * dst.rgb + src.a * dst.a * saturate(blendFunction(cb, cs, mode));
+    return float4(rgb, src.a + dst.a - src.a * dst.a);
+}
+
+// Only blended draws write their mode
+inline uint blendMode(InstancesVertex vert, const device PathData *paths) {
+    return vert.iz & Instance::kBlend ? paths[vert.iz & kPathIndexMask].mode : kBlendNormal;
+}
+
+// Instances in frames with blend modes blend in the shader, with the drawable, color attachment 0, read with framebuffer fetch
+fragment float4 instances_blend_fragment_main(InstancesVertex vert [[stage_in]],
+                                              texture2d<float> accumulation [[texture(0)]],
+                                              texture2d<float> colorTexture [[texture(1)]],
+                                              float4 dst [[color(0)]],
+                                              const device PathData *paths [[buffer(1)]],
+                                              const device Image *images [[buffer(2), function_constant(kImages)]])
+{
+    return blendColor(instanceColor(vert, accumulation, colorTexture, images), dst, blendMode(vert, paths));
+}
+
+fragment float4 instances_clip_blend_fragment_main(InstancesVertex vert [[stage_in]],
+                                                   texture2d<float> accumulation [[texture(0)]],
+                                                   texture2d<float> colorTexture [[texture(1)]],
+                                                   float4 dst [[color(0)]],
+                                                   float clipMask [[color(1)]],
+                                                   constant uint4 *maskBounds [[buffer(0)]],
+                                                   const device PathData *paths [[buffer(1)]],
+                                                   const device Image *images [[buffer(2), function_constant(kImages)]])
+{
+    uint2 p = uint2(vert.position.xy), b0 = maskBounds->xy, b1 = b0 + maskBounds->zw;
+    float4 src = instanceColor(vert, accumulation, colorTexture, images) * (all(p >= b0) && all(p < b1) ? clipMask : 0.0);
+    return blendColor(src, dst, blendMode(vert, paths));
+}
+
+#pragma mark - Clip mask
+
+struct ClipMaskFragment {
+    float mask [[color(1)]];
+};
+
+// A clip path's coverage, written to the clip mask by its fill instances after its kClipClear cell zeroes the mask's bounds
+fragment ClipMaskFragment clip_mask_fragment_main(InstancesVertex vert [[stage_in]],
+                                                  texture2d<float> accumulation [[texture(0)]])
+{
+    return { vert.iz & Instance::kClipClear ? 0.0 : fillCoverage(vert, accumulation) };
 }

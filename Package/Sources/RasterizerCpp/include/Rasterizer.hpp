@@ -1,27 +1,16 @@
 //
 //  Copyright 2025 Nigel Timothy Barber - nigel@mindbrix.co.uk
-//
-//  This software is provided 'as-is', without any express or implied
-//  warranty. In no event will the authors be held liable for any damages
-//  arising from the use of this software.
-//
-//  Permission is granted to anyone to use this software for personal use
-//  (for a commercial licence please contact the author), and to alter it and
-//  redistribute it freely, subject to the following restrictions:
-//
-//  1. The origin of this software must not be misrepresented; you must not
-//  claim that you wrote the original software. If you use this software
-//  in a product, an acknowledgment in the product documentation would be
-//  appreciated but is not required.
-//  2. Altered source versions must be plainly marked as such, and must not be
-//  misrepresented as being the original software.
-//  3. This notice may not be removed or altered from any source distribution.
+//  SPDX-License-Identifier: MIT
 //
 
 #import "Rasterizer.h"
 #import "xxhash.h"
 #import <map>
 #import <vector>
+#ifdef __APPLE__
+#import <dispatch/dispatch.h>
+#import <unistd.h>
+#endif
 #pragma clang diagnostic ignored "-Wcomma"
 
 struct Rasterizer {
@@ -31,12 +20,11 @@ struct Rasterizer {
             ptr = new T(), ptr->refCount = 1;
         }
         ~Ref() {
-            if (--(ptr->refCount) == 0)
+            if (ptr && --(ptr->refCount) == 0)
                 delete ptr;
         }
-        Ref(const T& src) {
-            ptr = new T(), *ptr = src, ptr->refCount = 1;
-        }
+        Ref(std::nullptr_t) {}
+        
         Ref(const Ref& other) {
             *this = other;
         }
@@ -44,7 +32,9 @@ struct Rasterizer {
             if (this != & other) {
                 if (ptr)
                     this->~Ref();
-                ptr = other.ptr, ptr->refCount++;
+                ptr = other.ptr;
+                if (ptr)
+                    ptr->refCount++;
             }
             return *this;
         }
@@ -78,7 +68,7 @@ struct Rasterizer {
             size = n, end = end < n ? end : n;
             addr = (T *)realloc(addr, n * sizeof(T));
             if (isRef && size > oldSize)
-                bzero(addr + oldSize, (size - oldSize) * sizeof(T));
+                bzero((void *)(addr + oldSize), (size - oldSize) * sizeof(T));
             return addr;
         }
         size_t refCount, size = 0, end = 0;  T *addr = nullptr;
@@ -92,19 +82,20 @@ struct Rasterizer {
         inline void add(T obj) {
             *memory->alloc(1) = obj;
         }
-        inline void add(T *objs, size_t n) {
-            memcpy(memory->alloc(n), objs, n * sizeof(T));
+        inline void add(const T *objs, size_t n) {
+            T *dst = memory->alloc(n);
+            if (!isRef)
+                memcpy(dst, objs, n * sizeof(T));
+            else {
+                for (size_t i = 0; i < n; i++)
+                    *dst++ = *objs++;
+            }
         }
         inline T *resize(size_t n) {
             return memory->resize(n);
         }
         inline size_t end() const {
             return memory->end;
-        }
-        inline Vector clone() const {
-            auto cloned = Vector<T>();
-            cloned.add(memory->addr, end());
-            return cloned;
         }
         inline T& operator[](size_t i) const {
             return memory->addr[i];
@@ -125,12 +116,14 @@ struct Rasterizer {
         inline T *alloc(size_t n) {
             size_t begin = end;
             end += n;
-            if (memory->size < end)
-                base = memory->resize(end * 1.5);
+            if (memory.ptr == nullptr || memory->size < end)
+                base = grow(end * 1.5);
             return base + begin;
         }
-        inline void add(T obj) {
-            *(alloc(1)) = obj;
+        T *grow(size_t n) {     // Its memory is allocated when it's first needed, as many rows stay empty, e.g. a geometry's
+            if (memory.ptr == nullptr)
+                memory = Ref<Memory<T>>();
+            return memory->resize(n);
         }
         inline T *prealloc(size_t n) {
             size_t begin = end;
@@ -139,9 +132,9 @@ struct Rasterizer {
         }
         inline T& back() const { return base[end - 1]; }
         Row<T>& empty() { end = idx = 0; return *this; }
-        void reset() { end = idx = 0, base = nullptr, memory = Ref<Memory<T>>(); }
+        void reset() { end = idx = 0, base = nullptr, memory = nullptr; }
         
-        T *base = nullptr;  Ref<Memory<T>> memory;  size_t end = 0, idx = 0;
+        T *base = nullptr;  Ref<Memory<T>> memory = nullptr;  size_t end = 0, idx = 0;
     };
     
     struct Transform {
@@ -165,11 +158,13 @@ struct Rasterizer {
                 (c * ty - d * tx) * recip,      -(a * ty - b * tx) * recip
             );
         }
+        inline float det() const { return a * d - b * c; }
         inline float scale() const { return sqrtf(fabsf(a * d - b * c)); }
         float a, b, c, d, tx, ty;
     };
     struct Bounds {
         static inline Bounds huge() { return Bounds(-5e11f, -5e11f, 5e11f, 5e11f); }
+        static inline Bounds zero() { return Bounds(0.f, 0.f, 0.f, 0.f); }
         Bounds() : lx(FLT_MAX), ly(FLT_MAX), ux(-FLT_MAX), uy(-FLT_MAX) {}
         Bounds(float lx, float ly, float ux, float uy) : lx(lx), ly(ly), ux(ux), uy(uy) {}
         inline float width() const {
@@ -183,6 +178,9 @@ struct Rasterizer {
         }
         inline float cy() const {
             return 0.5f * (ly + uy);
+        }
+        inline bool contains(float x, float y) const {
+            return lx <= x && ux >= x && ly <= y && uy >= y;
         }
         inline bool contains(const Bounds b) const {
             return lx <= b.lx && ux >= b.ux && ly <= b.ly && uy >= b.uy;
@@ -199,6 +197,9 @@ struct Rasterizer {
         }
         inline Bounds integral() const {
             return { floorf(lx), floorf(ly), ceilf(ux), ceilf(uy) };
+        }
+        inline bool intersects(const Bounds b) const {
+            return ux >= b.lx && lx <= b.ux && uy >= b.ly && ly <= b.uy;
         }
         inline Bounds intersect(const Bounds b) const {
             return {
@@ -263,14 +264,14 @@ struct Rasterizer {
     
     struct Geometry {
         enum Type { kMove, kLine, kQuadratic, kCubic, kClose, kCountSize };
-        size_t TypeSizes[kCountSize] = { 1, 1, 2, 3, 1 };
+        static constexpr size_t TypeSizes[kCountSize] = { 1, 1, 2, 3, 1 };
         
         void prealloc(size_t count) {
             points.prealloc(2 * count), types.prealloc(count);
         }
         void addBounds(Bounds b) {
-            if (b.ux > b.lx && b.uy > b.ly)
-                moveTo(b.lx, b.ly), lineTo(b.ux, b.ly), lineTo(b.ux, b.uy), lineTo(b.lx, b.uy), lineTo(b.lx, b.ly);
+            if (b.ux > b.lx || b.uy > b.ly)
+                moveTo(b.lx, b.ly), lineTo(b.ux, b.ly), lineTo(b.ux, b.uy), lineTo(b.lx, b.uy), lineTo(b.lx, b.ly), close();
         }
         void addEllipse(Bounds b) {
             if (b.ux > b.lx && b.uy > b.ly) {
@@ -280,35 +281,57 @@ struct Rasterizer {
                 cubicTo(s * b.lx + t * b.ux, b.uy, b.lx, t * b.ly + s * b.uy, b.lx, my);
                 cubicTo(b.lx, s * b.ly + t * b.uy, s * b.lx + t * b.ux, b.ly, mx, b.ly);
                 cubicTo(t * b.lx + s * b.ux, b.ly, b.ux, s * b.ly + t * b.uy, b.ux, my);
+                close();
+            }
+        }
+        void addRoundedRect(Bounds b, float width, float height) {
+            if (b.ux > b.lx && b.uy > b.ly) {
+                const float t = 1.f - 4.f / 3.f * (M_SQRT2 - 1.f);
+                const float tx = fminf(0.5f, fmaxf(0.f, width) / (b.ux - b.lx)), sx = 1.f - tx, tw = t * tx, sw = 1.f - tw;
+                const float ty = fminf(0.5f, fmaxf(0.f, height) / (b.uy - b.ly)), sy = 1.f - ty, th = t * ty, sh = 1.f - th;
+                if (tx == 0.f && ty == 0.f)
+                    return addBounds(b);
+                moveTo(b.ux, 0.5f * (b.ly + b.uy));
+                lineTo(b.ux, ty * b.ly + sy * b.uy);
+                cubicTo(b.ux, th * b.ly + sh * b.uy, tw * b.lx + sw * b.ux, b.uy, tx * b.lx + sx * b.ux, b.uy);
+                lineTo(sx * b.lx + tx * b.ux, b.uy);
+                cubicTo(sw * b.lx + tw * b.ux, b.uy, b.lx, th * b.ly + sh * b.uy, b.lx, ty * b.ly + sy * b.uy);
+                lineTo(b.lx, sy * b.ly + ty * b.uy);
+                cubicTo(b.lx, sh * b.ly + th * b.uy, sw * b.lx + tw * b.ux, b.ly, sx * b.lx + tx * b.ux, b.ly);
+                lineTo(tx * b.lx + sx * b.ux, b.ly);
+                cubicTo(tw * b.lx + sw * b.ux, b.ly, b.ux, sh * b.ly + th * b.uy, b.ux, sy * b.ly + ty * b.uy);
+                close();
             }
         }
         void moveTo(float x, float y) {
+            if (xxhash)
+                return;
             validate();
             float *pts = points.alloc(2);  x0 = pts[0] = x, y0 = pts[1] = y, *types.alloc(1) = kMove;
         }
         void lineTo(float x1, float y1) {
-            float ax = x1 - x0, ay = y1 - y0;
-            if (ax == 0.f && ay == 0.f)
+            if (xxhash || (x1 == x0 && y1 == y0))
                 return;
             float *pts = points.alloc(2);  x0 = pts[0] = x1, y0 = pts[1] = y1, *types.alloc(1) = kLine;
         }
         void quadTo(float x1, float y1, float x2, float y2) {
             float ax, bx, ay, by, dot, t, err = 1e-2f;
             ax = x1 - x0, bx = x2 - x0, ay = y1 - y0, by = y2 - y0, dot = bx * bx + by * by;
-            if (dot == 0.f)
+            if (xxhash || dot == 0.f)
                 return;
             t = fabsf(ax * -by + ay * bx) / dot;
             if (t < err) {
                 lineTo(x2, y2);
             } else {
-                float *pts = points.alloc(4);  pts[0] = x1, pts[1] = y1, x0 = pts[2] = x2, y0 = pts[3] = y2, memset(types.alloc(2), kQuadratic, 2);
+                float *pts = points.alloc(4);  pts[0] = x1, pts[1] = y1, x0 = pts[2] = x2, y0 = pts[3] = y2;
+                memset(types.alloc(2), kQuadratic, 2);
                 ax = x2 + x0 - x1 - x1, ay = y2 + y0 - y1 - y1, maxCurve = fmaxf(maxCurve, ax * ax + ay * ay);
             }
         }
         void cubicTo(float x1, float y1, float x2, float y2, float x3, float y3) {
             float cx, bx, ax, cy, by, ay, dot, t0, t1, err = 1e-2f, s;
             ax = x1 - x0, bx = x2 - x0, cx = x3 - x0, ay = y1 - y0, by = y2 - y0, cy = y3 - y0, dot = cx * cx + cy * cy;
-            if (dot == 0.f)
+            if (xxhash || dot == 0.f)
                 return;
             t0 = fabsf(ax * -cy + ay * cx) / dot, t1 = fabsf(bx * -cy + by * cx) / dot;
             if (t0 < err && t1 < err) {
@@ -318,7 +341,8 @@ struct Rasterizer {
                 if (dot < 1e-4f)
                     quadTo((3.f * (x1 + x2) - x0 - x3) * 0.25f, (3.f * (y1 + y2) - y0 - y3) * 0.25f, x3, y3);
                 else {
-                    float *pts = points.alloc(6);  pts[0] = x1, pts[1] = y1, pts[2] = x2, pts[3] = y2, pts[4] = x3, pts[5] = y3, memset(types.alloc(3), kCubic, 3);
+                    float *pts = points.alloc(6);  pts[0] = x1, pts[1] = y1, pts[2] = x2, pts[3] = y2, pts[4] = x3, pts[5] = y3;
+                    memset(types.alloc(3), kCubic, 3);
                     bx -= 3.f * (x1 - x0), by -= 3.f * (y1 - y0), dot += bx * bx + by * by, x0 = x3, y0 = y3;
                     s = ceilf(sqrtf(sqrtf(dot)));
                     cubicSums += s, maxCurve = fmaxf(maxCurve, dot / s);
@@ -326,6 +350,8 @@ struct Rasterizer {
             }
         }
         void close() {
+            if (xxhash)
+                return;
             float *pts = points.alloc(2);  pts[0] = x0, pts[1] = y0, *types.alloc(1) = kClose;
         }
         
@@ -351,8 +377,8 @@ struct Rasterizer {
             }
         }
         bool isValid() {
-            validate();
-            return types.end > 1 && *types.base == Geometry::kMove && (bounds.lx != bounds.ux || bounds.ly != bounds.uy);
+            hash();
+            return valid;
         }
         bool isRect() {
             validate();
@@ -360,14 +386,12 @@ struct Rasterizer {
             size_t last = types.end - 1;
             if (!(last == 4 || last == 5) || counts[kLine] != 4 || pts[0] != pts[last * 2] || pts[1] != pts[last * 2 + 1])
                 return false;
-            bool ax, ay, bx, by, rect0, rect1;
-            ax = pts[2] == pts[0], ay = pts[3] == pts[1];
-            bx = pts[4] == pts[2], by = pts[5] == pts[3];
-            rect0 = (ax && by) || (ay && bx);
-            ax = pts[6] == pts[4], ay = pts[7] == pts[5];
-            bx = pts[8] == pts[6], by = pts[9] == pts[7];
-            rect1 = (ax && by) || (ay && bx);
-            return rect0 && rect1;
+            bool v0 = pts[2] == pts[0], h0 = pts[3] == pts[1], v1 = pts[4] == pts[2], h1 = pts[5] == pts[3];
+            bool v2 = pts[6] == pts[4], h2 = pts[7] == pts[5], v3 = pts[8] == pts[6], h3 = pts[9] == pts[7];
+            return ((v0 && h1) || (h0 && v1)) && ((v2 && h3) || (h2 && v3));
+        }
+        bool isSegments() const {   // Whether each subpath is one line, like dots & dashes
+            return counts[kLine] == counts[kMove] && types.end == 2 * counts[kMove];
         }
         size_t upperBound(float det) const {
             size_t cubics = 0;
@@ -377,11 +401,15 @@ struct Rasterizer {
             }
             return cubics + 2 * (counts[kMove] + counts[kLine] + counts[kQuadratic] + counts[kCubic]);
         }
-        size_t hash() {
-            xxhash = xxhash ?: XXH64(points.base, points.end * sizeof(float), XXH64(types.base, types.end * sizeof(uint8_t), 0));
+        size_t hash() {    // Freezes the geometry and caches its validity
+            if (xxhash == 0) {
+                validate();
+                valid = types.end > 1 && *types.base == Geometry::kMove && (bounds.lx != bounds.ux || bounds.ly != bounds.uy);
+                xxhash = XXH64(points.base, points.end * sizeof(float), XXH64(types.base, types.end * sizeof(uint8_t), 0)) ?: 1;
+            }
             return xxhash;
         }
-        size_t refCount, xxhash = 0, cubicSums = 0, counts[kCountSize] = { 0, 0, 0, 0, 0 };
+        size_t refCount, xxhash = 0, cubicSums = 0, counts[kCountSize] = { 0, 0, 0, 0, 0 };  bool valid = false;
         float x0 = 0.f, y0 = 0.f, maxCurve = 0.f;  Row<uint8_t> types;  Row<float> points;
         Bounds bounds;  Row<Bounds> molecules;
         Row<Point16> p16s;  Row<uint8_t> p16cnts;  Row<Atom> atoms;
@@ -402,34 +430,22 @@ struct Rasterizer {
             float alpha = a / 255.f;
             return Color(b * alpha, g * alpha, r * alpha, a);
         }
+        Color withOpacity(float opacity) const {
+            return Color(b, g, r, a * fmaxf(0.f, fminf(1.f, opacity)) + 0.5f);
+        }
         Component b, g, r, a;
     };
     
-    struct Paint {
-        enum Type { kColor = 0, kLinear, kRadial, kImage };
-        
-        Paint() {}
-        Paint(Color color) : color(color), minAlpha(color.a), maxAlpha(color.a) {}
-        Paint(Color *stops, float *locations, size_t count, Transform transform, bool isRadial) {
-            if (stops == nullptr || locations == nullptr || count < 2)
-                return;
-            setMinMaxAlpha(stops, count, 1, 0);
-            if (maxAlpha == 0)
-                return;
-            type = isRadial ? kRadial : kLinear;
+    struct Bitmap {
+        void addGradient(Color *stops, float *locations, size_t count, Transform transform) {
             colors.add(stops, count);
             locs.add(locations, count);
             ctm = transform;
+            writeGradientStrip(strip.memory->alloc(kColorTextureWidth), kColorTextureWidth);
         }
-        Paint(Color *buffer, size_t width, size_t height, size_t bpr) {
-            if (buffer == nullptr || width == 0 || height == 0 || bpr == 0)
-                return;
-            setMinMaxAlpha(buffer, width, height, bpr);
-            if (maxAlpha == 0)
-                return;
-            assert(bpr / sizeof(Color) >= width);
-            type = kImage, w = width, h = height;
+        void addImage(Color *buffer, size_t width, size_t height, size_t bpr) {
             size_t stride = bpr / sizeof(Color);
+            w = width, h = height;
             if (stride == width)
                 colors.add(buffer, width * height);
             else {
@@ -439,29 +455,6 @@ struct Rasterizer {
             xxhash = XXH64(& width, sizeof(width), 0);
             xxhash = XXH64(& height, sizeof(height), xxhash);
             xxhash = XXH64(& colors[0], width * height * sizeof(Color), xxhash);
-        }
-        inline bool isValid() const {
-            return maxAlpha != 0;
-        }
-        inline bool isOpaque() const {
-            return !isImage() && minAlpha == 255;
-        }
-        inline bool isGradient() const {
-            return type == kLinear || type == kRadial;
-        }
-        inline bool isImage() const {
-            return type == kImage;
-        }
-        inline size_t hash() const {
-            return xxhash;
-        }
-        inline void setMinMaxAlpha(Color *buffer, size_t width, size_t height, size_t bpr) {
-            float alpha, min = 255, max = 0;
-            size_t base = 0;
-            for (size_t i = 0; i < height; i++, base += bpr / sizeof(*buffer))
-                for (size_t j = 0; j < width; j++)
-                    alpha = buffer[base + j].a, min = fminf(min, alpha), max = fmaxf(max, alpha);
-            minAlpha = min, maxAlpha = max;
         }
         void writeGradientStrip(Color *dst, size_t size) const {
             size_t count = locs.end();
@@ -484,107 +477,300 @@ struct Rasterizer {
                 dst[i] = Color(stops[loc], stops[loc + 1], t).premultiplied();
             }
         }
-        Type type = kColor;
+        
         size_t refCount, xxhash = 0, w = 0, h = 0;
-        Color color;
         Vector<Color> colors;
         Vector<float> locs;
         Transform ctm;
-        Component minAlpha = 255, maxAlpha = 255;
+        Vector<Color> strip;
     };
     
-    struct Scene {
-        enum Flags { kFillEvenOdd = 1 << 1, kRoundCap = 1 << 2, kSquareCap = 1 << 3, kRoundJoin = 1 << 4 };
-        struct Entry {
-            Entry(const Path& path, size_t idx) : path(path), idx(uint32_t(idx)) {}
-            Path path;  uint32_t idx;
-        };
+    struct Paint {
+        enum Type { kColor = 0, kLinear, kRadial, kImage };
         
-        void addPath(const Path& path, const Transform& ctm, const Paint& paint, float width, uint8_t flag, Bounds *clipBounds = nullptr, Path *clipPath = nullptr) {
-            if (path->isValid() && paint.isValid()) {
-                Geometry *g = path.ptr;
-                count++, weight += g->types.end;
-            
-                size_t key = g->hash();
-                if (width != 0) {
-                    paths.add(path);
-                    p16bases.add(0);
-                } else {
-                    auto it = p16map.find(key);
-                    if (it == p16map.end()) {
-                        paths.add(path);
-                        p16bases.add(uint32_t(p16total));
-                        p16map.emplace(key, Entry(path, p16total));
-                        p16entries.add(Entry(path, p16total));
-                        
-                        if (kMoleculesHeight && g->p16s.end == 0)
-                            P16Writer().writeGeometry(g);
-                        p16total += g->p16s.end;
-                        xxhash = XXH64(& key, sizeof(key), xxhash);
-                    } else {
-                        paths.add(it->second.path);
-                        p16bases.add(it->second.idx);
-                    }
-                }
-                
-                if (paint.isGradient()) {
-                    gradientIndices.add(uint32_t(gradients.end()));
-                    Color strip[kColorTextureWidth];
-                    paint.writeGradientStrip(strip, kColorTextureWidth);
-                    gradients.add(strip, kColorTextureWidth);
-                } else {
-                    gradientIndices.add(~0);
-                }
-                paints.add(paint), colors.add(paint.color);
-                
-                bnds.add(g->bounds), ctms.add(ctm), widths.add(width), flags.add(flag);
-                clips.add(clipBounds ? *clipBounds : Bounds::huge());
-                
-                if (clipPath && (*clipPath)->isValid()) {
-                    size_t idx = 0;
-                    if (clipPaths.end() == 0)
-                        clipPaths.add(*clipPath);
-                    else {
-                        if (clipPaths.back()->hash() != (*clipPath)->hash())
-                            clipPaths.add(*clipPath);
-                        idx = clipPaths.end() - 1;
-                    }
-                    clipIndices.add(uint32_t(idx));
-                } else
-                    clipIndices.add(~0);
-            }
+        Paint() {}
+        Paint(Color color) : color(color), minAlpha(color.a), maxAlpha(color.a) {}
+        Paint(Color *stops, float *locations, size_t count, Transform transform, bool isRadial) {
+            if (stops == nullptr || locations == nullptr || count < 2)
+                return;
+            setMinMaxAlpha(stops, count, 1, 0);
+            if (maxAlpha == 0)
+                return;
+            type = isRadial ? kRadial : kLinear;
+            bitmap = Ref<Bitmap>();
+            bitmap->addGradient(stops, locations, count, transform);
         }
-        void appendScene(const Scene& scene) {
-            for (int i = 0; i < scene.count; i++)
-                addPath(scene.paths[i], scene.ctms[i], scene.colors[i], scene.widths[i], scene.flags[i]);
+        Paint(Color *buffer, size_t width, size_t height, size_t bpr) {
+            if (buffer == nullptr || width == 0 || height == 0 || bpr == 0)
+                return;
+            setMinMaxAlpha(buffer, width, height, bpr);
+            if (maxAlpha == 0)
+                return;
+            assert(bpr / sizeof(Color) >= width);
+            type = kImage;
+            bitmap = Ref<Bitmap>();
+            bitmap->addImage(buffer, width, height, bpr);
+        }
+        inline bool isValid() const {
+            return maxAlpha != 0;
+        }
+        inline bool isOpaque() const {
+            return minAlpha == 255;
+        }
+        inline bool isGradient() const {
+            return type == kLinear || type == kRadial;
+        }
+        inline bool isImage() const {
+            return type == kImage;
+        }
+        inline size_t hash() const {
+            return bitmap.ptr ? bitmap->xxhash : 0;
+        }
+        inline void setMinMaxAlpha(Color *buffer, size_t width, size_t height, size_t bpr) {
+            float alpha, min = 255, max = 0;
+            size_t base = 0;
+            for (size_t i = 0; i < height; i++, base += bpr / sizeof(*buffer))
+                for (size_t j = 0; j < width; j++)
+                    alpha = buffer[base + j].a, min = fminf(min, alpha), max = fmaxf(max, alpha);
+            minAlpha = min, maxAlpha = max;
+        }
+        Type type = kColor;
+        Color color;
+        Component minAlpha = 255, maxAlpha = 255;
+        Ref<Bitmap> bitmap = nullptr;
+    };
+    
+    struct Draw {
+        // kHidden is set by callers to keep a draw's index without drawing it. validate() sets kInvisible for a hidden draw, or an invalid path or paint.
+        // kClipEvenOdd fills the clip path even-odd, as kFillEvenOdd does the path, else it's non-zero
+        enum Flags { kFillEvenOdd = 1 << 1, kRoundCap = 1 << 2, kSquareCap = 1 << 3, kRoundJoin = 1 << 4, kClipEvenOdd = 1 << 5, kHidden = 1 << 6, kInvisible = 1 << 7 };
+
+        Draw() {}
+        Draw(const Path& path, const Transform& ctm, const Paint& paint, float width, uint8_t flags, Bounds *clipBounds = nullptr, Path *clipPath = nullptr, uint8_t blendMode = kBlendNormal)
+        : path(path), ctm(ctm), paint(paint), width(width), flags(flags), blendMode(blendMode), clip(clipBounds ? *clipBounds : Bounds::huge()), clipPath(clipPath ? *clipPath : nullptr) {
+              validate();
+          }
+        
+        inline Bounds bounds() const {
+            return Bounds(bnds.inset(-0.5f * fmax(0.f, width), -0.5f * fmax(0.f, width)).quad(ctm)).intersect(clip);
+        }
+        bool validate() {
+            bool isValid = path->isValid() && paint.isValid(), isVisible = isValid && (flags & kHidden) == 0;
+            if (isValid)
+                bnds = path->bounds;
+            if (clipPath.ptr && !clipPath->isValid())
+                clipPath = nullptr;
+            flags = (flags & ~kInvisible) | (isVisible ? 0 : kInvisible);
+            return isVisible;
+        }
+        Path path;  Transform ctm;  Paint paint;  float width = 0.f;  uint8_t flags = kInvisible, blendMode = kBlendNormal;  Bounds clip, bnds;  Path clipPath = nullptr;
+    };
+    struct Scene {
+        struct Entry {
+            Entry(const Path p, size_t idx) : p(p), idx(idx) {}
+            const Path p;  size_t idx;
+        };
+        struct Index {
+            Index(size_t hash, size_t i) : hash(hash), i(i)  {}
+            inline bool operator< (const Index& other) const  { return hash < other.hash; }
+            size_t hash, i;
+        };
+        void addPath(const Path& path, const Transform& ctm, const Paint& paint, float width, uint8_t flag, Bounds *clipBounds = nullptr, Path *clipPath = nullptr, uint8_t blendMode = kBlendNormal) {
+            new (draws.memory->alloc(1)) Draw(path, ctm, paint, width, flag, clipBounds, clipPath, blendMode);
+            needPrepare = true;
+        }
+        void addDraw(Draw& draw) {
+            draw.validate(), draws.add(draw);
+            needPrepare = true;
+        }
+        // Calls bool f(size_t i, Draw& draw) for the draws in [i0, i1), which returns true if it changed the draw. A changed draw is
+        // revalidated, & only changes to what prepare() depends on need a prepare: a new path or visibility, or a stroke becoming a fill,
+        // which needs a P16 base. Transform, color, stroke width & blend mode changes don't, & a fill becoming a stroke leaves an unused entry.
+        // Paints should be assigned whole, e.g. Paint(color), so their alpha range stays right.
+        template<typename F>
+        void update(size_t i0, size_t i1, F f) {
+            for (size_t i = i0, end = i1 < count() ? i1 : count(); i < end; i++) {
+                Draw& draw = draws[i];
+                Geometry *path = draw.path.ptr;  bool isStroke = draw.width != 0;  uint8_t invisible = draw.flags & Draw::kInvisible;
+                if (f(i, draw)) {
+                    draw.validate();
+                    if (draw.path.ptr != path || (isStroke && draw.width == 0) || (draw.flags & Draw::kInvisible) != invisible)
+                        needPrepare = true;
+                }
+            }
         }
         Bounds bounds() const {
             Bounds b;
-            for (int i = 0; i < count; i++) {
-                float inset = -0.5f * widths[i];
-                b.extend(Bounds(bnds[i].inset(inset, inset).quad(ctms[i])).intersect(clips[i]));
-            }
+            for (int i = 0; i < draws.end(); i++)
+                if ((draws[i].flags & Draw::kInvisible) == 0)
+                    b.extend(draws[i].bounds());
             return b;
         }
-        inline size_t hash() const {
-            return xxhash;
+        size_t count() const {
+            return draws.end();
         }
-        
-        size_t refCount, count = 0, weight = 0, xxhash = 0, _xxhash = 0;
-        RefVector<Path> paths;
-        Vector<uint32_t> p16bases;  uint32_t p16total = 0;
-        RefVector<Path> clipPaths;
-        Vector<uint32_t> clipIndices;
-        Vector<Bounds> bnds, clips;
-        Vector<Transform> ctms;
-        RefVector<Paint> paints;
-        Vector<Color> colors;
-        Vector<uint32_t> gradientIndices;
-        Vector<Color> gradients;
-        Vector<float> widths;
-        std::map<size_t, Entry> p16map;
-        RefVector<Entry> p16entries;
-        Vector<uint8_t> flags;
+        // prepare() scratch, shared by the scenes of a SceneList::prepare(), so scenes don't each keep peak-sized buffers
+        struct Scratch {
+            Scratch() {
+#ifdef __APPLE__
+                static const long online = sysconf(_SC_NPROCESSORS_ONLN);     // Queried once per process
+                cpus = online < 1 ? 1 : size_t(online) < kMaxChunks ? size_t(online) : kMaxChunks;
+#endif
+            }
+            void run(void (*function)(void *, size_t)) {
+#ifdef __APPLE__
+                if (chunks > 1)
+                    return dispatch_apply_f(chunks, DISPATCH_APPLY_AUTO, this, function);
+#endif
+                for (size_t t = 0; t < chunks; t++)
+                    function(this, t);
+            }
+            size_t bucket(size_t hash) const {
+                return bucketBits ? hash >> (sizeof(size_t) * 8 - bucketBits) : 0;
+            }
+            // Chunk t's share [i0, i1) of n draws or buckets
+            void range(size_t n, size_t t, size_t& i0, size_t& i1) const {
+                i0 = n * t / chunks, i1 = n * (t + 1) / chunks;
+            }
+            // The first of bucket b's indices, & so the end of bucket b - 1's
+            Index *bucketIndices(size_t b) const {
+                return indices.base + bucketBegin.base[b];
+            }
+            // Whether index begins a run of equal hashes in its sorted bucket, i.e. a unique geometry
+            static bool isFirst(const Index *index, const Index *index0) {
+                return index == index0 || index[-1].hash != index->hash;
+            }
+            // Validates the draws, & writes their cumulative weights and the P16 bases that dedupe identical fills. Each chunk of draws
+            // counts its fills' hashes into buckets by their top bits, then scatters them; each bucket then sorts, dedupes & writes its
+            // P16s alone. Equal hashes share a bucket, so all the draws of a Geometry are handled by one thread, the only one to write
+            // it or repoint to it. Large scenes run the chunks & buckets in parallel. The result is the same as a single sorted pass.
+            void prepare(Scene *s) {
+                size_t n = s->count(), b, t, sum, offset, p16, entries, buckets;
+                scene = s;
+                for (bucketBits = 0; bucketBits < kMaxBucketBits && (size_t(64) << bucketBits) < n; bucketBits++)
+                    ;     // About 64 fills a bucket, so small scenes don't pay for many buckets
+                buckets = size_t(1) << bucketBits, chunks = n >= kParallelDraws ? cpus : 1;
+                bzero(hist.empty().alloc(chunks * buckets), chunks * buckets * sizeof(size_t));
+                chunkWeights.empty().alloc(chunks), s->weights.empty().alloc(n);
+                run(scanChunk);
+                for (sum = t = 0; t < chunks; t++)
+                    sum += chunkWeights.base[t], chunkWeights.base[t] = sum - chunkWeights.base[t];
+                s->weight = sum;
+                // Scatter offsets, bucket by bucket, so each bucket's indices are contiguous & in draw order
+                size_t *begin = bucketBegin.empty().alloc(buckets + 1);
+                for (offset = b = 0; b < buckets; b++) {
+                    begin[b] = offset;
+                    for (t = 0; t < chunks; t++) {
+                        size_t& h = hist.base[t * buckets + b];
+                        offset += h, h = offset - h;
+                    }
+                }
+                begin[buckets] = offset;
+                indices.empty().alloc(offset);
+                run(scatterChunk);
+                s->p16bases.empty().alloc(n), bucketP16.empty().alloc(buckets), bucketEntries.empty().alloc(buckets);
+                run(dedupeBuckets);
+                for (p16 = entries = b = 0; b < buckets; b++) {
+                    p16 += bucketP16.base[b], bucketP16.base[b] = p16 - bucketP16.base[b];
+                    entries += bucketEntries.base[b], bucketEntries.base[b] = entries - bucketEntries.base[b];
+                }
+                s->p16total = uint32_t(p16);
+                run(releaseEntries);
+                s->p16entries.memory->end = 0, s->p16entries.memory->alloc(entries);      // Released slots, refilled by offsetBuckets
+                run(offsetBuckets);
+            }
+            // Validates chunk t's draws, writes their chunk-relative cumulative weights, & counts their fills by bucket
+            static void scanChunk(void *context, size_t t) {
+                Scratch& x = *(Scratch *)context;  Scene& s = *x.scene;
+                size_t i0, i1, w = 0, *hist = x.hist.base + (t << x.bucketBits);
+                x.range(s.count(), t, i0, i1);
+                for (size_t i = i0; i < i1; i++) {
+                    Draw& draw = s.draws[i];
+                    bool isValid = draw.validate();
+                    if (isValid && draw.width == 0)
+                        hist[x.bucket(draw.path->hash())]++;
+                    w += isValid ? draw.path->types.end + 16 : 0;    // Estimated drawList cost: per-draw overhead + per-type work
+                    s.weights.base[i] = w;
+                }
+                x.chunkWeights.base[t] = w;
+            }
+            // Offsets chunk t's weights, & scatters its fills into their buckets
+            static void scatterChunk(void *context, size_t t) {
+                Scratch& x = *(Scratch *)context;  Scene& s = *x.scene;
+                size_t i0, i1, w = x.chunkWeights.base[t], *hist = x.hist.base + (t << x.bucketBits);
+                x.range(s.count(), t, i0, i1);
+                for (size_t i = i0; i < i1; i++) {
+                    s.weights.base[i] += w;
+                    Draw& draw = s.draws[i];
+                    if ((draw.flags & Draw::kInvisible) == 0 && draw.width == 0) {
+                        size_t hash = draw.path->hash();
+                        new (x.indices.base + hist[x.bucket(hash)]++) Index(hash, i);
+                    }
+                }
+            }
+            // Sorts & dedupes chunk t's buckets, writing P16s for unseen geometry, bucket-relative bases, & each bucket's totals
+            static void dedupeBuckets(void *context, size_t t) {
+                Scratch& x = *(Scratch *)context;  Scene& s = *x.scene;
+                size_t b0, b1;
+                x.range(size_t(1) << x.bucketBits, t, b0, b1);
+                for (size_t b = b0; b < b1; b++) {
+                    Index *index0 = x.bucketIndices(b), *index1 = x.bucketIndices(b + 1);
+                    std::sort(index0, index1);
+                    size_t count = 0, total = 0, srcIndex = 0, entries = 0;
+                    for (Index *index = index0; index < index1; index++) {
+                        if (isFirst(index, index0)) {
+                            srcIndex = index->i, total += count, entries++;
+                            Geometry *g = s.draws[index->i].path.ptr;
+                            if (kMoleculesHeight && g->p16s.end == 0)
+                                P16Writer().writeGeometry(g);
+                            count = g->p16s.end;
+                        }
+                        s.p16bases.base[index->i] = uint32_t(total);
+                        if (srcIndex != index->i)
+                            s.draws[index->i].path = s.draws[srcIndex].path;
+                    }
+                    x.bucketP16.base[b] = total + count, x.bucketEntries.base[b] = entries;
+                }
+            }
+            // Releases chunk t's share of the last prepare's entries. Each holds a unique geometry, so no other thread touches its refCount
+            static void releaseEntries(void *context, size_t t) {
+                Scratch& x = *(Scratch *)context;  Scene& s = *x.scene;
+                size_t e0, e1;
+                x.range(s.p16entries.end(), t, e0, e1);
+                for (size_t e = e0; e < e1; e++)
+                    s.p16entries[e].~Entry();
+            }
+            // Offsets chunk t's buckets' bases, & writes their entries
+            static void offsetBuckets(void *context, size_t t) {
+                Scratch& x = *(Scratch *)context;  Scene& s = *x.scene;
+                size_t b0, b1;
+                x.range(size_t(1) << x.bucketBits, t, b0, b1);
+                for (size_t b = b0; b < b1; b++) {
+                    Index *index0 = x.bucketIndices(b), *index1 = x.bucketIndices(b + 1);
+                    size_t base = x.bucketP16.base[b], e = x.bucketEntries.base[b];
+                    for (Index *index = index0; index < index1; index++) {
+                        uint32_t& p16base = s.p16bases.base[index->i];
+                        if (isFirst(index, index0))
+                            new (& s.p16entries[e++]) Entry(s.draws[index->i].path, p16base + base);
+                        p16base += base;
+                    }
+                }
+            }
+            Scene *scene = nullptr;  size_t cpus = 1, chunks = 1, bucketBits = 0;
+            Row<size_t> hist, chunkWeights, bucketBegin, bucketP16, bucketEntries;  Row<Index> indices;
+            static const size_t kMaxBucketBits = 10, kParallelDraws = 2048, kMaxChunks = 32;
+        };
+        void prepare(Scratch& scratch) {
+            if (!needPrepare)
+                return;
+            needPrepare = false;
+            scratch.prepare(this);
+        }
+        size_t refCount;
+        RefVector<Draw> draws;
+        bool needPrepare = false;
+        Row<uint32_t> p16bases;  RefVector<Entry> p16entries;  uint32_t p16total = 0;
+        Row<size_t> weights;  size_t weight = 0;
     };
     typedef Ref<Scene> SceneRef;
     
@@ -595,8 +781,11 @@ struct Rasterizer {
     struct SceneList {
         Bounds bounds() const {
             Bounds b;
-            for (int i = 0; i < scenes.size(); i++)
-                b.extend(clips[i].intersect(scenes[i]->bounds().quad(ctms[i])));
+            for (int i = 0; i < scenes.size(); i++) {
+                Bounds scene = scenes[i]->bounds();
+                if (!scene.isNull())
+                    b.extend(clips[i].intersect(scene).quad(ctms[i]));
+            }
             return b;
         }
         SceneList& addList(SceneList list) {
@@ -605,13 +794,29 @@ struct Rasterizer {
             return *this;
         }
         SceneList& addScene(SceneRef scene, Transform ctm = Transform(), Bounds clip = Bounds::huge()) {
-            if (scene->weight)
-                pathsCount += scene->count, scenes.emplace_back(scene), ctms.emplace_back(ctm), clips.emplace_back(clip);
+            if (scene->count())
+                scenes.emplace_back(scene), ctms.emplace_back(ctm), clips.emplace_back(clip);
             return *this;
         }
+        size_t pathsCount() const {
+            size_t count = 0;
+            for (auto scene: scenes)
+                count += scene->count();
+            return count;
+        }
+        void prepare() const {
+            for (auto& scene: scenes)
+                if (scene->needPrepare) {
+                    Scene::Scratch scratch;
+                    for (auto& s: scenes)
+                        s->prepare(scratch);
+                    return;
+                }
+        }
         Transform ctm;  Params params;
-        size_t pathsCount = 0;  std::vector<SceneRef> scenes;  std::vector<Transform> ctms;  std::vector<Bounds> clips;
+        std::vector<SceneRef> scenes;  std::vector<Transform> ctms;  std::vector<Bounds> clips;
     };
+    
     struct Segment {
         inline Segment(float x0, float y0, float x1, float y1, bool curve) : ix0((*((uint32_t *)& x0) & ~1) | curve), y0(y0), x1(x1), y1(y1) {}
         union { float x0; uint32_t ix0; };  float y0, x1, y1;
@@ -631,20 +836,23 @@ struct Rasterizer {
     };
     struct Instance {
         enum Flags {
-            kRoundJoin = 1 << 21,   kStencil = 1 << 21,
-            kIsRadial = 1 << 22,    kDisableImage = 1 << 22,
-            kIsGradient = 1 << 23,  kNextImage = 1 << 23,
+            kBlend = 1 << 20,       // A draw with a blend mode, whose instances read it
+            kRoundJoin = 1 << 21,   kClip = 1 << 21,
+            kIsRadial = 1 << 22,
+            kIsGradient = 1 << 23,
             kIsImage = 1 << 24,     kIsCurve = 1 << 24,
             kMolecule = 1 << 25,    kPCap = 1 << 25,
             kFastEdges = 1 << 26,   kNCap = 1 << 26,
             kEdge = 1 << 27,        kF0 = 1 << 27,
             kRoundCap = 1 << 28,    kF1 = 1 << 28,
             kOutlines = 1 << 29,
-            kSquareCap = 1 << 30,
+            kSquareCap = 1 << 30,   kClipClear = 1 << 30,
             kEvenOdd = 1 << 31,
-            kFragmentMask = (kOutlines | kSquareCap | kEvenOdd)
+            kFragmentMask = (kBlend | kOutlines | kSquareCap | kEvenOdd)
         };
         Instance(size_t iz) : iz(uint32_t(iz)) {}
+        // A clip command, as kClip is an outline's kRoundJoin
+        static bool isClipCommand(uint32_t iz) { return (iz & (kOutlines | kClip)) == kClip; }
         uint32_t iz;  union { Quad quad;  Outline outline; };
     };
     struct Opaque {
@@ -659,59 +867,45 @@ struct Rasterizer {
         uint32_t ic;  enum Flags { ue0 = 0xF << 28, ue1 = 0xF << 24, kMask = ~(ue0 | ue1) };
         uint16_t i0, ux;
     };
+    struct PathData {
+        Transform ctm, clip, texCtm;  float width;  uint32_t texIdx, mode;
+    };
     struct Buffer {
-        enum Type { kQuadEdges, kFastEdges, kFastMolecules, kQuadMolecules, kOpaques, kInstances, kSegmentsBase, kInstancesBase, kStencils, kDisableClip, kEnableClip, kNextImage, kDisableImage };
+        // kClipMask begins rendering a clip path's coverage into the clip mask, within the device bounds packed in begin, until kEnableClip.
+        // Its end identifies the mask, so an encoder can skip rendering one the mask already holds. kBlendInstances are instances of draws
+        // with blend modes, which blend in the shader, & kInstances blend with the hardware. A kInstancesBase begins a pass, & its end is
+        // the height of the accumulation texture's rows its group's edges use, from its top, so an encoder can limit an edges pass to them
+        enum Type { kQuadEdges, kFastEdges, kFastMolecules, kQuadMolecules, kOpaques, kInstances, kSegmentsBase, kInstancesBase, kDisableClip, kEnableClip, kClipMask, kBlendInstances };
+        static constexpr size_t kMaxBlendBatches = 32;     // Of a pass, beyond which all its instances are kBlendInstances
         struct Entry {
             Entry(Type type, size_t begin, size_t end) : type(type), begin(begin), end(end) {}
             Type type;  size_t begin, end;
         };
-        ~Buffer() { if (base) free(base); }
         
         void prepare(const SceneList& list) {
             params = list.params;
-            pathsCount = list.pathsCount;
+            pathsCount = list.pathsCount();
             texCount = 0;
             images.resize(0);
-            scenes.resize(0);
-            for (auto& scene : list.scenes)
-                scenes.add(scene);
         
-            size_t i, sizes[] = { sizeof(Color), sizeof(Transform), sizeof(Transform), sizeof(float), sizeof(Bounds), sizeof(Transform), sizeof(uint32_t) };
-            size_t count = sizeof(sizes) / sizeof(*sizes), base = 0;
-            Vector<size_t> bases(count);
-            for (i = 0; i < count; i++)
-                bases[i] = base, base += (pathsCount + 1) * sizes[i];
-            colors = bases[0], ctms = bases[1], clips = bases[2], widths = bases[3], bounds = bases[4], texCtms = bases[5], texIdxs = bases[6];
-            headerSize = (base + 15) & ~15, resize(headerSize), entries.empty();
-        }
-        void resize(size_t n, size_t copySize = 0) {
-            if (copySize == 0 && allocation && size > 1000000 && size / allocation > 5)
-                allocation = size = 0, free(base), base = nullptr;
-            allocation = (n + kPageSize - 1) / kPageSize * kPageSize;
-            if (size < allocation) {
-                size = allocation;
-                uint8_t *resized;  posix_memalign((void **)& resized, kPageSize, size);
-                if (base) {
-                    if (copySize)
-                        memcpy(resized, base, copySize);
-                    free(base);
-                }
-                base = resized;
-            }
+            size_t colorsCount = (pathsCount / kColorTextureWidth + 1) * kColorTextureWidth;    // Whole color texture rows
+            colors = 0, paths = (colorsCount * sizeof(Color) + 15) & ~15;
+            headerSize = (paths + (pathsCount + 1) * sizeof(PathData) + 15) & ~15, entries.empty();
         }
         uint8_t *base = nullptr;  Row<Entry> entries;
-        RefVector<Paint> images;
-        RefVector<SceneRef> scenes;
+        RefVector<Paint> images;    // The frame's images, which draws index with texIdxs
         Params params;
-        size_t colors, ctms, clips, widths, bounds, texCtms, texIdxs, texStrips, p16s;
-        size_t idxs, pathsCount, texCount, headerSize, size = 0, allocation = 0;
+        size_t colors, paths, texStrips, p16s;
+        size_t idxs, pathsCount, texCount, headerSize;
     };
     struct Allocator {
         enum CountType { kFastEdges, kQuadEdges, kFastMolecules, kQuadMolecules };
         struct Pass {
             Pass(size_t idx) : idx(idx) {}
             size_t count() const { return counts[0] + counts[1] + counts[2] + counts[3]; }
-            size_t idx, counts[4] = { 0, 0, 0, 0 };
+            size_t idx, height = 0, counts[4] = { 0, 0, 0, 0 };     // Its height is that of the rows of strips its cells use
+            // coalescePasses' group, its cells' offset in its rows, & their height, & writeContextToBuffer's entries for its edges & instances
+            size_t group = 0, offset = 0, groupHeight = 0, edgesEntry = 0, instancesEntry = 0;
         };
         void empty(Bounds device) {
             full = device, sheet = Bounds(0.f, 0.f, 0.f, 0.f), bzero(strips, sizeof(strips)), passes.empty();
@@ -727,6 +921,7 @@ struct Rasterizer {
                 if (sheet.uy - sheet.ly < hght)
                     refill(idx);
                 strip->lx = sheet.lx, strip->ly = sheet.ly, strip->ux = sheet.ux, strip->uy = sheet.ly + hght, sheet.ly = strip->uy;
+                passes.back().height = size_t(ceilf(sheet.ly - full.ly));
             }
             cell->ox = strip->lx, cell->oy = strip->ly, cell->lx = lx, cell->ly = ly, cell->ux = ux, cell->uy = uy, strip->lx += w;
             passes.back().counts[type] += count;
@@ -746,12 +941,17 @@ struct Rasterizer {
     
     struct TexRef {
         TexRef(size_t iz, Color *strip) : iz(uint32_t(iz)), strip(strip) {}
-        uint32_t iz;
-        Color *strip;
+        uint32_t iz;  Color *strip;
     };
-    
+    struct ImageRef {
+        ImageRef(size_t iz, Paint *image) : iz(uint32_t(iz)), image(image) {}
+        uint32_t iz;  Paint *image;
+    };
     struct Context {
-        void drawList(const SceneList& list, Bounds device, Transform view, size_t slz, size_t suz, Buffer *buffer) {
+        void drawList(const SceneList& list, float scale, float w, float h, size_t slz, size_t suz, Buffer *buffer) {
+            Bounds device(0.f, 0.f, ceilf(scale * w), ceilf(scale * h));
+            Transform view = list.ctm.concat(Transform(scale, 0.f, 0.f, scale, 0.f, 0.f));
+            
             empty(), allocator.empty(device), allocator.refill(0);
             size_t fatlines = 1.f + ceilf((device.uy - device.ly) * krfh);
             if (samples.end() != fatlines) {
@@ -760,112 +960,111 @@ struct Rasterizer {
                     samples.add(Row<Sample>());
             }
             Color *colors = (Color *)(buffer->base + buffer->colors);
-            Transform *ctms = (Transform *)(buffer->base + buffer->ctms);
-            Transform *clips = (Transform *)(buffer->base + buffer->clips);
-            float *widths = (float *)(buffer->base + buffer->widths);
-            Bounds *bounds = (Bounds *)(buffer->base + buffer->bounds);
-            Transform *texCtms = (Transform *)(buffer->base + buffer->texCtms);
+            PathData *paths = (PathData *)(buffer->base + buffer->paths);
             bool clipActive = false;
             
             Color black(0, 0, 0, 255), red(0, 0, 255, 255);
-            size_t lz, uz, i, clz, cuz, iz, is, cnt; uint32_t lastIdx = ~0, lastClipIdx = ~0, p16total = 0;
-            uint8_t flags;
-            float det, width, uw, softclipMargin = 0.5f;
+            size_t lz, uz, i, clz, cuz, iz, is, cnt; uint32_t p16total = 0;
+            Geometry *lastClipPath = nullptr;  Transform lastClipCtm;  bool lastClipEvenOdd = false;
+            currentClipPath = nullptr, maskBounds = device;
+            float det, width, softclipMargin = 0.5f;
+            
             for (lz = uz = i = 0; i < list.scenes.size(); p16total += list.scenes[i]->p16total, i++, lz = uz ) {
                 const Scene *scn = list.scenes[i].ptr;
-                uz = lz + scn->count, clz = lz < slz ? slz : lz > suz ? suz : lz, cuz = uz < slz ? slz : uz > suz ? suz : uz;
+                uz = lz + scn->count(), clz = lz < slz ? slz : lz > suz ? suz : lz, cuz = uz < slz ? slz : uz > suz ? suz : uz;
                 Transform ctm = list.ctms[i].concat(view), clipquad, m, quad, invclip;
-                Bounds dev, clip, *bnds, clipBounds = device, sceneclip = list.clips[i], lastClip;
-                                
+                Bounds dev, clip, clipBounds = device, sceneclip = list.clips[i], lastClip;
+                bool clipCtmChanged = memcmp(& lastClipCtm, & ctm, sizeof(Transform)) != 0;
+
                 for (is = clz - lz, iz = clz; iz < cuz; iz++, is++) {
-                    flags = scn->flags[is];
+                    Draw& draw = scn->draws[is];
+                    if (draw.flags & Draw::kInvisible)
+                        continue;
+                    
                     if (list.params.useClips) {
-                        if (memcmp(& scn->clips[is], & lastClip, sizeof(Bounds)) != 0) {
-                            lastClip = scn->clips[is];
+                        if (memcmp(& draw.clip, & lastClip, sizeof(Bounds)) != 0) {
+                            lastClip = draw.clip;
                             clipActive = !lastClip.isHuge() || !sceneclip.isHuge();
                             clipquad = clipActive ? sceneclip.intersect(lastClip).quad(ctm) : Transform(1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f);
                             softclipMargin = 0.5f + 1e-1f / fmaxf(1.f, clipquad.scale());
                             invclip = clipquad.invert();
                             clipBounds = Bounds(clipquad).integral().intersect(device);
                         }
-                        uint32_t idx = scn->clipIndices[is];
-                        if (idx != lastIdx) {
-                            lastIdx = idx;
-                            Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kStencil);
-                            inst->data.count = 0, inst->g = nullptr;
-                            if (~idx) {
-                                if (idx != lastClipIdx) {
-                                    lastClipIdx = idx;
-                                    size_t i0, i1;
-                                    const Path& clip = scn->clipPaths[idx];
-                                    i0 = stencils.end;
-                                    Stenciler stenciler(clip, device, ctm, & stencils);
-                                    applyPath(clip.ptr, ctm, device, true, true, stenciler);
-                                    i1 = stencils.end;
-                                    inst->data.idx = int(i0), inst->data.count = int(i1 - i0);
-                                } else
-                                    inst->data.idx = 1;
-                            } else {
-                                inst->data.idx = 0;
-                            }
+                        Geometry *clipPath = draw.clipPath.ptr;  bool clipEvenOdd = draw.flags & Draw::kClipEvenOdd;
+                        if (lastClipPath != clipPath || (clipPath && (clipCtmChanged || lastClipEvenOdd != clipEvenOdd))) {
+                            lastClipPath = clipPath, lastClipCtm = ctm, lastClipEvenOdd = clipEvenOdd, clipCtmChanged = false;
+                            if (clipPath) {
+                                if (currentClipPath != clipPath || currentClipEvenOdd != clipEvenOdd || memcmp(& currentClipCtm, & ctm, sizeof(Transform)) != 0) {
+                                    currentClipPath = clipPath, currentClipCtm = ctm, currentClipEvenOdd = clipEvenOdd;
+                                    writeClipMask(clipPath, ctm, clipEvenOdd, device, iz, buffer->params.useCurves);
+                                }
+                                addClipCommand(iz, kClipEnable);
+                                maskBounds = currentMaskBounds;
+                            } else
+                                addClipCommand(iz, kClipDisable), maskBounds = device;
                         }
                     }
-                    m = scn->ctms[is].concat(ctm), det = fabsf(m.a * m.d - m.b * m.c);
-                    uw = scn->widths[is];
-                    width = list.params.showOutlines ? 1.f : uw * (uw > 0.f ? sqrtf(det) : -1.f);
-                    bnds = & scn->bnds[is], quad = bnds->quad(m), dev = Bounds(quad).inset(-width, -width);
-                    clip = dev.integral().intersect(clipBounds);
+                    m = draw.ctm.concat(ctm), det = fabsf(m.a * m.d - m.b * m.c);
+                    width = list.params.showOutlines ? 0.5f * scale : draw.width * (draw.width > 0.f ? sqrtf(det) : -scale);
+                    quad = draw.bnds.quad(m), dev = Bounds(quad).inset(-width, -width);
+                    clip = dev.integral().intersect(clipBounds).intersect(maskBounds);
                     
-                    if (clip.lx < clip.ux && clip.ly < clip.uy) {
+                    if ((det || draw.width < 0.f) && clip.lx < clip.ux && clip.ly < clip.uy) {
                         bool unclipped = clip.contains(dev);
-                        float clipWidth = clip.width(), clipHeight = clip.height();
-                        Paint *color = & scn->paints[is];
+                        Paint *color = & draw.paint;
                         bool isOpaque = color->isOpaque();
+                        auto softUnclipped = [&]() {
+                            if (!isOpaque || lastClipPath != nullptr || draw.blendMode != kBlendNormal)     // Opaques are drawn before what's beneath them
+                                return false;
+                            if (!clipActive)
+                                return true;
+                            Bounds soft = quad.concat(invclip);
+                            return fmaxf(fmaxf(fabsf(soft.lx - 0.5f), fabsf(soft.ux - 0.5f)), fmaxf(fabsf(soft.ly - 0.5f), fabsf(soft.uy - 0.5f))) < softclipMargin;
+                        };
                         bool isGradient = list.params.showOutlines ? false : color->isGradient();
                         bool isRadial = isGradient && color->type == Paint::kRadial;
                         bool isImage = list.params.showOutlines ? false : color->type == Paint::kImage;
                         size_t colorFlags = isImage ? Instance::kIsImage : (isGradient * Instance::kIsGradient | isRadial * Instance::kIsRadial);
                         if (isGradient) {
-                            texCtms[iz] = color->ctm.concat(m).invert();
-                            size_t idx = scn->gradientIndices[is];
-                            texs.add(TexRef(iz, & scn->gradients[idx]));
+                            paths[iz].texCtm = color->bitmap->ctm.concat(m).invert();
+                            texs.add(TexRef(iz, & color->bitmap->strip[0]));
                         } else if (isImage) {
-                            texCtms[iz] = quad.invert();
-                            new (blends.alloc(1)) Blend(iz | Instance::kIsImage | Instance::kNextImage);
-                            images.add(color);
+                            paths[iz].texCtm = quad.invert();
+                            images.add(ImageRef(iz, color));
                         }
                         
                         if (list.params.showOutlines)
-                            colors[iz] = uw == 0.f ? black : red;
+                            colors[iz] = draw.width == 0.f ? black : red;
                         else
-                            colors[iz] = scn->colors[is].premultiplied();
+                            colors[iz] = draw.paint.color.premultiplied();
                         
-                        ctms[iz] = m, widths[iz] = width, clips[iz] = invclip;
-                        Geometry *g = scn->paths[is].ptr;
+                        paths[iz].clip = invclip;
+                        if (draw.blendMode != kBlendNormal)     // Only blended draws write their mode
+                            paths[iz].mode = draw.blendMode, colorFlags |= Instance::kBlend;
+                        Geometry *g = draw.path.ptr;
                         if (width) {
-                            Blend *inst = new (blends.alloc(1)) Blend(iz | colorFlags | Instance::kOutlines | bool(flags & Scene::kRoundCap) * Instance::kRoundCap | bool(flags & Scene::kSquareCap) * Instance::kSquareCap | bool(flags & Scene::kRoundJoin) * Instance::kRoundJoin);
+                            paths[iz].width = width;
+                            Blend *inst = new (blends.alloc(1)) Blend(iz | colorFlags | Instance::kOutlines | bool(draw.flags & Draw::kRoundCap) * Instance::kRoundCap | bool(draw.flags & Draw::kSquareCap) * Instance::kSquareCap | bool(draw.flags & Draw::kRoundJoin) * Instance::kRoundJoin);
                             
                             Bounds outlineClip = unclipped ? Bounds::huge() : clip.inset(-width, -width);
                             uint32_t i0 = uint32_t(outlines.idx), i1;
                             Outliner outliner;
                             outliner.iz = inst->iz, outliner.outlines = & outlines;
-                            if (width > 4.f && isOpaque && ~lastIdx == 0) {
-                                bool softunclipped = true;
-                                if (clipActive) {
-                                    Bounds soft = quad.concat(invclip);
-                                    softunclipped = fmaxf(fmaxf(fabsf(soft.lx - 0.5f), fabsf(soft.ux - 0.5f)), fmaxf(fabsf(soft.ly - 0.5f), fabsf(soft.uy - 0.5f))) < softclipMargin;
-                                }
-                                outliner.opaques = softunclipped ? & opaques : nullptr;
-                            }
-                            applyPath(g, m, outlineClip, unclipped, false, outliner);
+                            if (width > 4.f && softUnclipped())
+                                outliner.opaques = & opaques;
+                            if (outliner.opaques == nullptr && g->isSegments())
+                                writeSegmentOutlines(g, m, outlineClip, unclipped, inst->iz);
+                            else
+                                outliner.applyPath(g, m, outlineClip, unclipped, false);
                             i1 = uint32_t(outlines.idx);
                             inst->data.idx = i0, inst->data.count = i1 - i0;
-                        } else if (clipWidth * clipHeight / g->types.end < kMoleculesPixelsPerEdge) {
-                            bounds[iz] = *bnds;
+                        } else if (kMoleculesHeight && clip.width() * clip.height() / g->types.end < kMoleculesPixelsPerEdge) {
+                            float s = fmaxf(g->bounds.ux - g->bounds.lx, g->bounds.uy - g->bounds.ly) / kMoleculesRange;
+                            paths[iz].ctm = Transform(s, 0.f, 0.f, s, g->bounds.lx, g->bounds.ly).concat(m);
                             bool fast = !buffer->params.useCurves || g->maxCurve * det < 16.f;
-                            Blend *inst = new (blends.alloc(1)) Blend(iz | colorFlags | Instance::kMolecule | bool(flags & Scene::kFillEvenOdd) * Instance::kEvenOdd | fast * Instance::kFastEdges);
+                            Blend *inst = new (blends.alloc(1)) Blend(iz | colorFlags | Instance::kMolecule | bool(draw.flags & Draw::kFillEvenOdd) * Instance::kEvenOdd | fast * Instance::kFastEdges);
                             inst->g = g, inst->quad.cover = 0;
-                            inst->quad.base = int(p16total + scn->p16bases[is]);
+                            inst->quad.base = int(p16total + scn->p16bases.base[is]);
                             inst->quad.molsbase = int(g->p16s.idx / 2);
                             cnt = fast ? g->p16s.idx / kFastSegments : g->atoms.end;
                             int type = fast ? Allocator::kFastMolecules : Allocator::kQuadMolecules;
@@ -874,37 +1073,76 @@ struct Rasterizer {
                             bool fast = !buffer->params.useCurves || g->maxCurve * det < 4.f;
                             CurveIndexer idxr;
                             idxr.clip = clip, idxr.samples = & samples[0], idxr.fast = fast;
-                            idxr.dst = idxr.dst0 = segments.alloc(2 * g->upperBound(det));
-                            applyPath(g, m, clip, unclipped, true, idxr);
-                            bool softunclipped = true;
-                            if (clipActive) {
-                                Bounds soft = quad.concat(invclip);
-                                softunclipped = fmaxf(fmaxf(fabsf(soft.lx - 0.5f), fabsf(soft.ux - 0.5f)), fmaxf(fabsf(soft.ly - 0.5f), fabsf(soft.uy - 0.5f))) < softclipMargin;
-                            }
-                            writeSegmentInstances(clip, flags & Scene::kFillEvenOdd, iz, isOpaque && softunclipped && ~lastIdx == 0, fast, colorFlags, *this);
+                            idxr.dst = idxr.dst0 = segments.alloc(3 * g->upperBound(det));
+                            idxr.applyPath(g, m, clip, unclipped, true);
+                            writeSegmentInstances(clip, draw.flags & Draw::kFillEvenOdd, iz, softUnclipped(), fast, colorFlags, *this);
                             segments.idx = segments.end = idxr.dst - segments.base;
                         }
-                        if (isImage)
-                            new (blends.alloc(1)) Blend(iz | Instance::kIsImage | Instance::kDisableImage);
                     }
                 }
             }
         }
+        // Each line of a path of one line subpaths is an outline instance capped at both ends, as the Outliner would write it, but
+        // directly, as dots & dashes can be very many. Lines crossing the clip are whole, as their parts outside it are hidden
+        void writeSegmentOutlines(Geometry *g, Transform m, Bounds clip, bool unclipped, uint32_t iz) {
+            Instance *dst0 = outlines.prealloc(g->counts[Geometry::kLine]), *dst = dst0;
+            for (const float *p = g->points.base, *end = p + g->points.end; p < end; p += 4) {
+                float x0 = p[0] * m.a + p[1] * m.c + m.tx, y0 = p[0] * m.b + p[1] * m.d + m.ty;
+                float x1 = p[2] * m.a + p[3] * m.c + m.tx, y1 = p[2] * m.b + p[3] * m.d + m.ty;
+                if (unclipped || (fminf(y0, y1) < clip.uy && fmaxf(y0, y1) > clip.ly && fminf(x0, x1) < clip.ux && fmaxf(x0, x1) > clip.lx)) {
+                    Quadratic& quad = dst->outline.quad;
+                    dst->iz = iz, quad.x0 = x0, quad.y0 = y0, quad.x1 = FLT_MAX, quad.y1 = 0.f, quad.x2 = x1, quad.y2 = y1;
+                    dst->outline.prev = dst->outline.next = 0, dst++;
+                }
+            }
+            outlines.idx = outlines.end += dst - dst0;
+        }
+        // Clip commands are kClip blends, which split the instance batches. kClipMaskBegin's cell holds the clip mask's device bounds,
+        // & the instances after it, up to the next kClipEnable, render the clip path's coverage into the clip mask. Its g & quad.base
+        // identify the mask, so a context beginning with the clip the last context ended with can reuse it
+        enum ClipCommand { kClipDisable = 0, kClipEnable = 1, kClipMaskBegin = 2 };
+        void addClipCommand(size_t iz, int command, Bounds b = Bounds(0.f, 0.f, 0.f, 0.f), Geometry *g = nullptr, uint32_t ctmHash = 0) {
+            Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kClip);
+            inst->data.idx = command, inst->data.count = 0, inst->g = g, inst->quad.base = int(ctmHash);
+            Cell& cell = inst->quad.cell;
+            cell.lx = b.lx, cell.ly = b.ly, cell.ux = b.ux, cell.uy = b.uy;
+        }
+        // Writes the instances of clip path g's even-odd or non-zero coverage, & sets currentMaskBounds to their device bounds. A kClipClear cell
+        // over those bounds comes first, zeroing the mask beneath the coverage cells that follow it. The mask's identity is of g, its ctm & its rule
+        void writeClipMask(Geometry *g, Transform ctm, bool evenOdd, Bounds device, size_t iz, bool useCurves) {
+            Bounds dev = Bounds(g->bounds.quad(ctm)), clip = dev.integral().intersect(device);
+            currentMaskBounds = clip;
+            addClipCommand(iz, kClipMaskBegin, clip, g, uint32_t(XXH32(& ctm, sizeof(ctm), evenOdd)));
+            if (clip.lx < clip.ux && clip.ly < clip.uy) {
+                Cell *cell = & (new (blends.alloc(1)) Blend(iz | Instance::kClipClear))->quad.cell;
+                cell->lx = clip.lx, cell->ly = clip.ly, cell->ux = clip.ux, cell->uy = clip.uy, cell->ox = kNullIndex;
+                float det = fabsf(ctm.det());
+                bool fast = !useCurves || g->maxCurve * det < 4.f;
+                CurveIndexer idxr;
+                idxr.clip = clip, idxr.samples = & samples[0], idxr.fast = fast;
+                idxr.dst = idxr.dst0 = segments.alloc(3 * g->upperBound(det));
+                idxr.applyPath(g, ctm, clip, clip.contains(dev), true);
+                writeSegmentInstances(clip, evenOdd, iz, false, fast, 0, *this);
+                segments.idx = segments.end = idxr.dst - segments.base;
+            }
+        }
         void empty() {
-            texTotal = 0, blends.empty(), opaques.empty(), stencils.empty(), outlines.empty(), segments.empty(), segmentsIndices.empty(), indices.empty(), texs.resize(0), images.resize(0);
+            texTotal = 0, blends.empty(), opaques.empty(), outlines.empty(), segments.empty(), segmentsIndices.empty(), indices.empty(), texs.resize(0), images.resize(0);
             for (int i = 0; i < samples.end(); i++)
                 samples[i].empty();
             entries = Vector<Buffer::Entry>();
         }
-        void reset() { blends.reset(), opaques.reset(), stencils.reset(), outlines.reset(), segments.reset(), segmentsIndices.reset(), indices.reset(), entries = Vector<Buffer::Entry>(), texs.resize(0), images.resize(0);
+        void reset() {
+            blends.reset(), opaques.reset(), outlines.reset(), segments.reset(), segmentsIndices.reset(), indices.reset(), entries = Vector<Buffer::Entry>(), texs.resize(0), images.resize(0);
             samples.resize(0);
         }
         
         size_t texTotal;
+        Geometry *currentClipPath = nullptr;  Transform currentClipCtm;  bool currentClipEvenOdd = false;  Bounds currentMaskBounds, maskBounds;
         Allocator allocator;  Vector<Buffer::Entry> entries;
         Vector<TexRef> texs;
-        Vector<Paint *> images;
-        Row<Opaque> opaques, stencils;  Row<Blend> blends;  Row<Instance> outlines;  Row<Segment> segments;
+        Vector<ImageRef> images;
+        Row<Opaque> opaques;  Row<Blend> blends;  Row<Instance> outlines;  Row<Segment> segments;
         Row<Sample::Index> indices;  RefVector<Row<Sample>> samples;  Row<uint32_t> segmentsIndices;
     };
     
@@ -1000,7 +1238,19 @@ struct Rasterizer {
     
     struct GeometryWriter {
         virtual void writeSegment(float x0, float y0, float x1, float y1) = 0;
-        virtual void Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) = 0;
+        virtual void Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
+            float ax, ay, a, count, dt, f2x, f1x, f2y, f1y;
+            ax = x0 + x2 - x1 - x1, ay = y0 + y2 - y1 - y1, a = quadraticScale * (ax * ax + ay * ay);
+            count = a < quadraticScale ? 1.f : a < 8.f ? 2.f : 2.f + floorf(sqrtf(sqrtf(a))), dt = 1.f / count;
+            ax *= dt * dt, f2x = 2.f * ax, f1x = ax + 2.f * (x1 - x0) * dt, x1 = x0;
+            ay *= dt * dt, f2y = 2.f * ay, f1y = ay + 2.f * (y1 - y0) * dt, y1 = y0;
+            while (--count) {
+                x1 += f1x, f1x += f2x, y1 += f1y, f1y += f2y;
+                writeSegment(x0, y0, x1, y1);
+                x0 = x1, y0 = y1;
+            }
+            writeSegment(x0, y0, x2, y2);
+        }
         virtual void Cubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3) {
             float cx, bx, ax, cy, by, ay, adot, bdot, count, dt, dt2, f3x, f2x, f1x, f3y, f2y, f1y, x, y;
             cx = 3.f * (x1 - x0), bx = 3.f * (x2 - x1), ax = x3 - x0 - bx, bx -= cx;
@@ -1031,111 +1281,199 @@ struct Rasterizer {
         }
         virtual void EndSubpath(float x0, float y0, float x1, float y1, bool closed) {}
         
-        Transform m;
+        void applyPath(Geometry *g, Transform m0, Bounds clip0, bool unclipped0, bool polygon0) {
+            this->m = m0, this->clip = clip0, this->unclipped = unclipped0, this->polygon = polygon0;
+            
+            bool closed, closeSubpath = false;  float *p = g->points.base, sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3;
+            for (uint8_t *type = g->types.base, *end = type + g->types.end; type < end; )
+                switch (*type) {
+                    case Geometry::kMove:
+                        if ((closed = (polygon || closeSubpath) && (sx != x0 || sy != y0)))
+                            line(x0, y0, sx, sy);
+                        if (sx != FLT_MAX)
+                            EndSubpath(x0, y0, sx, sy, closeSubpath || closed);
+                        sx = x0 = p[0] * m.a + p[1] * m.c + m.tx, sy = y0 = p[0] * m.b + p[1] * m.d + m.ty, p += 2, type++, closeSubpath = false;
+                        break;
+                    case Geometry::kLine:
+                        x1 = p[0] * m.a + p[1] * m.c + m.tx, y1 = p[0] * m.b + p[1] * m.d + m.ty;
+                        line(x0, y0, x1, y1);
+                        x0 = x1, y0 = y1, p += 2, type++;
+                        break;
+                    case Geometry::kQuadratic:
+                        x1 = p[0] * m.a + p[1] * m.c + m.tx, y1 = p[0] * m.b + p[1] * m.d + m.ty;
+                        x2 = p[2] * m.a + p[3] * m.c + m.tx, y2 = p[2] * m.b + p[3] * m.d + m.ty;
+                        if (unclipped)
+                            Quadratic(x0, y0, x1, y1, x2, y2);
+                        else {
+                            ly = fminf(y0, fminf(y1, y2)), uy = fmaxf(y0, fmaxf(y1, y2));
+                            if (ly < clip.uy && uy > clip.ly) {
+                                lx = fminf(x0, fminf(x1, x2)), ux = fmaxf(x0, fmaxf(x1, x2));
+                                if (polygon || !(ux < clip.lx || lx > clip.ux)) {
+                                    if (ly < clip.ly || uy > clip.uy || lx < clip.lx || ux > clip.ux)
+                                        clipQuadratic(x0, y0, x1, y1, x2, y2);
+                                    else
+                                        Quadratic(x0, y0, x1, y1, x2, y2);
+                                }
+                            }
+                        }
+                        x0 = x2, y0 = y2, p += 4, type += 2;
+                        break;
+                    case Geometry::kCubic:
+                        x1 = p[0] * m.a + p[1] * m.c + m.tx, y1 = p[0] * m.b + p[1] * m.d + m.ty;
+                        x2 = p[2] * m.a + p[3] * m.c + m.tx, y2 = p[2] * m.b + p[3] * m.d + m.ty;
+                        x3 = p[4] * m.a + p[5] * m.c + m.tx, y3 = p[4] * m.b + p[5] * m.d + m.ty;
+                        if (unclipped)
+                            Cubic(x0, y0, x1, y1, x2, y2, x3, y3);
+                        else {
+                            ly = fminf(fminf(y0, y1), fminf(y2, y3)), uy = fmaxf(fmaxf(y0, y1), fmaxf(y2, y3));
+                            if (ly < clip.uy && uy > clip.ly) {
+                                lx = fminf(fminf(x0, x1), fminf(x2, x3)), ux = fmaxf(fmaxf(x0, x1), fmaxf(x2, x3));
+                                if (polygon || !(ux < clip.lx || lx > clip.ux)) {
+                                    if (ly < clip.ly || uy > clip.uy || lx < clip.lx || ux > clip.ux)
+                                        clipCubic(x0, y0, x1, y1, x2, y2, x3, y3);
+                                    else
+                                        Cubic(x0, y0, x1, y1, x2, y2, x3, y3);
+                                }
+                            }
+                        }
+                        x0 = x3, y0 = y3, p += 6, type += 3;
+                        break;
+                    case Geometry::kClose:
+                        p += 2, type++, closeSubpath = true;
+                        break;
+                }
+            if ((closed = (polygon || closeSubpath) && (sx != x0 || sy != y0)))
+                line(x0, y0, sx, sy);
+            EndSubpath(x0, y0, sx, sy, closeSubpath || closed);
+        }
+        
+        inline void line(float x0, float y0, float x1, float y1) {
+            if (unclipped)
+                writeSegment(x0, y0, x1, y1);
+            else {
+                ly = fminf(y0, y1), uy = fmaxf(y0, y1);
+                if (ly < clip.uy && uy > clip.ly) {
+                    lx = fminf(x0, x1), ux = fmaxf(x0, x1);
+                    if (ly < clip.ly || uy > clip.uy || lx < clip.lx || ux > clip.ux)
+                        clipLine(x0, y0, x1, y1);
+                    else
+                        writeSegment(x0, y0, x1, y1);
+                }
+            }
+        }
+        void clipLine(float x0, float y0, float x1, float y1) {
+            float roots[6], *root = roots, *r, s, t, sx0, sy0, sx1, sy1, mx, my, vx;
+            *root++ = 0.f;
+            if (clip.ly > ly && clip.ly < uy)
+                *root++ = (clip.ly - y0) / (y1 - y0);
+            if (clip.uy > ly && clip.uy < uy)
+                *root++ = (clip.uy - y0) / (y1 - y0);
+            if (clip.lx > lx && clip.lx < ux)
+                *root++ = (clip.lx - x0) / (x1 - x0);
+            if (clip.ux > lx && clip.ux < ux)
+                *root++ = (clip.ux - x0) / (x1 - x0);
+            std::sort(roots + 1, root), *root = 1.f;
+            for (sx0 = x0, sy0 = y0, r = roots; r < root; r++, sx0 = sx1, sy0 = sy1) {
+                t = r[1], s = 1.f - t;
+                sx1 = s * x0 + t * x1, mx = 0.5f * (sx0 + sx1);
+                sy1 = s * y0 + t * y1, my = 0.5f * (sy0 + sy1);
+                if (my >= clip.ly && my < clip.uy) {
+                    if (mx >= clip.lx && mx < clip.ux)
+                        writeSegment(sx0, sy0, sx1, sy1);
+                    else if (polygon)
+                        vx = mx <= clip.lx ? clip.lx : clip.ux, writeSegment(vx, sy0, vx, sy1);
+                }
+            }
+        }
+        void clipQuadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
+            float ax, bx, ay, by, roots[10], *root = roots, *r, t, mt, mx, my, vx, sx0, sy0, sx2, sy2;
+            ax = x2 - x1, bx = x1 - x0, ax -= bx, bx *= 2.f, ay = y2 - y1, by = y1 - y0, ay -= by, by *= 2.f;
+            *root++ = 0.f;
+            if (clip.ly > ly && clip.ly < uy)
+                root = solveQuadratic(ay, by, y0 - clip.ly, root);
+            if (clip.uy > ly && clip.uy < uy)
+                root = solveQuadratic(ay, by, y0 - clip.uy, root);
+            if (clip.lx > lx && clip.lx < ux)
+                root = solveQuadratic(ax, bx, x0 - clip.lx, root);
+            if (clip.ux > lx && clip.ux < ux)
+                root = solveQuadratic(ax, bx, x0 - clip.ux, root);
+            if (root - roots == 1) {
+                if (fmaxf(y0, y2) > clip.ly && fminf(y0, y2) < clip.uy) {
+                    if (fmaxf(x0, x2) > clip.lx && fminf(x0, x2) < clip.ux)
+                        Quadratic(x0, y0, x1, y1, x2, y2);
+                    else if (polygon)
+                        vx = lx <= clip.lx ? clip.lx : clip.ux, writeSegment(vx, y0, vx, y2);
+                }
+            } else {
+                std::sort(roots + 1, root), *root = 1.f;
+                for (sx0 = x0, sy0 = y0, r = roots; r < root; r++, sx0 = sx2, sy0 = sy2) {
+                    t = r[1], mt = 0.5f * (r[0] + r[1]);
+                    sx2 = t == 1.f ? x2 : (ax * t + bx) * t + x0;
+                    sy2 = t == 1.f ? y2 : (ay * t + by) * t + y0;
+                    mx = (ax * mt + bx) * mt + x0;
+                    my = (ay * mt + by) * mt + y0;
+                    if (my >= clip.ly && my < clip.uy) {
+                        if (mx >= clip.lx && mx < clip.ux)
+                            Quadratic(sx0, sy0, 2.f * mx - 0.5f * (sx0 + sx2), 2.f * my - 0.5f * (sy0 + sy2), sx2, sy2);
+                        else if (polygon)
+                            vx = mx <= clip.lx ? clip.lx : clip.ux, writeSegment(vx, sy0, vx, sy2);
+                    }
+                }
+            }
+        }
+        void clipCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3) {
+            float cx, bx, ax, cy, by, ay, roots[14], *root = roots, *r, t, mt, mx, my, vx, x0t, y0t, x1t, y1t, x2t, y2t, x3t, y3t, fx, gx, fy, gy;
+            cx = 3.f * (x1 - x0), bx = 3.f * (x2 - x1), ax = x3 - x0 - bx, bx -= cx;
+            cy = 3.f * (y1 - y0), by = 3.f * (y2 - y1), ay = y3 - y0 - by, by -= cy;
+            *root++ = 0.f;
+            if (clip.ly > ly && clip.ly < uy)
+                root = solveCubic(by, cy, y0 - clip.ly, ay, root);
+            if (clip.uy > ly && clip.uy < uy)
+                root = solveCubic(by, cy, y0 - clip.uy, ay, root);
+            if (clip.lx > lx && clip.lx < ux)
+                root = solveCubic(bx, cx, x0 - clip.lx, ax, root);
+            if (clip.ux > lx && clip.ux < ux)
+                root = solveCubic(bx, cx, x0 - clip.ux, ax, root);
+            if (root - roots == 1) {
+                if (fmaxf(y0, y3) > clip.ly && fminf(y0, y3) < clip.uy) {
+                    if (fmaxf(x0, x3) > clip.lx && fminf(x0, x3) < clip.ux)
+                        Cubic(x0, y0, x1, y1, x2, y2, x3, y3);
+                    else if (polygon)
+                        vx = lx <= clip.lx ? clip.lx : clip.ux, writeSegment(vx, y0, vx, y3);
+                }
+            } else {
+                std::sort(roots + 1, root), *root = 1.f;
+                for (x0t = x0, y0t = y0, r = roots; r < root; r++, x0t = x3t, y0t = y3t) {
+                    t = r[1], mt = 0.5f * (r[0] + r[1]);
+                    x3t = t == 1.f ? x3 : ((ax * t + bx) * t + cx) * t + x0;
+                    y3t = t == 1.f ? y3 : ((ay * t + by) * t + cy) * t + y0;
+                    mx = ((ax * mt + bx) * mt + cx) * mt + x0;
+                    my = ((ay * mt + by) * mt + cy) * mt + y0;
+                    if (my >= clip.ly && my < clip.uy) {
+                        if (mx >= clip.lx && mx < clip.ux) {
+                            const float u = 1.f / 3.f, v = 2.f / 3.f, u3 = 1.f / 27.f, v3 = 8.f / 27.f;
+                            mt = v * r[0] + u * r[1], x1t = ((ax * mt + bx) * mt + cx) * mt + x0, y1t = ((ay * mt + by) * mt + cy) * mt + y0;
+                            mt = u * r[0] + v * r[1], x2t = ((ax * mt + bx) * mt + cx) * mt + x0, y2t = ((ay * mt + by) * mt + cy) * mt + y0;
+                            fx = x1t - v3 * x0t - u3 * x3t, gx = x2t - u3 * x0t - v3 * x3t;
+                            fy = y1t - v3 * y0t - u3 * y3t, gy = y2t - u3 * y0t - v3 * y3t;
+                            Cubic(
+                                x0t, y0t,
+                                3.f * fx - 1.5f * gx, 3.f * fy - 1.5f * gy,
+                                3.f * gx - 1.5f * fx, 3.f * gy - 1.5f * fy,
+                                x3t, y3t
+                            );
+                        } else if (polygon)
+                            vx = mx <= clip.lx ? clip.lx : clip.ux, writeSegment(vx, y0t, vx, y3t);
+                    }
+                }
+            }
+        }
+        
+        Transform m;  Bounds clip;  bool unclipped;  bool polygon;
+        float lx, ly, ux, uy;
         float quadraticScale = 1.f, cubicScale = kCubicPrecision;
     };
     
-    static void applyPath(Geometry *g, Transform m, Bounds clip, bool unclipped, bool polygon, GeometryWriter& writer) {
-        bool closed, closeSubpath = false;  float *p = g->points.base, sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3, ly, uy, lx, ux;
-        for (uint8_t *type = g->types.base, *end = type + g->types.end; type < end; )
-            switch (*type) {
-                case Geometry::kMove:
-                    if ((closed = (polygon || closeSubpath) && (sx != x0 || sy != y0)))
-                        line(x0, y0, sx, sy, clip, unclipped, polygon, writer);
-                    if (sx != FLT_MAX)
-                        writer.EndSubpath(x0, y0, sx, sy, closeSubpath || closed);
-                    sx = x0 = p[0] * m.a + p[1] * m.c + m.tx, sy = y0 = p[0] * m.b + p[1] * m.d + m.ty, p += 2, type++, closeSubpath = false;
-                    break;
-                case Geometry::kLine:
-                    x1 = p[0] * m.a + p[1] * m.c + m.tx, y1 = p[0] * m.b + p[1] * m.d + m.ty;
-                    line(x0, y0, x1, y1, clip, unclipped, polygon, writer);
-                    x0 = x1, y0 = y1, p += 2, type++;
-                    break;
-                case Geometry::kQuadratic:
-                    x1 = p[0] * m.a + p[1] * m.c + m.tx, y1 = p[0] * m.b + p[1] * m.d + m.ty;
-                    x2 = p[2] * m.a + p[3] * m.c + m.tx, y2 = p[2] * m.b + p[3] * m.d + m.ty;
-                    if (unclipped)
-                        writer.Quadratic(x0, y0, x1, y1, x2, y2);
-                    else {
-                        ly = fminf(y0, fminf(y1, y2)), uy = fmaxf(y0, fmaxf(y1, y2));
-                        if (ly < clip.uy && uy > clip.ly) {
-                            lx = fminf(x0, fminf(x1, x2)), ux = fmaxf(x0, fmaxf(x1, x2));
-                            if (polygon || !(ux < clip.lx || lx > clip.ux)) {
-                                if (ly < clip.ly || uy > clip.uy || lx < clip.lx || ux > clip.ux)
-                                    clipQuadratic(x0, y0, x1, y1, x2, y2, clip, lx, ly, ux, uy, polygon, writer);
-                                else
-                                    writer.Quadratic(x0, y0, x1, y1, x2, y2);
-                            }
-                        }
-                    }
-                    x0 = x2, y0 = y2, p += 4, type += 2;
-                    break;
-                case Geometry::kCubic:
-                    x1 = p[0] * m.a + p[1] * m.c + m.tx, y1 = p[0] * m.b + p[1] * m.d + m.ty;
-                    x2 = p[2] * m.a + p[3] * m.c + m.tx, y2 = p[2] * m.b + p[3] * m.d + m.ty;
-                    x3 = p[4] * m.a + p[5] * m.c + m.tx, y3 = p[4] * m.b + p[5] * m.d + m.ty;
-                    if (unclipped)
-                        writer.Cubic(x0, y0, x1, y1, x2, y2, x3, y3);
-                    else {
-                        ly = fminf(fminf(y0, y1), fminf(y2, y3)), uy = fmaxf(fmaxf(y0, y1), fmaxf(y2, y3));
-                        if (ly < clip.uy && uy > clip.ly) {
-                            lx = fminf(fminf(x0, x1), fminf(x2, x3)), ux = fmaxf(fmaxf(x0, x1), fmaxf(x2, x3));
-                            if (polygon || !(ux < clip.lx || lx > clip.ux)) {
-                                if (ly < clip.ly || uy > clip.uy || lx < clip.lx || ux > clip.ux)
-                                    clipCubic(x0, y0, x1, y1, x2, y2, x3, y3, clip, lx, ly, ux, uy, polygon, writer);
-                                else
-                                    writer.Cubic(x0, y0, x1, y1, x2, y2, x3, y3);
-                            }
-                        }
-                    }
-                    x0 = x3, y0 = y3, p += 6, type += 3;
-                    break;
-                case Geometry::kClose:
-                    p += 2, type++, closeSubpath = true;
-                    break;
-            }
-        if ((closed = (polygon || closeSubpath) && (sx != x0 || sy != y0)))
-            line(x0, y0, sx, sy, clip, unclipped, polygon, writer);
-        writer.EndSubpath(x0, y0, sx, sy, closeSubpath || closed);
-    }
-    static inline void line(float x0, float y0, float x1, float y1, Bounds clip, bool unclipped, bool polygon, GeometryWriter& writer) {
-        if (unclipped)
-            writer.writeSegment(x0, y0, x1, y1);
-        else {
-            float ly = fminf(y0, y1), uy = fmaxf(y0, y1);
-            if (ly < clip.uy && uy > clip.ly) {
-                if (ly < clip.ly || uy > clip.uy || fminf(x0, x1) < clip.lx || fmaxf(x0, x1) > clip.ux)
-                    clipLine(x0, y0, x1, y1, clip, polygon, writer);
-                else
-                    writer.writeSegment(x0, y0, x1, y1);
-            }
-        }
-    }
-    static void clipLine(float x0, float y0, float x1, float y1, Bounds clip, bool polygon, GeometryWriter& writer) {
-        float lx, ux, ly, uy, roots[6], *root = roots, *r, s, t, sx0, sy0, sx1, sy1, mx, my, vx;
-        lx = fminf(x0, x1), ux = fmaxf(x0, x1), ly = fminf(y0, y1), uy = fmaxf(y0, y1);
-        *root++ = 0.f;
-        if (clip.ly > ly && clip.ly < uy)
-            *root++ = (clip.ly - y0) / (y1 - y0);
-        if (clip.uy > ly && clip.uy < uy)
-            *root++ = (clip.uy - y0) / (y1 - y0);
-        if (clip.lx > lx && clip.lx < ux)
-            *root++ = (clip.lx - x0) / (x1 - x0);
-        if (clip.ux > lx && clip.ux < ux)
-            *root++ = (clip.ux - x0) / (x1 - x0);
-        std::sort(roots + 1, root), *root = 1.f;
-        for (sx0 = x0, sy0 = y0, r = roots; r < root; r++, sx0 = sx1, sy0 = sy1) {
-            t = r[1], s = 1.f - t;
-            sx1 = s * x0 + t * x1, mx = 0.5f * (sx0 + sx1);
-            sy1 = s * y0 + t * y1, my = 0.5f * (sy0 + sy1);
-            if (my >= clip.ly && my < clip.uy) {
-                if (mx >= clip.lx && mx < clip.ux)
-                    writer.writeSegment(sx0, sy0, sx1, sy1);
-                else if (polygon)
-                    vx = mx <= clip.lx ? clip.lx : clip.ux, writer.writeSegment(vx, sy0, vx, sy1);
-            }
-        }
-    }
     static float *solveQuadratic(double A, double B, double C, float *roots) {
         if (fabs(A) < 1e-3) {
             float t = -C / B;  if (t > 0.f && t < 1.f)  *roots++ = t;
@@ -1148,42 +1486,7 @@ struct Rasterizer {
         }
         return roots;
     }
-    static void clipQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, Bounds clip, float lx, float ly, float ux, float uy, bool polygon, GeometryWriter& writer) {
-        float ax, bx, ay, by, roots[10], *root = roots, *r, t, mt, mx, my, vx, sx0, sy0, sx2, sy2;
-        ax = x2 - x1, bx = x1 - x0, ax -= bx, bx *= 2.f, ay = y2 - y1, by = y1 - y0, ay -= by, by *= 2.f;
-        *root++ = 0.f;
-        if (clip.ly > ly && clip.ly < uy)
-            root = solveQuadratic(ay, by, y0 - clip.ly, root);
-        if (clip.uy > ly && clip.uy < uy)
-            root = solveQuadratic(ay, by, y0 - clip.uy, root);
-        if (clip.lx > lx && clip.lx < ux)
-            root = solveQuadratic(ax, bx, x0 - clip.lx, root);
-        if (clip.ux > lx && clip.ux < ux)
-            root = solveQuadratic(ax, bx, x0 - clip.ux, root);
-        if (root - roots == 1) {
-            if (fmaxf(y0, y2) > clip.ly && fminf(y0, y2) < clip.uy) {
-                if (fmaxf(x0, x2) > clip.lx && fminf(x0, x2) < clip.ux)
-                    writer.Quadratic(x0, y0, x1, y1, x2, y2);
-                else if (polygon)
-                    vx = lx <= clip.lx ? clip.lx : clip.ux, writer.writeSegment(vx, y0, vx, y2);
-            }
-        } else {
-            std::sort(roots + 1, root), *root = 1.f;
-            for (sx0 = x0, sy0 = y0, r = roots; r < root; r++, sx0 = sx2, sy0 = sy2) {
-                t = r[1], mt = 0.5f * (r[0] + r[1]);
-                sx2 = t == 1.f ? x2 : (ax * t + bx) * t + x0;
-                sy2 = t == 1.f ? y2 : (ay * t + by) * t + y0;
-                mx = (ax * mt + bx) * mt + x0;
-                my = (ay * mt + by) * mt + y0;
-                if (my >= clip.ly && my < clip.uy) {
-                    if (mx >= clip.lx && mx < clip.ux)
-                        writer.Quadratic(sx0, sy0, 2.f * mx - 0.5f * (sx0 + sx2), 2.f * my - 0.5f * (sy0 + sy2), sx2, sy2);
-                    else if (polygon)
-                        vx = mx <= clip.lx ? clip.lx : clip.ux, writer.writeSegment(vx, sy0, vx, sy2);
-                }
-            }
-        }
-    }
+   
     static float *solveCubic(double B, double C, double D, double A, float *roots) {
         if (fabs(A) < 1e-3)
             return solveQuadratic(B, C, D, roots);
@@ -1210,56 +1513,9 @@ struct Rasterizer {
         }
         return roots;
     }
-    static void clipCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Bounds clip, float lx, float ly, float ux, float uy, bool polygon, GeometryWriter& writer) {
-        float cx, bx, ax, cy, by, ay, roots[14], *root = roots, *r, t, mt, mx, my, vx, x0t, y0t, x1t, y1t, x2t, y2t, x3t, y3t, fx, gx, fy, gy;
-        cx = 3.f * (x1 - x0), bx = 3.f * (x2 - x1), ax = x3 - x0 - bx, bx -= cx;
-        cy = 3.f * (y1 - y0), by = 3.f * (y2 - y1), ay = y3 - y0 - by, by -= cy;
-        *root++ = 0.f;
-        if (clip.ly > ly && clip.ly < uy)
-            root = solveCubic(by, cy, y0 - clip.ly, ay, root);
-        if (clip.uy > ly && clip.uy < uy)
-            root = solveCubic(by, cy, y0 - clip.uy, ay, root);
-        if (clip.lx > lx && clip.lx < ux)
-            root = solveCubic(bx, cx, x0 - clip.lx, ax, root);
-        if (clip.ux > lx && clip.ux < ux)
-            root = solveCubic(bx, cx, x0 - clip.ux, ax, root);
-        if (root - roots == 1) {
-            if (fmaxf(y0, y3) > clip.ly && fminf(y0, y3) < clip.uy) {
-                if (fmaxf(x0, x3) > clip.lx && fminf(x0, x3) < clip.ux)
-                    writer.Cubic(x0, y0, x1, y1, x2, y2, x3, y3);
-                else if (polygon)
-                    vx = lx <= clip.lx ? clip.lx : clip.ux, writer.writeSegment(vx, y0, vx, y3);
-            }
-        } else {
-            std::sort(roots + 1, root), *root = 1.f;
-            for (x0t = x0, y0t = y0, r = roots; r < root; r++, x0t = x3t, y0t = y3t) {
-                t = r[1], mt = 0.5f * (r[0] + r[1]);
-                x3t = t == 1.f ? x3 : ((ax * t + bx) * t + cx) * t + x0;
-                y3t = t == 1.f ? y3 : ((ay * t + by) * t + cy) * t + y0;
-                mx = ((ax * mt + bx) * mt + cx) * mt + x0;
-                my = ((ay * mt + by) * mt + cy) * mt + y0;
-                if (my >= clip.ly && my < clip.uy) {
-                    if (mx >= clip.lx && mx < clip.ux) {
-                        const float u = 1.f / 3.f, v = 2.f / 3.f, u3 = 1.f / 27.f, v3 = 8.f / 27.f;
-                        mt = v * r[0] + u * r[1], x1t = ((ax * mt + bx) * mt + cx) * mt + x0, y1t = ((ay * mt + by) * mt + cy) * mt + y0;
-                        mt = u * r[0] + v * r[1], x2t = ((ax * mt + bx) * mt + cx) * mt + x0, y2t = ((ay * mt + by) * mt + cy) * mt + y0;
-                        fx = x1t - v3 * x0t - u3 * x3t, gx = x2t - u3 * x0t - v3 * x3t;
-                        fy = y1t - v3 * y0t - u3 * y3t, gy = y2t - u3 * y0t - v3 * y3t;
-                        writer.Cubic(
-                            x0t, y0t,
-                            3.f * fx - 1.5f * gx, 3.f * fy - 1.5f * gy,
-                            3.f * gx - 1.5f * fx, 3.f * gy - 1.5f * fy,
-                            x3t, y3t
-                        );
-                    } else if (polygon)
-                        vx = mx <= clip.lx ? clip.lx : clip.ux, writer.writeSegment(vx, y0t, vx, y3t);
-                }
-            }
-        }
-    }
     
     struct CurveIndexer: GeometryWriter {
-        Segment *dst, *dst0;  bool fast;  Bounds clip;  Row<Sample> *samples;
+        Segment *dst, *dst0;  bool fast;  Row<Sample> *samples;
         
         void writeSegment(float x0, float y0, float x1, float y1) {
             if (y0 != y1)
@@ -1346,7 +1602,7 @@ struct Rasterizer {
             for (size_t i = 0; i < count; i++)
                 length += pattern[i];
             Dasher dasher(fmod(phase, length), pattern, count);
-            applyPath(path.ptr, Transform(), Bounds(), true, false, dasher);
+            dasher.applyPath(path.ptr, Transform(), Bounds(), true, false);
             return dasher.dashed;
         }
         
@@ -1452,7 +1708,7 @@ struct Rasterizer {
             p16s = & g->p16s, p16cnts = & g->p16cnts, atoms = & g->atoms;
             size_t count = g->points.end / 2;
             p16s->prealloc(count), p16cnts->prealloc(count / kFastSegments), atoms->prealloc(count);
-            applyPath(g, m, Bounds(), true, true, *this);
+            applyPath(g, m, Bounds(), true, true);
             
             Bounds *b = g->molecules.base;
             Point16 *bnd16 = p16s->alloc(g->molecules.end * 2);
@@ -1551,55 +1807,59 @@ struct Rasterizer {
         uint32_t iz;  Row<Instance> *outlines = nullptr;  Row<Opaque> *opaques = nullptr;
     };
     
-    struct Stenciler: GeometryWriter {
-        static Row<Opaque> CreateStencils(const Path& path, Bounds device, Transform m = Transform()) {
-            Row<Opaque> stencils;
-            if (!path->isValid())
-                return stencils;
-            Stenciler stenciler(path, device, m, & stencils);
-            applyPath(path.ptr, m, device, true, true, stenciler);
-            return stencils;
+    
+    struct Bounder: GeometryWriter {
+        static Bounds GetBounds(Path& path, Transform ctm) {
+            Bounder bounder;
+            bounder.applyPath(path.ptr, ctm, Bounds(), true, false);
+            return bounder.bounds;
         }
-        
-        Stenciler(const Path& path, Bounds device, Transform m, Row<Opaque> *stencils) : device(device), molecule(path->molecules.base), m(m), stencils(stencils) {}
         
         void writeSegment(float x0, float y0, float x1, float y1) {
-            Opaque *stencil = stencils->alloc(1);
-            struct Quadratic& quad = stencil->quad;
-            float cx = molecule->cx(), cy = molecule->cy();
-            quad.x0 = m.a * cx + m.c * cy + m.tx;
-            quad.y0 = m.b * cx + m.d * cy + m.ty;
-            quad.x1 = x0, quad.y1 = y0;
-            quad.x2 = x1, quad.y2 = y1;
+            bounds.extend(x0, y0), bounds.extend(x1, y1);
         }
         void Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
-            Bounds quad, clip;
-            quad.extend(x0, y0), quad.extend(x1, y1), quad.extend(x2, y2);
-            clip = quad.intersect(device);
-            bool offscreen = clip.lx == clip.ux || clip.ly == clip.uy;
-            float ax, ay, a, count, dt, f2x, f1x, f2y, f1y;
-            ax = x0 + x2 - x1 - x1, ay = y0 + y2 - y1 - y1, a = quadraticScale * (ax * ax + ay * ay);
-            count = offscreen || a < quadraticScale ? 1.f : a < 8.f ? 2.f : 2.f + floorf(sqrtf(sqrtf(a))), dt = 1.f / count;
-            ax *= dt * dt, f2x = 2.f * ax, f1x = ax + 2.f * (x1 - x0) * dt, x1 = x0;
-            ay *= dt * dt, f2y = 2.f * ay, f1y = ay + 2.f * (y1 - y0) * dt, y1 = y0;
-            while (--count) {
-                x1 += f1x, f1x += f2x, y1 += f1y, f1y += f2y;
-                writeSegment(x0, y0, x1, y1);
-                x0 = x1, y0 = y1;
-            }
-            writeSegment(x0, y0, x2, y2);
+            bounds.extend(x0, y0), bounds.extend(x2, y2);
+            
+            float ax = x2 - x1, bx = x1 - x0, ay = y2 - y1, by = y1 - y0;
+            if (ax * bx >= 0.f && ay * by >= 0.f)
+                return;
+            float t0 = fmaxf(0.f, fminf(1.f, bx / (bx - ax))), t1 = fmaxf(0.f, fminf(1.f, by / (by - ay)));
+            ax -= bx, bx *= 2.f, ay -= by, by *= 2.f;
+            bounds.extend((ax * t0 + bx) * t0 + x0, (ay * t0 + by) * t0 + y0);
+            bounds.extend((ax * t1 + bx) * t1 + x0, (ay * t1 + by) * t1 + y0);
         }
-        
+        Bounds bounds;
+    };
+    
+    struct Huller: GeometryWriter {
+        static constexpr float err = 1e-3f;
+        Huller(const Path& path) {
+            g = hull.ptr, p = points.ptr;
+            applyPath(path.ptr, Transform(), Bounds(), true, false);
+        }
+        void writeSegment(float x0, float y0, float x1, float y1) {
+            g->moveTo(x0, y0), g->lineTo(x1, y1);
+            p->moveTo(x0, y0), p->lineTo(x0 + err, y0);
+        }
+        void Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
+            g->moveTo(x0, y0), g->lineTo(x1, y1), g->lineTo(x2, y2);
+            p->moveTo(x0, y0), p->lineTo(x0 + err, y0), p->moveTo(x1, y1), p->lineTo(x1 + err, y1);
+        }
+        void Cubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3) {
+            g->moveTo(x0, y0), g->lineTo(x1, y1), g->lineTo(x2, y2), g->lineTo(x3, y3);
+            p->moveTo(x0, y0), p->lineTo(x0 + err, y0), p->moveTo(x1, y1), p->lineTo(x1 + err, y1), p->moveTo(x2, y2), p->lineTo(x2 + err, y2);
+        }
         void EndSubpath(float x0, float y0, float x1, float y1, bool closed) {
-            molecule++;
+            float x = closed ? x1 : x0, y = closed ? y1 : y0;
+            p->moveTo(x, y), p->lineTo(x + err, y);
         }
-        Transform m;
-        Bounds device, *molecule;
-        Row<Opaque> *stencils;
+        Path hull, points;
+        Geometry *g, *p;
     };
     
     static size_t resizeBuffer(const SceneList& list, Context *contexts, size_t count, size_t *begins, Buffer& buffer) {
-        size_t size = buffer.headerSize, begin = size, end = begin, sz, i, j, instances;
+        size_t size = buffer.headerSize, sz, i, j, instances;
         for (i = 0; i < count; i++)
             size += contexts[i].opaques.end * sizeof(Opaque);
         
@@ -1607,20 +1867,23 @@ struct Rasterizer {
             sz += contexts[i].texs.end();
         buffer.texCount = sz;
         size += sz * kColorTextureWidth * sizeof(Color);
-          
+        
         for (auto& scene: list.scenes)
             size += scene->p16total * sizeof(Point16);
         
         Context *ctx = contexts;   Allocator::Pass *pass;
         for (ctx = contexts, i = 0; i < count; i++, ctx++) {
             for (j = 0; j < ctx->images.end(); j++)
-                buffer.images.add(*ctx->images[j]);
+                buffer.images.add(*ctx->images[j].image);
             for (instances = 0, pass = ctx->allocator.passes.base, j = 0; j < ctx->allocator.passes.end; j++, pass++)
                 instances += pass->count();
-            begins[i] = size, size += instances * sizeof(Edge) + (ctx->outlines.end + ctx->blends.end) * sizeof(Instance) + ctx->segments.end * sizeof(Segment) + ctx->stencils.end * sizeof(Opaque);
+            begins[i] = size, size += instances * sizeof(Edge) + (ctx->outlines.end + ctx->blends.end) * sizeof(Instance) + ctx->segments.end * sizeof(Segment);
         }
-        buffer.resize(size, buffer.headerSize);
-        
+        return size;
+    }
+    
+    static void writeOpaques(const SceneList& list, Context *contexts, size_t count, size_t *begins, Buffer& buffer) {
+        size_t begin = buffer.headerSize, end = begin, i, j, sz;
         for (i = 0; i < count; i++)
             if ((sz = contexts[i].opaques.end * sizeof(Opaque)))
                 memcpy(buffer.base + end, contexts[i].opaques.base, sz), end += sz;
@@ -1628,19 +1891,73 @@ struct Rasterizer {
             new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::kOpaques, begin, end);
         
         buffer.texStrips = end;
-        uint32_t *texIdxs = (uint32_t *)(buffer.base + buffer.texIdxs), texIdx;
+        PathData *paths = (PathData *)(buffer.base + buffer.paths);  uint32_t texIdx;
         sz = kColorTextureWidth * sizeof(Color);
         for (texIdx = 0, i = 0; i < count; i++)
             for (j = 0; j < contexts[i].texs.end(); j++) {
                 auto ref = contexts[i].texs[j];
-                texIdxs[ref.iz] = texIdx++;
+                paths[ref.iz].texIdx = texIdx++;
                 memcpy(buffer.base + end, ref.strip, sz), end += sz;
             }
+        for (texIdx = 0, i = 0; i < count; i++)     // Image draws index buffer.images, in the same order
+            for (j = 0; j < contexts[i].images.end(); j++)
+                paths[contexts[i].images[j].iz].texIdx = texIdx++;
         buffer.p16s = end;
-        return size;
+    }
+    
+    // Groups consecutive passes whose cells' rows fit in the accumulation texture together, & offsets each pass's cells in the group's
+    // rows, so a group's edges render in one edges pass, & its instances in one drawable pass, as each pass switch is costly. A group
+    // has at most kMaxGroupEdges edges, unless one pass has more, as an edges pass with too many is slower than two
+    static constexpr size_t kMaxGroupEdges = 200000;
+    static void coalescePasses(Context *contexts, size_t count) {
+        size_t group = 0, offset = 0, edges = 0, i, j, k, first = 0;
+        std::vector<Allocator::Pass *> passes;
+        for (i = 0; i < count; i++)
+            for (j = 0; j < contexts[i].allocator.passes.end; j++) {
+                Allocator::Pass *pass = contexts[i].allocator.passes.base + j;
+                size_t height = size_t(contexts[i].allocator.full.uy - contexts[i].allocator.full.ly);
+                if (offset + pass->height > height || (edges && edges + pass->count() > kMaxGroupEdges)) {
+                    for (k = first; k < passes.size(); k++)
+                        passes[k]->groupHeight = offset;
+                    group++, offset = 0, edges = 0, first = passes.size();
+                }
+                pass->group = group, pass->offset = offset, offset += pass->height, edges += pass->count();
+                passes.push_back(pass);
+            }
+        for (k = first; k < passes.size(); k++)
+            passes[k]->groupHeight = offset;
+    }
+    // Writes the contexts' entries, group by group: the edges of a group's passes, after their contexts' segments bases, then their
+    // instances, in order
+    static void writeEntries(Context *contexts, size_t count, Buffer& buffer) {
+        struct Ref { Context *ctx;  size_t ip; };
+        std::vector<Ref> refs;
+        for (size_t i = 0; i < count; i++)
+            for (size_t j = 0; j < contexts[i].allocator.passes.end; j++)
+                refs.push_back(Ref{ contexts + i, j });
+        auto add = [&](Context *ctx, size_t e0, size_t e1) {
+            for (size_t e = e0; e < e1; e++)
+                *(buffer.entries.alloc(1)) = ctx->entries[e];
+        };
+        for (size_t r0 = 0, r1; r0 < refs.size(); r0 = r1) {
+            size_t group = refs[r0].ctx->allocator.passes.base[refs[r0].ip].group;
+            for (r1 = r0; r1 < refs.size() && refs[r1].ctx->allocator.passes.base[refs[r1].ip].group == group; r1++) {
+                Context *ctx = refs[r1].ctx;  Allocator::Pass& pass = ctx->allocator.passes.base[refs[r1].ip];
+                if (pass.instancesEntry != pass.edgesEntry) {
+                    if (ctx->segments.end)      // Its kSegmentsBase is its first entry
+                        add(ctx, 0, 1);
+                    add(ctx, pass.edgesEntry, pass.instancesEntry);
+                }
+            }
+            for (size_t r = r0; r < r1; r++) {
+                Context *ctx = refs[r].ctx;  size_t ip = refs[r].ip;
+                bool isLast = ip + 1 == ctx->allocator.passes.end;
+                add(ctx, ctx->allocator.passes.base[ip].instancesEntry, isLast ? ctx->entries.end() : ctx->allocator.passes.base[ip + 1].edgesEntry);
+            }
+        }
     }
     static void writeContextToBuffer(const SceneList& list, Context *ctx, size_t begin, size_t index, size_t contextCount, Buffer& buffer) {
-        size_t i, j, count, size, ip, iz, ic, end, instbegin, passsize, stencilBegin = 0;
+        size_t i, j, count, size, ip, iz, ic, end, instbegin, passsize;
         {
             auto p16s = (Point16 *)(buffer.base + buffer.p16s);
             size_t p16paths = 0, p16total = 0, m0 = 0, m1 = 0, i0, i1, c0, c1;
@@ -1654,20 +1971,15 @@ struct Rasterizer {
                 c1 = m1 < i0 ? i0 : m1 > i1 ? i1 : m1;
                 for (; c0 < c1; c0++) {
                     auto& entry = scene->p16entries[c0 - m0];
-                    memcpy(p16s + p16total + entry.idx, entry.path->p16s.base, entry.path->p16s.end * sizeof(Point16));
+                    memcpy(p16s + p16total + entry.idx, entry.p->p16s.base, entry.p->p16s.end * sizeof(Point16));
                 }
                 m0 = m1, p16total += scene->p16total;
             }
         }
-        if (ctx->segments.end || ctx->stencils.end) {
+        if (ctx->segments.end) {
             size = ctx->segments.end * sizeof(Segment), end = begin + size;
             ctx->entries.add(Buffer::Entry(Buffer::kSegmentsBase, begin, end));
             memcpy(buffer.base + begin, ctx->segments.base, size), begin = end;
-                        
-            stencilBegin = begin;
-            end = begin + ctx->stencils.end * sizeof(Opaque);
-            memcpy(buffer.base + stencilBegin, ctx->stencils.base, end - begin);
-            begin = end;
         }
         
         Edge *quadEdge = nullptr, *fastEdge = nullptr, *fastMolecule = nullptr, *fastMolecule0 = nullptr, *quadMolecule = nullptr, *quadMolecule0 = nullptr;
@@ -1675,8 +1987,9 @@ struct Rasterizer {
             Allocator::Pass *pass = ctx->allocator.passes.base + ip;
             passsize = (ip + 1 < count ? (pass + 1)->idx : ctx->blends.end) - pass->idx;
             instbegin = begin + pass->count() * sizeof(Edge);
+            pass->edgesEntry = ctx->entries.end();
             if (pass->count()) {
-                ctx->entries.add(Buffer::Entry(Buffer::kInstancesBase, instbegin, 0));
+                ctx->entries.add(Buffer::Entry(Buffer::kInstancesBase, instbegin, pass->groupHeight));
                 
                 quadEdge = (Edge *)(buffer.base + begin), end = begin + pass->counts[Allocator::kQuadEdges] * sizeof(Edge);
                 ctx->entries.add(Buffer::Entry(Buffer::kQuadEdges, begin, end)), begin = end;
@@ -1691,29 +2004,35 @@ struct Rasterizer {
                 ctx->entries.add(Buffer::Entry(Buffer::kQuadMolecules, begin, end)), begin = end;
                 assert(begin == instbegin);
             }
+            pass->instancesEntry = ctx->entries.end();
             
-            Vector<size_t> batchBegins;
-            Vector<Blend> batchCommands;
+            // The pass's instances are batches, split by clip commands, & where draws with blend modes begin & end, unless there are
+            // more than kMaxBlendBatches of those
+            struct Split { size_t at;  const Blend *cmd;  bool blends; };     // A batch's end, the command after it, & whether it blends
+            Vector<Split> splits;
+            bool blends = false;
+            size_t blendBatches = 0;
             
             Instance *dst0 = (Instance *)(buffer.base + begin), *dst = dst0;
             for (Blend *inst = ctx->blends.base + pass->idx, *endinst = inst + passsize; inst < endinst; inst++) {
                 iz = inst->iz & kPathIndexMask;
                 Geometry *g = inst->g;
+                if (!Instance::isClipCommand(inst->iz) && bool(inst->iz & Instance::kBlend) != blends)
+                    splits.add(Split{ begin + (dst - dst0) * sizeof(Instance), nullptr, blends }), blendBatches += !blends, blends = !blends;
                 
                 if (inst->iz & Instance::kOutlines) {
                     memcpy(dst, ctx->outlines.base + inst->data.idx, inst->data.count * sizeof(Instance));
                     dst += inst->data.count;
                 } else {
                     dst->iz = inst->iz, dst->quad = inst->quad;
+                    if (dst->quad.cell.ox != kNullIndex)
+                        dst->quad.cell.oy += pass->offset;
                     ic = dst - dst0, dst++;
                     bool fast = inst->iz & Instance::kFastEdges;
                     
-                    bool isImage = (inst->iz & Instance::kIsImage) && ((inst->iz & Instance::kNextImage) || (inst->iz & Instance::kDisableImage));
-                    bool isStencil = inst->iz & Instance::kStencil;
-                    if (isImage || isStencil) {
+                    if (Instance::isClipCommand(inst->iz)) {
                         dst--;
-                        batchBegins.add(begin + (dst - dst0) * sizeof(Instance));
-                        batchCommands.add(*inst);
+                        splits.add(Split{ begin + (dst - dst0) * sizeof(Instance), inst, blends });
                     } else if (inst->iz & Instance::kMolecule) {
                         Edge *molecule = fast ? fastMolecule : quadMolecule;
                         Instance *prev = dst - 1;
@@ -1747,37 +2066,34 @@ struct Rasterizer {
                 }
             }
             
-            if ((size = dst - dst0) || batchBegins.end()) {
+            if ((size = dst - dst0) || splits.end()) {
                 end = begin + size * sizeof(Instance);
+                bool allBlend = blendBatches > Buffer::kMaxBlendBatches;
                 size_t i0 = begin, i1;
-                for (i = 0; i <= batchBegins.end(); i++, i0 = i1) {
-                    i1 = i == batchBegins.end() ? end : batchBegins[i];
+                for (i = 0; i <= splits.end(); i++) {
+                    bool isLast = i == splits.end();
+                    if (!isLast && allBlend && splits[i].cmd == nullptr)
+                        continue;
+                    i1 = isLast ? end : splits[i].at;
                     if (i0 != i1)
-                        ctx->entries.add(Buffer::Entry(Buffer::kInstances, i0, i1));
-                    if (i != batchBegins.end()) {
-                        const Blend& cmd = batchCommands[i];
-                        if (cmd.iz & Instance::kStencil) {
-                            if (cmd.data.count) {
-                                size_t s0 = stencilBegin + cmd.data.idx * sizeof(Opaque);
-                                size_t s1 = s0 + cmd.data.count * sizeof(Opaque);
-                                ctx->entries.add(Buffer::Entry(Buffer::kStencils, s0, s1));
-                                ctx->entries.add(Buffer::Entry(Buffer::kEnableClip, 0, 0));
-                            } else if (cmd.data.idx == 0)
-                                ctx->entries.add(Buffer::Entry(Buffer::kDisableClip, 0, 0));
-                            else
-                                ctx->entries.add(Buffer::Entry(Buffer::kEnableClip, 0, 0));
-                        } else if (cmd.iz & Instance::kIsImage) {
-                            if (cmd.iz & Instance::kNextImage)
-                                ctx->entries.add(Buffer::Entry(Buffer::kNextImage, 0, 0));
-                            else if (cmd.iz & Instance::kDisableImage)
-                                ctx->entries.add(Buffer::Entry(Buffer::kDisableImage, 0, 0));
-                        }
+                        ctx->entries.add(Buffer::Entry((isLast ? blends : splits[i].blends) || allBlend ? Buffer::kBlendInstances : Buffer::kInstances, i0, i1));
+                    i0 = i1;
+                    if (!isLast && splits[i].cmd) {     // A clip command
+                        const Blend& cmd = *splits[i].cmd;
+                        const Cell& cell = cmd.quad.cell;
+                        if (cmd.data.idx == Context::kClipMaskBegin)     // The mask's device bounds, packed as lx, ly, ux, uy, & its identity
+                            ctx->entries.add(Buffer::Entry(Buffer::kClipMask, size_t(cell.lx) | size_t(cell.ly) << 16 | size_t(cell.ux) << 32 | size_t(cell.uy) << 48,
+                                                           XXH64(& cmd.quad.base, sizeof(cmd.quad.base), size_t(cmd.g)) ?: 1));
+                        else if (cmd.data.idx == Context::kClipDisable)
+                            ctx->entries.add(Buffer::Entry(Buffer::kDisableClip, 0, 0));
+                        else
+                            ctx->entries.add(Buffer::Entry(Buffer::kEnableClip, 0, 0));
                     }
                 }
                 begin = end;
             }
-            ctx->entries.add(Buffer::Entry(Buffer::kDisableClip, 0, 0));
         }
+        ctx->entries.add(Buffer::Entry(Buffer::kDisableClip, 0, 0));
     }
 };
 typedef Rasterizer Ra;
