@@ -392,10 +392,20 @@ typedef struct NSVGradialData {
 	NSVGcoordinate cx, cy, r, fx, fy;
 } NSVGradialData;
 
+// The attributes a gradient sets, which those referring to it inherit if they don't
+enum NSVGgradientAttribs {
+	NSVG_GRAD_UNITS = 1 << 0, NSVG_GRAD_XFORM = 1 << 1, NSVG_GRAD_SPREAD = 1 << 2,
+	NSVG_GRAD_X1 = 1 << 3, NSVG_GRAD_Y1 = 1 << 4, NSVG_GRAD_X2 = 1 << 5, NSVG_GRAD_Y2 = 1 << 6,
+	NSVG_GRAD_CX = 1 << 7, NSVG_GRAD_CY = 1 << 8, NSVG_GRAD_R = 1 << 9, NSVG_GRAD_FX = 1 << 10, NSVG_GRAD_FY = 1 << 11
+};
+
+#define NSVG_MAX_GRADIENT_REFS 32	// How long a chain of gradient references is followed, which ends a cycle
+
 typedef struct NSVGgradientData
 {
 	char id[64];
 	char ref[64];
+	int set;	// The NSVGgradientAttribs it sets
 	char type;
 	union {
 		NSVGlinearData linear;
@@ -804,6 +814,8 @@ static float nsvg__convertToPixels(NSVGparser* p, NSVGcoordinate c, float orig, 
 static NSVGgradientData* nsvg__findGradientData(NSVGparser* p, const char* id)
 {
 	NSVGgradientData* grad = p->gradients;
+	if (id[0] == '\0')
+		return NULL;	// No reference, which mustn't find a gradient without an id
 	while (grad) {
 		if (strcmp(grad->id, id) == 0)
 			return grad;
@@ -812,36 +824,67 @@ static NSVGgradientData* nsvg__findGradientData(NSVGparser* p, const char* id)
 	return NULL;
 }
 
+// A gradient coordinate: in object space, a fraction of the shape's bounds, given as a number or a percentage
+static float nsvg__gradientCoord(NSVGparser* p, NSVGcoordinate c, float orig, float length, int objectSpace)
+{
+	if (objectSpace)
+		return c.units == NSVG_UNITS_PERCENT ? c.value / 100.0f : c.value;
+	return nsvg__convertToPixels(p, c, orig, length);
+}
+
+// In object space, the gradient is built in the unit square of the shape's bounds, where its gradientTransform applies, & is
+// then mapped to the bounds, so a radial gradient of a non-square shape is elliptical
 static NSVGgradient* nsvg__createGradient(NSVGparser* p, const char* id, const float* localBounds, char* paintType)
 {
 	NSVGattrib* attr = nsvg__getAttr(p);
-	NSVGgradientData* data = NULL;
+	NSVGgradientData* found = NULL;
 	NSVGgradientData* ref = NULL;
 	NSVGgradientStop* stops = NULL;
 	NSVGgradient* grad;
+	NSVGgradientData resolved, *data = &resolved;
 	float ox, oy, sw, sh, sl;
-	int nstops = 0;
+	int nstops = 0, objectSpace, depth;
 
-	data = nsvg__findGradientData(p, id);
-	if (data == NULL) return NULL;
+	found = nsvg__findGradientData(p, id);
+	if (found == NULL) return NULL;
 
-	// TODO: use ref to fill in all unset values too.
-	ref = data;
-	while (ref != NULL) {
+	// The first stops along the references, & each attribute it doesn't set from the first that does, but a gradient of the
+	// other type only has its units, transform & spread inherited
+	resolved = *found;
+	for (ref = found, depth = 0; ref != NULL && depth < NSVG_MAX_GRADIENT_REFS; ref = nsvg__findGradientData(p, ref->ref), depth++) {
+		int inherit = ref->set & ~resolved.set & (ref->type == resolved.type ? ~0 : NSVG_GRAD_UNITS | NSVG_GRAD_XFORM | NSVG_GRAD_SPREAD);
 		if (stops == NULL && ref->stops != NULL) {
 			stops = ref->stops;
 			nstops = ref->nstops;
-			break;
 		}
-		ref = nsvg__findGradientData(p, ref->ref);
+		if (inherit & NSVG_GRAD_UNITS) resolved.units = ref->units;
+		if (inherit & NSVG_GRAD_XFORM) memcpy(resolved.xform, ref->xform, sizeof(resolved.xform));
+		if (inherit & NSVG_GRAD_SPREAD) resolved.spread = ref->spread;
+		if (inherit & NSVG_GRAD_X1) resolved.linear.x1 = ref->linear.x1;
+		if (inherit & NSVG_GRAD_Y1) resolved.linear.y1 = ref->linear.y1;
+		if (inherit & NSVG_GRAD_X2) resolved.linear.x2 = ref->linear.x2;
+		if (inherit & NSVG_GRAD_Y2) resolved.linear.y2 = ref->linear.y2;
+		if (inherit & NSVG_GRAD_CX) resolved.radial.cx = ref->radial.cx;
+		if (inherit & NSVG_GRAD_CY) resolved.radial.cy = ref->radial.cy;
+		if (inherit & NSVG_GRAD_R) resolved.radial.r = ref->radial.r;
+		if (inherit & NSVG_GRAD_FX) resolved.radial.fx = ref->radial.fx;
+		if (inherit & NSVG_GRAD_FY) resolved.radial.fy = ref->radial.fy;
+		resolved.set |= inherit;
 	}
 	if (stops == NULL) return NULL;
+	if (resolved.type == NSVG_PAINT_RADIAL_GRADIENT) {	// The focus is the centre by default
+		if (!(resolved.set & NSVG_GRAD_FX)) resolved.radial.fx = resolved.radial.cx;
+		if (!(resolved.set & NSVG_GRAD_FY)) resolved.radial.fy = resolved.radial.cy;
+	}
+	if (data->units == NSVG_OBJECT_SPACE && (localBounds[2] <= localBounds[0] || localBounds[3] <= localBounds[1]))
+		return NULL;	// Bounds without width or height have no unit square, so the gradient is ignored
 
 	grad = (NSVGgradient*)malloc(sizeof(NSVGgradient) + sizeof(NSVGgradientStop)*(nstops-1));
 	if (grad == NULL) return NULL;
 
 	// The shape width and height.
-	if (data->units == NSVG_OBJECT_SPACE) {
+	objectSpace = data->units == NSVG_OBJECT_SPACE;
+	if (objectSpace) {
 		ox = localBounds[0];
 		oy = localBounds[1];
 		sw = localBounds[2] - localBounds[0];
@@ -856,10 +899,10 @@ static NSVGgradient* nsvg__createGradient(NSVGparser* p, const char* id, const f
 
 	if (data->type == NSVG_PAINT_LINEAR_GRADIENT) {
 		float x1, y1, x2, y2, dx, dy;
-		x1 = nsvg__convertToPixels(p, data->linear.x1, ox, sw);
-		y1 = nsvg__convertToPixels(p, data->linear.y1, oy, sh);
-		x2 = nsvg__convertToPixels(p, data->linear.x2, ox, sw);
-		y2 = nsvg__convertToPixels(p, data->linear.y2, oy, sh);
+		x1 = nsvg__gradientCoord(p, data->linear.x1, ox, sw, objectSpace);
+		y1 = nsvg__gradientCoord(p, data->linear.y1, oy, sh, objectSpace);
+		x2 = nsvg__gradientCoord(p, data->linear.x2, ox, sw, objectSpace);
+		y2 = nsvg__gradientCoord(p, data->linear.y2, oy, sh, objectSpace);
 		// Calculate transform aligned to the line
 		dx = x2 - x1;
 		dy = y2 - y1;
@@ -868,11 +911,11 @@ static NSVGgradient* nsvg__createGradient(NSVGparser* p, const char* id, const f
 		grad->xform[4] = x1; grad->xform[5] = y1;
 	} else {
 		float cx, cy, fx, fy, r;
-		cx = nsvg__convertToPixels(p, data->radial.cx, ox, sw);
-		cy = nsvg__convertToPixels(p, data->radial.cy, oy, sh);
-		fx = nsvg__convertToPixels(p, data->radial.fx, ox, sw);
-		fy = nsvg__convertToPixels(p, data->radial.fy, oy, sh);
-		r = nsvg__convertToPixels(p, data->radial.r, 0, sl);
+		cx = nsvg__gradientCoord(p, data->radial.cx, ox, sw, objectSpace);
+		cy = nsvg__gradientCoord(p, data->radial.cy, oy, sh, objectSpace);
+		fx = nsvg__gradientCoord(p, data->radial.fx, ox, sw, objectSpace);
+		fy = nsvg__gradientCoord(p, data->radial.fy, oy, sh, objectSpace);
+		r = nsvg__gradientCoord(p, data->radial.r, 0, sl, objectSpace);
 		// Calculate transform aligned to the circle
 		grad->xform[0] = r; grad->xform[1] = 0;
 		grad->xform[2] = 0; grad->xform[3] = r;
@@ -882,6 +925,10 @@ static NSVGgradient* nsvg__createGradient(NSVGparser* p, const char* id, const f
 	}
 
 	nsvg__xformMultiply(grad->xform, data->xform);
+	if (objectSpace) {
+		float bounds[6] = { sw, 0.0f, 0.0f, sh, ox, oy };
+		nsvg__xformMultiply(grad->xform, bounds);
+	}
 	nsvg__xformMultiply(grad->xform, attr->xform);
 
 	grad->spread = data->spread;
@@ -2501,6 +2548,34 @@ static void nsvg__parsePoly(NSVGparser* p, const char** attr, int closeFlag)
 	nsvg__addShape(p);
 }
 
+// A preserveAspectRatio: none leaves the alignments, & meet is the default
+static void nsvg__parseAspectRatio(const char* str, int* alignX, int* alignY, int* alignType)
+{
+	if (strstr(str, "none") != 0) {
+		// No uniform scaling
+		*alignType = NSVG_ALIGN_NONE;
+	} else {
+		// Parse X align
+		if (strstr(str, "xMin") != 0)
+			*alignX = NSVG_ALIGN_MIN;
+		else if (strstr(str, "xMid") != 0)
+			*alignX = NSVG_ALIGN_MID;
+		else if (strstr(str, "xMax") != 0)
+			*alignX = NSVG_ALIGN_MAX;
+		// Parse Y align
+		if (strstr(str, "yMin") != 0)
+			*alignY = NSVG_ALIGN_MIN;
+		else if (strstr(str, "yMid") != 0)
+			*alignY = NSVG_ALIGN_MID;
+		else if (strstr(str, "yMax") != 0)
+			*alignY = NSVG_ALIGN_MAX;
+		// Parse meet/slice
+		*alignType = NSVG_ALIGN_MEET;
+		if (strstr(str, "slice") != 0)
+			*alignType = NSVG_ALIGN_SLICE;
+	}
+}
+
 static void nsvg__parseSVG(NSVGparser* p, const char** attr)
 {
 	int i;
@@ -2513,29 +2588,7 @@ static void nsvg__parseSVG(NSVGparser* p, const char** attr)
 			} else if (strcmp(attr[i], "viewBox") == 0) {
 				sscanf(attr[i + 1], "%f%*[%%, \t]%f%*[%%, \t]%f%*[%%, \t]%f", &p->viewMinx, &p->viewMiny, &p->viewWidth, &p->viewHeight);
 			} else if (strcmp(attr[i], "preserveAspectRatio") == 0) {
-				if (strstr(attr[i + 1], "none") != 0) {
-					// No uniform scaling
-					p->alignType = NSVG_ALIGN_NONE;
-				} else {
-					// Parse X align
-					if (strstr(attr[i + 1], "xMin") != 0)
-						p->alignX = NSVG_ALIGN_MIN;
-					else if (strstr(attr[i + 1], "xMid") != 0)
-						p->alignX = NSVG_ALIGN_MID;
-					else if (strstr(attr[i + 1], "xMax") != 0)
-						p->alignX = NSVG_ALIGN_MAX;
-					// Parse X align
-					if (strstr(attr[i + 1], "yMin") != 0)
-						p->alignY = NSVG_ALIGN_MIN;
-					else if (strstr(attr[i + 1], "yMid") != 0)
-						p->alignY = NSVG_ALIGN_MID;
-					else if (strstr(attr[i + 1], "yMax") != 0)
-						p->alignY = NSVG_ALIGN_MAX;
-					// Parse meet/slice
-					p->alignType = NSVG_ALIGN_MEET;
-					if (strstr(attr[i + 1], "slice") != 0)
-						p->alignType = NSVG_ALIGN_SLICE;
-				}
+				nsvg__parseAspectRatio(attr[i + 1], &p->alignX, &p->alignY, &p->alignType);
 			}
 		}
 	}
@@ -2572,26 +2625,37 @@ static void nsvg__parseGradient(NSVGparser* p, const char** attr, char type)
 					grad->units = NSVG_OBJECT_SPACE;
 				else
 					grad->units = NSVG_USER_SPACE;
+				grad->set |= NSVG_GRAD_UNITS;
 			} else if (strcmp(attr[i], "gradientTransform") == 0) {
 				nsvg__parseTransform(grad->xform, attr[i + 1]);
+				grad->set |= NSVG_GRAD_XFORM;
 			} else if (strcmp(attr[i], "cx") == 0) {
 				grad->radial.cx = nsvg__parseCoordinateRaw(attr[i + 1]);
+				grad->set |= NSVG_GRAD_CX;
 			} else if (strcmp(attr[i], "cy") == 0) {
 				grad->radial.cy = nsvg__parseCoordinateRaw(attr[i + 1]);
+				grad->set |= NSVG_GRAD_CY;
 			} else if (strcmp(attr[i], "r") == 0) {
 				grad->radial.r = nsvg__parseCoordinateRaw(attr[i + 1]);
+				grad->set |= NSVG_GRAD_R;
 			} else if (strcmp(attr[i], "fx") == 0) {
 				grad->radial.fx = nsvg__parseCoordinateRaw(attr[i + 1]);
+				grad->set |= NSVG_GRAD_FX;
 			} else if (strcmp(attr[i], "fy") == 0) {
 				grad->radial.fy = nsvg__parseCoordinateRaw(attr[i + 1]);
+				grad->set |= NSVG_GRAD_FY;
 			} else if (strcmp(attr[i], "x1") == 0) {
 				grad->linear.x1 = nsvg__parseCoordinateRaw(attr[i + 1]);
+				grad->set |= NSVG_GRAD_X1;
 			} else if (strcmp(attr[i], "y1") == 0) {
 				grad->linear.y1 = nsvg__parseCoordinateRaw(attr[i + 1]);
+				grad->set |= NSVG_GRAD_Y1;
 			} else if (strcmp(attr[i], "x2") == 0) {
 				grad->linear.x2 = nsvg__parseCoordinateRaw(attr[i + 1]);
+				grad->set |= NSVG_GRAD_X2;
 			} else if (strcmp(attr[i], "y2") == 0) {
 				grad->linear.y2 = nsvg__parseCoordinateRaw(attr[i + 1]);
+				grad->set |= NSVG_GRAD_Y2;
 			} else if (strcmp(attr[i], "spreadMethod") == 0) {
 				if (strcmp(attr[i+1], "pad") == 0)
 					grad->spread = NSVG_SPREAD_PAD;
@@ -2599,7 +2663,8 @@ static void nsvg__parseGradient(NSVGparser* p, const char** attr, char type)
 					grad->spread = NSVG_SPREAD_REFLECT;
 				else if (strcmp(attr[i+1], "repeat") == 0)
 					grad->spread = NSVG_SPREAD_REPEAT;
-			} else if (strcmp(attr[i], "xlink:href") == 0) {
+				grad->set |= NSVG_GRAD_SPREAD;
+			} else if (strcmp(attr[i], "xlink:href") == 0 || strcmp(attr[i], "href") == 0) {
 				const char *href = attr[i+1];
 				strncpy(grad->ref, href+1, 62);
 				grad->ref[62] = '\0';
@@ -2736,6 +2801,257 @@ static void nsvg__content(void* ud, const char* s)
 	NSVG_NOTUSED(ud);
 	NSVG_NOTUSED(s);
 	// empty
+}
+
+// <use> support. The XML is first read into a tree of elements, whose names & attributes point into the input, which outlives
+// the parse, as a <use> can refer to an element after it, or in <defs>, which the parser skips. The tree is then replayed
+// through nsvg__startElement() & nsvg__endElement(), & a <use> replays the element it refers to, under its own attributes,
+// & its transform then translate(x, y). A <symbol> is only drawn by a <use>, as a group, with its viewBox fitted into the
+// <use>'s width & height, but its content isn't clipped to them, as nanosvg can't clip. Symbols', clip paths', masks',
+// patterns' & markers' content, which nanosvg doesn't support, is never drawn directly, so only its gradients are parsed, as in
+// <defs>. A <use> of an element being drawn, i.e. one of its ancestors, is a cycle, so is skipped, & replays are capped, as
+// nested <use>s can grow exponentially
+
+#define NSVG_MAX_USE_NODES (1 << 20)	// Nodes drawn by <use>s
+
+typedef struct NSVGnode {
+	const char* name;
+	const char** attr;
+	const char* id;
+	struct NSVGnode* parent;
+	struct NSVGnode* child;
+	struct NSVGnode* lastChild;
+	struct NSVGnode* next;
+	struct NSVGnode* hashNext;
+	struct NSVGnode* allNext;	// Every node, in document order
+	int active;					// Whether it's being drawn
+} NSVGnode;
+
+typedef struct NSVGdocument {
+	NSVGnode root;
+	NSVGnode* current;
+	NSVGnode* allHead;
+	NSVGnode* allTail;
+	NSVGnode** buckets;			// Nodes with ids, hashed
+	unsigned int nbuckets;
+	int nids;
+	int useNodes;				// Nodes <use>s can still draw
+	int useDepth;				// How many <use>s are being drawn
+	char failed;
+} NSVGdocument;
+
+static unsigned int nsvg__hashId(const char* s)
+{
+	unsigned int h = 2166136261u;
+	while (*s)
+		h = (h ^ (unsigned char)*s++) * 16777619u;
+	return h;
+}
+
+static void nsvg__docStartElement(void* ud, const char* el, const char** attr)
+{
+	NSVGdocument* d = (NSVGdocument*)ud;
+	NSVGnode* n;
+	int i, count = 0;
+	if (d->failed) return;
+	while (attr[count]) count += 2;
+	n = (NSVGnode*)calloc(1, sizeof(NSVGnode));
+	if (n) n->attr = (const char**)malloc((count + 2) * sizeof(const char*));
+	if (n == NULL || n->attr == NULL) {
+		free(n);
+		d->failed = 1;
+		return;
+	}
+	memcpy(n->attr, attr, (count + 2) * sizeof(const char*));
+	n->name = el;
+	for (i = 0; i < count; i += 2)
+		if (strcmp(attr[i], "id") == 0)
+			n->id = attr[i + 1];
+	if (n->id) d->nids++;
+	n->parent = d->current;
+	if (d->current->lastChild)
+		d->current->lastChild->next = n;
+	else
+		d->current->child = n;
+	d->current->lastChild = n;
+	if (d->allTail) d->allTail->allNext = n; else d->allHead = n;
+	d->allTail = n;
+	d->current = n;
+}
+
+static void nsvg__docEndElement(void* ud, const char* el)
+{
+	NSVGdocument* d = (NSVGdocument*)ud;
+	NSVGnode* n;
+	if (d->failed) return;
+	// Close the nearest open element with this name, & any left open inside it. A stray end tag is ignored
+	for (n = d->current; n != &d->root; n = n->parent)
+		if (strcmp(n->name, el) == 0) {
+			d->current = n->parent;
+			return;
+		}
+}
+
+static NSVGnode* nsvg__lookupId(NSVGdocument* d, const char* id)
+{
+	NSVGnode* n;
+	if (d->nbuckets == 0) return NULL;
+	for (n = d->buckets[nsvg__hashId(id) & (d->nbuckets - 1)]; n; n = n->hashNext)
+		if (strcmp(n->id, id) == 0)
+			return n;
+	return NULL;
+}
+
+// The node a <use> href of the form "#id" refers to, or NULL, as external references aren't supported
+static NSVGnode* nsvg__findNode(NSVGdocument* d, const char* href)
+{
+	while (*href && nsvg__isspace(*href)) href++;
+	return *href == '#' ? nsvg__lookupId(d, href + 1) : NULL;
+}
+
+// Hashes the nodes with ids. Only the first with an id is indexed, as getElementById() finds
+static void nsvg__indexDocument(NSVGdocument* d)
+{
+	NSVGnode* n;
+	unsigned int size = 16;
+	while (size < 2u * (unsigned int)d->nids) size *= 2;
+	d->buckets = (NSVGnode**)calloc(size, sizeof(NSVGnode*));
+	if (d->buckets == NULL) return;
+	d->nbuckets = size;
+	for (n = d->allHead; n; n = n->allNext) {
+		unsigned int b;
+		if (n->id == NULL || n->id[0] == '\0' || nsvg__lookupId(d, n->id)) continue;
+		b = nsvg__hashId(n->id) & (size - 1);
+		n->hashNext = d->buckets[b];
+		d->buckets[b] = n;
+	}
+}
+
+static void nsvg__deleteDocument(NSVGdocument* d)
+{
+	NSVGnode *n, *next;
+	for (n = d->allHead; n; n = next) {
+		next = n->allNext;
+		free(n->attr);
+		free(n);
+	}
+	free(d->buckets);
+}
+
+static int nsvg__isGradientElement(const char* el)
+{
+	return strcmp(el, "linearGradient") == 0 || strcmp(el, "radialGradient") == 0 || strcmp(el, "stop") == 0;
+}
+
+// Whether an element's content is never drawn where it is
+static int nsvg__isUndrawnElement(const char* el)
+{
+	return strcmp(el, "symbol") == 0 || strcmp(el, "clipPath") == 0 || strcmp(el, "mask") == 0 || strcmp(el, "pattern") == 0
+		|| strcmp(el, "marker") == 0;
+}
+
+static void nsvg__drawNode(NSVGparser* p, NSVGdocument* d, NSVGnode* n);
+static float nsvg__viewAlign(float content, float container, int type);
+
+static void nsvg__drawChildren(NSVGparser* p, NSVGdocument* d, NSVGnode* n)
+{
+	NSVGnode* c;
+	for (c = n->child; c; c = c->next)
+		nsvg__drawNode(p, d, c);
+}
+
+static void nsvg__drawUse(NSVGparser* p, NSVGdocument* d, NSVGnode* use)
+{
+	const char* href = NULL;
+	NSVGnode* ref;
+	float x = 0.0f, y = 0.0f, t[6];
+	float width = nsvg__actualWidth(p), height = nsvg__actualHeight(p);	// 100% by default
+	int i;
+	for (i = 0; use->attr[i]; i += 2)
+		if (strcmp(use->attr[i], "href") == 0 || strcmp(use->attr[i], "xlink:href") == 0)
+			href = use->attr[i + 1];
+	ref = href ? nsvg__findNode(d, href) : NULL;
+	if (ref == NULL || ref->active)
+		return;
+
+	nsvg__pushAttr(p);
+	for (i = 0; use->attr[i]; i += 2) {
+		const char *name = use->attr[i], *value = use->attr[i + 1];
+		if (strcmp(name, "x") == 0)
+			x = nsvg__parseCoordinate(p, value, nsvg__actualOrigX(p), nsvg__actualWidth(p));
+		else if (strcmp(name, "y") == 0)
+			y = nsvg__parseCoordinate(p, value, nsvg__actualOrigY(p), nsvg__actualHeight(p));
+		else if (strcmp(name, "width") == 0)
+			width = nsvg__parseCoordinate(p, value, 0.0f, nsvg__actualWidth(p));
+		else if (strcmp(name, "height") == 0)
+			height = nsvg__parseCoordinate(p, value, 0.0f, nsvg__actualHeight(p));
+		else if (strcmp(name, "style") == 0)
+			nsvg__parseStyle(p, value);
+		else if (strcmp(name, "href") && strcmp(name, "xlink:href"))
+			nsvg__parseAttr(p, name, value);
+	}
+	nsvg__xformSetTranslation(t, x, y);
+	nsvg__xformPremultiply(nsvg__getAttr(p)->xform, t);
+
+	if (strcmp(ref->name, "symbol") == 0) {
+		// A viewBox is fitted into the <use>'s width & height by its preserveAspectRatio, xMidYMid meet by default
+		float vb[4] = { 0, 0, 0, 0 };
+		int alignX = NSVG_ALIGN_MID, alignY = NSVG_ALIGN_MID, alignType = NSVG_ALIGN_MEET;
+		for (i = 0; ref->attr[i]; i += 2)
+			if (strcmp(ref->attr[i], "viewBox") == 0)
+				sscanf(ref->attr[i + 1], "%f%*[%%, \t]%f%*[%%, \t]%f%*[%%, \t]%f", &vb[0], &vb[1], &vb[2], &vb[3]);
+			else if (strcmp(ref->attr[i], "preserveAspectRatio") == 0)
+				nsvg__parseAspectRatio(ref->attr[i + 1], &alignX, &alignY, &alignType);
+		if (vb[2] > 0.0f && vb[3] > 0.0f && width > 0.0f && height > 0.0f) {
+			float sx = width / vb[2], sy = height / vb[3];
+			if (alignType != NSVG_ALIGN_NONE)
+				sx = sy = alignType == NSVG_ALIGN_SLICE ? nsvg__maxf(sx, sy) : nsvg__minf(sx, sy);
+			t[0] = sx, t[1] = 0, t[2] = 0, t[3] = sy;
+			t[4] = (alignType == NSVG_ALIGN_NONE ? 0 : nsvg__viewAlign(vb[2] * sx, width, alignX)) - vb[0] * sx;
+			t[5] = (alignType == NSVG_ALIGN_NONE ? 0 : nsvg__viewAlign(vb[3] * sy, height, alignY)) - vb[1] * sy;
+			nsvg__xformPremultiply(nsvg__getAttr(p)->xform, t);
+		}
+		ref->active = 1, d->useDepth++;
+		nsvg__pushAttr(p);
+		nsvg__parseAttribs(p, ref->attr);
+		nsvg__drawChildren(p, d, ref);
+		nsvg__popAttr(p);
+		ref->active = 0, d->useDepth--;
+	} else {
+		d->useDepth++;
+		nsvg__drawNode(p, d, ref);
+		d->useDepth--;
+	}
+	nsvg__popAttr(p);
+}
+
+// Replays an element & its children. In <defs>, only gradients are parsed, & other elements are skipped, so their end tags
+// don't pop attributes they didn't push
+static void nsvg__drawNode(NSVGparser* p, NSVGdocument* d, NSVGnode* n)
+{
+	int skip;
+	if (n->active || (d->useDepth && d->useNodes-- <= 0))
+		return;
+	if (nsvg__isUndrawnElement(n->name)) {	// Only its gradients are parsed, as in <defs>
+		char defsFlag = p->defsFlag;
+		p->defsFlag = 1;
+		nsvg__drawChildren(p, d, n);
+		p->defsFlag = defsFlag;
+		return;
+	}
+	if (strcmp(n->name, "use") == 0) {
+		if (!p->defsFlag)
+			nsvg__drawUse(p, d, n);
+		return;
+	}
+	skip = p->defsFlag && !nsvg__isGradientElement(n->name);
+	if (!skip)
+		nsvg__startElement(p, n->name, n->attr);
+	n->active = 1;
+	nsvg__drawChildren(p, d, n);
+	n->active = 0;
+	if (!skip)
+		nsvg__endElement(p, n->name);
 }
 
 static void nsvg__imageBounds(NSVGparser* p, float* bounds)
@@ -2881,7 +3197,17 @@ NSVGimage* nsvgParse(char* input, const char* units, float dpi)
 	}
 	p->dpi = dpi;
 
-	nsvg__parseXML(input, nsvg__startElement, nsvg__endElement, nsvg__content, p);
+	{
+		NSVGdocument d;
+		memset(&d, 0, sizeof(d));
+		d.root.name = "";
+		d.current = &d.root;
+		d.useNodes = NSVG_MAX_USE_NODES;
+		nsvg__parseXML(input, nsvg__docStartElement, nsvg__docEndElement, nsvg__content, &d);
+		nsvg__indexDocument(&d);
+		nsvg__drawChildren(p, &d, &d.root);
+		nsvg__deleteDocument(&d);
+	}
 
 	// Scale to viewBox
     if (units)
