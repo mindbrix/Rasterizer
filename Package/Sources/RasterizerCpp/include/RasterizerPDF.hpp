@@ -656,9 +656,10 @@ struct RasterizerPDF {
     };
     
     // A font's glyphs, as CoreText paths in text space, & widths, read with CGPDF, from codes, as finding them from Unicode would
-    // lose ligatures & contextual forms. Simple fonts map codes to glyphs by their Differences' names, else by Unicode from their
-    // encoding. Type 0 fonts need an Identity CMap, & map CIDs to glyphs with their CIDToGIDMap. Other CMaps are invalid, but have
-    // their default width, so their text's boxes are drawn as fallbacks. A Type 3 font's glyphs are its CharProcs' content
+    // lose ligatures & contextual forms. Simple fonts map codes to glyphs by their Differences' names, else by an embedded Type 1
+    // program's built-in encoding's names, when the font has no Encoding or no BaseEncoding, else by Unicode from their encoding.
+    // Type 0 fonts need an Identity CMap, & map CIDs to glyphs with their CIDToGIDMap. Other CMaps are invalid, but have their
+    // default width, so their text's boxes are drawn as fallbacks. A Type 3 font's glyphs are its CharProcs' content
     // streams, by their Differences' names, which Shadings scans into paths
     struct TextFont {
         TextFont(const TextFont&) = delete;
@@ -708,11 +709,17 @@ struct RasterizerPDF {
                     return;
                 }
             }
-            CGPDFStreamRef file = nullptr;
-            if (desc && (CGPDFDictionaryGetStream(desc, "FontFile3", & file) || CGPDFDictionaryGetStream(desc, "FontFile2", & file) || CGPDFDictionaryGetStream(desc, "FontFile", & file))) {
+            CGPDFStreamRef file = nullptr;  bool isType1File = false;
+            if (desc && (CGPDFDictionaryGetStream(desc, "FontFile3", & file) || CGPDFDictionaryGetStream(desc, "FontFile2", & file) || (isType1File = CGPDFDictionaryGetStream(desc, "FontFile", & file)))) {
                 CGPDFDataFormat format;  CFDataRef data = CGPDFStreamCopyData(file, & format);  const char *fileType;
                 if (data && isType0 && identityGid && CGPDFDictionaryGetName(CGPDFStreamGetDictionary(file), "Subtype", & fileType) && !strcmp(fileType, "CIDFontType0C"))
                     readCFFCharset(CFDataGetBytePtr(data), size_t(CFDataGetLength(data)));     // CID-keyed, so CIDs aren't glyphs
+                if (data && isType1File && !isType0) {
+                    CGPDFInteger length1 = 0;
+                    CGPDFDictionaryGetInteger(CGPDFStreamGetDictionary(file), "Length1", & length1);
+                    size_t n = size_t(CFDataGetLength(data));
+                    readBuiltinEncoding((const char *)CFDataGetBytePtr(data), length1 > 0 && size_t(length1) < n ? size_t(length1) : n);
+                }
                 if (data) {
                     CGDataProviderRef provider = CGDataProviderCreateWithCFData(data);
                     cgFont = CGFontCreateWithDataProvider(provider);
@@ -734,10 +741,10 @@ struct RasterizerPDF {
                     CGPDFDictionaryGetInteger(desc, "Flags", & flags);
                 base = flags & 4 ? kSymbolic : kStandard;
                 if (CGPDFDictionaryGetName(dict, "Encoding", & name))
-                    base = encodingFor(name, base);
+                    base = encodingFor(name, base), useBuiltin = false;
                 else if (CGPDFDictionaryGetDictionary(dict, "Encoding", & enc)) {
                     if (CGPDFDictionaryGetName(enc, "BaseEncoding", & name))
-                        base = encodingFor(name, base);
+                        base = encodingFor(name, base), useBuiltin = false;
                     readDifferences(enc);
                 }
             }
@@ -755,6 +762,32 @@ struct RasterizerPDF {
                         names[code++] = name;
                 }
         }
+        // A Type 1 program's built-in encoding, from its cleartext's /Encoding array of dup <code> /<name> put, as names by code.
+        // StandardEncoding leaves it empty, so codes map by Unicode
+        void readBuiltinEncoding(const char *d, size_t n) {
+            const char *end = d + n, *p = std::search(d, end, "/Encoding", "/Encoding" + 9);
+            auto space = [](char c) { return c == ' ' || c == '\t' || c == '\r' || c == '\n'; };
+            auto token = [&](const char *& q) {     // The next token, which a / starts or a delimiter ends, or a delimiter
+                while (q < end && space(*q)) q++;
+                const char *t = q;
+                for (q += q < end && *q == '/'; q < end && !space(*q) && !strchr("/[]{}()<>", *q); q++) {}
+                q += q == t && q < end;
+                return std::string(t, q);
+            };
+            if (p == end)
+                return;
+            p += 9;
+            for (std::string t = token(p); p < end && t != "def" && t != "readonly"; t = token(p)) {
+                if (t != "dup")
+                    continue;
+                std::string code = token(p), name = token(p);
+                if (token(p) == "put" && name.size() > 1 && name[0] == '/' && code.size() && isdigit(code[0])) {
+                    long c = strtol(code.c_str(), nullptr, 10);
+                    if (c >= 0 && c < 256)
+                        builtinNames[c] = name.substr(1);
+                }
+            }
+        }
         ~TextFont() {
             if (ctFont) CFRelease(ctFont);
             if (cgFont) CGFontRelease(cgFont);
@@ -767,8 +800,9 @@ struct RasterizerPDF {
                 return 0;
             if (!mapped[code]) {
                 mapped[code] = true, glyphs[code] = 0;
-                UniChar u = names[code].size() ? unicodeForName(names[code].c_str()) : unicodeForCode(code);
-                const char *name = names[code].size() ? names[code].c_str() : glyphName(u);     // A font without a cmap only has names
+                const std::string& named = names[code].size() || !useBuiltin ? names[code] : builtinNames[code];
+                UniChar u = named.size() ? unicodeForName(named.c_str()) : unicodeForCode(code);
+                const char *name = named.size() ? named.c_str() : glyphName(u);     // A font without a cmap only has names
                 if (name) {
                     CFStringRef string = CFStringCreateWithCString(nullptr, name, kCFStringEncodingASCII);
                     glyphs[code] = string ? CGFontGetGlyphWithGlyphName(cgFont, string) : 0;
@@ -1043,7 +1077,8 @@ struct RasterizerPDF {
         Encoding base = kStandard;
         int firstChar = 0;  std::vector<float> widths;  float missingWidth = 0.f, defaultWidth = 1000.f;
         std::map<uint32_t, float> cidWidths;  std::vector<uint16_t> cidToGid;
-        std::array<std::string, 256> names;  std::array<CGGlyph, 256> glyphs = {};  std::array<bool, 256> mapped = {};
+        std::array<std::string, 256> names, builtinNames;  std::array<CGGlyph, 256> glyphs = {};  std::array<bool, 256> mapped = {};
+        bool useBuiltin = true;     // Whether codes without Differences use builtinNames: false for a named encoding or BaseEncoding
         bool hasMacCmap = false;  std::array<CGGlyph, 256> macGlyphs = {};
         std::map<CGGlyph, Ra::Path> paths;
     };
