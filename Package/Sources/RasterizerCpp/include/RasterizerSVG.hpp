@@ -5,6 +5,7 @@
 
 #import "Rasterizer.hpp"
 #import "nanosvg.h"
+#import <unordered_map>
 
 struct RasterizerSVG {
     static const bool kWriteOneBigPath = false;
@@ -29,9 +30,25 @@ struct RasterizerSVG {
                         writePathFromShape(shape, path);
                 scene->addPath(path, Ra::Transform(), Ra::Color(), 0.f, Ra::Draw::kFillEvenOdd);
             } else {
+                Clips clips;
                 for (NSVGshape *shape = image->shapes; shape != NULL; shape = shape->next) {
                     if ((shape->flags & NSVG_FLAGS_VISIBLE) == 0)
                         continue;
+                    // Its clip paths' intersection: rectangles' as clip bounds, & the innermost other clip path's exactly, as
+                    // draws have one, & the rest by their bounds
+                    Ra::Bounds clipBounds = Ra::Bounds::huge();  Ra::Path clipPath = nullptr;  int clipFlags = 0;  bool isClipped = false;
+                    for (int i = 0; i < shape->clipPathCount; i++) {
+                        const Clip& clip = clipFor(shape->clipPaths[i], clips);
+                        if ((isClipped = clip.isEmpty))
+                            break;
+                        clipBounds = clipBounds.intersect(clip.bounds);
+                        if (!clip.isRect)
+                            clipPath = clip.path, clipFlags = clip.evenOdd ? Ra::Draw::kClipEvenOdd : 0;
+                    }
+                    if (isClipped)
+                        continue;
+                    Ra::Bounds *bounds = shape->clipPathCount ? & clipBounds : nullptr;
+                    Ra::Path *clip = clipPath.ptr ? & clipPath : nullptr;
                     Ra::Path path;
                     writePathFromShape(shape, path);
                     if (!path->isValid())
@@ -39,7 +56,7 @@ struct RasterizerSVG {
                     Ra::Transform ctm;
                     if (shape->fill.type != NSVG_PAINT_NONE) {
                         int flags = shape->fillRule == NSVG_FILLRULE_EVENODD ? Ra::Draw::kFillEvenOdd : 0;
-                        scene->addPath(path, ctm, paintFromPaint(shape->fill, shape->opacity), 0.f, flags);
+                        scene->addPath(path, ctm, paintFromPaint(shape->fill, shape->opacity), 0.f, flags | clipFlags, bounds, clip);
                     }
                     if (shape->stroke.type != NSVG_PAINT_NONE && shape->strokeWidth) {
                         if (shape->strokeDashCount) {
@@ -49,11 +66,34 @@ struct RasterizerSVG {
                         int flags = cap == NSVG_CAP_ROUND ? Ra::Draw::kRoundCap : cap == NSVG_CAP_SQUARE ? Ra::Draw::kSquareCap : 0;
                         char join = shape->strokeLineJoin;
                         flags |= join == NSVG_JOIN_ROUND ? Ra::Draw::kRoundJoin : 0;
-                        scene->addPath(path, ctm, paintFromPaint(shape->stroke, shape->opacity), shape->strokeWidth, flags);
+                        scene->addPath(path, ctm, paintFromPaint(shape->stroke, shape->opacity), shape->strokeWidth, flags | clipFlags, bounds, clip);
                     }
                 }
             }
         }
+    }
+    
+    // A clip path, as the union of its visible shapes' paths, filled even-odd if they all are, & its bounds, & whether it's
+    // one axis-aligned rectangle, which its bounds clip exactly, without a clip mask. Shapes sharing a clip path share its path
+    struct Clip {
+        Ra::Path path;  Ra::Bounds bounds;  bool evenOdd = true, isEmpty = true, isRect = false;
+    };
+    typedef std::unordered_map<const NSVGclipPath *, Clip> Clips;
+    
+    static const Clip& clipFor(const NSVGclipPath *clipPath, Clips& clips) {
+        auto it = clips.find(clipPath);
+        if (it != clips.end())
+            return it->second;
+        Clip clip;
+        for (NSVGshape *shape = clipPath->shapes; shape != NULL; shape = shape->next)
+            if (shape->flags & NSVG_FLAGS_VISIBLE) {
+                writePathFromShape(shape, clip.path);
+                clip.evenOdd &= shape->fillRule == NSVG_FILLRULE_EVENODD;
+            }
+        clip.isEmpty = !clip.path->isValid();
+        if (!clip.isEmpty)      // nanosvg's lines are flat cubics, which cubicTo() writes as lines, so a rectangle is one
+            clip.isRect = clip.path->isRect(), clip.bounds = clip.path->bounds;
+        return clips.emplace(clipPath, clip).first->second;
     }
     
     static void writePathFromShape(NSVGshape *shape, Ra::Path& p) {
