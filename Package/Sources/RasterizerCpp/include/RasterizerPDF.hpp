@@ -729,8 +729,10 @@ struct RasterizerPDF {
                     ctFont = CTFontCreateWithGraphicsFont(cgFont, 1.0, nullptr, nullptr);
             }
             if (ctFont == nullptr && (CGPDFDictionaryGetName(font, "BaseFont", & name) || CGPDFDictionaryGetName(dict, "BaseFont", & name))) {
-                CFStringRef system = systemFontName(name);
-                ctFont = CTFontCreateWithName(system, 1.0, nullptr), CFRelease(system);
+                CGPDFInteger flags = 0;
+                if (desc)
+                    CGPDFDictionaryGetInteger(desc, "Flags", & flags);
+                ctFont = systemFont(name, flags);
                 cgFont = CTFontCopyGraphicsFont(ctFont, nullptr);
             }
             if (ctFont == nullptr || cgFont == nullptr)
@@ -966,14 +968,77 @@ struct RasterizerPDF {
                 return u <= 0xFFFF ? UniChar(u) : 0;
             return 0;
         }
-        // A font's PostScript name, without a subset prefix, as the standard fonts' system names
-        static CFStringRef systemFontName(const char *base) {
+        // A system font for one that isn't embedded: by its PostScript name, without a subset prefix, as the standard fonts'
+        // system names. Else, as for TrueType names like TimesNewRoman,BoldItalic or Arial,Bold, by a family whose name matches
+        // without spaces, case, or a PS or MT suffix, with the style's or the descriptor flags' bold & italic. Else Courier,
+        // Times or Helvetica, by the flags, not CoreText's default for a missing name
+        static CTFontRef systemFont(const char *base, CGPDFInteger flags) {
             const char *plus = strchr(base, '+');
-            std::string name = plus && plus - base == 6 ? plus + 1 : base;
-            std::replace(name.begin(), name.end(), ',', '-');
-            if (name == "ZapfDingbats")
-                name = "ZapfDingbatsITC";
-            return CFStringCreateWithCString(nullptr, name.c_str(), kCFStringEncodingASCII);
+            std::string name = plus && plus - base == 6 ? plus + 1 : base, psName = name;
+            std::replace(psName.begin(), psName.end(), ',', '-');
+            if (psName == "ZapfDingbats")
+                psName = "ZapfDingbatsITC";
+            CFStringRef string = CFStringCreateWithCString(nullptr, psName.c_str(), kCFStringEncodingASCII);
+            CTFontRef ctFont = string ? CTFontCreateWithName(string, 1.0, nullptr) : nullptr;
+            CFStringRef actual = ctFont ? CTFontCopyPostScriptName(ctFont) : nullptr;
+            bool found = string && actual && CFStringCompare(string, actual, kCFCompareCaseInsensitive) == kCFCompareEqualTo;
+            if (string)
+                CFRelease(string);
+            if (actual)
+                CFRelease(actual);
+            if (found)
+                return ctFont;
+            if (ctFont)
+                CFRelease(ctFont);
+            size_t split = name.find_first_of(",-");
+            std::string family = squashed(name.substr(0, split)), style = split == std::string::npos ? "" : squashed(name.substr(split + 1));
+            bool bold = style.find("bold") != std::string::npos || (flags & (1 << 18)), italic = style.find("italic") != std::string::npos || style.find("oblique") != std::string::npos || (flags & (1 << 6));
+            const std::map<std::string, std::string>& families = systemFamilies();
+            auto it = families.find(family);
+            for (const char *suffix : { "psmt", "mt", "ps" })
+                if (it == families.end() && family.size() > strlen(suffix) && family.compare(family.size() - strlen(suffix), std::string::npos, suffix) == 0)
+                    it = families.find(family.substr(0, family.size() - strlen(suffix)));
+            if (it != families.end()) {
+                CFStringRef familyName = CFStringCreateWithCString(nullptr, it->second.c_str(), kCFStringEncodingUTF8);
+                CFDictionaryRef attributes = CFDictionaryCreate(nullptr, (const void **)& kCTFontFamilyNameAttribute, (const void **)& familyName, 1, & kCFTypeDictionaryKeyCallBacks, & kCFTypeDictionaryValueCallBacks);
+                CTFontDescriptorRef descriptor = CTFontDescriptorCreateWithAttributes(attributes);
+                CTFontRef plain = CTFontCreateWithFontDescriptor(descriptor, 1.0, nullptr);
+                CFRelease(descriptor), CFRelease(attributes), CFRelease(familyName);
+                CTFontSymbolicTraits traits = (bold ? kCTFontBoldTrait : 0) | (italic ? kCTFontItalicTrait : 0);
+                CTFontRef styled = traits ? CTFontCreateCopyWithSymbolicTraits(plain, 1.0, nullptr, traits, traits) : nullptr;
+                if (styled)
+                    CFRelease(plain);
+                return styled ? styled : plain;
+            }
+            static const char *standard[3][4] = {
+                { "Helvetica", "Helvetica-Bold", "Helvetica-Oblique", "Helvetica-BoldOblique" },
+                { "Times-Roman", "Times-Bold", "Times-Italic", "Times-BoldItalic" },
+                { "Courier", "Courier-Bold", "Courier-Oblique", "Courier-BoldOblique" }
+            };
+            string = CFStringCreateWithCString(nullptr, standard[flags & 1 ? 2 : flags & 2 ? 1 : 0][bold + 2 * italic], kCFStringEncodingASCII);
+            ctFont = CTFontCreateWithName(string, 1.0, nullptr), CFRelease(string);
+            return ctFont;
+        }
+        // Lowercase, without spaces, as family names are compared
+        static std::string squashed(std::string s) {
+            s.erase(std::remove(s.begin(), s.end(), ' '), s.end());
+            std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return std::tolower(c); });
+            return s;
+        }
+        // The system's font family names, by their squashed names
+        static const std::map<std::string, std::string>& systemFamilies() {
+            static const std::map<std::string, std::string> families = [] {
+                std::map<std::string, std::string> map;
+                CFArrayRef names = CTFontManagerCopyAvailableFontFamilyNames();
+                char buffer[256];
+                for (CFIndex i = 0; names && i < CFArrayGetCount(names); i++)
+                    if (CFStringGetCString(CFStringRef(CFArrayGetValueAtIndex(names, i)), buffer, sizeof(buffer), kCFStringEncodingUTF8))
+                        map.emplace(squashed(buffer), buffer);
+                if (names)
+                    CFRelease(names);
+                return map;
+            }();
+            return families;
         }
         // A CID-keyed CFF font's charset, which lists its glyphs' CIDs, as cidToGid, if its Top DICT has ROS
         void readCFFCharset(const uint8_t *d, size_t n) {
