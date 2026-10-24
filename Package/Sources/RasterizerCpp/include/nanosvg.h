@@ -1136,6 +1136,9 @@ static void nsvg__addPath(NSVGparser* p, char closed)
 	float* curve;
 	int i;
 
+	// "M x y z" is a zero-length closed subpath, which strokes as a cap-shaped dot, so keep it as a zero-length line.
+	if (closed && p->npts == 1)
+		nsvg__lineTo(p, p->pts[0], p->pts[1]);
 	if (p->npts < 4)
 		return;
 
