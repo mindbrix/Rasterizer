@@ -336,7 +336,7 @@ static uint8_t joinFlags(RAJoinStyle joinStyle) {
 
 #pragma mark - RAScene
 
-@implementation RAScene: NSObject {
+@implementation RAScene {
     NSInteger _updates;     // The nesting depth of -updateDrawsInRange:usingBlock:, whose draws adding to the scene would move
 }
 
