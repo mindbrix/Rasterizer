@@ -20,7 +20,7 @@
 # build in DerivedData is used, which may not match the source.
 #
 # --rev benchmarks another commit: its tree is exported with git archive, & its TestFiles, parsers & shaders are used.
-# --contexts N caps Rasterizer's contexts at N, e.g. 1 for a baseline without any slicing, whose edges passes can't be coalesced.
+# --contexts N caps Rasterizer's contexts at N, e.g. 1 for a baseline without any slicing.
 #
 # How it works:
 # - rabench loads each TestFile exactly as RasterizerDemo does (RaSVG / RaPDF page 0), exports the parsed SceneList as an RSD dump,

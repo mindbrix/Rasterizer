@@ -874,7 +874,7 @@ struct Rasterizer {
         // kClipMask begins rendering a clip path's coverage into the clip mask, within the device bounds packed in begin, until kEnableClip.
         // Its end identifies the mask, so an encoder can skip rendering one the mask already holds. kBlendInstances are instances of draws
         // with blend modes, which blend in the shader, & kInstances blend with the hardware. A kInstancesBase begins a pass, & its end is
-        // the height of the accumulation texture's rows its group's edges use, from its top, so an encoder can limit an edges pass to them
+        // the height of the accumulation texture's rows the pass's edges use, from its top, so an encoder can limit an edges pass to them
         enum Type { kQuadEdges, kFastEdges, kFastMolecules, kQuadMolecules, kOpaques, kInstances, kSegmentsBase, kInstancesBase, kDisableClip, kEnableClip, kClipMask, kBlendInstances };
         static constexpr size_t kMaxBlendBatches = 32;     // Of a pass, beyond which all its instances are kBlendInstances
         struct Entry {
@@ -904,8 +904,6 @@ struct Rasterizer {
             Pass(size_t idx) : idx(idx) {}
             size_t count() const { return counts[0] + counts[1] + counts[2] + counts[3]; }
             size_t idx, height = 0, counts[4] = { 0, 0, 0, 0 };     // Its height is that of the rows of strips its cells use
-            // coalescePasses' group, its cells' offset in its rows, & their height, & writeContextToBuffer's entries for its edges & instances
-            size_t group = 0, offset = 0, groupHeight = 0, edgesEntry = 0, instancesEntry = 0;
         };
         void empty(Bounds device) {
             full = device, sheet = Bounds(0.f, 0.f, 0.f, 0.f), bzero(strips, sizeof(strips)), passes.empty();
@@ -1903,57 +1901,6 @@ struct Rasterizer {
         buffer.p16s = end;
     }
     
-    // Groups consecutive passes whose cells' rows fit in the accumulation texture together, & offsets each pass's cells in the group's
-    // rows, so a group's edges render in one edges pass, & its instances in one drawable pass, as each pass switch is costly. A group
-    // has at most kMaxGroupEdges edges, unless one pass has more, as an edges pass with too many is slower than two
-    static constexpr size_t kMaxGroupEdges = 200000;
-    static void coalescePasses(Context *contexts, size_t count) {
-        size_t group = 0, offset = 0, edges = 0, i, j, k, first = 0;
-        std::vector<Allocator::Pass *> passes;
-        for (i = 0; i < count; i++)
-            for (j = 0; j < contexts[i].allocator.passes.end; j++) {
-                Allocator::Pass *pass = contexts[i].allocator.passes.base + j;
-                size_t height = size_t(contexts[i].allocator.full.uy - contexts[i].allocator.full.ly);
-                if (offset + pass->height > height || (edges && edges + pass->count() > kMaxGroupEdges)) {
-                    for (k = first; k < passes.size(); k++)
-                        passes[k]->groupHeight = offset;
-                    group++, offset = 0, edges = 0, first = passes.size();
-                }
-                pass->group = group, pass->offset = offset, offset += pass->height, edges += pass->count();
-                passes.push_back(pass);
-            }
-        for (k = first; k < passes.size(); k++)
-            passes[k]->groupHeight = offset;
-    }
-    // Writes the contexts' entries, group by group: the edges of a group's passes, after their contexts' segments bases, then their
-    // instances, in order
-    static void writeEntries(Context *contexts, size_t count, Buffer& buffer) {
-        struct Ref { Context *ctx;  size_t ip; };
-        std::vector<Ref> refs;
-        for (size_t i = 0; i < count; i++)
-            for (size_t j = 0; j < contexts[i].allocator.passes.end; j++)
-                refs.push_back(Ref{ contexts + i, j });
-        auto add = [&](Context *ctx, size_t e0, size_t e1) {
-            for (size_t e = e0; e < e1; e++)
-                *(buffer.entries.alloc(1)) = ctx->entries[e];
-        };
-        for (size_t r0 = 0, r1; r0 < refs.size(); r0 = r1) {
-            size_t group = refs[r0].ctx->allocator.passes.base[refs[r0].ip].group;
-            for (r1 = r0; r1 < refs.size() && refs[r1].ctx->allocator.passes.base[refs[r1].ip].group == group; r1++) {
-                Context *ctx = refs[r1].ctx;  Allocator::Pass& pass = ctx->allocator.passes.base[refs[r1].ip];
-                if (pass.instancesEntry != pass.edgesEntry) {
-                    if (ctx->segments.end)      // Its kSegmentsBase is its first entry
-                        add(ctx, 0, 1);
-                    add(ctx, pass.edgesEntry, pass.instancesEntry);
-                }
-            }
-            for (size_t r = r0; r < r1; r++) {
-                Context *ctx = refs[r].ctx;  size_t ip = refs[r].ip;
-                bool isLast = ip + 1 == ctx->allocator.passes.end;
-                add(ctx, ctx->allocator.passes.base[ip].instancesEntry, isLast ? ctx->entries.end() : ctx->allocator.passes.base[ip + 1].edgesEntry);
-            }
-        }
-    }
     static void writeContextToBuffer(const SceneList& list, Context *ctx, size_t begin, size_t index, size_t contextCount, Buffer& buffer) {
         size_t i, j, count, size, ip, iz, ic, end, instbegin, passsize;
         {
@@ -1985,9 +1932,8 @@ struct Rasterizer {
             Allocator::Pass *pass = ctx->allocator.passes.base + ip;
             passsize = (ip + 1 < count ? (pass + 1)->idx : ctx->blends.end) - pass->idx;
             instbegin = begin + pass->count() * sizeof(Edge);
-            pass->edgesEntry = ctx->entries.end();
             if (pass->count()) {
-                ctx->entries.add(Buffer::Entry(Buffer::kInstancesBase, instbegin, pass->groupHeight));
+                ctx->entries.add(Buffer::Entry(Buffer::kInstancesBase, instbegin, pass->height));
                 
                 quadEdge = (Edge *)(buffer.base + begin), end = begin + pass->counts[Allocator::kQuadEdges] * sizeof(Edge);
                 ctx->entries.add(Buffer::Entry(Buffer::kQuadEdges, begin, end)), begin = end;
@@ -2002,7 +1948,6 @@ struct Rasterizer {
                 ctx->entries.add(Buffer::Entry(Buffer::kQuadMolecules, begin, end)), begin = end;
                 assert(begin == instbegin);
             }
-            pass->instancesEntry = ctx->entries.end();
             
             // The pass's instances are batches, split by clip commands, & where draws with blend modes begin & end, unless there are
             // more than kMaxBlendBatches of those
@@ -2023,8 +1968,6 @@ struct Rasterizer {
                     dst += inst->data.count;
                 } else {
                     dst->iz = inst->iz, dst->quad = inst->quad;
-                    if (dst->quad.cell.ox != kNullIndex)
-                        dst->quad.cell.oy += pass->offset;
                     ic = dst - dst0, dst++;
                     bool fast = inst->iz & Instance::kFastEdges;
                     

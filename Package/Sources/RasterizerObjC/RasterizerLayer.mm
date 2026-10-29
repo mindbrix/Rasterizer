@@ -393,10 +393,8 @@ struct TextureCache : MetalCache<id <MTLTexture>, const Ra::Paint &> {
     bool skipMask = false;
     
     bool useClip = false, inMask = false;
-    // Render passes switch only when their kind changes, as each switch stores & reloads its attachments. Edges begin a pass if
-    // instances have read the accumulation texture since the last one, as a group of passes' edges share one, in their own rows
+    // Render passes switch only when their kind changes, as each switch stores & reloads its attachments. Edges always begin a pass
     enum PassKind { kDrawablePass, kEdgesPass } passKind = kDrawablePass;
-    bool edgesRead = true;
     auto beginPass = [&](PassKind kind) {
         if (passKind == kind && kind != kEdgesPass)
             return;
@@ -459,8 +457,7 @@ struct TextureCache : MetalCache<id <MTLTexture>, const Ra::Paint &> {
             case Ra::Buffer::kFastMolecules:
             case Ra::Buffer::kQuadMolecules:
                 if (entry.type == Ra::Buffer::kQuadEdges) {
-                    if (passKind != kEdgesPass || edgesRead)
-                        beginPass(kEdgesPass), edgesRead = false;
+                    beginPass(kEdgesPass);
                     [commandEncoder setRenderPipelineState:_quadEdgesPipelineState];
                 } else if (entry.type == Ra::Buffer::kFastEdges)
                     [commandEncoder setRenderPipelineState:_fastEdgesPipelineState];
@@ -488,7 +485,6 @@ struct TextureCache : MetalCache<id <MTLTexture>, const Ra::Paint &> {
                 break;
             case Ra::Buffer::kInstances:
             case Ra::Buffer::kBlendInstances: {
-                edgesRead = true;
                 if (skipMask)
                     break;
                 beginPass(kDrawablePass);
