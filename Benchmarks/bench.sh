@@ -321,6 +321,11 @@ struct Offscreen {
 #endif
     TextureCache textureCache;
     MTLPixelFormat pixelFormat = MTLPixelFormatBGRA8Unorm;
+#if RA_QUAD_INDICES
+    // Quads draw as 2 triangles, (0, 1, 2) & (2, 1, 3), of quad q's vertices 4q to 4q + 3, in chunks of kQuadChunk with a base vertex
+    static constexpr NSUInteger kQuadChunk = 1 << 18;
+    id<MTLBuffer> quadIndices;
+#endif
 
     bool init(const char *metallib, size_t w, size_t h) {
         device = MTLCreateSystemDefaultDevice(), queue = [device newCommandQueue];
@@ -328,6 +333,12 @@ struct Offscreen {
         library = [device newLibraryWithURL:[NSURL fileURLWithPath:@(metallib)] error:& error];
         if (!library)
             return fprintf(stderr, "metallib: %s\n", error.localizedDescription.UTF8String), false;
+#if RA_QUAD_INDICES
+        std::vector<uint32_t> indices(kQuadChunk * 6);
+        for (uint32_t q = 0, *dst = indices.data(); q < kQuadChunk; q++, dst += 6)
+            dst[0] = 4 * q, dst[1] = 4 * q + 1, dst[2] = 4 * q + 2, dst[3] = 4 * q + 2, dst[4] = 4 * q + 1, dst[5] = 4 * q + 3;
+        quadIndices = [device newBufferWithBytes:indices.data() length:indices.size() * sizeof(uint32_t) options:MTLResourceStorageModeShared];
+#endif
 #if RA_IMAGES
         // Images need tier 2 argument buffers, else the fragment functions are made without image sampling
         bool hasImages = device.argumentBuffersSupport == MTLArgumentBuffersTier2;
@@ -588,6 +599,14 @@ struct Offscreen {
 #endif
         float passHeight = accumulationTexture.height;    // The edges pass's viewport height, which its edges map their rows to
 
+        auto drawQuads = [&](NSUInteger count) {
+#if RA_QUAD_INDICES
+            for (NSUInteger q = 0; q < count; q += kQuadChunk)
+                [commandEncoder drawIndexedPrimitives:MTLPrimitiveTypeTriangle indexCount:MIN(kQuadChunk, count - q) * 6 indexType:MTLIndexTypeUInt32 indexBuffer:quadIndices indexBufferOffset:0 instanceCount:1 baseVertex:NSInteger(q * 4) baseInstance:0];
+#else
+            [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip vertexStart:0 vertexCount:4 instanceCount:count baseInstance:0];
+#endif
+        };
         bool useClip = false, useImage = false, inMask = false, skipMask = false;
         bool edgesRead = true;    // Edges begin a pass only if instances have read the accumulation texture since the last one
         enum PassKind { kDrawablePass, kEdgesPass, kMaskPass } passKind = kDrawablePass;
@@ -695,7 +714,7 @@ struct Offscreen {
                     [commandEncoder setVertexBytes:& texCount length:sizeof(texCount) atIndex:14];
                     [commandEncoder setVertexBytes:& buffer->params length:sizeof(Ra::Params) atIndex:15];
                     [commandEncoder setFragmentTexture:useImage ? imageTexture : colorTexture atIndex:1];
-                    [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip vertexStart:0 vertexCount:4 instanceCount:reverse baseInstance:0];
+                    drawQuads(reverse);
                     break;
                 case Ra::Buffer::kQuadEdges:
                 case Ra::Buffer::kFastEdges:
@@ -728,7 +747,7 @@ struct Offscreen {
                         [commandEncoder setVertexBytes:& buffer->params length:sizeof(Ra::Params) atIndex:14];
                         [commandEncoder setFragmentBuffer:mtlBuffer offset:segbase atIndex:2];
                         [commandEncoder setFragmentBytes:& buffer->params length:sizeof(Ra::Params) atIndex:14];
-                        [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip vertexStart:0 vertexCount:4 instanceCount:(entry.end - entry.begin) / sizeof(Ra::Edge) baseInstance:0];
+                        drawQuads((entry.end - entry.begin) / sizeof(Ra::Edge));
                     }
                     break;
                 case Ra::Buffer::kInstances:
@@ -797,7 +816,7 @@ struct Offscreen {
                     [commandEncoder setVertexBytes:& buffer->params length:sizeof(Ra::Params) atIndex:15];
                     [commandEncoder setFragmentTexture:accumulationTexture atIndex:0];
                     [commandEncoder setFragmentTexture:useImage ? imageTexture : colorTexture atIndex:1];
-                    [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip vertexStart:0 vertexCount:4 instanceCount:(entry.end - entry.begin) / sizeof(Ra::Instance) baseInstance:0];
+                    drawQuads((entry.end - entry.begin) / sizeof(Ra::Instance));
                     break;
                 default:
                     break;
@@ -2157,7 +2176,8 @@ if [[ ! -x $B/rabench || $S/ra/rabench.mm -nt $B/rabench || -n $(find $INC $RA/R
   BATCHES=0; grep -q kBlendInstances $INC/Rasterizer.hpp && BATCHES=1    # Its batches of draws with blend modes, else a frame's blend mode
   HEIGHTS=0; grep -q 'size_t idx, height' $INC/Rasterizer.hpp && HEIGHTS=1    # Its edges passes' heights, from the accumulation texture's top
   LIMIT=0; grep -q 'std::vector<Ra::Context> contexts' $INC/RasterizerRenderer.hpp && LIMIT=1    # Its contexts' count capped by --contexts
-  clang++ -O3 -std=c++17 -fobjc-arc -DRA_CLIP_MASK=$CLIP -DRA_CLIP_CLEAR_CELLS=$CLEAR -DRA_CLIP_IN_PASS=$INPASS -DRA_BLEND=$BLEND -DRA_IMAGES=$IMAGES -DRA_CLIP_RULE=$RULE -DRA_PATH_DATA=$PATHS -DRA_BLEND_BATCHES=$BATCHES -DRA_EDGES_HEIGHT=$HEIGHTS -DRA_CONTEXT_LIMIT=$LIMIT -x objective-c++ $S/ra/rabench.mm -x none $W/obj/xxhash.o $W/obj/nanosvg.o \
+  QUADS=0; grep -q 'iid = vi >> 2' $INC/Shaders.metal && QUADS=1    # Its quads as indexed triangles, else 4 vertex instances
+  clang++ -O3 -std=c++17 -fobjc-arc -DRA_CLIP_MASK=$CLIP -DRA_CLIP_CLEAR_CELLS=$CLEAR -DRA_CLIP_IN_PASS=$INPASS -DRA_BLEND=$BLEND -DRA_IMAGES=$IMAGES -DRA_CLIP_RULE=$RULE -DRA_PATH_DATA=$PATHS -DRA_BLEND_BATCHES=$BATCHES -DRA_EDGES_HEIGHT=$HEIGHTS -DRA_CONTEXT_LIMIT=$LIMIT -DRA_QUAD_INDICES=$QUADS -x objective-c++ $S/ra/rabench.mm -x none $W/obj/xxhash.o $W/obj/nanosvg.o \
     -I$INC -I$RA/Rasterizer/Demo ${=${PDFIUM:+-I$PDFIUM/Headers -L$PDFIUM -lpdfium -Wl,-rpath,$PDFIUM}} \
     -framework Foundation -framework Metal -framework QuartzCore -framework CoreGraphics -framework CoreText -framework ImageIO -framework CoreServices \
     -Wno-deprecated-declarations -o $B/rabench

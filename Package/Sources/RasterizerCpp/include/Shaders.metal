@@ -212,8 +212,9 @@ vertex OpaquesVertex opaques_vertex_main(const device Opaque *opaques [[buffer(1
                                          constant uint *pathCount [[buffer(13)]],
                                          constant uint *texCount [[buffer(14)]],
                                          constant Params *params [[buffer(15)]],
-                                         uint vid [[vertex_id]], uint iid [[instance_id]])
+                                         uint vi [[vertex_id]])
 {
+    const uint iid = vi >> 2, vid = vi & 3;     // Quads are 2 indexed triangles of 4 vertices each, not instances
     const device Opaque& inst = opaques[*reverse - 1 - iid];
     const uint iz = inst.iz & kPathIndexMask;
     const bool isGradient = inst.iz & Instance::kIsGradient;
@@ -302,8 +303,9 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
                                 const device Instance *instances [[buffer(5)]],
                                 const device Point16 *points [[buffer(8)]],
                                 constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
-                                uint vid [[vertex_id]], uint iid [[instance_id]])
+                                uint vi [[vertex_id]])
 {
+    const uint iid = vi >> 2, vid = vi & 3;     // Quads are 2 indexed triangles of 4 vertices each, not instances
     FastMoleculesVertex vert;
     
     const device Edge& edge = edges[iid];
@@ -372,8 +374,9 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
                                 const device Instance *instances [[buffer(5)]],
                                 const device Point16 *points [[buffer(8)]],
                                 constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
-                                uint vid [[vertex_id]], uint iid [[instance_id]])
+                                uint vi [[vertex_id]])
 {
+    const uint iid = vi >> 2, vid = vi & 3;     // Quads are 2 indexed triangles of 4 vertices each, not instances
     QuadMoleculesVertex vert;
     
     const device Edge& edge = edges[iid];
@@ -437,8 +440,9 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
                                      const device Instance *instances [[buffer(5)]],
                                      constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
                                      constant Params *params [[buffer(14)]],
-                                     uint vid [[vertex_id]], uint iid [[instance_id]])
+                                     uint vi [[vertex_id]])
 {
+    const uint iid = vi >> 2, vid = vi & 3;     // Quads are 2 indexed triangles of 4 vertices each, not instances
     EdgesVertex vert;
     const device Edge& edge = edges[iid];
     const device Instance& inst = instances[edge.ic & Edge::kMask];
@@ -530,8 +534,9 @@ vertex InstancesVertex instances_vertex_main(
             constant uint *pathCount [[buffer(13)]],
             constant uint *texCount [[buffer(14)]],
             constant Params *params [[buffer(15)]],
-            uint vid [[vertex_id]], uint iid [[instance_id]])
+            uint vi [[vertex_id]])
 {
+    const uint iid = vi >> 2, vid = vi & 3;     // Quads are 2 indexed triangles of 4 vertices each, not instances
     InstancesVertex vert;
     constexpr float err = 1e-3;
     const bool isRight = vid & 1, isTop = vid & 2;

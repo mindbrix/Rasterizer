@@ -7,6 +7,10 @@
 #import <Metal/Metal.h>
 #import <map>
 
+// Quads draw as 2 triangles, (0, 1, 2) & (2, 1, 3), of quad q's vertices 4q to 4q + 3, in chunks of kQuadChunk with a base vertex,
+// as indexed draws of small quads are faster than 4 vertex instances
+static constexpr NSUInteger kQuadChunk = 1 << 18;
+
 template<typename T, typename S, int kExpiryAge = 10>
 struct MetalCache {
     struct Entry {
@@ -95,6 +99,7 @@ struct TextureCache : MetalCache<id <MTLTexture>, const Ra::Paint &> {
 @property (nonatomic) id <MTLRenderPipelineState> instancesClipBlendPipelineState;
 @property (nonatomic) id <MTLArgumentEncoder> imageEncoder;     // For an argument buffer of the frame's images, or nil without them
 @property (nonatomic) id <MTLBuffer> noImagesBuffer;            // Bound for frames without images, as the image functions need a buffer
+@property (nonatomic) id <MTLBuffer> quadIndices;               // kQuadChunk quads' triangles' indices
 @property (nonatomic) id <MTLRenderPipelineState> clipMaskPipelineState;
 @property (nonatomic) id <MTLDepthStencilState> instancesDepthState;
 @property (nonatomic) id <MTLDepthStencilState> opaquesDepthState;
@@ -234,6 +239,11 @@ struct TextureCache : MetalCache<id <MTLTexture>, const Ra::Paint &> {
     descriptor.fragmentFunction = [self.defaultLibrary newFunctionWithName:@"quad_molecules_fragment_main"];
     descriptor.label = @"quad molecules";
     self.quadMoleculesPipelineState = [self.device newRenderPipelineStateWithDescriptor:descriptor error:nil];
+    
+    std::vector<uint32_t> indices(kQuadChunk * 6);
+    for (uint32_t q = 0, *dst = indices.data(); q < kQuadChunk; q++, dst += 6)
+        dst[0] = 4 * q, dst[1] = 4 * q + 1, dst[2] = 4 * q + 2, dst[3] = 4 * q + 2, dst[4] = 4 * q + 1, dst[5] = 4 * q + 3;
+    self.quadIndices = [self.device newBufferWithBytes:indices.data() length:indices.size() * sizeof(uint32_t) options:MTLResourceStorageModeShared];
     
     return self;
 }
@@ -406,6 +416,17 @@ struct TextureCache : MetalCache<id <MTLTexture>, const Ra::Paint &> {
         if (kind == kDrawablePass)
             bindImages();
     };
+    auto drawQuads = [&](NSUInteger count) {
+        for (NSUInteger q = 0; q < count; q += kQuadChunk)
+            [commandEncoder drawIndexedPrimitives:MTLPrimitiveTypeTriangle
+                                       indexCount:MIN(kQuadChunk, count - q) * 6
+                                        indexType:MTLIndexTypeUInt32
+                                      indexBuffer:_quadIndices
+                                indexBufferOffset:0
+                                    instanceCount:1
+                                       baseVertex:NSInteger(q * 4)
+                                     baseInstance:0];
+    };
     uint32_t reverse, pathsCount = uint32_t(buffer->pathsCount), texCount = uint32_t(th);
     float width = drawable.texture.width, height = drawable.texture.height;
     
@@ -446,11 +467,7 @@ struct TextureCache : MetalCache<id <MTLTexture>, const Ra::Paint &> {
                 [commandEncoder setVertexBytes:& texCount length:sizeof(texCount) atIndex:14];
                 [commandEncoder setVertexBytes:& buffer->params length:sizeof(Ra::Params) atIndex:15];
                 [commandEncoder setFragmentTexture:colorTexture atIndex:1];
-                [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip
-                                   vertexStart:0
-                                   vertexCount:4
-                                 instanceCount:reverse
-                                  baseInstance:0];
+                drawQuads(reverse);
                 break;
             case Ra::Buffer::kQuadEdges:
             case Ra::Buffer::kFastEdges:
@@ -476,11 +493,7 @@ struct TextureCache : MetalCache<id <MTLTexture>, const Ra::Paint &> {
                     [commandEncoder setVertexBytes:& buffer->params length:sizeof(Ra::Params) atIndex:14];
                     [commandEncoder setFragmentBuffer:mtlBuffer offset:segbase atIndex:2];
                     [commandEncoder setFragmentBytes:& buffer->params length:sizeof(Ra::Params) atIndex:14];
-                    [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip
-                                       vertexStart:0
-                                       vertexCount:4
-                                     instanceCount:(entry.end - entry.begin) / sizeof(Ra::Edge)
-                                      baseInstance:0];
+                    drawQuads((entry.end - entry.begin) / sizeof(Ra::Edge));
                 }
                 break;
             case Ra::Buffer::kInstances:
@@ -510,11 +523,7 @@ struct TextureCache : MetalCache<id <MTLTexture>, const Ra::Paint &> {
                 [commandEncoder setVertexBytes:& buffer->params length:sizeof(Ra::Params) atIndex:15];
                 [commandEncoder setFragmentTexture:_accumulationTexture atIndex:0];
                 [commandEncoder setFragmentTexture:colorTexture atIndex:1];
-                [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip
-                                   vertexStart:0
-                                   vertexCount:4
-                                 instanceCount:(entry.end - entry.begin) / sizeof(Ra::Instance)
-                                  baseInstance:0];
+                drawQuads((entry.end - entry.begin) / sizeof(Ra::Instance));
                 break;
             }
         }
