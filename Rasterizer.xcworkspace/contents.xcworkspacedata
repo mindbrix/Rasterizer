@@ -11,37 +11,37 @@
             location = "group:include"
             name = "include">
             <FileRef
-               location = "group:xxhash.h">
-            </FileRef>
-            <FileRef
-               location = "group:RasterizerCG.hpp">
-            </FileRef>
-            <FileRef
-               location = "group:Rasterizer.hpp">
-            </FileRef>
-            <FileRef
-               location = "group:Shaders.metal">
+               location = "group:nanosvg.h">
             </FileRef>
             <FileRef
                location = "group:Rasterizer.h">
             </FileRef>
             <FileRef
-               location = "group:RasterizerPDF.hpp">
+               location = "group:Rasterizer.hpp">
+            </FileRef>
+            <FileRef
+               location = "group:RasterizerCG.hpp">
             </FileRef>
             <FileRef
                location = "group:RasterizerCoreText.hpp">
             </FileRef>
             <FileRef
-               location = "group:nanosvg.h">
+               location = "group:RasterizerPDF.hpp">
             </FileRef>
             <FileRef
-               location = "group:RasterizerWinding.hpp">
+               location = "group:RasterizerRenderer.hpp">
             </FileRef>
             <FileRef
                location = "group:RasterizerSVG.hpp">
             </FileRef>
             <FileRef
-               location = "group:RasterizerRenderer.hpp">
+               location = "group:RasterizerWinding.hpp">
+            </FileRef>
+            <FileRef
+               location = "group:Shaders.metal">
+            </FileRef>
+            <FileRef
+               location = "group:xxhash.h">
             </FileRef>
          </Group>
          <FileRef
