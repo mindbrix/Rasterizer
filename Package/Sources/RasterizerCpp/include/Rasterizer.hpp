@@ -1003,7 +1003,7 @@ struct Rasterizer {
                         }
                     }
                     m = draw.ctm.concat(ctm), det = fabsf(m.a * m.d - m.b * m.c);
-                    width = list.params.showOutlines ? 0.5f * scale : draw.width * (draw.width > 0.f ? sqrtf(det) : -scale);
+                    width = list.params.showOutlines ? 1.f : draw.width * (draw.width > 0.f ? sqrtf(det) : -1.f);
                     quad = draw.bnds.quad(m), dev = Bounds(quad).inset(-width, -width);
                     clip = dev.integral().intersect(clipBounds).intersect(maskBounds);
                     
