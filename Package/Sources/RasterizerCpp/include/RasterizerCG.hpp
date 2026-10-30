@@ -21,9 +21,6 @@ struct RasterizerCG {
     }
     
     static void renderList(const Ra::SceneList& list, Ra::Bounds bounds, CGContextRef ctx) {
-        CGAffineTransform m = CGContextGetCTM(ctx);
-        CGFloat scale = sqrt(abs(m.a * m.d - m.b * m.c));
-        
         CGContextConcatCTM(ctx, CGFromTransform(list.ctm));
         
         for (int j = 0; j < list.scenes.size(); j++) {
