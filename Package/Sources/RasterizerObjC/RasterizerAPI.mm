@@ -337,6 +337,7 @@ static uint8_t joinFlags(RAJoinStyle joinStyle) {
 #pragma mark - RAScene
 
 @implementation RAScene {
+    GlyphCache _cache;
     NSInteger _updates;     // The nesting depth of -updateDrawsInRange:usingBlock:, whose draws adding to the scene would move
 }
 
@@ -401,9 +402,8 @@ static uint8_t joinFlags(RAJoinStyle joinStyle) {
 }
 
 - (CGRect)addText:(NSAttributedString *)string inRect:(CGRect)rect ctm:(CGAffineTransform)ctm clip:(CGRect)clip {
-    GlyphCache cache;
     [self checkNotUpdating];
-    return RaCT::addTextToSceneInRect((__bridge CFAttributedStringRef)string, rect, ctm, clip, _scene, cache);
+    return RaCT::addTextToSceneInRect((__bridge CFAttributedStringRef)string, rect, ctm, clip, _scene, _cache);
 }
 
 + (NSInteger)pdfPageCountFromUrl:(nonnull NSURL *)url {
