@@ -68,26 +68,24 @@ typedef NS_ENUM(NSUInteger, RABlendMode) {
     kRABlendColor, kRABlendLuminosity
 };
 
-// A draw: make one to add with -[RAScene addDraw:], or edit a scene's draws in place with -[RAScene updateDrawsInRange:usingBlock:]
 @interface RADraw: NSObject
 @property(nonnull, nonatomic) RAPath *path;
 @property(nonatomic) CGAffineTransform ctm;
 @property(nonnull, nonatomic) RAPaint *color;
-@property(nonatomic) double width;      // 0 fills, > 0 strokes
+@property(nonatomic) double width;      // 0 fills, < 0 device width, > 0 draw width
 @property(nonatomic) BOOL evenOdd;
 @property(nonatomic) RACapStyle capStyle;
 @property(nonatomic) RAJoinStyle joinStyle;
-@property(nonatomic) CGRect clip;       // Empty, null or infinite clips nothing
+@property(nonatomic) CGRect clip;
 @property(nullable, nonatomic) RAPath *clipPath;
-@property(nonatomic) BOOL clipEvenOdd;  // The clip path's fill rule, else non-zero
-@property(nonatomic) BOOL hidden;       // Hidden draws keep their index, but are not drawn
+@property(nonatomic) BOOL clipEvenOdd;
+@property(nonatomic) BOOL hidden;
 @property(nonatomic) RABlendMode blendMode;
 
 - (nonnull id)initWithPath:(nonnull RAPath *)path ctm:(CGAffineTransform)ctm color:(nonnull RAPaint *)color;
 @end
 
 
-// Returns YES if it changed draw, which is the scene's draw at index, edited in place: it is only valid during the call
 typedef BOOL (^RADrawUpdateBlock)(NSInteger index, RADraw * _Nonnull draw);
 
 @interface RAScene: NSObject
@@ -127,9 +125,6 @@ typedef BOOL (^RADrawUpdateBlock)(NSInteger index, RADraw * _Nonnull draw);
 
 - (CGAffineTransform)addSvgFromUrl:(nonnull NSURL *)url;
 
-// Calls block for each draw in range, clamped to count, to read or edit it. Changes to a draw's transform, color or stroke width
-// need no re-prepare, but changes to its path or visibility, or a stroke becoming a fill, do. Adding to the scene from the block
-// raises NSInternalInconsistencyException, as it can move the draws being edited
 - (void)updateDrawsInRange:(NSRange)range usingBlock:(nonnull NS_NOESCAPE RADrawUpdateBlock)block;
 @end
 
