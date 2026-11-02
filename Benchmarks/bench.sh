@@ -25,21 +25,21 @@
 # How it works:
 # - rabench loads each TestFile exactly as RasterizerDemo does (RaSVG / RaPDF page 0), exports the parsed SceneList as an RSD dump,
 #   and benchmarks Rasterizer offscreen with a copy of RasterizerLayer's encode loop: keep that in sync with RasterizerLayer -draw.
-# - vello_bench (Vello 0.11) & skia_bench (skia-safe 0.153, Metal, Ganesh or Graphite) replay the dumps, so every library draws
+# - vello_bench (Vello 0.11) & skia_bench (skia-safe 0.153, Metal, Ganesh) replay the dumps, so every library draws
 #   identical geometry. rsd is their shared reader, view formula, culling, clip runs, stats & PNG I/O, & rsdcompare diffs PNGs.
 # - Frames are serialised (build, submit, wait): CPU is to submit, submit-to-done to GPU completion, wall the whole frame, &
 #   Rasterizer also reports Metal GPU time. 3 warm-up then N timed frames per run; fit (static) & sweep (1x to 8x zoom) modes;
 #   rounds interleave libraries; summary.md takes the best median across rounds, & compares each fit frame with Rasterizer's.
 # - Vello's dynamic GPU buffers are fixed sizes picked for Paris-30K & overflow silently (blank frames on the big PDFs), so
-#   vello_encoding is patched to scale them 16x. Prebuilt Skia exists for metal+ganesh & metal+graphite but not both, so
-#   skia_bench is built twice. Ganesh without MSAA falls back to CPU masks for large AA paths; Chrome renders with MSAA.
+#   vello_encoding is patched to scale them 16x. Ganesh without MSAA falls back to CPU masks for large AA paths; Chrome renders
+#   with MSAA. Skia's Graphite backend isn't benchmarked, as its internal 4x MSAA & depth-tested draws aren't comparable.
 set -euo pipefail
 
 HERE=${0:a:h}; REPO=${HERE:h}; W=$HERE/build
 RUST=1.99.0
 VE_VERSION=0.11.0
 VE_SHA256=b1fb9548d2b46b0f79137b5b1d208ecbd76d432f74e7a2ba838615d117f11532
-ALL_CONFIGS=rasterizer,vello,vello_retained,skia_ganesh,skia_graphite
+ALL_CONFIGS=rasterizer,vello,vello_retained,skia_ganesh
 ROUNDS=3; SIZE=2048x2048; FRAMES=30; CONFIGS=$ALL_CONFIGS; REV=; ML=${METALLIB:-}; CONTEXTS=; BUILD_ONLY=0
 while (( $# )); do
   case $1 in
@@ -1726,13 +1726,8 @@ name = "skia_bench"
 version = "0.1.0"
 edition = "2024"
 
-# Prebuilt Skia binaries exist for metal+ganesh & metal+graphite, not both, so pick one per build (bench.sh builds both)
-[features]
-ganesh = ["skia-safe/ganesh"]
-graphite = ["skia-safe/graphite"]
-
 [dependencies]
-skia-safe = { version = "=0.153.3", features = ["metal"] }
+skia-safe = { version = "=0.153.3", features = ["metal", "ganesh"] }
 objc2 = "0.6.3"
 objc2-metal = { version = "0.3.2", features = ["MTLDevice", "MTLCommandQueue"] }
 rsd = { path = "../rsd" }
@@ -1742,8 +1737,7 @@ debug = 1
 __SKIA_CARGO_TOML__
 
 w $S/skia/src/main.rs <<'__SKIA_SRC_MAIN_RS__'
-//! skia_bench: replays an RSD dump written by `rabench export` with Skia on Metal, & times each frame.
-//! Built with --features ganesh or --features graphite (prebuilt Skia binaries exist for each, not both).
+//! skia_bench: replays an RSD dump written by `rabench export` with Skia's Ganesh backend on Metal, & times each frame.
 //!   skia_bench <dump.rsd> [--size WxH] [--frames N] [--zoom Z] [--png out.png] [--pngframe k] [--nocull] [--picture] [--msaa N]
 //!
 //! Mapping from Rasterizer semantics (as vello_bench, see rsd):
@@ -1755,9 +1749,6 @@ w $S/skia/src/main.rs <<'__SKIA_SRC_MAIN_RS__'
 //! - --picture records an SkPicture once (with an R-tree) & draws it with each frame's view: no CPU culling of
 //!   our own, & widths other than -1 keep their fit-view width as the view zooms
 //! - --msaa N: Ganesh render target sample count (default 1, Skia's analytic AA)
-
-#[cfg(not(any(feature = "ganesh", feature = "graphite")))]
-compile_error!("build with --features ganesh or --features graphite");
 
 use rsd::{Affine, ClipKey, Dump, Opts, Seg, Stats};
 use skia_safe::{
@@ -1895,7 +1886,6 @@ fn record_picture(d: &Dump, a: &Assets, o: &Opts) -> Picture {
     rec.finish_recording_as_picture(None).expect("picture")
 }
 
-#[cfg(feature = "ganesh")]
 mod backend {
     use skia_safe::{AlphaType, ColorType, ImageInfo, Surface, gpu};
     pub const NAME: &str = "skia_ganesh";
@@ -1934,55 +1924,6 @@ mod backend {
             let info = ImageInfo::new((w as i32, h as i32), ColorType::RGBA8888, AlphaType::Premul, None);
             let mut px = vec![0u8; (w * h * 4) as usize];
             assert!(self.surface.read_pixels(&info, &mut px, w as usize * 4, (0, 0)), "read_pixels");
-            px
-        }
-    }
-}
-
-#[cfg(feature = "graphite")]
-mod backend {
-    use skia_safe::gpu::graphite::{self, mtl as gmtl};
-    use skia_safe::{AlphaType, ColorType, ImageInfo, Surface, gpu};
-    pub const NAME: &str = "skia_graphite";
-    pub struct Gpu {
-        pub context: graphite::Context,
-        pub recorder: graphite::Recorder,
-        pub surface: Surface,
-        _device: objc2::rc::Retained<objc2::runtime::ProtocolObject<dyn objc2_metal::MTLDevice>>,
-        _queue: objc2::rc::Retained<objc2::runtime::ProtocolObject<dyn objc2_metal::MTLCommandQueue>>,
-    }
-    impl Gpu {
-        pub fn new(w: u32, h: u32, _msaa: usize) -> Self {
-            use objc2::rc::Retained;
-            use objc2_metal::{MTLCreateSystemDefaultDevice, MTLDevice};
-            let device = MTLCreateSystemDefaultDevice().expect("Metal device");
-            let queue = device.newCommandQueue().expect("command queue");
-            let backend = unsafe {
-                gmtl::BackendContext::new(Retained::as_ptr(&device) as *mut std::ffi::c_void, Retained::as_ptr(&queue) as *mut std::ffi::c_void)
-            };
-            let mut context = gmtl::context_factory::make_metal(&backend, None).expect("Graphite Metal context");
-            let mut recorder = context.make_recorder(None).expect("recorder");
-            let info = ImageInfo::new((w as i32, h as i32), ColorType::RGBA8888, AlphaType::Premul, None);
-            let surface = graphite::surfaces::render_target(&mut recorder, &info, gpu::Mipmapped::No, None, Some("skia_bench")).expect("render target");
-            Gpu { context, recorder, surface, _device: device, _queue: queue }
-        }
-        /// Graphite draws only texture-backed images, so upload once up front
-        pub fn prepare_image(&mut self, image: skia_safe::Image) -> skia_safe::Image {
-            graphite::images::texture_from_image(&mut self.recorder, &image).expect("texture image")
-        }
-        /// Snaps the recorder's work into a recording & commits it
-        pub fn submit(&mut self) {
-            let mut recording = self.recorder.snap().expect("snap");
-            self.context.insert_recording(&graphite::InsertRecordingInfo::new(&mut recording));
-            self.context.submit(None);
-        }
-        pub fn wait(&mut self) {
-            self.context.submit_and_wait();
-        }
-        pub fn read_rgba(&mut self, w: u32, h: u32) -> Vec<u8> {
-            let info = ImageInfo::new((w as i32, h as i32), ColorType::RGBA8888, AlphaType::Premul, None);
-            let mut px = vec![0u8; (w * h * 4) as usize];
-            assert!(self.context.read_pixels(&mut self.surface, &info, &mut px, w as usize * 4, (0, 0)), "read_pixels");
             px
         }
     }
@@ -2191,8 +2132,7 @@ cargo_build() {    # crate, target dir name, binary, extra cargo args
 }
 cargo_build rsd rsdcompare rsdcompare
 [[ ,$CONFIGS, == *,vello* ]] && cargo_build vello vello vello_bench
-[[ ,$CONFIGS, == *,skia_ganesh* ]] && cargo_build skia skia_ganesh skia_bench "--features ganesh"
-[[ ,$CONFIGS, == *,skia_graphite* ]] && cargo_build skia skia_graphite skia_bench "--features graphite"
+[[ ,$CONFIGS, == *,skia_ganesh* ]] && cargo_build skia skia_ganesh skia_bench
 
 MLSRC="--metallib"
 if [[ -z $ML ]]; then
@@ -2224,8 +2164,8 @@ done
 
 # Each config: name, binary & extra args. rasterizer takes the source file, the replays its dump
 typeset -A BIN ARGS
-BIN=(vello vello vello_retained vello skia_ganesh skia_ganesh skia_graphite skia_graphite)
-ARGS=(vello "" vello_retained --retained skia_ganesh "" skia_graphite "")
+BIN=(vello vello vello_retained vello skia_ganesh skia_ganesh)
+ARGS=(vello "" vello_retained --retained skia_ganesh "")
 REPLAYS=(${${(s:,:)CONFIGS}:#rasterizer})
 run() {    # config, file, png | frames zoom
   local c=$1 f=$2 n=${${2:t}%.*}; shift 2

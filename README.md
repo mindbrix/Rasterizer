@@ -16,16 +16,16 @@ Performance
 
 Wall time per frame in milliseconds, fitting each file to a 2048×2048 view on a MacBook Air with an M4. Lower is better.
 
-| File | Draws | Rasterizer | Vello | Skia Graphite | Skia Ganesh |
-|---|---:|---:|---:|---:|---:|
-| tiger | 301 | 1.35 | 1.43 | **0.86** | 3.56 |
-| london-rail | 10,643 | **1.76** | 3.90 | 7.83 | 8.36 |
-| Paris 30K | 50,791 | **4.94** | 28.09 | 34.58 | 66.08 |
-| spoorkaart | 84,287 | **9.87** | 44.34 | 66.27 | 327.85 |
-| 6000-DRG | 414,657 | **20.04** | 129.98 | 224.56 | 233.40 |
-| pathological | 580,473 | **18.14** | 106.74 | 267.01 | 324.32 |
+| File | Draws | Rasterizer | Vello | Skia Ganesh |
+|---|---:|---:|---:|---:|
+| tiger | 301 | **1.35** | 1.43 | 3.56 |
+| london-rail | 10,643 | **1.76** | 3.90 | 8.36 |
+| Paris 30K | 50,791 | **4.94** | 28.09 | 66.08 |
+| spoorkaart | 84,287 | **9.87** | 44.34 | 327.85 |
+| 6000-DRG | 414,657 | **20.04** | 129.98 | 233.40 |
+| pathological | 580,473 | **18.14** | 106.74 | 324.32 |
 
-Across all 20 test files, Vello takes 2.2× as long as Rasterizer, Skia Graphite 2.4× and Skia Ganesh 5.0× (geometric means). The advantage grows with the number of paths: on the 7 documents with more than 40,000 draws, Vello takes 2–6.5× as long and Skia 6–33×. Small scenes, under about 1,000 draws, take under 2 ms in Rasterizer, Vello and Skia Graphite, and Graphite is fastest on 5 of the 6. On an M4 Max, with about four times as many GPU cores, Rasterizer's lead is wider.
+Across all 20 test files, Vello takes 2.2× as long as Rasterizer and Skia Ganesh 5.0× (geometric means). The advantage grows with the number of paths: on the 7 documents with more than 40,000 draws, Vello takes 2–6.5× as long and Skia Ganesh 6–33×. Small scenes, under about 1,000 draws, take under 2 ms in Rasterizer and Vello. On an M4 Max, with about four times as many GPU cores, Rasterizer's lead is wider.
 
 The benchmark is a single self-contained script that builds every library and replays the same geometry in each. See [Benchmarks](Benchmarks/README.md) for the method, all the results and the caveats.
 
