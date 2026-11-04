@@ -7,6 +7,7 @@
 #
 #   Benchmarks/bench.sh [--rounds N] [--size WxH] [--frames N] [--configs a,b,..] [--rev <git rev>] [--metallib path] [--contexts N]
 #                       [--build-only]
+#   Benchmarks/bench.sh --viewer [file] [--build-only]
 #
 # Everything is generated under Benchmarks/build/, which ignores itself:
 #   src/        the harness sources, written from this script each run, so this script is their only copy
@@ -23,6 +24,8 @@
 #
 # --rev benchmarks another commit: its tree is exported with git archive, & its TestFiles, parsers & shaders are used.
 # --contexts N caps Rasterizer's contexts at N, e.g. 1 for a baseline without any slicing.
+# --viewer builds every renderer & raviewer, an interactive viewer that switches between them on the same pan, zoom & rotation
+#   (see raviewer.mm), & opens file in it: an RSD dump, or a TestFiles SVG or PDF (default tiger.svg).
 #
 # How it works:
 # - rabench loads each TestFile exactly as RasterizerDemo does (RaSVG / RaPDF page 0), exports the parsed SceneList as an RSD dump,
@@ -47,7 +50,7 @@ RIVE_SHA=03cd2cdf6322859f62e9edfcfc8040ce80b37ccc
 PLY_TAG=3.11
 PLY_SHA=0f398b72618c1564d71f7dc0558e6722b241875a
 ALL_CONFIGS=rasterizer,vello,vello_retained,skia_ganesh,rive
-ROUNDS=3; SIZE=2048x2048; FRAMES=30; CONFIGS=$ALL_CONFIGS; REV=; ML=${METALLIB:-}; CONTEXTS=; BUILD_ONLY=0
+ROUNDS=3; SIZE=2048x2048; FRAMES=30; CONFIGS=$ALL_CONFIGS; REV=; ML=${METALLIB:-}; CONTEXTS=; BUILD_ONLY=0; VIEWER=0; VFILE=
 while (( $# )); do
   case $1 in
     --rounds) ROUNDS=$2; shift ;;
@@ -58,10 +61,12 @@ while (( $# )); do
     --metallib) ML=${2:a}; shift ;;
     --contexts) CONTEXTS=$2; shift ;;
     --build-only) BUILD_ONLY=1 ;;
-    *) sed -n '2,5p' $0; exit 2 ;;
+    --viewer) VIEWER=1; if (( $# > 1 )) && [[ $2 != --* ]]; then VFILE=${2:a}; shift; fi ;;
+    *) sed -n '2,10p' $0; exit 2 ;;
   esac
   shift
 done
+(( VIEWER )) && CONFIGS=$ALL_CONFIGS    # The viewer has every renderer
 [[ ,$CONFIGS, == *,rasterizer,* ]] || CONFIGS=rasterizer,$CONFIGS
 die() { print -u2 "bench.sh: $*"; exit 1 }
 step() { print -P "%B==> $*%b" }
@@ -925,6 +930,7 @@ static int bench(Ra::SceneList& list, const char *name, const char *metallib, si
     return 0;
 }
 
+#if !RABENCH_NO_MAIN     // raviewer includes this file for its loaders & Offscreen renderer
 int main(int argc, const char *argv[]) {
     @autoreleasepool {
         if (argc < 4)
@@ -961,6 +967,7 @@ int main(int argc, const char *argv[]) {
         return bench(list, name, argv[3], W, H, frames, zoom, png, pngFrame, contexts);
     }
 }
+#endif
 __RA_RABENCH_MM__
 
 w $S/rsd/Cargo.toml <<'__RSD_CARGO_TOML__'
@@ -1492,9 +1499,8 @@ debug = 1
 vello_encoding = { path = "../../vendor/vello_encoding" }
 __VELLO_CARGO_TOML__
 
-w $S/vello/src/main.rs <<'__VELLO_SRC_MAIN_RS__'
-//! vello_bench: replays an RSD dump written by `rabench export` with Vello, & times each frame.
-//!   vello_bench <dump.rsd> [--size WxH] [--frames N] [--zoom Z] [--png out.png] [--pngframe k] [--aa area|msaa8|msaa16] [--nocull] [--retained]
+w $S/vello/src/lib.rs <<'__VELLO_SRC_LIB_RS__'
+//! The replay of an RSD dump into a Vello scene, shared by vello_bench & raviewer.
 //!
 //! Mapping from Rasterizer semantics (see Rasterizer.hpp Context::drawList & rsd):
 //! - device = flip(H) * view * scene ctm * draw ctm, flip because Rasterizer is y-up & Vello y-down
@@ -1506,28 +1512,26 @@ w $S/vello/src/main.rs <<'__VELLO_SRC_MAIN_RS__'
 //! - gradients: brush space -> local is Bitmap::ctm, linear t = y, radial t = |p|, pad extend
 //! - images: the image covers the path bounds, row 0 at the top (uy)
 //! - offscreen draws are culled on the CPU by device bounds, as drawList does (--nocull to disable)
-//! - --retained encodes once & appends per frame: no culling, & hairlines keep their fit-view width as the view zooms
 
-use rsd::{Affine as RAffine, ClipKey, Dump, Opts, Seg, Stats};
-use std::{num::NonZeroUsize, sync::Arc, time::Instant};
+use rsd::{Affine as RAffine, ClipKey, Dump, Seg};
+use std::sync::Arc;
 use vello::{
-    AaConfig, AaSupport, RenderParams, Renderer, RendererOptions, Scene,
+    Scene,
     kurbo::{Affine, BezPath, Cap, Join, Rect, Stroke},
     peniko::{Blob, BrushRef, Color, Fill, Gradient, ImageAlphaType, ImageBrush, ImageData, ImageFormat},
-    wgpu,
 };
 
-struct Assets {
-    paths: Vec<BezPath>,
-    grads: Vec<Gradient>,
-    images: Vec<ImageBrush>,
+pub struct Assets {
+    pub paths: Vec<BezPath>,
+    pub grads: Vec<Gradient>,
+    pub images: Vec<ImageBrush>,
 }
 
-fn kurbo(m: RAffine) -> Affine {
+pub fn kurbo(m: RAffine) -> Affine {
     Affine::new(m.0)
 }
 
-fn assets(d: &Dump) -> Assets {
+pub fn assets(d: &Dump) -> Assets {
     let paths = d.paths.iter().map(|p| {
         let mut b = BezPath::new();
         let pt = |x: f32, y: f32| (x as f64, y as f64);
@@ -1556,7 +1560,7 @@ fn assets(d: &Dump) -> Assets {
 }
 
 /// Encodes the draws with y-down device transform device. Hairline widths use hair (device, except for a retained scene)
-fn build_scene(scene: &mut Scene, d: &Dump, a: &Assets, device: RAffine, hair: RAffine, w: f64, h: f64, cull: bool) -> usize {
+pub fn build_scene(scene: &mut Scene, d: &Dump, a: &Assets, device: RAffine, hair: RAffine, w: f64, h: f64, cull: bool) -> usize {
     scene.reset();
     let (mut current, mut layers, mut encoded) = (None::<ClipKey>, 0, 0);
     for draw in &d.draws {
@@ -1606,6 +1610,23 @@ fn build_scene(scene: &mut Scene, d: &Dump, a: &Assets, device: RAffine, hair: R
     }
     encoded
 }
+__VELLO_SRC_LIB_RS__
+
+w $S/vello/src/main.rs <<'__VELLO_SRC_MAIN_RS__'
+//! vello_bench: replays an RSD dump written by `rabench export` with Vello, & times each frame.
+//!   vello_bench <dump.rsd> [--size WxH] [--frames N] [--zoom Z] [--png out.png] [--pngframe k] [--aa area|msaa8|msaa16] [--nocull] [--retained]
+//!
+//! See lib.rs for the mapping from Rasterizer semantics.
+//! - --retained encodes once & appends per frame: no culling, & hairlines keep their fit-view width as the view zooms
+
+use rsd::{Affine as RAffine, Opts, Stats};
+use std::{num::NonZeroUsize, time::Instant};
+use vello::{
+    AaConfig, AaSupport, RenderParams, Renderer, RendererOptions, Scene,
+    peniko::Color,
+    wgpu,
+};
+use vello_bench::{assets, build_scene, kurbo};
 
 fn main() {
     let o = Opts::parse(&["--aa"]);
@@ -1743,41 +1764,36 @@ rsd = { path = "../rsd" }
 debug = 1
 __SKIA_CARGO_TOML__
 
-w $S/skia/src/main.rs <<'__SKIA_SRC_MAIN_RS__'
-//! skia_bench: replays an RSD dump written by `rabench export` with Skia's Ganesh backend on Metal, & times each frame.
-//!   skia_bench <dump.rsd> [--size WxH] [--frames N] [--zoom Z] [--png out.png] [--pngframe k] [--nocull] [--picture] [--msaa N]
+w $S/skia/src/lib.rs <<'__SKIA_SRC_LIB_RS__'
+//! The replay of an RSD dump onto a Skia canvas, shared by skia_bench & raviewer.
 //!
 //! Mapping from Rasterizer semantics (as vello_bench, see rsd):
 //! - device = flip(H) * view * scene ctm * draw ctm, set as each draw's canvas matrix
 //! - width -1 is a Skia hairline (width 0), other negative widths |width| / sqrt|det| local, recomputed every frame
 //! - clip rect & clip path (even-odd, anti-aliased) are pushed once per run of draws with the same clip
 //! - gradients: shaders in brush space with Bitmap::ctm as their local matrix. Images: shaders over the path bounds
-//! - offscreen draws are culled on the CPU, as drawList does (--nocull to disable)
-//! - --picture records an SkPicture once (with an R-tree) & draws it with each frame's view: no CPU culling of
-//!   our own, & widths other than -1 keep their fit-view width as the view zooms
-//! - --msaa N: Ganesh render target sample count (default 1, Skia's analytic AA)
+//! - offscreen draws are culled on the CPU, as drawList does (skia_bench --nocull to disable)
 
-use rsd::{Affine, ClipKey, Dump, Opts, Seg, Stats};
+use rsd::{Affine, ClipKey, Dump, Seg};
 use skia_safe::{
     AlphaType, ClipOp, Color, ColorType, Data, FilterMode, ImageInfo, Matrix, MipmapMode, Paint, PaintCap, PaintJoin,
-    PaintStyle, Path, PathBuilder, PathFillType, Picture, PictureRecorder, Rect, SamplingOptions, Shader, TileMode,
+    PaintStyle, Path, PathBuilder, PathFillType, Rect, SamplingOptions, Shader, TileMode,
     images,
     gradient::{Colors, Gradient, Interpolation, shaders as gradients},
 };
-use std::time::Instant;
 
-struct Assets {
-    paths: Vec<Path>,
-    even_odd: Vec<Option<Path>>,
-    grads: Vec<Shader>,
-    images: Vec<skia_safe::Image>,
+pub struct Assets {
+    pub paths: Vec<Path>,
+    pub even_odd: Vec<Option<Path>>,
+    pub grads: Vec<Shader>,
+    pub images: Vec<skia_safe::Image>,
 }
 
-fn matrix(m: Affine) -> Matrix {
+pub fn matrix(m: Affine) -> Matrix {
     Matrix::from_affine(&m.0.map(|v| v as f32))
 }
 
-fn assets(d: &Dump) -> Assets {
+pub fn assets(d: &Dump) -> Assets {
     let paths: Vec<Path> = d.paths.iter().map(|p| {
         let mut b = PathBuilder::new();
         p.for_each(|s| {
@@ -1819,7 +1835,7 @@ fn assets(d: &Dump) -> Assets {
 }
 
 /// Draws the dump into canvas with y-down device transform device. Hairline widths use hair (device, except for a picture)
-fn draw_dump(canvas: &skia_safe::Canvas, d: &Dump, a: &Assets, device: Affine, hair: Affine, w: f64, h: f64, cull: bool) -> usize {
+pub fn draw_dump(canvas: &skia_safe::Canvas, d: &Dump, a: &Assets, device: Affine, hair: Affine, w: f64, h: f64, cull: bool) -> usize {
     let base = canvas.save();
     let (mut current, mut encoded) = (None::<ClipKey>, 0);
     let mut paint = Paint::default();
@@ -1880,6 +1896,21 @@ fn draw_dump(canvas: &skia_safe::Canvas, d: &Dump, a: &Assets, device: Affine, h
     canvas.restore_to_count(base);
     encoded
 }
+__SKIA_SRC_LIB_RS__
+
+w $S/skia/src/main.rs <<'__SKIA_SRC_MAIN_RS__'
+//! skia_bench: replays an RSD dump written by `rabench export` with Skia's Ganesh backend on Metal, & times each frame.
+//!   skia_bench <dump.rsd> [--size WxH] [--frames N] [--zoom Z] [--png out.png] [--pngframe k] [--nocull] [--picture] [--msaa N]
+//!
+//! See lib.rs for the mapping from Rasterizer semantics.
+//! - --picture records an SkPicture once (with an R-tree) & draws it with each frame's view: no CPU culling of
+//!   our own, & widths other than -1 keep their fit-view width as the view zooms
+//! - --msaa N: Ganesh render target sample count (default 1, Skia's analytic AA)
+
+use rsd::{Affine, Dump, Opts, Stats};
+use skia_bench::{Assets, assets, draw_dump, matrix};
+use skia_safe::{Color, Picture, PictureRecorder, Rect};
+use std::time::Instant;
 
 /// --picture: records the dump once in list space, with Rasterizer's y flip & the fit view's hairline widths
 fn record_picture(d: &Dump, a: &Assets, o: &Opts) -> Picture {
@@ -2021,6 +2052,7 @@ w $S/rive/rivebench.mm <<'__RIVE_RIVEBENCH_MM__'
 #include "rive/renderer/render_context.hpp"
 #include "rive/renderer/metal/render_context_metal_impl.h"
 
+namespace rb {    // raviewer includes this file for its replay, without main
 using namespace rive;
 using gpu::RenderContext;
 using Clock = std::chrono::steady_clock;
@@ -2292,8 +2324,12 @@ static double median(std::vector<double> v) {
     return n & 1 ? v[n / 2] : 0.5 * (v[n / 2 - 1] + v[n / 2]);
 }
 static double minimum(const std::vector<double>& v) { return v.empty() ? 0.0 : *std::min_element(v.begin(), v.end()); }
+}    // namespace rb
 
+#if !RIVEBENCH_NO_MAIN
 int main(int argc, const char **argv) {
+    using namespace rb;
+    using namespace rive;
     @autoreleasepool {
         const char *file = argc > 1 ? argv[1] : "", *png = nullptr;
         uint32_t w = 2048, h = 2048, msaa = 0;  size_t frames = 60, pngFrame = 0;  double zoom = 8.0;  bool cull = true, atomics = false;
@@ -2380,7 +2416,947 @@ int main(int argc, const char **argv) {
     }
     return 0;
 }
+#endif
 __RIVE_RIVEBENCH_MM__
+
+w $S/viewer/Cargo.toml <<'__VIEWER_CARGO_TOML__'
+[package]
+name = "raviewer"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["staticlib"]
+
+[dependencies]
+rsd = { path = "../rsd" }
+vello_bench = { path = "../vello" }
+skia_bench = { path = "../skia" }
+vello = "=0.11.0"
+skia-safe = { version = "=0.153.3", features = ["metal", "ganesh"] }
+pollster = "0.4"
+
+[profile.release]
+debug = 1
+
+# As vello_bench's: Vello's dynamic buffers scaled for the big PDFs
+[patch.crates-io]
+vello_encoding = { path = "../../vendor/vello_encoding" }
+__VIEWER_CARGO_TOML__
+
+w $S/viewer/src/lib.rs <<'__VIEWER_SRC_LIB_RS__'
+//! raviewer's Skia & Vello renderers, as a static library with a C interface (see viewer.h). Each loads an RSD dump, & draws
+//! it with a view, Rasterizer's y-up device transform: Skia into a Metal texture with raviewer's device & queue, Vello into its
+//! own CAMetalLayer through a wgpu surface. Their replays are skia_bench's & vello_bench's, with CPU culling.
+
+use rsd::{Affine, Dump};
+use skia_safe::{Color, ColorType, gpu};
+use std::{
+    ffi::{CStr, c_char, c_void},
+    num::NonZeroUsize,
+    ptr::null_mut,
+    time::Instant,
+};
+use vello::{AaConfig, AaSupport, RenderParams, Renderer, RendererOptions, Scene, wgpu};
+
+/// The y-down device transform for a frame of height h, from raviewer's view
+unsafe fn device(view: *const f64, h: u32) -> Affine {
+    let v = unsafe { std::slice::from_raw_parts(view, 6) };
+    Affine::flip(h as f64) * Affine([v[0], v[1], v[2], v[3], v[4], v[5]])
+}
+
+unsafe fn path(p: *const c_char) -> String {
+    unsafe { CStr::from_ptr(p) }.to_string_lossy().into_owned()
+}
+
+pub struct Skia {
+    context: gpu::DirectContext,
+    scene: Option<(Dump, skia_bench::Assets)>,
+}
+
+/// A Ganesh context on raviewer's MTLDevice & MTLCommandQueue, which outlive it
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rv_skia_new(device: *mut c_void, queue: *mut c_void) -> *mut Skia {
+    let backend = unsafe { gpu::mtl::BackendContext::new(device as gpu::mtl::Handle, queue as gpu::mtl::Handle) };
+    match gpu::direct_contexts::make_metal(&backend, None) {
+        Some(context) => Box::into_raw(Box::new(Skia { context, scene: None })),
+        None => null_mut(),
+    }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rv_skia_load(s: *mut Skia, file: *const c_char) {
+    let s = unsafe { &mut *s };
+    let dump = rsd::load(&unsafe { path(file) });
+    let assets = skia_bench::assets(&dump);
+    s.scene = Some((dump, assets));
+}
+
+/// Draws into texture, an MTLTexture of w x h, & submits the work to the queue. Returns the number of draws encoded
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rv_skia_draw(s: *mut Skia, texture: *mut c_void, w: u32, h: u32, view: *const f64) -> usize {
+    let s = unsafe { &mut *s };
+    let Some((dump, assets)) = &s.scene else { return 0 };
+    let info = unsafe { gpu::mtl::TextureInfo::new(texture as gpu::mtl::Handle) };
+    let target = gpu::backend_render_targets::make_mtl((w as i32, h as i32), &info);
+    let Some(mut surface) =
+        gpu::surfaces::wrap_backend_render_target(&mut s.context, &target, gpu::SurfaceOrigin::TopLeft, ColorType::BGRA8888, None, None)
+    else {
+        return 0;
+    };
+    let v = unsafe { device(view, h) };
+    let canvas = surface.canvas();
+    canvas.clear(Color::WHITE);
+    let encoded = skia_bench::draw_dump(canvas, dump, assets, v, v, w as f64, h as f64, true);
+    drop(surface);
+    s.context.flush_and_submit();
+    encoded
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rv_skia_free(s: *mut Skia) {
+    if !s.is_null() {
+        drop(unsafe { Box::from_raw(s) });
+    }
+}
+
+pub struct Vello {
+    surface: wgpu::Surface<'static>,
+    device: wgpu::Device,
+    queue: wgpu::Queue,
+    renderer: Renderer,
+    blitter: wgpu::util::TextureBlitter,
+    format: wgpu::TextureFormat,
+    size: (u32, u32),
+    target: Option<(wgpu::Texture, wgpu::TextureView)>,
+    scene: Scene,
+    dump: Option<(Dump, vello_bench::Assets)>,
+}
+
+/// A wgpu device, as vello_bench's, presenting to layer, a CAMetalLayer that outlives it
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rv_vello_new(layer: *mut c_void) -> *mut Vello {
+    let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle_from_env());
+    let Ok(surface) = (unsafe { instance.create_surface_unsafe(wgpu::SurfaceTargetUnsafe::CoreAnimationLayer(layer)) }) else {
+        return null_mut();
+    };
+    let Ok(adapter) = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
+        power_preference: wgpu::PowerPreference::HighPerformance,
+        compatible_surface: Some(&surface),
+        ..Default::default()
+    })) else {
+        return null_mut();
+    };
+    let Ok((device, queue)) = pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor {
+        label: None,
+        required_features: adapter.features() & (wgpu::Features::CLEAR_TEXTURE | wgpu::Features::PIPELINE_CACHE),
+        required_limits: adapter.limits(),
+        ..Default::default()
+    })) else {
+        return null_mut();
+    };
+    let Ok(renderer) = Renderer::new(&device, RendererOptions {
+        use_cpu: false,
+        antialiasing_support: AaSupport::area_only(),
+        num_init_threads: NonZeroUsize::new(1),
+        pipeline_cache: None,
+    }) else {
+        return null_mut();
+    };
+    let format = wgpu::TextureFormat::Bgra8Unorm;
+    let blitter = wgpu::util::TextureBlitter::new(&device, format);
+    Box::into_raw(Box::new(Vello { surface, device, queue, renderer, blitter, format, size: (0, 0), target: None, scene: Scene::new(), dump: None }))
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rv_vello_load(v: *mut Vello, file: *const c_char) {
+    let v = unsafe { &mut *v };
+    let dump = rsd::load(&unsafe { path(file) });
+    let assets = vello_bench::assets(&dump);
+    v.dump = Some((dump, assets));
+}
+
+/// Renders a w x h frame into Vello's storage texture, blits it to the surface's & presents it, waiting for the GPU between
+/// the two, or only renders it while the window is occluded. times gets the CPU ms to submit, & submit to GPU done.
+/// Returns the number of draws encoded
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rv_vello_draw(v: *mut Vello, w: u32, h: u32, view: *const f64, times: *mut f64) -> usize {
+    let v = unsafe { &mut *v };
+    let Some((dump, assets)) = &v.dump else { return 0 };
+    if v.size != (w, h) {
+        v.surface.configure(&v.device, &wgpu::SurfaceConfiguration {
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+            format: v.format,
+            width: w,
+            height: h,
+            present_mode: wgpu::PresentMode::AutoVsync,
+            desired_maximum_frame_latency: 2,
+            alpha_mode: wgpu::CompositeAlphaMode::Auto,
+            view_formats: vec![],
+            color_space: wgpu::SurfaceColorSpace::Auto,
+        });
+        let texture = v.device.create_texture(&wgpu::TextureDescriptor {
+            label: None,
+            size: wgpu::Extent3d { width: w, height: h, depth_or_array_layers: 1 },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Rgba8Unorm,
+            usage: wgpu::TextureUsages::STORAGE_BINDING | wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_SRC,
+            view_formats: &[],
+        });
+        let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+        v.target = Some((texture, view));
+        v.size = (w, h);
+    }
+    let Some((_, target)) = &v.target else { return 0 };
+    let t0 = Instant::now();
+    let m = unsafe { device(view, h) };
+    let encoded = vello_bench::build_scene(&mut v.scene, dump, assets, m, m, w as f64, h as f64, true);
+    let params = RenderParams { base_color: vello::peniko::Color::WHITE, width: w, height: h, antialiasing_method: AaConfig::Area };
+    if let Err(e) = v.renderer.render_to_texture(&v.device, &v.queue, &v.scene, target, &params) {
+        eprintln!("raviewer: Vello can't render: {e}");
+        return 0;
+    }
+    // wgpu has no texture for a surface in an occluded window, when the frame is drawn but not shown
+    let frame = match v.surface.get_current_texture() {
+        wgpu::CurrentSurfaceTexture::Success(frame) | wgpu::CurrentSurfaceTexture::Suboptimal(frame) => Some(frame),
+        _ => None,
+    };
+    if let Some(frame) = &frame {
+        let frame_view = frame.texture.create_view(&wgpu::TextureViewDescriptor::default());
+        let mut encoder = v.device.create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
+        v.blitter.copy(&v.device, &mut encoder, target, &frame_view);
+        v.queue.submit([encoder.finish()]);
+    }
+    let t1 = Instant::now();
+    let _ = v.device.poll(wgpu::PollType::wait_indefinitely());
+    let t2 = Instant::now();
+    if let Some(frame) = frame {
+        v.queue.present(frame);
+    }
+    let times = unsafe { std::slice::from_raw_parts_mut(times, 2) };
+    times[0] = (t1 - t0).as_secs_f64() * 1e3;
+    times[1] = (t2 - t1).as_secs_f64() * 1e3;
+    encoded
+}
+
+/// Copies the last frame, RGBA rows from the top, into rgba, which holds 4 w h bytes for the last draw's w & h
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rv_vello_read(v: *mut Vello, rgba: *mut u8) -> bool {
+    let v = unsafe { &mut *v };
+    let (Some((texture, _)), (w, h)) = (&v.target, v.size) else { return false };
+    let bpr = (w * 4).div_ceil(256) * 256;
+    let buf = v.device.create_buffer(&wgpu::BufferDescriptor {
+        label: None,
+        size: (bpr * h) as u64,
+        usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+        mapped_at_creation: false,
+    });
+    let mut encoder = v.device.create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
+    encoder.copy_texture_to_buffer(
+        texture.as_image_copy(),
+        wgpu::TexelCopyBufferInfo { buffer: &buf, layout: wgpu::TexelCopyBufferLayout { offset: 0, bytes_per_row: Some(bpr), rows_per_image: None } },
+        wgpu::Extent3d { width: w, height: h, depth_or_array_layers: 1 },
+    );
+    v.queue.submit([encoder.finish()]);
+    let slice = buf.slice(..);
+    slice.map_async(wgpu::MapMode::Read, |_| {});
+    let _ = v.device.poll(wgpu::PollType::wait_indefinitely());
+    let Ok(data) = slice.get_mapped_range() else { return false };
+    let out = unsafe { std::slice::from_raw_parts_mut(rgba, (w * h * 4) as usize) };
+    for row in 0..h as usize {
+        let (s, d, n) = (row * bpr as usize, row * w as usize * 4, w as usize * 4);
+        out[d..d + n].copy_from_slice(&data[s..s + n]);
+    }
+    true
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rv_vello_free(v: *mut Vello) {
+    if !v.is_null() {
+        drop(unsafe { Box::from_raw(v) });
+    }
+}
+__VIEWER_SRC_LIB_RS__
+
+w $S/viewer/viewer.h <<'__VIEWER_VIEWER_H__'
+//  raviewer's renderers outside raviewer.mm, as C functions: Skia & Vello from the raviewer Rust library (src/lib.rs), Rive from
+//  rive_view.mm. Each loads an RSD dump & draws it with view, Rasterizer's y-up device transform of the w x h frame
+#pragma once
+#include <stddef.h>
+#include <stdint.h>
+#include <stdbool.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+typedef struct Skia Skia;
+typedef struct Vello Vello;
+typedef struct RiveView RiveView;
+
+Skia *rv_skia_new(void *device, void *queue);
+void rv_skia_load(Skia *skia, const char *path);
+size_t rv_skia_draw(Skia *skia, void *texture, uint32_t w, uint32_t h, const double view[6]);
+void rv_skia_free(Skia *skia);
+
+Vello *rv_vello_new(void *layer);
+void rv_vello_load(Vello *vello, const char *path);
+size_t rv_vello_draw(Vello *vello, uint32_t w, uint32_t h, const double view[6], double times[2]);
+bool rv_vello_read(Vello *vello, uint8_t *rgba);
+void rv_vello_free(Vello *vello);
+
+RiveView *rv_rive_new(void *device, void *queue);
+void rv_rive_load(RiveView *rive, const char *path);
+size_t rv_rive_draw(RiveView *rive, void *texture, uint32_t w, uint32_t h, const double view[6], void *commandBuffer);
+void rv_rive_free(RiveView *rive);
+#ifdef __cplusplus
+}
+#endif
+__VIEWER_VIEWER_H__
+
+w $S/viewer/rive_view.mm <<'__VIEWER_RIVE_VIEW_MM__'
+//  raviewer's Rive renderer: rivebench's replay, drawn into raviewer's drawable texture & command buffer
+#define RIVEBENCH_NO_MAIN 1
+#include "../rive/rivebench.mm"
+#include "viewer.h"
+
+struct RiveView {
+    std::unique_ptr<rb::RenderContext> context;
+    rive::rcp<rive::gpu::RenderTargetMetal> target;
+    rb::Dump dump;  rb::Assets assets;  bool loaded = false;
+};
+
+RiveView *rv_rive_new(void *device, void *queue) {
+    rive::gpu::RenderContextMetalImpl::ContextOptions options;
+    options.shaderCompilationMode = rive::gpu::ShaderCompilationMode::alwaysSynchronous;
+    RiveView *r = new RiveView;
+    r->context = rive::gpu::RenderContextMetalImpl::MakeContext((__bridge id<MTLDevice>)device, options);
+    r->context->static_impl_cast<rive::gpu::RenderContextMetalImpl>()->setCommandQueue((__bridge id<MTLCommandQueue>)queue);
+    return r;
+}
+
+void rv_rive_load(RiveView *r, const char *path) {
+    r->assets = rb::Assets(), r->dump = rb::load(path), r->assets = rb::makeAssets(r->dump, r->context.get()), r->loaded = true;
+}
+
+size_t rv_rive_draw(RiveView *r, void *texture, uint32_t w, uint32_t h, const double view[6], void *commandBuffer) {
+    if (!r->loaded)
+        return 0;
+    if (!r->target || r->target->width() != w || r->target->height() != h)
+        r->target = r->context->static_impl_cast<rive::gpu::RenderContextMetalImpl>()->makeRenderTarget(MTLPixelFormatBGRA8Unorm, w, h);
+    r->target->setTargetTexture((__bridge id<MTLTexture>)texture);
+    rb::RenderContext::FrameDescriptor frame;
+    frame.renderTargetWidth = w, frame.renderTargetHeight = h, frame.loadAction = rive::gpu::LoadAction::clear, frame.clearColor = 0xFFFFFFFF;
+    frame.ditherMode = rive::gpu::DitherMode::none;
+    r->context->beginFrame(frame);
+    rive::RiveRenderer renderer(r->context.get());
+    rb::Affine v = rb::Affine::flip(h) * rb::Affine::make(view[0], view[1], view[2], view[3], view[4], view[5]);
+    size_t encoded = rb::drawDump(renderer, r->context.get(), r->dump, r->assets, v, w, h, true);
+    r->context->flush({ .renderTarget = r->target.get(), .externalCommandBuffer = commandBuffer });
+    return encoded;
+}
+
+void rv_rive_free(RiveView *r) {
+    delete r;
+}
+__VIEWER_RIVE_VIEW_MM__
+
+w $S/viewer/raviewer.mm <<'__VIEWER_RAVIEWER_MM__'
+//  raviewer: an interactive viewer for RSD dumps, & TestFiles SVGs & PDFs (exported on the fly), that switches between
+//  renderers on the same view: Rasterizer (rabench's Offscreen copy of RasterizerLayer's encode loop), CoreGraphics
+//  (RasterizerCG), Rive, Skia Ganesh & Vello (their bench replays).
+//    raviewer <metallib> [file] [--snapshot <dir>]
+//  Trackpad: two-finger scrolling pans, pinching zooms & rotating rotates, around the pointer. A mouse drags to pan & its wheel
+//  zooms. Keys: 1-5 or tab picks the renderer, f fits (as does a double click or two-finger double tap), c toggles continuous
+//  redraw for timing, left & right step through the file's directory, & cmd-O opens a file, as does dropping one on the window.
+//  The title shows the renderer's median frame times over its last 30 frames: CPU to submit, submit to GPU done (frames wait
+//  for the GPU, as in the benchmark), & Metal GPU time where there is one. CoreGraphics only has CPU time.
+//  --snapshot draws the fit view of file with each renderer in turn, writes <dir>/<file>_<renderer>.png, prints each title
+//  line, & quits.
+
+#define RABENCH_NO_MAIN 1
+#import <Cocoa/Cocoa.h>
+#import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
+#include "../ra/rabench.mm"
+#import "RasterizerCG.hpp"
+#include "viewer.h"
+
+enum { kRasterizer, kCoreGraphics, kRive, kSkia, kVello, kRendererCount };
+static NSString *const kNames[kRendererCount] = { @"Rasterizer", @"CoreGraphics", @"Rive", @"Skia Ganesh", @"Vello" };
+
+#pragma mark - RSD import
+
+// An RSD dump (see rabench.mm) as a SceneList, for Rasterizer & CoreGraphics: each scene, & its draws with their paths,
+// paints & clips. Gradients & images are shared by their dump index, as the export shares their bitmaps
+static bool importDump(const char *path, Ra::SceneList& list) {
+    NSData *data = [NSData dataWithContentsOfFile:@(path)];
+    const uint8_t *p = (const uint8_t *)data.bytes, *end = p + data.length;
+    bool ok = true;
+    auto bytes = [&](size_t n) { const uint8_t *s = p; if (p + n > end) ok = false, s = nullptr; else p += n; return s; };
+    auto u32 = [&]() { const uint8_t *s = bytes(4); uint32_t v = 0; if (s) memcpy(& v, s, 4); return v; };
+    auto f32s = [&](float *v, size_t n) { const uint8_t *s = bytes(4 * n); if (s) memcpy(v, s, 4 * n); else memset(v, 0, 4 * n); };
+    const uint8_t *magic = bytes(4);
+    if (!magic || memcmp(magic, "RSD1", 4) != 0 || u32() != 1)
+        return false;
+    float b[6];
+    f32s(b, 4);
+    std::vector<Ra::SceneRef> scenes(u32());
+    std::vector<Ra::Transform> sceneCtms;  std::vector<Ra::Bounds> sceneClips;
+    for (size_t i = 0; i < scenes.size() && ok; i++) {
+        f32s(b, 6), sceneCtms.emplace_back(b[0], b[1], b[2], b[3], b[4], b[5]);
+        f32s(b, 4), sceneClips.emplace_back(b[0], b[1], b[2], b[3]);
+    }
+    std::vector<Ra::Path> paths(u32());
+    for (Ra::Path& path : paths) {
+        uint32_t n = u32();
+        const uint8_t *types = bytes(n);  bytes((4 - (n & 3)) & 3);
+        std::vector<float> pts(2 * n);
+        f32s(pts.data(), pts.size());
+        if (!ok)
+            return false;
+        for (size_t i = 0; i < n; ) {
+            const float *q = & pts[2 * i];
+            switch (types[i]) {
+                case Ra::Geometry::kMove: path->moveTo(q[0], q[1]), i += 1; break;
+                case Ra::Geometry::kLine: path->lineTo(q[0], q[1]), i += 1; break;
+                case Ra::Geometry::kQuadratic: path->quadTo(q[0], q[1], q[2], q[3]), i += 2; break;
+                case Ra::Geometry::kCubic: path->cubicTo(q[0], q[1], q[2], q[3], q[4], q[5]), i += 3; break;
+                case Ra::Geometry::kClose: path->close(), i += 1; break;
+                default: return false;
+            }
+        }
+    }
+    std::vector<Ra::Paint> grads(u32());
+    for (Ra::Paint& paint : grads) {
+        bool radial = u32() == 2;
+        f32s(b, 6);
+        uint32_t n = u32();
+        std::vector<float> locs(n);  std::vector<Ra::Color> colors(n);
+        f32s(locs.data(), n);
+        const uint8_t *bgra = bytes(4 * size_t(n));
+        if (!ok)
+            return false;
+        memcpy(colors.data(), bgra, 4 * size_t(n));
+        paint = Ra::Paint(colors.data(), locs.data(), n, Ra::Transform(b[0], b[1], b[2], b[3], b[4], b[5]), radial);
+    }
+    std::vector<Ra::Paint> images(u32());
+    for (Ra::Paint& paint : images) {
+        uint32_t w = u32(), h = u32();
+        const uint8_t *bgra = bytes(4 * size_t(w) * h);
+        if (!ok)
+            return false;
+        paint = Ra::Paint((Ra::Color *)bgra, w, h, 4 * size_t(w));
+    }
+    uint32_t count = u32();
+    for (uint32_t i = 0; i < count && ok; i++) {
+        uint32_t s = u32(), path = u32();
+        float ctm[6], width, clip[4];
+        f32s(ctm, 6);
+        const uint8_t *pt = bytes(4), *bgra = bytes(4);
+        uint32_t paintIndex = u32();
+        f32s(& width, 1), f32s(clip, 4);
+        uint32_t clipPath = u32();
+        if (!ok || s >= scenes.size() || path >= paths.size() || (clipPath != ~0u && clipPath >= paths.size()))
+            return false;
+        Ra::Paint paint;
+        if (pt[0] == Ra::Paint::kLinear || pt[0] == Ra::Paint::kRadial)
+            paint = paintIndex < grads.size() ? grads[paintIndex] : Ra::Paint();
+        else if (pt[0] == Ra::Paint::kImage)
+            paint = paintIndex < images.size() ? images[paintIndex] : Ra::Paint();
+        else
+            paint = Ra::Paint(Ra::Color(bgra[0], bgra[1], bgra[2], bgra[3]));
+        Ra::Bounds bounds(clip[0], clip[1], clip[2], clip[3]);
+        scenes[s]->addPath(paths[path], Ra::Transform(ctm[0], ctm[1], ctm[2], ctm[3], ctm[4], ctm[5]), paint, width, pt[1],
+                           bounds.isHuge() ? nullptr : & bounds, clipPath == ~0u ? nullptr : & paths[clipPath]);
+    }
+    for (size_t i = 0; i < scenes.size(); i++)
+        list.addScene(scenes[i], sceneCtms[i], sceneClips[i]);
+    return ok && list.pathsCount() > 0;
+}
+
+#pragma mark - Viewer
+
+// The document & each renderer's state. The view is Rasterizer's y-up device transform, in drawable pixels
+struct Viewer {
+    std::string metallib, file, dump;       // The open file, & its RSD dump: itself, or an export of it
+    Ra::SceneList list;
+    Ra::Transform view;  bool fitted = true;
+    int renderer = kRasterizer;  bool continuous = false, dirty = true;
+    bool loaded[kRendererCount] = {};
+    Offscreen offscreen;  size_t offscreenW = 0, offscreenH = 0;
+    RenderBuffer buffers[2];  RasterizerRenderer rasterizer;  size_t frame = 0;
+    id<MTLDevice> device;  id<MTLCommandQueue> queue;
+    RiveView *rive = nullptr;  Skia *skia = nullptr;  Vello *vello = nullptr;
+    std::vector<double> cpu, done, gpu;  size_t encoded = 0;
+    std::string snapshot;       // --snapshot's directory
+};
+
+// A snapshot of a frame: 4 w h bytes, BGRA, or RGBA from Vello, rows from the top
+static void writeSnapshot(const std::string& path, const void *pixels, uint32_t w, uint32_t h, bool bgra) {
+    CGColorSpaceRef rgb = CGColorSpaceCreateDeviceRGB();
+    CGBitmapInfo info = bgra ? kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little : kCGImageAlphaPremultipliedLast | kCGBitmapByteOrder32Big;
+    CGContextRef ctx = CGBitmapContextCreate((void *)pixels, w, h, 8, 4 * w, rgb, info);
+    CGImageRef image = CGBitmapContextCreateImage(ctx);
+    CGImageDestinationRef dst = CGImageDestinationCreateWithURL((__bridge CFURLRef)[NSURL fileURLWithPath:@(path.c_str())], (__bridge CFStringRef)UTTypePNG.identifier, 1, nullptr);
+    CGImageDestinationAddImage(dst, image, nullptr);
+    if (!CGImageDestinationFinalize(dst))
+        fprintf(stderr, "raviewer: can't write %s\n", path.c_str());
+    CFRelease(dst), CGImageRelease(image), CGContextRelease(ctx), CGColorSpaceRelease(rgb);
+}
+
+static double median(std::vector<double> v, size_t last) {
+    if (v.size() > last)
+        v.erase(v.begin(), v.end() - last);
+    return median(v);
+}
+
+@interface ViewerView : NSView
+- (instancetype)initWithFrame:(NSRect)frame metallib:(const char *)metallib;
+- (void)load:(NSString *)path;
+@end
+
+@implementation ViewerView {
+    Viewer _v;
+    CAMetalLayer *_metalLayer, *_velloLayer;  CALayer *_cgLayer;
+    CADisplayLink *_displayLink;
+}
+
+- (instancetype)initWithFrame:(NSRect)frame metallib:(const char *)metallib {
+    self = [super initWithFrame:frame];
+    _v.metallib = metallib;
+    _v.device = MTLCreateSystemDefaultDevice(), _v.queue = [_v.device newCommandQueue];
+    _v.buffers[0].device = _v.buffers[1].device = _v.device;
+    self.wantsLayer = YES;
+    self.layer.backgroundColor = CGColorGetConstantColor(kCGColorWhite);
+    CGColorSpaceRef rgb = CGColorSpaceCreateDeviceRGB();
+    _metalLayer = [CAMetalLayer layer], _velloLayer = [CAMetalLayer layer], _cgLayer = [CALayer layer];
+    _metalLayer.device = _v.device, _metalLayer.pixelFormat = MTLPixelFormatBGRA8Unorm, _metalLayer.framebufferOnly = NO;
+    _metalLayer.colorspace = rgb, _velloLayer.colorspace = rgb;
+    CGColorSpaceRelease(rgb);
+    for (CALayer *layer in @[ _metalLayer, _velloLayer, _cgLayer ]) {
+        layer.frame = self.bounds, layer.autoresizingMask = kCALayerWidthSizable | kCALayerHeightSizable, layer.opaque = YES;
+        layer.actions = @{ @"contents": [NSNull null], @"bounds": [NSNull null], @"position": [NSNull null], @"hidden": [NSNull null] };
+        [self.layer addSublayer:layer];
+    }
+    [self registerForDraggedTypes:@[ NSPasteboardTypeFileURL ]];
+    [self showLayer];
+    return self;
+}
+
+- (BOOL)acceptsFirstResponder { return YES; }
+- (BOOL)isOpaque { return YES; }
+
+- (void)viewDidMoveToWindow {
+    [super viewDidMoveToWindow];
+    [_displayLink invalidate], _displayLink = nil;
+    if (self.window) {
+        [self viewDidChangeBackingProperties];
+        _displayLink = [self displayLinkWithTarget:self selector:@selector(tick:)];
+        [_displayLink addToRunLoop:NSRunLoop.mainRunLoop forMode:NSRunLoopCommonModes];
+    }
+}
+
+- (void)viewDidChangeBackingProperties {
+    [super viewDidChangeBackingProperties];
+    CGFloat scale = self.window.backingScaleFactor ?: 1;
+    for (CALayer *layer in @[ _metalLayer, _velloLayer, _cgLayer ])
+        layer.contentsScale = scale;
+    [self resized];
+}
+
+- (void)setFrameSize:(NSSize)size {
+    [super setFrameSize:size];
+    [self resized];
+}
+
+- (void)resized {
+    CGSize size = [self convertSizeToBacking:self.bounds.size];
+    _metalLayer.drawableSize = size;
+    if (_v.fitted)
+        [self fit];
+    _v.dirty = true;
+}
+
+#pragma mark - Document
+
+- (void)load:(NSString *)path {
+    path = path.stringByStandardizingPath;
+    std::string file = path.fileSystemRepresentation, dump = file;
+    NSString *ext = path.pathExtension.lowercaseString;
+    Ra::SceneList list;
+    bool ok = false;
+    self.window.title = [NSString stringWithFormat:@"Loading %@…", path.lastPathComponent];
+    [self.window displayIfNeeded];
+    if ([ext isEqualToString:@"rsd"])
+        ok = importDump(file.c_str(), list);
+    else if ([ext isEqualToString:@"svg"] || [ext isEqualToString:@"pdf"]) {
+        NSString *tmp = [NSTemporaryDirectory() stringByAppendingPathComponent:[path.lastPathComponent.stringByDeletingPathExtension stringByAppendingPathExtension:@"rsd"]];
+        dump = tmp.fileSystemRepresentation;
+        ok = loadList(file.c_str(), list) && exportList(list, dump.c_str()) == 0;
+    }
+    if (!ok) {
+        NSBeep();
+        self.window.title = [NSString stringWithFormat:@"Can't load %@", path.lastPathComponent];
+        return;
+    }
+    _v.file = file, _v.dump = dump, _v.list = list;
+    for (bool& loaded : _v.loaded)
+        loaded = false;
+    _v.loaded[kRasterizer] = _v.loaded[kCoreGraphics] = true;
+    [NSDocumentController.sharedDocumentController noteNewRecentDocumentURL:[NSURL fileURLWithPath:path]];
+    [self resetStats];
+    [self fit];
+}
+
+// The renderer's copy of the dump, which Rive, Skia & Vello each load when first shown
+- (void)prepareRenderer {
+    int r = _v.renderer;
+    if (_v.loaded[r] || _v.dump.empty())
+        return;
+    self.window.title = [NSString stringWithFormat:@"Loading %s into %@…", strrchr(_v.file.c_str(), '/') + 1, kNames[r]];
+    [self.window displayIfNeeded];
+    if (r == kRive) {
+        if (!_v.rive)
+            _v.rive = rv_rive_new((__bridge void *)_v.device, (__bridge void *)_v.queue);
+        rv_rive_load(_v.rive, _v.dump.c_str());
+    } else if (r == kSkia) {
+        if (!_v.skia)
+            _v.skia = rv_skia_new((__bridge void *)_v.device, (__bridge void *)_v.queue);
+        if (_v.skia)
+            rv_skia_load(_v.skia, _v.dump.c_str());
+    } else if (r == kVello) {
+        if (!_v.vello)
+            _v.vello = rv_vello_new((__bridge void *)_velloLayer);
+        if (_v.vello)
+            rv_vello_load(_v.vello, _v.dump.c_str());
+    }
+    _v.loaded[r] = true;
+}
+
+- (void)step:(int)direction {
+    NSString *path = @(_v.file.c_str()), *dir = path.stringByDeletingLastPathComponent;
+    NSMutableArray<NSString *> *files = [NSMutableArray array];
+    for (NSString *name in [[NSFileManager.defaultManager contentsOfDirectoryAtPath:dir error:nil] sortedArrayUsingSelector:@selector(localizedStandardCompare:)])
+        if ([@[ @"rsd", @"svg", @"pdf" ] containsObject:name.pathExtension.lowercaseString])
+            [files addObject:[dir stringByAppendingPathComponent:name]];
+    if (files.count == 0)
+        return;
+    NSInteger i = [files indexOfObject:path];
+    i = i == NSNotFound ? 0 : (i + direction + files.count) % files.count;
+    [self load:files[i]];
+}
+
+- (void)openDocument:(id)sender {
+    NSOpenPanel *panel = [NSOpenPanel openPanel];
+    UTType *rsd = [UTType typeWithFilenameExtension:@"rsd"];
+    panel.allowedContentTypes = rsd ? @[ rsd, UTTypeSVG, UTTypePDF ] : @[ UTTypeSVG, UTTypePDF ];
+    if ([panel runModal] == NSModalResponseOK)
+        [self load:panel.URL.path];
+}
+
+- (NSDragOperation)draggingEntered:(id<NSDraggingInfo>)sender { return NSDragOperationCopy; }
+
+- (BOOL)performDragOperation:(id<NSDraggingInfo>)sender {
+    NSURL *url = [sender.draggingPasteboard readObjectsForClasses:@[ NSURL.class ] options:@{ NSPasteboardURLReadingFileURLsOnlyKey: @YES }].firstObject;
+    if (url)
+        [self load:url.path];
+    return url != nil;
+}
+
+#pragma mark - View
+
+- (void)fit {
+    CGSize size = [self convertSizeToBacking:self.bounds.size];
+    if (_v.list.pathsCount() && size.width > 0 && size.height > 0)
+        _v.view = frameView(_v.list.bounds(), size.width, size.height, 0, 1, 1.f);
+    _v.fitted = true, _v.dirty = true;
+}
+
+// Applies t after the view, in device pixels
+- (void)apply:(Ra::Transform)t {
+    _v.view = _v.view.concat(t), _v.fitted = false, _v.dirty = true;
+}
+
+// An event's location in device pixels, which are y-up, as the view isn't flipped
+- (NSPoint)devicePoint:(NSEvent *)event {
+    return [self convertPointToBacking:[self convertPoint:event.locationInWindow fromView:nil]];
+}
+
+- (void)zoom:(double)s at:(NSPoint)p {
+    [self apply:Ra::Transform(s, 0.f, 0.f, s, p.x - s * p.x, p.y - s * p.y)];
+}
+
+- (void)scrollWheel:(NSEvent *)event {
+    CGFloat scale = self.window.backingScaleFactor;
+    if (event.hasPreciseScrollingDeltas)
+        [self apply:Ra::Transform(1.f, 0.f, 0.f, 1.f, event.scrollingDeltaX * scale, -event.scrollingDeltaY * scale)];
+    else
+        [self zoom:pow(1.1, event.scrollingDeltaY) at:[self devicePoint:event]];
+}
+
+- (void)magnifyWithEvent:(NSEvent *)event {
+    [self zoom:1.0 + event.magnification at:[self devicePoint:event]];
+}
+
+- (void)rotateWithEvent:(NSEvent *)event {
+    NSPoint p = [self devicePoint:event];
+    double a = event.rotation * M_PI / 180.0, c = cos(a), s = sin(a);
+    [self apply:Ra::Transform(c, s, -s, c, p.x - (c * p.x - s * p.y), p.y - (s * p.x + c * p.y))];
+}
+
+- (void)smartMagnifyWithEvent:(NSEvent *)event {
+    [self fit];
+}
+
+- (void)mouseDown:(NSEvent *)event {
+    if (event.clickCount == 2)
+        [self fit];
+}
+
+- (void)mouseDragged:(NSEvent *)event {
+    CGFloat scale = self.window.backingScaleFactor;
+    [self apply:Ra::Transform(1.f, 0.f, 0.f, 1.f, event.deltaX * scale, -event.deltaY * scale)];
+}
+
+- (void)keyDown:(NSEvent *)event {
+    unichar key = event.charactersIgnoringModifiers.length ? [event.charactersIgnoringModifiers characterAtIndex:0] : 0;
+    if (key >= '1' && key < '1' + kRendererCount)
+        [self select:key - '1'];
+    else if (key == '\t')
+        [self select:(_v.renderer + 1) % kRendererCount];
+    else if (key == NSBackTabCharacter)
+        [self select:(_v.renderer + kRendererCount - 1) % kRendererCount];
+    else if (key == 'f')
+        [self fit];
+    else if (key == 'c')
+        _v.continuous = !_v.continuous, [self resetStats], _v.dirty = true;
+    else if (key == NSLeftArrowFunctionKey)
+        [self step:-1];
+    else if (key == NSRightArrowFunctionKey)
+        [self step:1];
+    else
+        [super keyDown:event];
+}
+
+- (void)select:(int)renderer {
+    _v.renderer = renderer, _v.dirty = true;
+    [self resetStats];
+    [self showLayer];
+}
+
+- (void)showLayer {
+    _metalLayer.hidden = _v.renderer == kCoreGraphics || _v.renderer == kVello;
+    _cgLayer.hidden = _v.renderer != kCoreGraphics;
+    _velloLayer.hidden = _v.renderer != kVello;
+}
+
+- (void)resetStats {
+    _v.cpu.clear(), _v.done.clear(), _v.gpu.clear(), _v.dirty = true;
+}
+
+#pragma mark - Drawing
+
+- (void)tick:(CADisplayLink *)link {
+    if ((_v.dirty || _v.continuous) && _v.list.pathsCount())
+        [self draw];
+}
+
+// For --snapshot, a blit of the drawable into a shared buffer, before the command buffer presents it
+- (id<MTLBuffer>)capture:(id<MTLTexture>)texture in:(id<MTLCommandBuffer>)cb {
+    if (_v.snapshot.empty())
+        return nil;
+    NSUInteger w = texture.width, h = texture.height;
+    id<MTLBuffer> buffer = [_v.device newBufferWithLength:4 * w * h options:MTLResourceStorageModeShared];
+    id<MTLBlitCommandEncoder> blit = [cb blitCommandEncoder];
+    [blit copyFromTexture:texture sourceSlice:0 sourceLevel:0 sourceOrigin:MTLOriginMake(0, 0, 0) sourceSize:MTLSizeMake(w, h, 1)
+                 toBuffer:buffer destinationOffset:0 destinationBytesPerRow:4 * w destinationBytesPerImage:4 * w * h];
+    [blit endEncoding];
+    return buffer;
+}
+
+- (std::string)snapshotPath {
+    NSString *name = [NSString stringWithFormat:@"%@_%@.png", @(_v.file.c_str()).lastPathComponent.stringByDeletingPathExtension, [kNames[_v.renderer] stringByReplacingOccurrencesOfString:@" " withString:@"_"]];
+    return [@(_v.snapshot.c_str()) stringByAppendingPathComponent:name].fileSystemRepresentation;
+}
+
+- (void)draw {
+    CGSize size = [self convertSizeToBacking:self.bounds.size];
+    uint32_t w = uint32_t(size.width), h = uint32_t(size.height);
+    if (w == 0 || h == 0)
+        return;
+    _v.dirty = false;
+    [self prepareRenderer];
+    const Ra::Transform& m = _v.view;
+    double view[6] = { m.a, m.b, m.c, m.d, m.tx, m.ty }, t0 = now(), t1 = t0, t2 = t0, gpu = -1, times[2];
+    size_t encoded = 0;
+    id<MTLBuffer> captured = nil;
+    switch (_v.renderer) {
+        case kRasterizer: {
+            if (_v.offscreenW != w || _v.offscreenH != h) {
+                _v.offscreen = Offscreen();
+                if (!_v.offscreen.init(_v.metallib.c_str(), w, h))
+                    return;
+                _v.offscreenW = w, _v.offscreenH = h;
+            }
+            id<CAMetalDrawable> drawable = _metalLayer.nextDrawable;
+            if (!drawable)
+                return;
+            t0 = now();
+            RenderBuffer *rb = & _v.buffers[_v.frame++ & 1];
+            _v.list.ctm = m;
+            _v.rasterizer.renderList(_v.list, 1.f, w, h, rb);
+            _v.offscreen.target = drawable.texture;
+            id<MTLCommandBuffer> cb = _v.offscreen.encode(rb);
+            captured = [self capture:drawable.texture in:cb];
+            [cb presentDrawable:drawable], [cb commit];
+            t1 = now(), [cb waitUntilCompleted], t2 = now();
+            gpu = cb.GPUEndTime - cb.GPUStartTime, encoded = _v.list.pathsCount();
+            break;
+        }
+        case kCoreGraphics: {
+            CGColorSpaceRef rgb = CGColorSpaceCreateDeviceRGB();
+            CGContextRef ctx = CGBitmapContextCreate(nullptr, w, h, 8, w * 4, rgb, kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little);
+            _v.list.ctm = m;
+            RasterizerCG::renderListWithClear(_v.list, 1.f, w, h, ctx);
+            CGImageRef image = CGBitmapContextCreateImage(ctx);
+            t1 = t2 = now();
+            _cgLayer.contents = (__bridge id)image;
+            if (!_v.snapshot.empty())
+                writeSnapshot([self snapshotPath], CGBitmapContextGetData(ctx), w, h, true);
+            CGImageRelease(image), CGContextRelease(ctx), CGColorSpaceRelease(rgb);
+            encoded = _v.list.pathsCount();
+            break;
+        }
+        case kRive:
+        case kSkia: {
+            if ((_v.renderer == kRive && !_v.rive) || (_v.renderer == kSkia && !_v.skia))
+                return;
+            id<CAMetalDrawable> drawable = _metalLayer.nextDrawable;
+            if (!drawable)
+                return;
+            t0 = now();
+            id<MTLCommandBuffer> cb = [_v.queue commandBuffer];
+            if (_v.renderer == kRive)
+                encoded = rv_rive_draw(_v.rive, (__bridge void *)drawable.texture, w, h, view, (__bridge void *)cb);
+            else
+                encoded = rv_skia_draw(_v.skia, (__bridge void *)drawable.texture, w, h, view);
+            captured = [self capture:drawable.texture in:cb];
+            [cb presentDrawable:drawable], [cb commit];
+            t1 = now(), [cb waitUntilCompleted], t2 = now();
+            if (_v.renderer == kRive)
+                gpu = cb.GPUEndTime - cb.GPUStartTime;
+            break;
+        }
+        case kVello: {
+            if (!_v.vello)
+                return;
+            encoded = rv_vello_draw(_v.vello, w, h, view, times);
+            if (encoded == 0 && _v.list.pathsCount()) {     // Its surface had no texture: try again next frame
+                _v.dirty = true;
+                return;
+            }
+            t1 = t0 + times[0] * 1e-3, t2 = t1 + times[1] * 1e-3;
+            if (!_v.snapshot.empty()) {
+                std::vector<uint8_t> rgba(4 * size_t(w) * h);
+                if (rv_vello_read(_v.vello, rgba.data()))
+                    writeSnapshot([self snapshotPath], rgba.data(), w, h, false);
+            }
+            break;
+        }
+    }
+    if (captured)
+        writeSnapshot([self snapshotPath], captured.contents, w, h, true);
+    _v.cpu.push_back(t1 - t0), _v.done.push_back(t2 - t1), _v.encoded = encoded;
+    if (gpu >= 0)
+        _v.gpu.push_back(gpu);
+    [self updateTitle];
+}
+
+// --snapshot: each renderer's fit view, after 3 warm-up frames, then quits. Each renderer's layer is shown first, as Vello's
+// surface has no drawables for a hidden layer
+- (void)snapshotInto:(NSString *)dir {
+    _v.snapshot = dir.fileSystemRepresentation;
+    [NSFileManager.defaultManager createDirectoryAtPath:dir withIntermediateDirectories:YES attributes:nil error:nil];
+    for (int r = 0; r < kRendererCount; r++) {
+        [self select:r], [self fit], [CATransaction flush];
+        std::string snapshot = _v.snapshot;
+        _v.snapshot.clear();
+        for (int i = 0; i < 3; i++)
+            [self draw];
+        [self resetStats], _v.snapshot = snapshot, [self draw];
+        printf("%s\n", self.window.title.UTF8String), fflush(stdout);
+    }
+    [NSApp terminate:nil];
+}
+
+- (void)updateTitle {
+    auto ms = [](const std::vector<double>& v) { return median(v, 30) * 1e3; };
+    Ra::Bounds b = _v.list.bounds();
+    CGSize size = [self convertSizeToBacking:self.bounds.size];
+    Ra::Transform fit = frameView(b, size.width, size.height, 0, 1, 1.f);
+    double zoom = sqrt(fabs(_v.view.a * _v.view.d - _v.view.b * _v.view.c) / fabs(fit.a * fit.d - fit.b * fit.c));
+    NSMutableString *title = [NSMutableString stringWithFormat:@"%s — %@ — CPU %.2f ms", strrchr(_v.file.c_str(), '/') + 1, kNames[_v.renderer], ms(_v.cpu)];
+    if (_v.renderer != kCoreGraphics)     // CoreGraphics draws on the CPU
+        [title appendFormat:@", GPU done %.2f ms", ms(_v.done)];
+    if (_v.gpu.size())
+        [title appendFormat:@" (Metal %.2f ms)", ms(_v.gpu)];
+    [title appendFormat:@" — %zu draws, %.2fx%@", _v.encoded, zoom, _v.continuous ? @" — continuous" : @""];
+    self.window.title = title;
+}
+
+@end
+
+#pragma mark - App
+
+@interface AppDelegate : NSObject <NSApplicationDelegate>
+@property(nonatomic) ViewerView *viewer;
+@end
+
+@implementation AppDelegate
+- (BOOL)applicationShouldTerminateAfterLastWindowClosed:(NSApplication *)app { return YES; }
+- (BOOL)application:(NSApplication *)app openFile:(NSString *)path {
+    [self.viewer load:path];
+    return YES;
+}
+@end
+
+int main(int argc, const char *argv[]) {
+    @autoreleasepool {
+        if (argc < 2)
+            return fprintf(stderr, "usage: raviewer <metallib> [file.rsd|svg|pdf]\n"), 2;
+        NSApplication *app = NSApplication.sharedApplication;
+        app.activationPolicy = NSApplicationActivationPolicyRegular;
+        NSMenu *bar = [NSMenu new], *appMenu = [NSMenu new], *fileMenu = [[NSMenu alloc] initWithTitle:@"File"];
+        [appMenu addItemWithTitle:@"Quit raviewer" action:@selector(terminate:) keyEquivalent:@"q"];
+        [fileMenu addItemWithTitle:@"Open…" action:@selector(openDocument:) keyEquivalent:@"o"];
+        [bar addItemWithTitle:@"" action:nil keyEquivalent:@""].submenu = appMenu;
+        [bar addItemWithTitle:@"File" action:nil keyEquivalent:@""].submenu = fileMenu;
+        app.mainMenu = bar;
+
+        NSWindow *window = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 1200, 900)
+                                                       styleMask:NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskResizable | NSWindowStyleMaskMiniaturizable
+                                                         backing:NSBackingStoreBuffered defer:NO];
+        ViewerView *viewer = [[ViewerView alloc] initWithFrame:window.contentView.bounds metallib:argv[1]];
+        window.contentView = viewer;
+        window.releasedWhenClosed = NO;
+        [window center], [window makeKeyAndOrderFront:nil], [window makeFirstResponder:viewer];
+        AppDelegate *delegate = [AppDelegate new];
+        delegate.viewer = viewer, app.delegate = delegate;
+        NSString *snapshot = nil;
+        for (int i = 2; i < argc; i++)
+            if (strcmp(argv[i], "--snapshot") == 0 && i + 1 < argc)
+                snapshot = @(argv[++i]);
+            else
+                [viewer load:@(argv[i])];
+        if (snapshot)
+            dispatch_async(dispatch_get_main_queue(), ^{ [viewer snapshotInto:snapshot]; });
+        [app activateIgnoringOtherApps:YES];
+        [app run];
+    }
+    return 0;
+}
+__VIEWER_RAVIEWER_MM__
 
 w $S/summarize.py <<'__SUMMARIZE_PY__'
 #!/usr/bin/env python3
@@ -2502,22 +3478,25 @@ PATCH
 fi
 
 B=$W/bin; mkdir -p $B $W/obj
+# Rasterizer's features, from its sources, which rabench & raviewer are built for
+CLIP=0; grep -q kClipMask $INC/Rasterizer.hpp && CLIP=1    # Rasterizer's anti-aliased clip mask, else its stencil clipping
+CLEAR=0; grep -q kClipClear $INC/Rasterizer.hpp && CLEAR=1    # Its clear cells, else a clear pass
+INPASS=0; grep -q '\[\[color(1)\]\]' $INC/Shaders.metal && INPASS=1    # Its in-pass mask, read with framebuffer fetch, else mask passes
+BLEND=0; grep -q kBlendNormal $INC/Rasterizer.h && BLEND=1    # Its blend modes, blended in the shader
+IMAGES=0; grep -q 'function_constant(kImages)' $INC/Shaders.metal && IMAGES=1    # Its images, from an argument buffer
+RULE=0; grep -q kClipEvenOdd $INC/Rasterizer.hpp && RULE=1    # Its draws' clip fill rules, else even-odd clips
+PATHS=0; grep -q 'struct PathData' $INC/Rasterizer.hpp && PATHS=1    # Its per-path data as one array of structs, else an array each
+BATCHES=0; grep -q kBlendInstances $INC/Rasterizer.hpp && BATCHES=1    # Its batches of draws with blend modes, else a frame's blend mode
+HEIGHTS=0; grep -q 'size_t idx, height' $INC/Rasterizer.hpp && HEIGHTS=1    # Its edges passes' heights, from the accumulation texture's top
+LIMIT=0; grep -q 'std::vector<Ra::Context> contexts' $INC/RasterizerRenderer.hpp && LIMIT=1    # Its contexts' count capped by --contexts
+QUADS=0; grep -q 'iid = vi >> 2' $INC/Shaders.metal && QUADS=1    # Its quads as indexed triangles, else 4 vertex instances
+RAFLAGS=(-DRA_CLIP_MASK=$CLIP -DRA_CLIP_CLEAR_CELLS=$CLEAR -DRA_CLIP_IN_PASS=$INPASS -DRA_BLEND=$BLEND -DRA_IMAGES=$IMAGES -DRA_CLIP_RULE=$RULE -DRA_PATH_DATA=$PATHS
+         -DRA_BLEND_BATCHES=$BATCHES -DRA_EDGES_HEIGHT=$HEIGHTS -DRA_CONTEXT_LIMIT=$LIMIT -DRA_QUAD_INDICES=$QUADS)
 if [[ ! -x $B/rabench || $S/ra/rabench.mm -nt $B/rabench || -n $(find $INC $RA/Rasterizer/Demo/RasterizerPDF.hpp -newer $B/rabench 2>/dev/null) || $(cat $W/obj/rev 2>/dev/null) != $RA ]]; then
   step "Building rabench"
   clang -O3 -c $RA/Package/Sources/RasterizerCpp/xxhash.c -I$INC -o $W/obj/xxhash.o
   clang++ -O3 -std=c++17 -c -x objective-c++ $RA/Package/Sources/RasterizerCpp/nanosvg.cc -I$INC -o $W/obj/nanosvg.o
-  CLIP=0; grep -q kClipMask $INC/Rasterizer.hpp && CLIP=1    # Rasterizer's anti-aliased clip mask, else its stencil clipping
-  CLEAR=0; grep -q kClipClear $INC/Rasterizer.hpp && CLEAR=1    # Its clear cells, else a clear pass
-  INPASS=0; grep -q '\[\[color(1)\]\]' $INC/Shaders.metal && INPASS=1    # Its in-pass mask, read with framebuffer fetch, else mask passes
-  BLEND=0; grep -q kBlendNormal $INC/Rasterizer.h && BLEND=1    # Its blend modes, blended in the shader
-  IMAGES=0; grep -q 'function_constant(kImages)' $INC/Shaders.metal && IMAGES=1    # Its images, from an argument buffer
-  RULE=0; grep -q kClipEvenOdd $INC/Rasterizer.hpp && RULE=1    # Its draws' clip fill rules, else even-odd clips
-  PATHS=0; grep -q 'struct PathData' $INC/Rasterizer.hpp && PATHS=1    # Its per-path data as one array of structs, else an array each
-  BATCHES=0; grep -q kBlendInstances $INC/Rasterizer.hpp && BATCHES=1    # Its batches of draws with blend modes, else a frame's blend mode
-  HEIGHTS=0; grep -q 'size_t idx, height' $INC/Rasterizer.hpp && HEIGHTS=1    # Its edges passes' heights, from the accumulation texture's top
-  LIMIT=0; grep -q 'std::vector<Ra::Context> contexts' $INC/RasterizerRenderer.hpp && LIMIT=1    # Its contexts' count capped by --contexts
-  QUADS=0; grep -q 'iid = vi >> 2' $INC/Shaders.metal && QUADS=1    # Its quads as indexed triangles, else 4 vertex instances
-  clang++ -O3 -std=c++17 -fobjc-arc -DRA_CLIP_MASK=$CLIP -DRA_CLIP_CLEAR_CELLS=$CLEAR -DRA_CLIP_IN_PASS=$INPASS -DRA_BLEND=$BLEND -DRA_IMAGES=$IMAGES -DRA_CLIP_RULE=$RULE -DRA_PATH_DATA=$PATHS -DRA_BLEND_BATCHES=$BATCHES -DRA_EDGES_HEIGHT=$HEIGHTS -DRA_CONTEXT_LIMIT=$LIMIT -DRA_QUAD_INDICES=$QUADS -x objective-c++ $S/ra/rabench.mm -x none $W/obj/xxhash.o $W/obj/nanosvg.o \
+  clang++ -O3 -std=c++17 -fobjc-arc $RAFLAGS -x objective-c++ $S/ra/rabench.mm -x none $W/obj/xxhash.o $W/obj/nanosvg.o \
     -I$INC -I$RA/Rasterizer/Demo ${=${PDFIUM:+-I$PDFIUM/Headers -L$PDFIUM -lpdfium -Wl,-rpath,$PDFIUM}} \
     -framework Foundation -framework Metal -framework QuartzCore -framework CoreGraphics -framework CoreText -framework ImageIO -framework CoreServices \
     -Wno-deprecated-declarations -o $B/rabench
@@ -2576,6 +3555,26 @@ build_rive() {
 }
 [[ ,$CONFIGS, == *,rive,* ]] && build_rive
 
+# raviewer: raviewer.mm, with rabench's loaders & renderer, built for Rasterizer's features, rive_view.mm, with rivebench's replay, &
+# the raviewer Rust library's Skia & Vello, with skia_bench's & vello_bench's
+build_viewer() {
+  step "Building raviewer"
+  (cd $S/viewer && cargo build --release --quiet --target-dir $W/target/viewer)
+  local lib=$W/target/viewer/release/libraviewer.a f
+  for f in $S/viewer/raviewer.mm $S/viewer/rive_view.mm $S/viewer/viewer.h $S/ra/rabench.mm $S/rive/rivebench.mm $B/rabench $RL/librive.a $lib; do
+    [[ -x $B/raviewer && ! $f -nt $B/raviewer ]] && continue
+    clang++ -O3 -std=c++17 -fobjc-arc $RAFLAGS -x objective-c++ -c $S/viewer/raviewer.mm -I$INC -I$RA/Rasterizer/Demo ${=${PDFIUM:+-I$PDFIUM/Headers}} \
+      -Wno-deprecated-declarations -o $W/obj/raviewer.o
+    clang++ -O3 -std=c++17 -fobjc-arc -w -x objective-c++ -c $S/viewer/rive_view.mm -I$RV/renderer/include -I$RV/include -o $W/obj/rive_view.o
+    clang++ $W/obj/raviewer.o $W/obj/rive_view.o $W/obj/xxhash.o $W/obj/nanosvg.o $RL/librive.a $lib -Wl,-dead_strip \
+      ${=${PDFIUM:+-L$PDFIUM -lpdfium -Wl,-rpath,$PDFIUM}} -framework Foundation -framework AppKit -framework Metal -framework QuartzCore \
+      -framework CoreGraphics -framework CoreText -framework ImageIO -framework CoreServices -framework UniformTypeIdentifiers -o $B/raviewer
+    [[ -z $PDFIUM ]] || install_name_tool -change ./libpdfium.dylib @rpath/libpdfium.dylib $B/raviewer
+    break
+  done
+}
+(( VIEWER )) && build_viewer
+
 MLSRC="--metallib"
 if [[ -z $ML ]]; then
   ML=$W/metallib/$SHA/default.metallib
@@ -2594,6 +3593,10 @@ if [[ -z $ML ]]; then
       print -u2 "bench.sh: no Metal toolchain, so using $ML"
     fi
   fi
+fi
+if (( VIEWER && !BUILD_ONLY )); then
+  step "Opening raviewer"
+  exec $B/raviewer $ML ${VFILE:-$RA/TestFiles/tiger.svg}
 fi
 (( BUILD_ONLY )) && { step "Built into $B"; exit 0 }
 

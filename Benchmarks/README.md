@@ -5,6 +5,7 @@ Benchmarks/bench.sh                                  # 3 rounds at 2048x2048, al
 Benchmarks/bench.sh --rounds 1 --size 4096x4096 --configs rasterizer,vello,skia_ganesh
 Benchmarks/bench.sh --rev <commit>                   # benchmark another commit's sources, TestFiles & shaders
 Benchmarks/bench.sh --configs rasterizer --contexts 1  # cap Rasterizer at one context, a baseline for its slicing
+Benchmarks/bench.sh --viewer TestFiles/pathological.pdf  # the interactive viewer, below
 ```
 
 `bench.sh` is self-contained. It does all of the following under `Benchmarks/build/`, which ignores itself:
@@ -27,6 +28,32 @@ Configs:
   Its shaders are compiled synchronously & its dithering is off. `rivebench --atomics` or `--msaa N` tries its other modes.
 
 Skia's Graphite backend isn't benchmarked. It renders with internal 4x MSAA & depth-tests every draw to skip hidden pixels, so it isn't comparable with the analytic anti-aliasing of the others.
+
+## Viewer
+
+`bench.sh --viewer [file]` builds `raviewer`, then opens the file in it. The file can be an RSD dump, or an SVG or PDF, which is
+exported on the fly. With no file, it opens `TestFiles/tiger.svg`.
+
+The viewer draws the same view with any of five renderers:
+- Rasterizer, with rabench's renderer, so its timings match the benchmark's
+- CoreGraphics
+- Rive, Skia Ganesh & Vello, with their benchmark replays
+
+Controls:
+- Trackpad: two-finger scrolling pans. Pinching zooms & rotating rotates, around the pointer.
+- Mouse: dragging pans, & the wheel zooms.
+- Keys:
+  - `1`–`5` or tab picks the renderer.
+  - `f` fits the view, as does a double click or a two-finger double tap.
+  - `c` toggles continuous redraw, for timing.
+  - Left & right step through the file's directory.
+  - ⌘O opens a file, as does dropping one on the window.
+
+The title shows the renderer's median frame times over its last 30 frames. As in the benchmark, each frame waits for the GPU,
+so it shows CPU time to submit, submit to GPU done, & Metal GPU time where there is one. CoreGraphics only has CPU time.
+
+`raviewer <metallib> <file> --snapshot <dir>` draws the fit view with each renderer in turn, then quits. It writes
+`<dir>/<file>_<renderer>.png` & prints each title line. Vello draws to its window only while the window is visible.
 
 ## Mapping caveats
 
