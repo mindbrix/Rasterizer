@@ -46,11 +46,19 @@ Controls:
   - `1`–`5` or tab picks the renderer.
   - `f` fits the view, as does a double click or a two-finger double tap.
   - `c` toggles continuous redraw, for timing.
+  - `w` toggles waiting for the GPU each frame, as the benchmark does.
   - Left & right step through the file's directory.
   - ⌘O opens a file, as does dropping one on the window.
 
-The title shows the renderer's median frame times over its last 30 frames. As in the benchmark, each frame waits for the GPU,
-so it shows CPU time to submit, submit to GPU done, & Metal GPU time where there is one. CoreGraphics only has CPU time.
+Frames are drawn as the demo app's RasterizerLayer draws them. At most two Metal frames are in flight, & a display link tick
+that would wait for a third is skipped.
+
+The title shows the renderer's median frame times over its last 30 frames:
+- CPU time to submit
+- Metal GPU time, for Rasterizer & Rive
+- submit to GPU done, while frames wait for the GPU (`w`)
+
+CoreGraphics only has CPU time.
 
 `raviewer <metallib> <file> --snapshot <dir>` draws the fit view with each renderer in turn, then quits. It writes
 `<dir>/<file>_<renderer>.png` & prints each title line. Vello draws to its window only while the window is visible.

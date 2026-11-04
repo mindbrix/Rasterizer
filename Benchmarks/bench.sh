@@ -2576,11 +2576,11 @@ pub unsafe extern "C" fn rv_vello_load(v: *mut Vello, file: *const c_char) {
     v.dump = Some((dump, assets));
 }
 
-/// Renders a w x h frame into Vello's storage texture, blits it to the surface's & presents it, waiting for the GPU between
-/// the two, or only renders it while the window is occluded. times gets the CPU ms to submit, & submit to GPU done.
-/// Returns the number of draws encoded
+/// Renders a w x h frame into Vello's storage texture, blits it to the surface's & presents it, or only renders it while the
+/// window is occluded. With wait, it waits for the GPU before presenting. times gets the CPU ms to submit, & submit to GPU
+/// done, or -1 without wait. Returns the number of draws encoded
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rv_vello_draw(v: *mut Vello, w: u32, h: u32, view: *const f64, times: *mut f64) -> usize {
+pub unsafe extern "C" fn rv_vello_draw(v: *mut Vello, w: u32, h: u32, view: *const f64, wait: bool, times: *mut f64) -> usize {
     let v = unsafe { &mut *v };
     let Some((dump, assets)) = &v.dump else { return 0 };
     if v.size != (w, h) {
@@ -2630,14 +2630,14 @@ pub unsafe extern "C" fn rv_vello_draw(v: *mut Vello, w: u32, h: u32, view: *con
         v.queue.submit([encoder.finish()]);
     }
     let t1 = Instant::now();
-    let _ = v.device.poll(wgpu::PollType::wait_indefinitely());
+    let _ = v.device.poll(if wait { wgpu::PollType::wait_indefinitely() } else { wgpu::PollType::Poll });
     let t2 = Instant::now();
     if let Some(frame) = frame {
         v.queue.present(frame);
     }
     let times = unsafe { std::slice::from_raw_parts_mut(times, 2) };
     times[0] = (t1 - t0).as_secs_f64() * 1e3;
-    times[1] = (t2 - t1).as_secs_f64() * 1e3;
+    times[1] = if wait { (t2 - t1).as_secs_f64() * 1e3 } else { -1.0 };
     encoded
 }
 
@@ -2702,13 +2702,14 @@ void rv_skia_free(Skia *skia);
 
 Vello *rv_vello_new(void *layer);
 void rv_vello_load(Vello *vello, const char *path);
-size_t rv_vello_draw(Vello *vello, uint32_t w, uint32_t h, const double view[6], double times[2]);
+size_t rv_vello_draw(Vello *vello, uint32_t w, uint32_t h, const double view[6], bool wait, double times[2]);
 bool rv_vello_read(Vello *vello, uint8_t *rgba);
 void rv_vello_free(Vello *vello);
 
 RiveView *rv_rive_new(void *device, void *queue);
 void rv_rive_load(RiveView *rive, const char *path);
-size_t rv_rive_draw(RiveView *rive, void *texture, uint32_t w, uint32_t h, const double view[6], void *commandBuffer);
+// frame counts Rive's frames from 1, & safeFrame is the last the GPU has finished, so Rive can recycle what it used
+size_t rv_rive_draw(RiveView *rive, void *texture, uint32_t w, uint32_t h, const double view[6], void *commandBuffer, uint64_t frame, uint64_t safeFrame);
 void rv_rive_free(RiveView *rive);
 #ifdef __cplusplus
 }
@@ -2740,7 +2741,7 @@ void rv_rive_load(RiveView *r, const char *path) {
     r->assets = rb::Assets(), r->dump = rb::load(path), r->assets = rb::makeAssets(r->dump, r->context.get()), r->loaded = true;
 }
 
-size_t rv_rive_draw(RiveView *r, void *texture, uint32_t w, uint32_t h, const double view[6], void *commandBuffer) {
+size_t rv_rive_draw(RiveView *r, void *texture, uint32_t w, uint32_t h, const double view[6], void *commandBuffer, uint64_t frameNumber, uint64_t safeFrameNumber) {
     if (!r->loaded)
         return 0;
     if (!r->target || r->target->width() != w || r->target->height() != h)
@@ -2753,7 +2754,7 @@ size_t rv_rive_draw(RiveView *r, void *texture, uint32_t w, uint32_t h, const do
     rive::RiveRenderer renderer(r->context.get());
     rb::Affine v = rb::Affine::flip(h) * rb::Affine::make(view[0], view[1], view[2], view[3], view[4], view[5]);
     size_t encoded = rb::drawDump(renderer, r->context.get(), r->dump, r->assets, v, w, h, true);
-    r->context->flush({ .renderTarget = r->target.get(), .externalCommandBuffer = commandBuffer });
+    r->context->flush({ .renderTarget = r->target.get(), .externalCommandBuffer = commandBuffer, .currentFrameNumber = frameNumber, .safeFrameNumber = safeFrameNumber });
     return encoded;
 }
 
@@ -2769,9 +2770,11 @@ w $S/viewer/raviewer.mm <<'__VIEWER_RAVIEWER_MM__'
 //    raviewer <metallib> [file] [--snapshot <dir>]
 //  Trackpad: two-finger scrolling pans, pinching zooms & rotating rotates, around the pointer. A mouse drags to pan & its wheel
 //  zooms. Keys: 1-5 or tab picks the renderer, f fits (as does a double click or two-finger double tap), c toggles continuous
-//  redraw for timing, left & right step through the file's directory, & cmd-O opens a file, as does dropping one on the window.
-//  The title shows the renderer's median frame times over its last 30 frames: CPU to submit, submit to GPU done (frames wait
-//  for the GPU, as in the benchmark), & Metal GPU time where there is one. CoreGraphics only has CPU time.
+//  redraw for timing, w toggles waiting for the GPU each frame, left & right step through the file's directory, & cmd-O opens
+//  a file, as does dropping one on the window. Frames are drawn as RasterizerLayer's are: at most two Metal frames are in flight,
+//  & a display link tick that would wait for a third is skipped. The title shows the renderer's median frame times over its
+//  last 30 frames: CPU to submit, Metal GPU time where there is one, & while frames wait for the GPU, as the benchmark's do,
+//  submit to GPU done. CoreGraphics only has CPU time.
 //  --snapshot draws the fit view of file with each renderer in turn, writes <dir>/<file>_<renderer>.png, prints each title
 //  line, & quits.
 
@@ -2781,6 +2784,7 @@ w $S/viewer/raviewer.mm <<'__VIEWER_RAVIEWER_MM__'
 #include "../ra/rabench.mm"
 #import "RasterizerCG.hpp"
 #include "viewer.h"
+#include <atomic>
 
 enum { kRasterizer, kCoreGraphics, kRive, kSkia, kVello, kRendererCount };
 static NSString *const kNames[kRendererCount] = { @"Rasterizer", @"CoreGraphics", @"Rive", @"Skia Ganesh", @"Vello" };
@@ -2888,7 +2892,11 @@ struct Viewer {
     RenderBuffer buffers[2];  RasterizerRenderer rasterizer;  size_t frame = 0;
     id<MTLDevice> device;  id<MTLCommandQueue> queue;
     RiveView *rive = nullptr;  Skia *skia = nullptr;  Vello *vello = nullptr;
-    std::vector<double> cpu, done, gpu;  size_t encoded = 0;
+    std::vector<double> cpu, done, gpu;  size_t encoded = 0;  double titleTime = 0;
+    uint64_t generation = 0;    // Of the stats, so a frame that finishes after they're reset isn't counted
+    bool wait = false;          // Frames wait for the GPU, as the benchmark's do
+    dispatch_semaphore_t inflight = dispatch_semaphore_create(2);   // Metal frames in flight, as RasterizerLayer's
+    uint64_t riveFrame = 0;  std::atomic<uint64_t> riveDone = 0;     // Rive's frame numbers: its last, & the GPU's last done
     std::string snapshot;       // --snapshot's directory
 };
 
@@ -3130,7 +3138,9 @@ static double median(std::vector<double> v, size_t last) {
     else if (key == 'f')
         [self fit];
     else if (key == 'c')
-        _v.continuous = !_v.continuous, [self resetStats], _v.dirty = true;
+        _v.continuous = !_v.continuous, [self resetStats];
+    else if (key == 'w')
+        _v.wait = !_v.wait, [self resetStats];
     else if (key == NSLeftArrowFunctionKey)
         [self step:-1];
     else if (key == NSRightArrowFunctionKey)
@@ -3152,7 +3162,7 @@ static double median(std::vector<double> v, size_t last) {
 }
 
 - (void)resetStats {
-    _v.cpu.clear(), _v.done.clear(), _v.gpu.clear(), _v.dirty = true;
+    _v.cpu.clear(), _v.done.clear(), _v.gpu.clear(), _v.generation++, _v.titleTime = 0, _v.dirty = true;
 }
 
 #pragma mark - Drawing
@@ -3185,33 +3195,39 @@ static double median(std::vector<double> v, size_t last) {
     uint32_t w = uint32_t(size.width), h = uint32_t(size.height);
     if (w == 0 || h == 0)
         return;
-    _v.dirty = false;
     [self prepareRenderer];
+    int r = _v.renderer;
+    bool metal = r == kRasterizer || r == kRive || r == kSkia, wait = _v.wait || !_v.snapshot.empty();
+    if ((r == kRive && !_v.rive) || (r == kSkia && !_v.skia) || (r == kVello && !_v.vello))
+        return;
+    if (r == kRasterizer && (_v.offscreenW != w || _v.offscreenH != h)) {
+        dispatch_semaphore_wait(_v.inflight, DISPATCH_TIME_FOREVER), dispatch_semaphore_wait(_v.inflight, DISPATCH_TIME_FOREVER);
+        _v.offscreen = Offscreen();
+        bool ok = _v.offscreen.init(_v.metallib.c_str(), w, h);
+        dispatch_semaphore_signal(_v.inflight), dispatch_semaphore_signal(_v.inflight);
+        if (!ok)
+            return;
+        _v.offscreenW = w, _v.offscreenH = h;
+    }
+    if (metal && dispatch_semaphore_wait(_v.inflight, DISPATCH_TIME_NOW) != 0)
+        return;     // Two frames are in flight, so this tick is skipped, as RasterizerLayer skips a display
+    id<CAMetalDrawable> drawable = metal ? _metalLayer.nextDrawable : nil;
+    if (metal && !drawable) {
+        dispatch_semaphore_signal(_v.inflight);
+        return;
+    }
+    _v.dirty = false;
     const Ra::Transform& m = _v.view;
-    double view[6] = { m.a, m.b, m.c, m.d, m.tx, m.ty }, t0 = now(), t1 = t0, t2 = t0, gpu = -1, times[2];
+    double view[6] = { m.a, m.b, m.c, m.d, m.tx, m.ty }, t0 = now(), t1 = t0, done = -1, times[2];
     size_t encoded = 0;
-    id<MTLBuffer> captured = nil;
-    switch (_v.renderer) {
+    id<MTLCommandBuffer> cb = nil;
+    switch (r) {
         case kRasterizer: {
-            if (_v.offscreenW != w || _v.offscreenH != h) {
-                _v.offscreen = Offscreen();
-                if (!_v.offscreen.init(_v.metallib.c_str(), w, h))
-                    return;
-                _v.offscreenW = w, _v.offscreenH = h;
-            }
-            id<CAMetalDrawable> drawable = _metalLayer.nextDrawable;
-            if (!drawable)
-                return;
-            t0 = now();
             RenderBuffer *rb = & _v.buffers[_v.frame++ & 1];
             _v.list.ctm = m;
             _v.rasterizer.renderList(_v.list, 1.f, w, h, rb);
             _v.offscreen.target = drawable.texture;
-            id<MTLCommandBuffer> cb = _v.offscreen.encode(rb);
-            captured = [self capture:drawable.texture in:cb];
-            [cb presentDrawable:drawable], [cb commit];
-            t1 = now(), [cb waitUntilCompleted], t2 = now();
-            gpu = cb.GPUEndTime - cb.GPUStartTime, encoded = _v.list.pathsCount();
+            cb = _v.offscreen.encode(rb), encoded = _v.list.pathsCount();
             break;
         }
         case kCoreGraphics: {
@@ -3220,7 +3236,7 @@ static double median(std::vector<double> v, size_t last) {
             _v.list.ctm = m;
             RasterizerCG::renderListWithClear(_v.list, 1.f, w, h, ctx);
             CGImageRef image = CGBitmapContextCreateImage(ctx);
-            t1 = t2 = now();
+            t1 = now();
             _cgLayer.contents = (__bridge id)image;
             if (!_v.snapshot.empty())
                 writeSnapshot([self snapshotPath], CGBitmapContextGetData(ctx), w, h, true);
@@ -3228,35 +3244,25 @@ static double median(std::vector<double> v, size_t last) {
             encoded = _v.list.pathsCount();
             break;
         }
-        case kRive:
-        case kSkia: {
-            if ((_v.renderer == kRive && !_v.rive) || (_v.renderer == kSkia && !_v.skia))
-                return;
-            id<CAMetalDrawable> drawable = _metalLayer.nextDrawable;
-            if (!drawable)
-                return;
-            t0 = now();
-            id<MTLCommandBuffer> cb = [_v.queue commandBuffer];
-            if (_v.renderer == kRive)
-                encoded = rv_rive_draw(_v.rive, (__bridge void *)drawable.texture, w, h, view, (__bridge void *)cb);
-            else
-                encoded = rv_skia_draw(_v.skia, (__bridge void *)drawable.texture, w, h, view);
-            captured = [self capture:drawable.texture in:cb];
-            [cb presentDrawable:drawable], [cb commit];
-            t1 = now(), [cb waitUntilCompleted], t2 = now();
-            if (_v.renderer == kRive)
-                gpu = cb.GPUEndTime - cb.GPUStartTime;
+        case kRive: {
+            cb = [_v.queue commandBuffer];
+            uint64_t frame = ++_v.riveFrame;
+            encoded = rv_rive_draw(_v.rive, (__bridge void *)drawable.texture, w, h, view, (__bridge void *)cb, frame, _v.riveDone.load());
+            std::atomic<uint64_t> *riveDone = & _v.riveDone;
+            [cb addCompletedHandler:^(id<MTLCommandBuffer> buffer) { riveDone->store(frame); }];
             break;
         }
+        case kSkia:
+            encoded = rv_skia_draw(_v.skia, (__bridge void *)drawable.texture, w, h, view);
+            cb = [_v.queue commandBuffer];      // Presents, after Skia's command buffers on the same queue
+            break;
         case kVello: {
-            if (!_v.vello)
-                return;
-            encoded = rv_vello_draw(_v.vello, w, h, view, times);
+            encoded = rv_vello_draw(_v.vello, w, h, view, wait, times);
             if (encoded == 0 && _v.list.pathsCount()) {     // Its surface had no texture: try again next frame
                 _v.dirty = true;
                 return;
             }
-            t1 = t0 + times[0] * 1e-3, t2 = t1 + times[1] * 1e-3;
+            t1 = t0 + times[0] * 1e-3, done = times[1] * 1e-3;
             if (!_v.snapshot.empty()) {
                 std::vector<uint8_t> rgba(4 * size_t(w) * h);
                 if (rv_vello_read(_v.vello, rgba.data()))
@@ -3265,43 +3271,76 @@ static double median(std::vector<double> v, size_t last) {
             break;
         }
     }
-    if (captured)
-        writeSnapshot([self snapshotPath], captured.contents, w, h, true);
-    _v.cpu.push_back(t1 - t0), _v.done.push_back(t2 - t1), _v.encoded = encoded;
-    if (gpu >= 0)
-        _v.gpu.push_back(gpu);
-    [self updateTitle];
+    if (cb) {
+        id<MTLBuffer> captured = [self capture:drawable.texture in:cb];
+        dispatch_semaphore_t inflight = _v.inflight;
+        uint64_t generation = _v.generation;
+        bool timed = r != kSkia;        // Skia's GPU work is in its own command buffers
+        __weak ViewerView *weakSelf = self;
+        [cb addCompletedHandler:^(id<MTLCommandBuffer> buffer) {
+            double gpu = buffer.GPUEndTime - buffer.GPUStartTime;
+            dispatch_semaphore_signal(inflight);
+            if (timed && !wait)
+                dispatch_async(dispatch_get_main_queue(), ^{ [weakSelf addGPU:gpu generation:generation]; });
+        }];
+        [cb presentDrawable:drawable], [cb commit];
+        t1 = now();
+        if (wait) {
+            [cb waitUntilCompleted], done = now() - t1;
+            if (timed)
+                _v.gpu.push_back(cb.GPUEndTime - cb.GPUStartTime);
+        }
+        if (captured)
+            writeSnapshot([self snapshotPath], captured.contents, w, h, true);
+    }
+    _v.cpu.push_back(t1 - t0), _v.encoded = encoded;
+    if (done >= 0)
+        _v.done.push_back(done);
+    [self updateTitle:false];
+}
+
+- (void)addGPU:(double)gpu generation:(uint64_t)generation {
+    if (generation == _v.generation)
+        _v.gpu.push_back(gpu), [self updateTitle:false];
 }
 
 // --snapshot: each renderer's fit view, after 3 warm-up frames, then quits. Each renderer's layer is shown first, as Vello's
-// surface has no drawables for a hidden layer
+// surface has no drawables for a hidden layer. Its frames wait for the GPU, so each is done before its PNG is written
 - (void)snapshotInto:(NSString *)dir {
     _v.snapshot = dir.fileSystemRepresentation;
     [NSFileManager.defaultManager createDirectoryAtPath:dir withIntermediateDirectories:YES attributes:nil error:nil];
     for (int r = 0; r < kRendererCount; r++) {
         [self select:r], [self fit], [CATransaction flush];
-        std::string snapshot = _v.snapshot;
-        _v.snapshot.clear();
-        for (int i = 0; i < 3; i++)
+        for (int i = 0; i < 4; i++) {
+            if (i == 3)
+                [self resetStats];
             [self draw];
-        [self resetStats], _v.snapshot = snapshot, [self draw];
+        }
+        [self updateTitle:true];
         printf("%s\n", self.window.title.UTF8String), fflush(stdout);
     }
     [NSApp terminate:nil];
 }
 
-- (void)updateTitle {
+// The title, at most 4 times a second unless forced, as setting it costs a frame's time on big displays
+- (void)updateTitle:(bool)force {
+    if (!force && now() - _v.titleTime < 0.25) {
+        if (!_v.titleTime)
+            _v.titleTime = now();
+        return;
+    }
+    _v.titleTime = now();
     auto ms = [](const std::vector<double>& v) { return median(v, 30) * 1e3; };
     Ra::Bounds b = _v.list.bounds();
     CGSize size = [self convertSizeToBacking:self.bounds.size];
     Ra::Transform fit = frameView(b, size.width, size.height, 0, 1, 1.f);
     double zoom = sqrt(fabs(_v.view.a * _v.view.d - _v.view.b * _v.view.c) / fabs(fit.a * fit.d - fit.b * fit.c));
     NSMutableString *title = [NSMutableString stringWithFormat:@"%s — %@ — CPU %.2f ms", strrchr(_v.file.c_str(), '/') + 1, kNames[_v.renderer], ms(_v.cpu)];
-    if (_v.renderer != kCoreGraphics)     // CoreGraphics draws on the CPU
-        [title appendFormat:@", GPU done %.2f ms", ms(_v.done)];
     if (_v.gpu.size())
-        [title appendFormat:@" (Metal %.2f ms)", ms(_v.gpu)];
-    [title appendFormat:@" — %zu draws, %.2fx%@", _v.encoded, zoom, _v.continuous ? @" — continuous" : @""];
+        [title appendFormat:@", Metal %.2f ms", ms(_v.gpu)];
+    if (_v.done.size())
+        [title appendFormat:@", submit to GPU done %.2f ms", ms(_v.done)];
+    [title appendFormat:@" — %zu draws, %.2fx%@%@", _v.encoded, zoom, _v.continuous ? @" — continuous" : @"", _v.wait ? @" — waits for the GPU" : @""];
     self.window.title = title;
 }
 
