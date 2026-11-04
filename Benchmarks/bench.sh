@@ -3,21 +3,23 @@
 #   Copyright 2026 Nigel Timothy Barber - nigel@mindbrix.co.uk
 #   SPDX-License-Identifier: MIT
 #
-# bench.sh: rebuilds & runs the Rasterizer vs Vello vs Skia benchmark over TestFiles from scratch.
+# bench.sh: rebuilds & runs the Rasterizer vs Vello vs Skia vs Rive benchmark over TestFiles from scratch.
 #
 #   Benchmarks/bench.sh [--rounds N] [--size WxH] [--frames N] [--configs a,b,..] [--rev <git rev>] [--metallib path] [--contexts N]
 #                       [--build-only]
 #
 # Everything is generated under Benchmarks/build/, which ignores itself:
 #   src/        the harness sources, written from this script each run, so this script is their only copy
-#   vendor/     vello_encoding 0.11.0 from crates.io, checksummed & patched (see below)
-#   target/     cargo builds, bin/ the tools, dumps/<rev>/ the exported TestFiles, metallib/<rev>/
+#   vendor/     vello_encoding 0.11.0 from crates.io, checksummed & patched (see below), & rive-runtime & ply from GitHub
+#   target/     cargo builds, rive/ the Rive renderer's library, bin/ the tools, dumps/<rev>/ the exported TestFiles, metallib/<rev>/
 #   results/<stamp>-<rev>-<WxH>/  info.txt (machine, versions), runs.jsonl, quality.jsonl, summary.md, summary.csv, png/
 #
 # Needs: Xcode command line tools (clang), python3, curl, & Rust (rustup installs the pinned toolchain). The first Skia build
 # downloads prebuilt Skia from github.com/rust-skia/skia-binaries. The Rasterizer shaders are compiled from the checkout when the
 # Metal toolchain is installed (xcodebuild -downloadComponent MetalToolchain); otherwise pass --metallib, or the newest Release
-# build in DerivedData is used, which may not match the source.
+# build in DerivedData is used, which may not match the source. The first Rive build needs git & the Metal toolchain: it
+# sparse-clones rive-runtime's renderer & core sources at RIVE_TAG (~10 MB), & ply (the lexer its shader minifier uses), checking
+# both commits, then builds Rive's shaders with its own Makefile & its sources with clang.
 #
 # --rev benchmarks another commit: its tree is exported with git archive, & its TestFiles, parsers & shaders are used.
 # --contexts N caps Rasterizer's contexts at N, e.g. 1 for a baseline without any slicing.
@@ -25,8 +27,9 @@
 # How it works:
 # - rabench loads each TestFile exactly as RasterizerDemo does (RaSVG / RaPDF page 0), exports the parsed SceneList as an RSD dump,
 #   and benchmarks Rasterizer offscreen with a copy of RasterizerLayer's encode loop: keep that in sync with RasterizerLayer -draw.
-# - vello_bench (Vello 0.11) & skia_bench (skia-safe 0.153, Metal, Ganesh) replay the dumps, so every library draws
-#   identical geometry. rsd is their shared reader, view formula, culling, clip runs, stats & PNG I/O, & rsdcompare diffs PNGs.
+# - vello_bench (Vello 0.11), skia_bench (skia-safe 0.153, Metal, Ganesh) & rivebench (the Rive renderer, Metal) replay the
+#   dumps, so every library draws identical geometry. rsd is their shared reader, view formula, culling, clip runs, stats & PNG
+#   I/O, & rsdcompare diffs PNGs. rivebench is C++, so it mirrors rsd's reader, view, culling, clip runs & stats.
 # - Frames are serialised (build, submit, wait): CPU is to submit, submit-to-done to GPU completion, wall the whole frame, &
 #   Rasterizer also reports Metal GPU time. 3 warm-up then N timed frames per run; fit (static) & sweep (1x to 8x zoom) modes;
 #   rounds interleave libraries; summary.md takes the best median across rounds, & compares each fit frame with Rasterizer's.
@@ -39,7 +42,11 @@ HERE=${0:a:h}; REPO=${HERE:h}; W=$HERE/build
 RUST=1.99.0
 VE_VERSION=0.11.0
 VE_SHA256=b1fb9548d2b46b0f79137b5b1d208ecbd76d432f74e7a2ba838615d117f11532
-ALL_CONFIGS=rasterizer,vello,vello_retained,skia_ganesh
+RIVE_TAG=runtime-v0.1.698
+RIVE_SHA=03cd2cdf6322859f62e9edfcfc8040ce80b37ccc
+PLY_TAG=3.11
+PLY_SHA=0f398b72618c1564d71f7dc0558e6722b241875a
+ALL_CONFIGS=rasterizer,vello,vello_retained,skia_ganesh,rive
 ROUNDS=3; SIZE=2048x2048; FRAMES=30; CONFIGS=$ALL_CONFIGS; REV=; ML=${METALLIB:-}; CONTEXTS=; BUILD_ONLY=0
 while (( $# )); do
   case $1 in
@@ -1983,6 +1990,398 @@ fn main() {
 }
 __SKIA_SRC_MAIN_RS__
 
+w $S/rive/rivebench.mm <<'__RIVE_RIVEBENCH_MM__'
+//! rivebench: replays an RSD dump written by `rabench export` with the Rive renderer on Metal, & times each frame.
+//!   rivebench <dump.rsd> [--size WxH] [--frames N] [--zoom Z] [--png out.png] [--pngframe k] [--nocull] [--atomics] [--msaa N]
+//!
+//! Mapping from Rasterizer semantics (as skia_bench, & rsd's lib.rs, which this mirrors in C++):
+//! - device = flip(H) * view * scene ctm * draw ctm. Rive keeps transforms on its save stack, so each run of draws with the
+//!   same clip saves the scene's transform & clips, & each draw saves its own ctm
+//! - Rive has no hairlines: width -1 is a stroke 1 device pixel wide, other negative widths |width| device pixels, recomputed
+//!   every frame. Rive's miter limit is fixed at 4, Rasterizer's 3.864
+//! - quads are elevated to cubics with RawPath::quadToCubic, as the renderer only draws cubics (asserted only in debug)
+//! - clip rect & clip path (anti-aliased, with their rule) are pushed once per run of draws with the same clip
+//! - gradients: in brush space with Bitmap::ctm as their shader transform. Images: modulated image paints over the path bounds
+//! - offscreen draws are culled on the CPU, as drawList does (--nocull to disable)
+//! - Rive picks its interlock mode, raster ordering on Apple GPUs, with shaders compiled synchronously & no dithering.
+//!   --atomics disables raster ordering; --msaa N forces its depth-stencil mode with N samples (1 for none)
+
+#import <Metal/Metal.h>
+#import <ImageIO/ImageIO.h>
+#import <CoreServices/CoreServices.h>
+#include <chrono>
+#include <cmath>
+#include <cstdio>
+#include <cstring>
+#include <string>
+#include <vector>
+#include "rive/renderer/rive_renderer.hpp"
+#include "rive/renderer/rive_render_image.hpp"
+#include "rive/renderer/rive_render_paint.hpp"
+#include "rive/renderer/render_context.hpp"
+#include "rive/renderer/metal/render_context_metal_impl.h"
+
+using namespace rive;
+using gpu::RenderContext;
+using Clock = std::chrono::steady_clock;
+
+enum { kMove, kLine, kQuad, kCubic, kClose };
+enum { kEvenOdd = 1 << 1, kRoundCap = 1 << 2, kSquareCap = 1 << 3, kRoundJoin = 1 << 4, kClipEvenOdd = 1 << 5 };
+enum { kPaintColor, kLinear, kRadial, kImage };
+static const uint32_t kNone = UINT32_MAX;
+static const float kHuge = 5e11f;
+
+/// x' = a x + c y + e, y' = b x + d y + f, as Ra::Transform & rive::Mat2D
+struct Affine {
+    double m[6] = { 1, 0, 0, 1, 0, 0 };
+    static Affine make(double a, double b, double c, double d, double e, double f) { Affine t; t.m[0] = a, t.m[1] = b, t.m[2] = c, t.m[3] = d, t.m[4] = e, t.m[5] = f; return t; }
+    static Affine translate(double x, double y) { return make(1, 0, 0, 1, x, y); }
+    static Affine scale(double s) { return make(s, 0, 0, s, 0, 0); }
+    static Affine flip(double h) { return make(1, 0, 0, -1, 0, h); }     // Rasterizer's y-up device space to a y-down one of height h
+    double det() const { return m[0] * m[3] - m[1] * m[2]; }
+    void apply(double x, double y, double& px, double& py) const { px = m[0] * x + m[2] * y + m[4], py = m[1] * x + m[3] * y + m[5]; }
+    Affine operator*(const Affine& r) const {    // Applies r first
+        const double *a = m, *b = r.m;
+        return make(a[0] * b[0] + a[2] * b[1], a[1] * b[0] + a[3] * b[1], a[0] * b[2] + a[2] * b[3], a[1] * b[2] + a[3] * b[3],
+                    a[0] * b[4] + a[2] * b[5] + a[4], a[1] * b[4] + a[3] * b[5] + a[5]);
+    }
+    Mat2D mat() const { return Mat2D(float(m[0]), float(m[1]), float(m[2]), float(m[3]), float(m[4]), float(m[5])); }
+};
+
+struct Bounds {
+    double lx = 1e300, ly = 1e300, ux = -1e300, uy = -1e300;
+    Bounds transformed(const Affine& t) const {
+        Bounds b;  double x, y, cs[4][2] = { { lx, ly }, { ux, ly }, { lx, uy }, { ux, uy } };
+        for (auto& c : cs)
+            t.apply(c[0], c[1], x, y), b.lx = fmin(b.lx, x), b.ly = fmin(b.ly, y), b.ux = fmax(b.ux, x), b.uy = fmax(b.uy, y);
+        return b;
+    }
+};
+
+struct Path { std::vector<uint8_t> types;  std::vector<float> pts;  Bounds bounds; };
+struct Draw { uint32_t scene, path;  Affine ctm;  uint8_t paintType, flags, rgba[4];  uint32_t paintIndex;  float width, clip[4];  uint32_t clipPath; };
+struct Gradient { bool radial;  Affine ctm;  std::vector<float> locs;  std::vector<ColorInt> colors; };
+struct Image { uint32_t w, h;  std::vector<uint8_t> bgra; };
+struct Dump {
+    float bounds[4];  std::vector<Affine> sceneCtms;  std::vector<std::array<float, 4>> sceneClips;
+    std::vector<Path> paths;  std::vector<Gradient> grads;  std::vector<Image> images;  std::vector<Draw> draws;
+};
+
+struct Reader {
+    const uint8_t *p, *end;
+    const uint8_t *bytes(size_t n) { if (p + n > end) { fprintf(stderr, "rivebench: truncated dump\n"); exit(1); } const uint8_t *s = p; p += n; return s; }
+    uint32_t u32() { uint32_t v; memcpy(& v, bytes(4), 4); return v; }
+    float f32() { float v; memcpy(& v, bytes(4), 4); return v; }
+    Affine affine() { float t[6]; for (float& v : t) v = f32(); return Affine::make(t[0], t[1], t[2], t[3], t[4], t[5]); }
+};
+
+/// The RSD dump, as rsd::load
+static Dump load(const char *file) {
+    FILE *fp = fopen(file, "rb");
+    if (!fp) { perror(file); exit(1); }
+    std::vector<uint8_t> data;  uint8_t buf[1 << 16];  size_t n;
+    while ((n = fread(buf, 1, sizeof(buf), fp)) > 0)
+        data.insert(data.end(), buf, buf + n);
+    fclose(fp);
+    Reader r { data.data(), data.data() + data.size() };
+    if (memcmp(r.bytes(4), "RSD1", 4) != 0 || r.u32() != 1) { fprintf(stderr, "rivebench: %s isn't an RSD1 dump\n", file); exit(1); }
+    Dump d;
+    for (float& v : d.bounds) v = r.f32();
+    for (uint32_t i = 0, count = r.u32(); i < count; i++) {
+        d.sceneCtms.push_back(r.affine());
+        std::array<float, 4> c;  for (float& v : c) v = r.f32();
+        d.sceneClips.push_back(c);
+    }
+    d.paths.resize(r.u32());
+    for (Path& path : d.paths) {
+        uint32_t count = r.u32();
+        const uint8_t *types = r.bytes(count);
+        path.types.assign(types, types + count), r.bytes((4 - (count & 3)) & 3);
+        path.pts.resize(2 * count);
+        for (float& v : path.pts) v = r.f32();
+        for (uint32_t i = 0; i < count; i++) {
+            double x = path.pts[2 * i], y = path.pts[2 * i + 1];
+            path.bounds.lx = fmin(path.bounds.lx, x), path.bounds.ly = fmin(path.bounds.ly, y), path.bounds.ux = fmax(path.bounds.ux, x), path.bounds.uy = fmax(path.bounds.uy, y);
+        }
+    }
+    d.grads.resize(r.u32());
+    for (Gradient& g : d.grads) {
+        g.radial = r.u32() == 2, g.ctm = r.affine();
+        uint32_t count = r.u32();
+        for (uint32_t i = 0; i < count; i++) g.locs.push_back(r.f32());
+        for (uint32_t i = 0; i < count; i++) { const uint8_t *c = r.bytes(4); g.colors.push_back(colorARGB(c[3], c[2], c[1], c[0])); }
+    }
+    d.images.resize(r.u32());
+    for (Image& im : d.images) {
+        im.w = r.u32(), im.h = r.u32();
+        const uint8_t *px = r.bytes(4 * size_t(im.w) * im.h);
+        im.bgra.assign(px, px + 4 * size_t(im.w) * im.h);
+    }
+    d.draws.resize(r.u32());
+    for (Draw& draw : d.draws) {
+        draw.scene = r.u32(), draw.path = r.u32(), draw.ctm = r.affine();
+        const uint8_t *pt = r.bytes(4), *bgra = r.bytes(4);
+        draw.paintType = pt[0], draw.flags = pt[1];
+        draw.rgba[0] = bgra[2], draw.rgba[1] = bgra[1], draw.rgba[2] = bgra[0], draw.rgba[3] = bgra[3];
+        draw.paintIndex = r.u32(), draw.width = r.f32();
+        for (float& v : draw.clip) v = r.f32();
+        draw.clipPath = r.u32();
+    }
+    return d;
+}
+
+/// Bounds::fitTransform(bounds) into WxH, then a zoom by zmax^(k/(n-1)) around the centre, as rabench's frameView
+static Affine frameView(const float b[4], double w, double h, size_t k, size_t n, double zmax) {
+    double bw = b[2] - b[0], bh = b[3] - b[1], s = fmin(w / bw, h / bh);
+    Affine fit = Affine::make(s, 0, 0, s, 0.5 * (w - s * bw) - s * b[0], 0.5 * (h - s * bh) - s * b[1]);
+    double z = n > 1 ? pow(zmax, double(k) / double(n - 1)) : 1.0, cx = 0.5 * w, cy = 0.5 * h;
+    return Affine::translate(cx, cy) * Affine::scale(z) * Affine::translate(-cx, -cy) * fit;
+}
+
+/// The clip a run of draws shares: the scene clip & draw clip rect (scene space), or none for a huge rect, & clip path & its rule
+struct ClipKey {
+    uint32_t scene = kNone, path = kNone;  bool hasRect = false, evenOdd = false;  float rect[4] = {};
+    ClipKey() {}
+    ClipKey(const Dump& d, const Draw& draw) : scene(draw.scene), path(draw.clipPath) {
+        const auto& s = d.sceneClips[draw.scene];
+        rect[0] = fmaxf(s[0], draw.clip[0]), rect[1] = fmaxf(s[1], draw.clip[1]), rect[2] = fminf(s[2], draw.clip[2]), rect[3] = fminf(s[3], draw.clip[3]);
+        hasRect = !(rect[0] <= -kHuge && rect[1] <= -kHuge && rect[2] >= kHuge && rect[3] >= kHuge);
+        evenOdd = draw.clipPath != kNone && (draw.flags & kClipEvenOdd);
+    }
+    bool operator==(const ClipKey& o) const {
+        return scene == o.scene && path == o.path && hasRect == o.hasRect && evenOdd == o.evenOdd && (!hasRect || memcmp(rect, o.rect, sizeof(rect)) == 0);
+    }
+};
+
+/// A draw's device transforms & stroke width for a frame, or false if it's culled (offscreen, as drawList does) or degenerate
+struct Placed { Affine sceneM, m;  double localWidth; };
+static bool place(const Dump& d, const Draw& draw, const Affine& device, double w, double h, bool cull, Placed& p) {
+    p.sceneM = device * d.sceneCtms[draw.scene], p.m = p.sceneM * draw.ctm;
+    double det = fabs(p.m.det());
+    if (det == 0.0 && draw.width >= 0.f)
+        return false;
+    double devWidth = draw.width > 0.f ? draw.width * sqrt(det) : -draw.width;
+    if (cull) {
+        Bounds b = d.paths[draw.path].bounds.transformed(p.m);
+        if (b.ux + devWidth < 0.0 || b.uy + devWidth < 0.0 || b.lx - devWidth > w || b.ly - devWidth > h)
+            return false;
+    }
+    p.localWidth = draw.width >= 0.f ? draw.width : -draw.width / sqrt(det);
+    return true;
+}
+
+static rcp<RenderPath> makePath(Factory *factory, const Path& path, FillRule rule) {
+    RawPath raw;
+    const float *p = path.pts.data();
+    for (size_t i = 0; i < path.types.size(); ) {
+        switch (path.types[i]) {
+            case kMove:  raw.moveTo(p[2 * i], p[2 * i + 1]), i += 1; break;
+            case kLine:  raw.lineTo(p[2 * i], p[2 * i + 1]), i += 1; break;
+            case kQuad:  raw.quadToCubic(p[2 * i], p[2 * i + 1], p[2 * i + 2], p[2 * i + 3]), i += 2; break;
+            case kCubic: raw.cubicTo(p[2 * i], p[2 * i + 1], p[2 * i + 2], p[2 * i + 3], p[2 * i + 4], p[2 * i + 5]), i += 3; break;
+            case kClose: raw.close(), i += 1; break;
+            default: fprintf(stderr, "rivebench: bad path type %d\n", path.types[i]); exit(1);
+        }
+    }
+    return factory->makeRenderPath(raw, rule);
+}
+
+/// The dump's Rive objects: each path non-zero, & an even-odd copy for even-odd fills & clip paths, clip rects by scene clip
+struct Assets {
+    std::vector<rcp<RenderPath>> paths, evenOdd;
+    std::vector<rcp<RenderShader>> grads;
+    std::vector<Affine> gradCtms;
+    std::vector<rcp<RenderImage>> images;
+    rcp<RenderPaint> paint;
+};
+
+static Assets makeAssets(const Dump& d, RenderContext *context) {
+    Assets a;
+    for (const Path& path : d.paths)
+        a.paths.push_back(makePath(context, path, FillRule::nonZero));
+    a.evenOdd.resize(d.paths.size());
+    for (const Draw& draw : d.draws)
+        for (auto [i, needed] : { std::pair<uint32_t, bool>(draw.path, draw.width == 0.f && (draw.flags & kEvenOdd)), std::pair<uint32_t, bool>(draw.clipPath, draw.clipPath != kNone && (draw.flags & kClipEvenOdd)) })
+            if (needed && a.evenOdd[i] == nullptr)
+                a.evenOdd[i] = makePath(context, d.paths[i], FillRule::evenOdd);
+    for (const Gradient& g : d.grads) {     // Brush space: linear t = y from 0 to 1, radial t = |p|, pad extend
+        a.grads.push_back(g.radial ? context->makeRadialGradient(0.f, 0.f, 1.f, g.colors.data(), g.locs.data(), g.colors.size())
+                                   : context->makeLinearGradient(0.f, 0.f, 0.f, 1.f, g.colors.data(), g.locs.data(), g.colors.size()));
+        a.gradCtms.push_back(g.ctm);
+    }
+    auto *impl = context->static_impl_cast<gpu::RenderContextMetalImpl>();
+    for (const Image& im : d.images) {      // BGRA, premultiplied, to RGBA
+        std::vector<uint8_t> rgba(im.bgra.size());
+        for (size_t i = 0; i < rgba.size(); i += 4)
+            rgba[i] = im.bgra[i + 2], rgba[i + 1] = im.bgra[i + 1], rgba[i + 2] = im.bgra[i], rgba[i + 3] = im.bgra[i + 3];
+        a.images.push_back(make_rcp<RiveRenderImage>(impl->makeImageTexture(im.w, im.h, 1, GPUTextureFormat::rgba32, rgba.data())));
+    }
+    a.paint = context->makeRenderPaint();
+    return a;
+}
+
+/// Draws the dump with y-down device transform device, & returns the number of draws encoded
+static size_t drawDump(Renderer& renderer, RenderContext *context, const Dump& d, Assets& a, const Affine& device, double w, double h, bool cull) {
+    size_t encoded = 0;  bool hasKey = false;  ClipKey current;
+    RenderPaint *paint = a.paint.get();
+    renderer.save();
+    for (const Draw& draw : d.draws) {
+        Placed p;
+        if (!place(d, draw, device, w, h, cull, p))
+            continue;
+        ClipKey key(d, draw);
+        if (!hasKey || !(key == current)) {
+            renderer.restore(), renderer.save();
+            renderer.transform(p.sceneM.mat());
+            if (key.hasRect) {
+                RawPath rect;
+                rect.addRect(AABB(key.rect[0], key.rect[1], key.rect[2], key.rect[3]));
+                renderer.clipPath(context->makeRenderPath(rect, FillRule::nonZero).get());
+            }
+            if (key.path != kNone)
+                renderer.clipPath((key.evenOdd ? a.evenOdd[key.path] : a.paths[key.path]).get());
+            current = key, hasKey = true;
+        }
+        paint->shader(nullptr), paint->modulatedImage(nullptr, ImageSampler::LinearClamp(), Mat2D());
+        if (draw.paintType == kLinear || draw.paintType == kRadial) {
+            paint->color(0xFF000000);
+            paint->shader(a.grads[draw.paintIndex]);
+            paint->shaderTransform(a.gradCtms[draw.paintIndex].mat());
+        } else if (draw.paintType == kImage) {     // The image covers the path bounds, row 0 at uy
+            const Bounds& b = d.paths[draw.path].bounds;
+            paint->color(0xFFFFFFFF);
+            paint->modulatedImage(a.images[draw.paintIndex].get(), ImageSampler::LinearClamp(), Affine::make(b.ux - b.lx, 0, 0, b.ly - b.uy, b.lx, b.uy).mat());
+        } else
+            paint->color(colorARGB(draw.rgba[3], draw.rgba[0], draw.rgba[1], draw.rgba[2]));
+        RenderPath *path = a.paths[draw.path].get();
+        if (draw.width == 0.f) {
+            paint->style(RenderPaintStyle::fill);
+            if (draw.flags & kEvenOdd)
+                path = a.evenOdd[draw.path].get();
+        } else {
+            paint->style(RenderPaintStyle::stroke);
+            paint->thickness(float(p.localWidth));
+            paint->cap(draw.flags & kRoundCap ? StrokeCap::round : draw.flags & kSquareCap ? StrokeCap::square : StrokeCap::butt);
+            paint->join(draw.flags & kRoundJoin ? StrokeJoin::round : StrokeJoin::miter);
+        }
+        renderer.save();
+        renderer.transform(draw.ctm.mat());
+        renderer.drawPath(path, paint);
+        renderer.restore();
+        encoded++;
+    }
+    renderer.restore();
+    return encoded;
+}
+
+static void writePNG(const char *path, uint32_t w, uint32_t h, std::vector<uint8_t>& rgba) {
+    CGColorSpaceRef rgb = CGColorSpaceCreateDeviceRGB();
+    CGContextRef ctx = CGBitmapContextCreate(rgba.data(), w, h, 8, 4 * w, rgb, kCGImageAlphaPremultipliedLast);
+    CGImageRef image = CGBitmapContextCreateImage(ctx);
+    CFURLRef url = CFURLCreateFromFileSystemRepresentation(nullptr, (const UInt8 *)path, strlen(path), false);
+    CGImageDestinationRef dst = CGImageDestinationCreateWithURL(url, kUTTypePNG, 1, nullptr);
+    CGImageDestinationAddImage(dst, image, nullptr);
+    if (!CGImageDestinationFinalize(dst)) { fprintf(stderr, "rivebench: can't write %s\n", path); exit(1); }
+    CFRelease(dst), CFRelease(url), CGImageRelease(image), CGContextRelease(ctx), CGColorSpaceRelease(rgb);
+}
+
+static double median(std::vector<double> v) {
+    if (v.empty()) return 0.0;
+    std::sort(v.begin(), v.end());
+    size_t n = v.size();
+    return n & 1 ? v[n / 2] : 0.5 * (v[n / 2 - 1] + v[n / 2]);
+}
+static double minimum(const std::vector<double>& v) { return v.empty() ? 0.0 : *std::min_element(v.begin(), v.end()); }
+
+int main(int argc, const char **argv) {
+    @autoreleasepool {
+        const char *file = argc > 1 ? argv[1] : "", *png = nullptr;
+        uint32_t w = 2048, h = 2048, msaa = 0;  size_t frames = 60, pngFrame = 0;  double zoom = 8.0;  bool cull = true, atomics = false;
+        for (int i = 2; i < argc; i++) {
+            std::string arg = argv[i];
+            auto next = [&]() { if (i + 1 >= argc) { fprintf(stderr, "rivebench: %s needs a value\n", argv[i]); exit(2); } return argv[++i]; };
+            if (arg == "--size") { const char *s = next(); w = uint32_t(atoi(s)), h = uint32_t(atoi(strchr(s, 'x') ? strchr(s, 'x') + 1 : s)); }
+            else if (arg == "--frames") frames = size_t(std::max(1, atoi(next())));
+            else if (arg == "--zoom") zoom = atof(next());
+            else if (arg == "--png") png = next();
+            else if (arg == "--pngframe") pngFrame = size_t(atoi(next()));
+            else if (arg == "--msaa") msaa = uint32_t(atoi(next()));
+            else if (arg == "--nocull") cull = false;
+            else if (arg == "--atomics") atomics = true;
+        }
+        if (!*file || file[0] == '-') {
+            fprintf(stderr, "usage: rivebench <dump.rsd> [--size WxH] [--frames N] [--zoom Z] [--png out.png] [--pngframe k] [--nocull] [--atomics] [--msaa N]\n");
+            return 2;
+        }
+        id<MTLDevice> device = MTLCreateSystemDefaultDevice();
+        id<MTLCommandQueue> queue = [device newCommandQueue];
+        gpu::RenderContextMetalImpl::ContextOptions options;
+        options.shaderCompilationMode = gpu::ShaderCompilationMode::alwaysSynchronous;
+        std::unique_ptr<RenderContext> context = gpu::RenderContextMetalImpl::MakeContext(device, options);
+        auto *impl = context->static_impl_cast<gpu::RenderContextMetalImpl>();
+        impl->setCommandQueue(queue);
+        rcp<gpu::RenderTargetMetal> target = impl->makeRenderTarget(MTLPixelFormatRGBA8Unorm, w, h);
+        MTLTextureDescriptor *desc = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatRGBA8Unorm width:w height:h mipmapped:NO];
+        desc.usage = MTLTextureUsageRenderTarget | MTLTextureUsageShaderRead | MTLTextureUsageShaderWrite;
+        desc.storageMode = MTLStorageModeShared;
+        target->setTargetTexture([device newTextureWithDescriptor:desc]);
+
+        auto t = Clock::now();
+        Dump dump = load(file);
+        Assets assets = makeAssets(dump, context.get());
+        double loadMs = std::chrono::duration<double, std::milli>(Clock::now() - t).count();
+
+        RenderContext::FrameDescriptor frame;
+        frame.renderTargetWidth = w, frame.renderTargetHeight = h, frame.loadAction = gpu::LoadAction::clear, frame.clearColor = 0xFFFFFFFF;
+        frame.msaaSampleCount = msaa, frame.disableRasterOrdering = atomics, frame.ditherMode = gpu::DitherMode::none;
+        Affine flip = Affine::flip(h);
+        const size_t warmup = 3;
+        std::vector<double> encode, cpu, submitToDone, wall;
+        double firstCpu = 0, firstWall = 0;  size_t encodedFit = 0;
+        gpu::InterlockMode mode = gpu::InterlockMode::rasterOrdering;
+        auto ms = [](Clock::time_point a, Clock::time_point b) { return std::chrono::duration<double, std::milli>(b - a).count(); };
+        for (size_t f = 0; f < warmup + frames; f++) {
+            @autoreleasepool {
+                size_t k = f < warmup ? 0 : f - warmup;
+                Affine v = flip * frameView(dump.bounds, w, h, k, frames, zoom);
+                auto t0 = Clock::now();
+                context->beginFrame(frame);
+                mode = context->frameInterlockMode();
+                RiveRenderer renderer(context.get());
+                size_t encoded = drawDump(renderer, context.get(), dump, assets, v, w, h, cull);
+                auto t1 = Clock::now();
+                id<MTLCommandBuffer> commandBuffer = [queue commandBuffer];
+                context->flush({ .renderTarget = target.get(), .externalCommandBuffer = (__bridge void *)commandBuffer });
+                [commandBuffer commit];
+                auto t2 = Clock::now();
+                [commandBuffer waitUntilCompleted];
+                auto t3 = Clock::now();
+                if (commandBuffer.error) { fprintf(stderr, "rivebench: %s\n", commandBuffer.error.localizedDescription.UTF8String); return 1; }
+                if (f == 0)
+                    firstCpu = ms(t0, t2), firstWall = ms(t0, t3), encodedFit = encoded;
+                if (f >= warmup)
+                    encode.push_back(ms(t0, t1)), cpu.push_back(ms(t0, t2)), submitToDone.push_back(ms(t2, t3)), wall.push_back(ms(t0, t3));
+                if (f >= warmup && k == pngFrame && png) {
+                    std::vector<uint8_t> rgba(4 * size_t(w) * h);
+                    [target->targetTexture() getBytes:rgba.data() bytesPerRow:4 * w fromRegion:MTLRegionMake2D(0, 0, w, h) mipmapLevel:0];
+                    writePNG(png, w, h, rgba);
+                }
+            }
+        }
+        std::string stem = file;
+        stem = stem.substr(stem.find_last_of('/') + 1), stem = stem.substr(0, stem.find_last_of('.'));
+        const char *modes[] = { "raster_ordering", "atomics", "clockwise", "clockwise_atomic", "depth_stencil" };
+        std::string lib = std::string("rive") + (atomics ? "_atomics" : "") + (msaa > 1 ? "_msaa" + std::to_string(msaa) : msaa == 1 ? "_depth" : "");
+        printf("{\"lib\":\"%s\",\"file\":\"%s\",\"w\":%u,\"h\":%u,\"frames\":%zu,\"zoom\":%g,\"draws\":%zu,\"encoded_fit\":%zu,\"load_ms\":%.1f,\"interlock\":\"%s\","
+               "\"first_cpu_ms\":%.3f,\"first_wall_ms\":%.3f,\"encode_min\":%.3f,\"encode_med\":%.3f,\"cpu_min\":%.3f,\"cpu_med\":%.3f,"
+               "\"submit_to_done_min\":%.3f,\"submit_to_done_med\":%.3f,\"wall_min\":%.3f,\"wall_med\":%.3f}\n",
+               lib.c_str(), stem.c_str(), w, h, frames, zoom, dump.draws.size(), encodedFit, loadMs, modes[int(mode)], firstCpu, firstWall,
+               minimum(encode), median(encode), minimum(cpu), median(cpu), minimum(submitToDone), median(submitToDone), minimum(wall), median(wall));
+    }
+    return 0;
+}
+__RIVE_RIVEBENCH_MM__
+
 w $S/summarize.py <<'__SUMMARIZE_PY__'
 #!/usr/bin/env python3
 """Summarises a run.sh results dir. For each file, mode & library: the best (min) across rounds of each run's median.
@@ -2134,6 +2533,49 @@ cargo_build rsd rsdcompare rsdcompare
 [[ ,$CONFIGS, == *,vello* ]] && cargo_build vello vello vello_bench
 [[ ,$CONFIGS, == *,skia_ganesh* ]] && cargo_build skia skia_ganesh skia_bench
 
+# Rive: rive-runtime's renderer & the core sources it needs, sparse-cloned at RIVE_TAG, its shaders built by its own Makefile
+# (which runs its minifier, with ply, & xcrun metal), its sources by clang with its own release flags, then rivebench
+RV=$W/vendor/rive-runtime PLY=$W/vendor/ply RL=$W/rive
+fetch_git() {    # repo url, dir, tag, sha, sparse dirs..
+  local url=$1 dir=$2 tag=$3 sha=$4; shift 4
+  [[ $(git -C $dir rev-parse HEAD 2>/dev/null) == $sha ]] && return
+  step "Fetching ${url:t:r} $tag"
+  rm -rf $dir && mkdir -p ${dir:h}
+  git -c advice.detachedHead=false clone -q --depth 1 --branch $tag ${*:+--filter=blob:none} ${*:+--sparse} $url $dir
+  (( $# )) && git -C $dir sparse-checkout set "$@"
+  [[ $(git -C $dir rev-parse HEAD) == $sha ]] || die "${url:t:r} $tag isn't $sha"
+}
+build_rive() {
+  fetch_git https://github.com/rive-app/rive-runtime.git $RV $RIVE_TAG $RIVE_SHA renderer/src renderer/include include src decoders/include
+  fetch_git https://github.com/dabeaz/ply.git $PLY $PLY_TAG $PLY_SHA
+  local G=$RL/include/generated/shaders O=$RL/obj
+  local -a flags=(-O3 -std=c++17 -DNDEBUG -ffp-contract=on -fassociative-math -w -I$RV/renderer/include -I$RV/renderer/src -I$RV/include -I$RV/decoders/include -I$RL/include)
+  if [[ $(cat $RL/rev 2>/dev/null) != $RIVE_SHA ]]; then
+    step "Building Rive $RIVE_TAG"
+    rm -rf $RL && mkdir -p $G $O
+    make -C $RV/renderer/src/shaders -j$(sysctl -n hw.ncpu) OUT=$G FLAGS="-p $PLY" rive_pls_macosx_metallib > $RL/shaders.log 2>&1 \
+      || die "can't build Rive's shaders, which need the Metal toolchain (see $RL/shaders.log)"
+    local -a srcs=($RV/renderer/src/*.cpp $RV/renderer/src/ore/ore_binding_map.cpp $RV/renderer/src/ore/ore_bind_group_layout.cpp
+                   $RV/renderer/src/metal/*.mm $RV/src/math/*.cpp $RV/src/renderer.cpp $RV/src/shapes/paint/color.cpp $RV/src/shapes/paint/paint_outset.cpp)
+    local f; local -a objc; integer n=$(sysctl -n hw.ncpu)
+    for f in $srcs; do
+      objc=(); [[ $f == *.mm ]] && objc=(-fobjc-arc -x objective-c++)
+      clang++ $flags $objc -c $f -o $O/${f:h:t}_${f:t:r}.o 2>> $RL/build.log &
+      while (( ${#jobstates} >= n )); do sleep 0.05; done
+    done
+    wait
+    for f in $srcs; do [[ -f $O/${f:h:t}_${f:t:r}.o ]] || die "can't compile $f (see $RL/build.log)"; done
+    libtool -static -o $RL/librive.a $O/*.o
+    print $RIVE_SHA > $RL/rev
+  fi
+  if [[ ! -x $B/rive || $S/rive/rivebench.mm -nt $B/rive || $RL/librive.a -nt $B/rive ]]; then
+    step "Building rivebench"
+    clang++ $flags -fobjc-arc -x objective-c++ $S/rive/rivebench.mm -x none $RL/librive.a -Wl,-dead_strip \
+      -framework Foundation -framework Metal -framework CoreGraphics -framework ImageIO -framework CoreServices -Wno-deprecated-declarations -o $B/rive
+  fi
+}
+[[ ,$CONFIGS, == *,rive,* ]] && build_rive
+
 MLSRC="--metallib"
 if [[ -z $ML ]]; then
   ML=$W/metallib/$SHA/default.metallib
@@ -2164,8 +2606,8 @@ done
 
 # Each config: name, binary & extra args. rasterizer takes the source file, the replays its dump
 typeset -A BIN ARGS
-BIN=(vello vello vello_retained vello skia_ganesh skia_ganesh)
-ARGS=(vello "" vello_retained --retained skia_ganesh "")
+BIN=(vello vello vello_retained vello skia_ganesh skia_ganesh rive rive)
+ARGS=(vello "" vello_retained --retained skia_ganesh "" rive "")
 REPLAYS=(${${(s:,:)CONFIGS}:#rasterizer})
 run() {    # config, file, png | frames zoom
   local c=$1 f=$2 n=${${2:t}%.*}; shift 2
@@ -2183,6 +2625,7 @@ OUT=$W/results/$(date +%Y%m%d-%H%M%S)-$SHA-$SIZE${CONTEXTS:+-c$CONTEXTS}; mkdir 
   print "clang: $(clang --version | head -1)"
   print "rustc: $(cd $S/rsd && rustc --version)"
   print "crates: $(cat $S/*/Cargo.lock | awk '/^name = /{n=$3} /^version = /{if (n ~ /^"(vello|vello_encoding|wgpu|skia-safe|skia-bindings)"$/) print n "@" $3}' | tr -d '"' | sort -u | tr '\n' ' ')"
+  if [[ ,$CONFIGS, == *,rive,* ]]; then print "rive: rive-runtime $RIVE_TAG ($RIVE_SHA)"; fi
   print "args: rounds $ROUNDS, size $SIZE, frames $FRAMES, configs $CONFIGS"
 } > $OUT/info.txt
 cat $OUT/info.txt

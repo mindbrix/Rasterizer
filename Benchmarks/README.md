@@ -1,4 +1,4 @@
-# Benchmarks: Rasterizer vs Vello & Skia on TestFiles
+# Benchmarks: Rasterizer vs Vello, Skia & Rive on TestFiles
 
 ```bash
 Benchmarks/bench.sh                                  # 3 rounds at 2048x2048, all configs
@@ -9,9 +9,9 @@ Benchmarks/bench.sh --configs rasterizer --contexts 1  # cap Rasterizer at one c
 
 `bench.sh` is self-contained. It does all of the following under `Benchmarks/build/`, which ignores itself:
 - writes the harness sources
-- fetches & patches `vello_encoding`
+- fetches & patches `vello_encoding`, & sparse-clones `rive-runtime`
 - installs the pinned Rust toolchain
-- builds Rasterizer's harness, Vello & Skia
+- builds Rasterizer's harness, Vello, Skia & Rive
 - compiles the shaders from the checkout
 - exports the TestFiles
 - runs the quality pass & interleaved timing rounds
@@ -23,6 +23,8 @@ Configs:
 - `rasterizer`: the Metal renderer.
 - `vello` and `vello_retained`: Vello 0.11, rebuilding the scene each frame, or appending one built scene with each frame's view.
 - `skia_ganesh`: Skia's Ganesh backend.
+- `rive`: the Rive renderer, rive-runtime `runtime-v0.1.698` on Metal, in the mode it picks, which is raster ordering on Apple GPUs.
+  Its shaders are compiled synchronously & its dithering is off. `rivebench --atomics` or `--msaa N` tries its other modes.
 
 Skia's Graphite backend isn't benchmarked. It renders with internal 4x MSAA & depth-tests every draw to skip hidden pixels, so it isn't comparable with the analytic anti-aliasing of the others.
 
@@ -31,10 +33,13 @@ Skia's Graphite backend isn't benchmarked. It renders with internal 4x MSAA & de
 The replays draw Rasterizer's parsed draws, so all libraries render the same geometry. Where semantics differ:
 - Stroke widths: Rasterizer scales positive widths by sqrt|det|, the others by the full affine. These are the same for the uniform scales used here.
   - Negative widths are device pixels, recomputed every frame. Skia draws -1 as a native hairline.
+  - Rive widens strokes thinner than its anti-aliasing ramp & fades them, so sub-pixel detail, like pathological's dots, is heavier.
   - The retained modes keep the fit view's widths.
-- Miter joins: Rasterizer caps both segments at a turn of more than 150 degrees. The others use a miter limit of 3.864.
+- Miter joins: Rasterizer caps both segments at a turn of more than 150 degrees. Vello & Skia use a miter limit of 3.864, & Rive's
+  is fixed at 4.
 - Clip paths: all are anti-aliased & even-odd, applied once per run of draws with the same clip. Rasterizer uses a coverage mask; commits before it used an aliased stencil, & `--rev` benchmarks them that way.
 - Gradients & images: these are exported as Rasterizer stores them. Each library interpolates & samples in its own way.
+- Quadratic curves: Rive draws only cubics, so rivebench elevates quads to cubics.
 
 ## Reference results (2026-10-15, MacBook Air M4, 2048x2048)
 
