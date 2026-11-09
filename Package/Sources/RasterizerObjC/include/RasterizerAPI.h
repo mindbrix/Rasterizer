@@ -5,7 +5,6 @@
 
 #import <Foundation/Foundation.h>
 #import <CoreGraphics/CoreGraphics.h>
-#import <CoreText/CoreText.h>
 
 @interface RAPaint: NSObject
 - (nonnull id)initWithGray:(double)gray alpha:(double)alpha;
