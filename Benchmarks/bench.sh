@@ -6,7 +6,7 @@
 # bench.sh: rebuilds & runs the Rasterizer vs Vello vs Skia vs Rive benchmark over TestFiles from scratch.
 #
 #   Benchmarks/bench.sh [--rounds N] [--size WxH] [--frames N] [--configs a,b,..] [--rev <git rev>] [--metallib path] [--contexts N]
-#                       [--build-only]
+#                       [--energy [S]] [--build-only]
 #   Benchmarks/bench.sh --viewer [file] [--build-only]
 #
 # Everything is generated under Benchmarks/build/, which ignores itself:
@@ -24,6 +24,11 @@
 #
 # --rev benchmarks another commit: its tree is exported with git archive, & its TestFiles, parsers & shaders are used.
 # --contexts N caps Rasterizer's contexts at N, e.g. 1 for a baseline without any slicing.
+# --energy [S] adds a pass after the timing rounds that counts energy, from the Mac's energy counters (see energy.h), which need
+#   no root. Each of its runs repeats a 4-frame schedule until S seconds (default 0.25) have passed: the GPU's counter is too
+#   coarse for runs of tens of ms, but 0.25 s is within ~5% of 2 s. Before each file, rsdenergy measures 0.5 s of idle power,
+#   which summary.md subtracts. It reports energy per frame above idle: CPU, GPU & memory (DRAM & its controllers). The
+#   counters count the whole machine, so quit what else is running.
 # --viewer builds every renderer & raviewer, an interactive viewer that switches between them on the same pan, zoom & rotation
 #   (see raviewer.mm), & opens file in it: an RSD dump, or a TestFiles SVG or PDF (default tiger.svg).
 #
@@ -50,7 +55,7 @@ RIVE_SHA=03cd2cdf6322859f62e9edfcfc8040ce80b37ccc
 PLY_TAG=3.11
 PLY_SHA=0f398b72618c1564d71f7dc0558e6722b241875a
 ALL_CONFIGS=rasterizer,vello,vello_retained,skia_ganesh,rive
-ROUNDS=3; SIZE=2048x2048; FRAMES=30; CONFIGS=$ALL_CONFIGS; REV=; ML=${METALLIB:-}; CONTEXTS=; BUILD_ONLY=0; VIEWER=0; VFILE=
+ROUNDS=3; SIZE=2048x2048; FRAMES=30; CONFIGS=$ALL_CONFIGS; REV=; ML=${METALLIB:-}; CONTEXTS=; ENERGY=; BUILD_ONLY=0; VIEWER=0; VFILE=
 while (( $# )); do
   case $1 in
     --rounds) ROUNDS=$2; shift ;;
@@ -60,6 +65,7 @@ while (( $# )); do
     --rev) REV=$2; shift ;;
     --metallib) ML=${2:a}; shift ;;
     --contexts) CONTEXTS=$2; shift ;;
+    --energy) ENERGY=0.25; if (( $# > 1 )) && [[ $2 == (<->|<->.<->|.<->) ]]; then ENERGY=$2; shift; fi ;;
     --build-only) BUILD_ONLY=1 ;;
     --viewer) VIEWER=1; if (( $# > 1 )) && [[ $2 != --* ]]; then VFILE=${2:a}; shift; fi ;;
     *) sed -n '2,10p' $0; exit 2 ;;
@@ -104,7 +110,7 @@ w $S/ra/rabench.mm <<'__RA_RABENCH_MM__'
 //  rabench: loads a TestFiles SVG/PDF exactly as the Rasterizer demo does, then either
 //    export <in> <out.rsd>                          writes the parsed SceneList as a neutral binary dump (see RSD format below)
 //    bench  <in> <metallib> [opts]                  renders it offscreen with the Metal renderer & times each frame
-//  bench opts: --size WxH  --frames N  --zoom Z  --png out.png  --pngframe k  --contexts N
+//  bench opts: --size WxH  --frames N  --zoom Z  --png out.png  --pngframe k  --contexts N  --energy S (see energy.h)
 //
 //  RSD v1 (little endian). Coordinates are Rasterizer's: y up, device = list ctm * scene ctm * draw ctm.
 //    "RSD1" u32 version  f32 bounds[4] (SceneList::bounds())
@@ -123,6 +129,7 @@ w $S/ra/rabench.mm <<'__RA_RABENCH_MM__'
 #import "RasterizerRenderer.hpp"
 #import "RasterizerSVG.hpp"
 #import "RasterizerPDF.hpp"
+#import "../rsd/src/energy.h"
 #import <unordered_map>
 #import <string>
 #import <algorithm>
@@ -873,7 +880,7 @@ static double median(std::vector<double> v) {
     return v.size() & 1 ? v[v.size() / 2] : 0.5 * (v[v.size() / 2 - 1] + v[v.size() / 2]);
 }
 
-static int bench(Ra::SceneList& list, const char *name, const char *metallib, size_t W, size_t H, size_t frames, float zmax, const char *png, long pngFrame, size_t contexts) {
+static int bench(Ra::SceneList& list, const char *name, const char *metallib, size_t W, size_t H, size_t frames, float zmax, const char *png, long pngFrame, size_t contexts, double energySeconds) {
     Offscreen gpu;
     if (!gpu.init(metallib, W, H))
         return 1;
@@ -896,9 +903,10 @@ static int bench(Ra::SceneList& list, const char *name, const char *metallib, si
     std::vector<double> cpu, gpuTime, wall, submitToDone;
     double firstCpu = 0, firstWall = 0;
     const size_t warmup = 3;
-    for (size_t f = 0; f < warmup + frames; f++) {
+    RsdFrames run(warmup, frames, energySeconds);
+    for (size_t f = 0; run.more(f); f++) {
         @autoreleasepool {
-            size_t k = f < warmup ? 0 : f - warmup;
+            size_t k = run.schedule(f);
             list.ctm = frameView(bounds, W, H, k, frames, zmax);
             RenderBuffer *rb = & buffers[f & 1];
             double a = now();
@@ -914,15 +922,15 @@ static int bench(Ra::SceneList& list, const char *name, const char *metallib, si
                 firstCpu = b - a, firstWall = c - a;
             if (f >= warmup)
                 cpu.push_back(b - a), wall.push_back(c - a), submitToDone.push_back(c - b), gpuTime.push_back(cb.GPUEndTime - cb.GPUStartTime);
-            if (png && f >= warmup && long(k) == pngFrame)
+            if (png && run.firstPass(f) && long(k) == pngFrame)
                 gpu.writePNG(png);
         }
     }
     auto ms = [](double s) { return s * 1e3; };
-    printf("{\"lib\":\"rasterizer\",\"file\":\"%s\",\"w\":%zu,\"h\":%zu,\"frames\":%zu,\"zoom\":%g,\"draws\":%zu,"
+    printf("{\"lib\":\"rasterizer\",\"file\":\"%s\",\"w\":%zu,\"h\":%zu,\"frames\":%zu,\"zoom\":%g,\"draws\":%zu,%s"
            "\"setup_ms\":%.3f,\"first_cpu_ms\":%.3f,\"first_wall_ms\":%.3f,"
            "\"cpu_min\":%.3f,\"cpu_med\":%.3f,\"gpu_min\":%.3f,\"gpu_med\":%.3f,\"submit_to_done_min\":%.3f,\"submit_to_done_med\":%.3f,\"wall_min\":%.3f,\"wall_med\":%.3f}\n",
-           name, W, H, frames, zmax, list.pathsCount(), ms(prepareTime), ms(firstCpu), ms(firstWall),
+           name, W, H, frames, zmax, list.pathsCount(), run.fields().c_str(), ms(prepareTime), ms(firstCpu), ms(firstWall),
            ms(*std::min_element(cpu.begin(), cpu.end())), ms(median(cpu)),
            ms(*std::min_element(gpuTime.begin(), gpuTime.end())), ms(median(gpuTime)),
            ms(*std::min_element(submitToDone.begin(), submitToDone.end())), ms(median(submitToDone)),
@@ -934,7 +942,7 @@ static int bench(Ra::SceneList& list, const char *name, const char *metallib, si
 int main(int argc, const char *argv[]) {
     @autoreleasepool {
         if (argc < 4)
-            return fprintf(stderr, "usage: rabench export <in> <out.rsd> | bench <in> <metallib> [--size WxH] [--frames N] [--zoom Z] [--png out.png] [--pngframe k] [--contexts N]\n"), 2;
+            return fprintf(stderr, "usage: rabench export <in> <out.rsd> | bench <in> <metallib> [--size WxH] [--frames N] [--zoom Z] [--png out.png] [--pngframe k] [--contexts N] [--energy S]\n"), 2;
         std::string cmd = argv[1];
         Ra::SceneList list;
         double t0 = now();
@@ -946,7 +954,7 @@ int main(int argc, const char *argv[]) {
             fprintf(stderr, "%s: loaded in %.1f ms\n", name, loadTime * 1e3);
             return exportList(list, argv[3]);
         }
-        size_t W = 2048, H = 2048, frames = 60, contexts = 0;  float zoom = 8.f;  const char *png = nullptr;  long pngFrame = 0;
+        size_t W = 2048, H = 2048, frames = 60, contexts = 0;  float zoom = 8.f;  const char *png = nullptr;  long pngFrame = 0;  double energy = 0;
         for (int i = 4; i < argc; i++) {
             std::string a = argv[i];
             if (a == "--size" && i + 1 < argc)
@@ -961,10 +969,12 @@ int main(int argc, const char *argv[]) {
                 pngFrame = strtol(argv[++i], nullptr, 10);
             else if (a == "--contexts" && i + 1 < argc)
                 contexts = strtoul(argv[++i], nullptr, 10);
+            else if (a == "--energy" && i + 1 < argc)
+                energy = strtod(argv[++i], nullptr);
         }
         if (frames == 0)
             frames = 1;
-        return bench(list, name, argv[3], W, H, frames, zoom, png, pngFrame, contexts);
+        return bench(list, name, argv[3], W, H, frames, zoom, png, pngFrame, contexts, energy);
     }
 }
 #endif
@@ -979,14 +989,175 @@ edition = "2024"
 [dependencies]
 png = "0.18"
 
+[build-dependencies]
+cc = "1"
+
 [[bin]]
 name = "rsdcompare"
 path = "src/bin/compare.rs"
+
+[[bin]]
+name = "rsdenergy"
+path = "src/bin/energy.rs"
 __RSD_CARGO_TOML__
+
+w $S/rsd/build.rs <<'__RSD_BUILD_RS__'
+//! Compiles energy.c, the energy counters' C interface, which rabench & rivebench also build, & links IOReport
+fn main() {
+    println!("cargo:rerun-if-changed=src/energy.c");
+    println!("cargo:rerun-if-changed=src/energy.h");
+    cc::Build::new().file("src/energy.c").flag("-mmacosx-version-min=11.0").compile("rsdenergy");     // As old as the harnesses link
+    println!("cargo:rustc-link-lib=dylib=IOReport");
+    println!("cargo:rustc-link-lib=framework=CoreFoundation");
+}
+__RSD_BUILD_RS__
+
+w $S/rsd/src/energy.h <<'__RSD_SRC_ENERGY_H__'
+//  The Mac's energy counters, which Mx Power Gadget & powermetrics also read: IOReport's "Energy Model" group, which needs no
+//  root. They count the whole machine, so a run's energy includes what's idle. Shared by rabench, rivebench & raviewer, &
+//  through rsd by vello_bench & skia_bench
+#pragma once
+#ifdef __cplusplus
+extern "C" {
+#endif
+// Joules: the CPU's clusters, the GPU, & memory, which is DRAM & its controllers, AMCC & DCS, which all rise with GPU traffic
+typedef struct { double cpu, gpu, mem; } RsdEnergy;
+// Samples the counters, & returns 0 if they can't be read
+int rsd_energy_start(void);
+// The energy since rsd_energy_start, or zero
+RsdEnergy rsd_energy_stop(void);
+#ifdef __cplusplus
+}
+
+#include <chrono>
+#include <cstdio>
+#include <string>
+// The frames of a run, as rsd's Frames: warmup, then the timed frames, which with --energy S repeat their schedule until S
+// seconds have passed, bracketed by the energy counters. Frames wait for the GPU, so the counters stop when the last is done
+struct RsdFrames {
+    size_t warmup, frames;  double seconds;
+    std::chrono::steady_clock::time_point start;  bool started = false, counted = false, done = false;
+    RsdEnergy energy = { 0, 0, 0 };  double elapsed = 0;  size_t timed = 0;
+    RsdFrames(size_t warmup, size_t frames, double seconds) : warmup(warmup), frames(frames), seconds(seconds) {}
+    double since() const { return std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count(); }
+    // Whether to draw frame f
+    bool more(size_t f) {
+        if (seconds > 0 && f == warmup && !started)
+            counted = rsd_energy_start(), started = true, start = std::chrono::steady_clock::now();
+        bool more = f < warmup + frames || (started && since() < seconds);
+        if (!more && started && !done) {
+            if (counted)
+                energy = rsd_energy_stop();
+            elapsed = since(), timed = f - warmup, done = true;
+        }
+        return more;
+    }
+    // Frame f's place in the timed frames' schedule, & whether it's in their first pass
+    size_t schedule(size_t f) const { return f < warmup ? 0 : (f - warmup) % frames; }
+    bool firstPass(size_t f) const { return f >= warmup && f < warmup + frames; }
+    // The energy JSON fields, if the counters were read
+    std::string fields() const {
+        char buf[256] = "";
+        if (counted && done)
+            snprintf(buf, sizeof(buf), "\"energy_frames\":%zu,\"energy_s\":%.3f,\"cpu_j\":%.4f,\"gpu_j\":%.4f,\"mem_j\":%.4f,", timed, elapsed, energy.cpu, energy.gpu, energy.mem);
+        return buf;
+    }
+};
+#endif
+__RSD_SRC_ENERGY_H__
+
+w $S/rsd/src/energy.c <<'__RSD_SRC_ENERGY_C__'
+//  energy.h's counters. IOReport is a private library, /usr/lib/libIOReport.dylib, so its functions are declared here
+#include "energy.h"
+#include <CoreFoundation/CoreFoundation.h>
+#include <string.h>
+
+typedef struct __IOReportSubscriptionCF *IOReportSubscriptionRef;
+extern CFDictionaryRef IOReportCopyChannelsInGroup(CFStringRef group, CFStringRef subgroup, uint64_t a, uint64_t b, uint64_t c);
+extern IOReportSubscriptionRef IOReportCreateSubscription(void *a, CFMutableDictionaryRef channels, CFMutableDictionaryRef *subscribed, uint64_t id, CFTypeRef b);
+extern CFDictionaryRef IOReportCreateSamples(IOReportSubscriptionRef subscription, CFMutableDictionaryRef subscribed, CFTypeRef a);
+extern CFDictionaryRef IOReportCreateSamplesDelta(CFDictionaryRef from, CFDictionaryRef to, CFTypeRef a);
+extern int64_t IOReportSimpleGetIntegerValue(CFDictionaryRef channel, int32_t index);
+extern CFStringRef IOReportChannelGetChannelName(CFDictionaryRef channel);
+extern CFStringRef IOReportChannelGetUnitLabel(CFDictionaryRef channel);
+
+static IOReportSubscriptionRef subscription;
+static CFMutableDictionaryRef subscribed;
+static CFDictionaryRef first;
+
+int rsd_energy_start(void) {
+    if (!subscription) {
+        CFDictionaryRef channels = IOReportCopyChannelsInGroup(CFSTR("Energy Model"), NULL, 0, 0, 0);
+        if (!channels)
+            return 0;
+        CFMutableDictionaryRef desired = CFDictionaryCreateMutableCopy(NULL, 0, channels);
+        CFRelease(channels);
+        subscription = IOReportCreateSubscription(NULL, desired, &subscribed, 0, NULL);
+        CFRelease(desired);
+        if (!subscription)
+            return 0;
+    }
+    if (first)
+        CFRelease(first);
+    first = IOReportCreateSamples(subscription, subscribed, NULL);
+    return first != NULL;
+}
+
+static void cstring(CFStringRef s, char *buf, CFIndex size) {
+    if (!s || !CFStringGetCString(s, buf, size, kCFStringEncodingUTF8))
+        buf[0] = 0;
+}
+
+RsdEnergy rsd_energy_stop(void) {
+    RsdEnergy e = { 0, 0, 0 };
+    CFDictionaryRef now = first ? IOReportCreateSamples(subscription, subscribed, NULL) : NULL;
+    CFDictionaryRef delta = now ? IOReportCreateSamplesDelta(first, now, NULL) : NULL;
+    CFArrayRef channels = delta ? (CFArrayRef)CFDictionaryGetValue(delta, CFSTR("IOReportChannels")) : NULL;
+    for (CFIndex i = 0, n = channels ? CFArrayGetCount(channels) : 0; i < n; i++) {
+        CFDictionaryRef channel = (CFDictionaryRef)CFArrayGetValueAtIndex(channels, i);
+        char name[64], unit[16];
+        cstring(IOReportChannelGetChannelName(channel), name, sizeof(name)), cstring(IOReportChannelGetUnitLabel(channel), unit, sizeof(unit));
+        double scale = !strcmp(unit, "mJ") ? 1e-3 : !strcmp(unit, "nJ") ? 1e-9 : !strcmp(unit, "uJ") || !strcmp(unit, "\xc2\xb5J") ? 1e-6 : 0.0;
+        double j = (double)IOReportSimpleGetIntegerValue(channel, 0) * scale;
+        if (!strcmp(name, "CPU Energy"))
+            e.cpu += j;
+        else if (!strcmp(name, "GPU Energy"))
+            e.gpu += j;
+        else if (!strcmp(name, "DRAM") || !strcmp(name, "AMCC") || !strcmp(name, "DCS"))
+            e.mem += j;
+    }
+    if (delta)
+        CFRelease(delta);
+    if (now)
+        CFRelease(now);
+    return e;
+}
+__RSD_SRC_ENERGY_C__
+
+w $S/rsd/src/bin/energy.rs <<'__RSD_SRC_BIN_ENERGY_RS__'
+//! rsdenergy idle <seconds>: the machine's power while it's idle, from the energy counters (see energy.h), as JSON
+fn main() {
+    let a: Vec<String> = std::env::args().collect();
+    if a.len() < 2 || a[1] != "idle" {
+        eprintln!("usage: rsdenergy idle <seconds>");
+        std::process::exit(2);
+    }
+    let seconds: f64 = a.get(2).and_then(|s| s.parse().ok()).unwrap_or(1.0);
+    let t = std::time::Instant::now();
+    if !rsd::energy_start() {
+        eprintln!("rsdenergy: no energy counters");
+        std::process::exit(1);
+    }
+    std::thread::sleep(std::time::Duration::from_secs_f64(seconds));
+    let (e, s) = (rsd::energy_stop(), t.elapsed().as_secs_f64());
+    println!("{{\"idle_s\":{s:.3},\"cpu_w\":{:.4},\"gpu_w\":{:.4},\"mem_w\":{:.4}}}", e.cpu / s, e.gpu / s, e.mem / s);
+}
+__RSD_SRC_BIN_ENERGY_RS__
 
 w $S/rsd/src/lib.rs <<'__RSD_SRC_LIB_RS__'
 //! Shared by the replay benches: the RSD dump written by `rabench export`, the frame views, culling, clip runs,
-//! per-frame stats & PNG I/O. Coordinates are Rasterizer's, y up: device = view * scene ctm * draw ctm.
+//! per-frame stats, the energy counters (energy.c) & PNG I/O. Coordinates are Rasterizer's, y up: device = view * scene ctm *
+//! draw ctm.
 
 use std::{fs, time::Instant};
 
@@ -1316,6 +1487,8 @@ pub struct Opts {
     pub h: u32,
     pub frames: usize,
     pub zoom: f64,
+    /// --energy S: the seconds the timed frames repeat for, with the energy counters bracketing them, or 0
+    pub energy: f64,
     pub png: Option<String>,
     pub png_frame: usize,
     pub flags: Vec<String>,
@@ -1323,7 +1496,8 @@ pub struct Opts {
 }
 
 impl Opts {
-    /// <dump.rsd> [--size WxH] [--frames N] [--zoom Z] [--png out.png] [--pngframe k], plus the bench's own --flags & --key value
+    /// <dump.rsd> [--size WxH] [--frames N] [--zoom Z] [--png out.png] [--pngframe k] [--energy S], plus the bench's own --flags &
+    /// --key value
     pub fn parse(valued: &[&str]) -> Opts {
         let args: Vec<String> = std::env::args().collect();
         let mut o = Opts { file: args.get(1).cloned().unwrap_or_default(), w: 2048, h: 2048, frames: 60, zoom: 8.0, ..Default::default() };
@@ -1339,6 +1513,7 @@ impl Opts {
                 }
                 "--frames" => { o.frames = next().parse().unwrap(); i += 1; }
                 "--zoom" => { o.zoom = next().parse().unwrap(); i += 1; }
+                "--energy" => { o.energy = next().parse().unwrap(); i += 1; }
                 "--png" => { o.png = Some(next()); i += 1; }
                 "--pngframe" => { o.png_frame = next().parse().unwrap(); i += 1; }
                 _ if valued.contains(&a) => { o.values.push((a.to_string(), next())); i += 1; }
@@ -1357,6 +1532,71 @@ impl Opts {
     }
     pub fn stem(&self) -> String {
         std::path::Path::new(&self.file).file_stem().unwrap().to_string_lossy().to_string()
+    }
+}
+
+/// Joules from the energy counters: see energy.h
+#[repr(C)]
+#[derive(Clone, Copy, Default)]
+pub struct Energy {
+    pub cpu: f64,
+    pub gpu: f64,
+    pub mem: f64,
+}
+
+unsafe extern "C" {
+    fn rsd_energy_start() -> i32;
+    fn rsd_energy_stop() -> Energy;
+}
+
+/// Samples the energy counters, or returns false if they can't be read
+pub fn energy_start() -> bool {
+    unsafe { rsd_energy_start() != 0 }
+}
+
+/// The energy since energy_start
+pub fn energy_stop() -> Energy {
+    unsafe { rsd_energy_stop() }
+}
+
+/// The frames of a run: warmup, then the timed frames, which with --energy S repeat their schedule until S seconds have passed,
+/// bracketed by the energy counters. Frames wait for the GPU, so the counters stop when the last is done
+pub struct Frames {
+    pub warmup: usize,
+    pub frames: usize,
+    seconds: f64,
+    start: Option<Instant>,
+    counted: bool,
+    result: Option<(Energy, f64, usize)>,
+}
+
+impl Frames {
+    pub fn new(o: &Opts, warmup: usize) -> Frames {
+        Frames { warmup, frames: o.frames, seconds: o.energy, start: None, counted: false, result: None }
+    }
+    /// Whether to draw frame f
+    pub fn more(&mut self, f: usize) -> bool {
+        if self.seconds > 0.0 && f == self.warmup && self.start.is_none() {
+            self.counted = energy_start();
+            self.start = Some(Instant::now());
+        }
+        let more = f < self.warmup + self.frames || self.start.is_some_and(|t| t.elapsed().as_secs_f64() < self.seconds);
+        if let (false, Some(t), None) = (more, self.start, &self.result) {
+            let e = if self.counted { energy_stop() } else { Energy::default() };
+            self.result = Some((e, t.elapsed().as_secs_f64(), f - self.warmup));
+        }
+        more
+    }
+    /// Frame f's place in the timed frames' schedule, & whether it's in their first pass
+    pub fn schedule(&self, f: usize) -> (usize, bool) {
+        if f < self.warmup { (0, false) } else { ((f - self.warmup) % self.frames, f < self.warmup + self.frames) }
+    }
+    /// The energy JSON fields, if the counters were read
+    pub fn fields(&self) -> String {
+        match (&self.result, self.counted) {
+            (Some((e, s, n)), true) => format!("\"energy_frames\":{n},\"energy_s\":{s:.3},\"cpu_j\":{:.4},\"gpu_j\":{:.4},\"mem_j\":{:.4},", e.cpu, e.gpu, e.mem),
+            _ => String::new(),
+        }
     }
 }
 
@@ -1615,6 +1855,7 @@ __VELLO_SRC_LIB_RS__
 w $S/vello/src/main.rs <<'__VELLO_SRC_MAIN_RS__'
 //! vello_bench: replays an RSD dump written by `rabench export` with Vello, & times each frame.
 //!   vello_bench <dump.rsd> [--size WxH] [--frames N] [--zoom Z] [--png out.png] [--pngframe k] [--aa area|msaa8|msaa16] [--nocull] [--retained]
+//!               [--energy S]
 //!
 //! See lib.rs for the mapping from Rasterizer semantics.
 //! - --retained encodes once & appends per frame: no culling, & hairlines keep their fit-view width as the view zooms
@@ -1687,8 +1928,9 @@ fn main() {
     }
     let mut scene = Scene::new();
     let (mut stats, mut encoded_fit, warmup) = (Stats::default(), 0, 3);
-    for f in 0..warmup + o.frames {
-        let k = f.saturating_sub(warmup);
+    let (mut run, mut f) = (rsd::Frames::new(&o, warmup), 0);
+    while run.more(f) {
+        let (k, first_pass) = run.schedule(f);
         let v = flip * rsd::frame_view(dump.bounds, w as f64, h as f64, k, o.frames, o.zoom);
         let t0 = Instant::now();
         let encoded = if retained {
@@ -1707,12 +1949,14 @@ fn main() {
         if f == 0 {
             encoded_fit = encoded;
         }
-        if f >= warmup && k == o.png_frame && let Some(png) = &o.png {
+        if first_pass && k == o.png_frame && let Some(png) = &o.png {
             readback(&device, &queue, &target, w, h, png);
         }
+        f += 1;
     }
     let lib = if retained { "vello_retained" } else { "vello" };
-    stats.print(lib, &o, dump.draws.len(), &format!("\"encoded_fit\":{encoded_fit},\"load_ms\":{load_ms:.1},\"retained_build_ms\":{retained_ms:.1},"));
+    let energy = run.fields();
+    stats.print(lib, &o, dump.draws.len(), &format!("\"encoded_fit\":{encoded_fit},\"load_ms\":{load_ms:.1},\"retained_build_ms\":{retained_ms:.1},{energy}"));
 }
 
 fn readback(device: &wgpu::Device, queue: &wgpu::Queue, target: &wgpu::Texture, w: u32, h: u32, path: &str) {
@@ -1900,7 +2144,7 @@ __SKIA_SRC_LIB_RS__
 
 w $S/skia/src/main.rs <<'__SKIA_SRC_MAIN_RS__'
 //! skia_bench: replays an RSD dump written by `rabench export` with Skia's Ganesh backend on Metal, & times each frame.
-//!   skia_bench <dump.rsd> [--size WxH] [--frames N] [--zoom Z] [--png out.png] [--pngframe k] [--nocull] [--picture] [--msaa N]
+//!   skia_bench <dump.rsd> [--size WxH] [--frames N] [--zoom Z] [--png out.png] [--pngframe k] [--nocull] [--picture] [--msaa N] [--energy S]
 //!
 //! See lib.rs for the mapping from Rasterizer semantics.
 //! - --picture records an SkPicture once (with an R-tree) & draws it with each frame's view: no CPU culling of
@@ -1989,8 +2233,9 @@ fn main() {
 
     let flip = Affine::flip(h as f64);
     let (mut stats, mut encoded_fit, warmup) = (Stats::default(), 0, 3);
-    for f in 0..warmup + o.frames {
-        let k = f.saturating_sub(warmup);
+    let (mut run, mut f) = (rsd::Frames::new(&o, warmup), 0);
+    while run.more(f) {
+        let (k, first_pass) = run.schedule(f);
         let v = flip * rsd::frame_view(dump.bounds, w as f64, h as f64, k, o.frames, o.zoom);
         let t0 = Instant::now();
         let canvas = gpu.surface.canvas();
@@ -2011,19 +2256,22 @@ fn main() {
         if f == 0 {
             encoded_fit = encoded;
         }
-        if f >= warmup && k == o.png_frame && let Some(png) = &o.png {
+        if first_pass && k == o.png_frame && let Some(png) = &o.png {
             let px = gpu.read_rgba(w, h);
             rsd::write_png(png, w, h, &px);
         }
+        f += 1;
     }
     let lib = format!("{}{}{}", backend::NAME, if use_picture { "_picture" } else { "" }, if msaa > 1 { format!("_msaa{msaa}") } else { String::new() });
-    stats.print(&lib, &o, dump.draws.len(), &format!("\"encoded_fit\":{encoded_fit},\"load_ms\":{load_ms:.1},\"picture_build_ms\":{picture_ms:.1},"));
+    let energy = run.fields();
+    stats.print(&lib, &o, dump.draws.len(), &format!("\"encoded_fit\":{encoded_fit},\"load_ms\":{load_ms:.1},\"picture_build_ms\":{picture_ms:.1},{energy}"));
 }
 __SKIA_SRC_MAIN_RS__
 
 w $S/rive/rivebench.mm <<'__RIVE_RIVEBENCH_MM__'
 //! rivebench: replays an RSD dump written by `rabench export` with the Rive renderer on Metal, & times each frame.
 //!   rivebench <dump.rsd> [--size WxH] [--frames N] [--zoom Z] [--png out.png] [--pngframe k] [--nocull] [--atomics] [--msaa N]
+//!             [--energy S]
 //!
 //! Mapping from Rasterizer semantics (as skia_bench, & rsd's lib.rs, which this mirrors in C++):
 //! - device = flip(H) * view * scene ctm * draw ctm. Rive keeps transforms on its save stack, so each run of draws with the
@@ -2051,6 +2299,7 @@ w $S/rive/rivebench.mm <<'__RIVE_RIVEBENCH_MM__'
 #include "rive/renderer/rive_render_paint.hpp"
 #include "rive/renderer/render_context.hpp"
 #include "rive/renderer/metal/render_context_metal_impl.h"
+#include "../rsd/src/energy.h"
 
 namespace rb {    // raviewer includes this file for its replay, without main
 using namespace rive;
@@ -2332,7 +2581,7 @@ int main(int argc, const char **argv) {
     using namespace rive;
     @autoreleasepool {
         const char *file = argc > 1 ? argv[1] : "", *png = nullptr;
-        uint32_t w = 2048, h = 2048, msaa = 0;  size_t frames = 60, pngFrame = 0;  double zoom = 8.0;  bool cull = true, atomics = false;
+        uint32_t w = 2048, h = 2048, msaa = 0;  size_t frames = 60, pngFrame = 0;  double zoom = 8.0, energy = 0;  bool cull = true, atomics = false;
         for (int i = 2; i < argc; i++) {
             std::string arg = argv[i];
             auto next = [&]() { if (i + 1 >= argc) { fprintf(stderr, "rivebench: %s needs a value\n", argv[i]); exit(2); } return argv[++i]; };
@@ -2344,9 +2593,10 @@ int main(int argc, const char **argv) {
             else if (arg == "--msaa") msaa = uint32_t(atoi(next()));
             else if (arg == "--nocull") cull = false;
             else if (arg == "--atomics") atomics = true;
+            else if (arg == "--energy") energy = atof(next());
         }
         if (!*file || file[0] == '-') {
-            fprintf(stderr, "usage: rivebench <dump.rsd> [--size WxH] [--frames N] [--zoom Z] [--png out.png] [--pngframe k] [--nocull] [--atomics] [--msaa N]\n");
+            fprintf(stderr, "usage: rivebench <dump.rsd> [--size WxH] [--frames N] [--zoom Z] [--png out.png] [--pngframe k] [--nocull] [--atomics] [--msaa N] [--energy S]\n");
             return 2;
         }
         id<MTLDevice> device = MTLCreateSystemDefaultDevice();
@@ -2376,9 +2626,10 @@ int main(int argc, const char **argv) {
         double firstCpu = 0, firstWall = 0;  size_t encodedFit = 0;
         gpu::InterlockMode mode = gpu::InterlockMode::rasterOrdering;
         auto ms = [](Clock::time_point a, Clock::time_point b) { return std::chrono::duration<double, std::milli>(b - a).count(); };
-        for (size_t f = 0; f < warmup + frames; f++) {
+        RsdFrames run(warmup, frames, energy);
+        for (size_t f = 0; run.more(f); f++) {
             @autoreleasepool {
-                size_t k = f < warmup ? 0 : f - warmup;
+                size_t k = run.schedule(f);
                 Affine v = flip * frameView(dump.bounds, w, h, k, frames, zoom);
                 auto t0 = Clock::now();
                 context->beginFrame(frame);
@@ -2397,7 +2648,7 @@ int main(int argc, const char **argv) {
                     firstCpu = ms(t0, t2), firstWall = ms(t0, t3), encodedFit = encoded;
                 if (f >= warmup)
                     encode.push_back(ms(t0, t1)), cpu.push_back(ms(t0, t2)), submitToDone.push_back(ms(t2, t3)), wall.push_back(ms(t0, t3));
-                if (f >= warmup && k == pngFrame && png) {
+                if (run.firstPass(f) && k == pngFrame && png) {
                     std::vector<uint8_t> rgba(4 * size_t(w) * h);
                     [target->targetTexture() getBytes:rgba.data() bytesPerRow:4 * w fromRegion:MTLRegionMake2D(0, 0, w, h) mipmapLevel:0];
                     writePNG(png, w, h, rgba);
@@ -2408,10 +2659,10 @@ int main(int argc, const char **argv) {
         stem = stem.substr(stem.find_last_of('/') + 1), stem = stem.substr(0, stem.find_last_of('.'));
         const char *modes[] = { "raster_ordering", "atomics", "clockwise", "clockwise_atomic", "depth_stencil" };
         std::string lib = std::string("rive") + (atomics ? "_atomics" : "") + (msaa > 1 ? "_msaa" + std::to_string(msaa) : msaa == 1 ? "_depth" : "");
-        printf("{\"lib\":\"%s\",\"file\":\"%s\",\"w\":%u,\"h\":%u,\"frames\":%zu,\"zoom\":%g,\"draws\":%zu,\"encoded_fit\":%zu,\"load_ms\":%.1f,\"interlock\":\"%s\","
+        printf("{\"lib\":\"%s\",\"file\":\"%s\",\"w\":%u,\"h\":%u,\"frames\":%zu,\"zoom\":%g,\"draws\":%zu,\"encoded_fit\":%zu,\"load_ms\":%.1f,\"interlock\":\"%s\",%s"
                "\"first_cpu_ms\":%.3f,\"first_wall_ms\":%.3f,\"encode_min\":%.3f,\"encode_med\":%.3f,\"cpu_min\":%.3f,\"cpu_med\":%.3f,"
                "\"submit_to_done_min\":%.3f,\"submit_to_done_med\":%.3f,\"wall_min\":%.3f,\"wall_med\":%.3f}\n",
-               lib.c_str(), stem.c_str(), w, h, frames, zoom, dump.draws.size(), encodedFit, loadMs, modes[int(mode)], firstCpu, firstWall,
+               lib.c_str(), stem.c_str(), w, h, frames, zoom, dump.draws.size(), encodedFit, loadMs, modes[int(mode)], run.fields().c_str(), firstCpu, firstWall,
                minimum(encode), median(encode), minimum(cpu), median(cpu), minimum(submitToDone), median(submitToDone), minimum(wall), median(wall));
     }
     return 0;
@@ -2774,7 +3025,8 @@ w $S/viewer/raviewer.mm <<'__VIEWER_RAVIEWER_MM__'
 //  a file, as does dropping one on the window. Frames are drawn as RasterizerLayer's are: at most two Metal frames are in flight,
 //  & a display link tick that would wait for a third is skipped. The title shows the renderer's median frame times over its
 //  last 30 frames: CPU to submit, Metal GPU time where there is one, & while frames wait for the GPU, as the benchmark's do,
-//  submit to GPU done. CoreGraphics only has CPU time.
+//  submit to GPU done. CoreGraphics only has CPU time. In continuous redraw, it also shows the machine's power, from the
+//  energy counters (see energy.h), which include what's idle.
 //  --snapshot draws the fit view of file with each renderer in turn, writes <dir>/<file>_<renderer>.png, prints each title
 //  line, & quits.
 
@@ -2893,6 +3145,7 @@ struct Viewer {
     id<MTLDevice> device;  id<MTLCommandQueue> queue;
     RiveView *rive = nullptr;  Skia *skia = nullptr;  Vello *vello = nullptr;
     std::vector<double> cpu, done, gpu;  size_t encoded = 0;  double titleTime = 0;
+    double energyTime = 0;      // When the energy counters were last sampled, for continuous redraw's power
     uint64_t generation = 0;    // Of the stats, so a frame that finishes after they're reset isn't counted
     bool wait = false;          // Frames wait for the GPU, as the benchmark's do
     dispatch_semaphore_t inflight = dispatch_semaphore_create(2);   // Metal frames in flight, as RasterizerLayer's
@@ -3162,7 +3415,7 @@ static double median(std::vector<double> v, size_t last) {
 }
 
 - (void)resetStats {
-    _v.cpu.clear(), _v.done.clear(), _v.gpu.clear(), _v.generation++, _v.titleTime = 0, _v.dirty = true;
+    _v.cpu.clear(), _v.done.clear(), _v.gpu.clear(), _v.generation++, _v.titleTime = 0, _v.energyTime = 0, _v.dirty = true;
 }
 
 #pragma mark - Drawing
@@ -3341,6 +3594,14 @@ static double median(std::vector<double> v, size_t last) {
     if (_v.done.size())
         [title appendFormat:@", submit to GPU done %.2f ms", ms(_v.done)];
     [title appendFormat:@" — %zu draws, %.2fx%@%@", _v.encoded, zoom, _v.continuous ? @" — continuous" : @"", _v.wait ? @" — waits for the GPU" : @""];
+    if (_v.continuous) {        // The power since the last title
+        if (_v.energyTime > 0) {
+            RsdEnergy e = rsd_energy_stop();
+            double s = now() - _v.energyTime;
+            [title appendFormat:@", %.1f W (CPU %.1f, GPU %.1f, memory %.1f)", (e.cpu + e.gpu + e.mem) / s, e.cpu / s, e.gpu / s, e.mem / s];
+        }
+        _v.energyTime = rsd_energy_start() ? now() : 0;
+    }
     self.window.title = title;
 }
 
@@ -3400,7 +3661,8 @@ __VIEWER_RAVIEWER_MM__
 w $S/summarize.py <<'__SUMMARIZE_PY__'
 #!/usr/bin/env python3
 """Summarises a run.sh results dir. For each file, mode & library: the best (min) across rounds of each run's median.
-Writes markdown tables to stdout (wall, CPU, submit-to-done, then quality vs Rasterizer) & summary.csv."""
+Writes markdown tables to stdout (wall, CPU, submit-to-done, energy with --energy, then quality vs Rasterizer) & summary.csv.
+Energy per frame comes from --energy's pass (energy.jsonl), above the idle power measured before the run's file."""
 import json, sys, os, statistics
 from collections import defaultdict
 
@@ -3418,6 +3680,29 @@ def stem(f):
     return os.path.splitext(f)[0] if f.endswith(('.svg', '.pdf')) else f
 
 METRICS = ('cpu_med', 'gpu_med', 'submit_to_done_med', 'wall_med', 'encode_med')
+PARTS = ('cpu', 'gpu', 'mem')
+idle = {}
+ipath = os.path.join(out, 'idle.jsonl')
+if os.path.exists(ipath):
+    for l in open(ipath):
+        if l.strip():
+            q = json.loads(l)
+            idle[q['file']] = q
+epath = os.path.join(out, 'energy.jsonl')
+energy_runs = [json.loads(l) for l in open(epath) if l.strip()] if os.path.exists(epath) else []
+energy = defaultdict(lambda: defaultdict(list))     # (file, mode) -> lib -> each run's [total, cpu, gpu, mem] mJ per frame
+for r in energy_runs:
+    if r.get('energy_frames'):
+        i = idle.get(stem(r['file']), {})
+        parts = [(r[f'{k}_j'] - i.get(f'{k}_w', 0.0) * r['energy_s']) / r['energy_frames'] * 1e3 for k in PARTS]
+        energy[(stem(r['file']), r['mode'])][r['lib']].append([sum(parts)] + parts)
+
+def energy_of(f, mode, lib):
+    v = energy.get((f, mode), {}).get(lib)
+    return [statistics.median(c) for c in zip(*v)] if v else None
+
+def mj(v):
+    return '–' if v is None else f'{v:.0f}' if abs(v) >= 100 else f'{v:.1f}' if abs(v) >= 10 else f'{v:.2f}'
 best = defaultdict(dict)       # (file, mode) -> lib -> metric -> best median
 walls = defaultdict(list)      # (file, mode, lib) -> each round's wall median
 order = []
@@ -3455,12 +3740,33 @@ for mode in ('fit', 'sweep'):
         for l in others))
     table('CPU (frame start to submit)', 'cpu_med', mode)
     table('Submit to GPU done', 'submit_to_done_med', mode)
+    if energy:
+        print('\n#### Energy per frame above idle, mJ (CPU + GPU + memory)\n')
+        print('| File | Draws | ' + ' | '.join(libs) + ' |')
+        print('|---|---:|' + '---:|' * len(libs))
+        for f in files:
+            e = [energy_of(f, mode, l) for l in libs]
+            print(f"| {short(f)} | {best[(f, mode)]['rasterizer']['draws']:,} | " + ' | '.join(mj(x[0] if x else None) for x in e) + ' |')
+        ratios = []
+        for l in others:
+            v = [energy_of(f, mode, l)[0] / energy_of(f, mode, 'rasterizer')[0] for f in files
+                 if energy_of(f, mode, l) and energy_of(f, mode, 'rasterizer') and energy_of(f, mode, l)[0] > 0 and energy_of(f, mode, 'rasterizer')[0] > 0]
+            if v:
+                ratios.append(f'{l} {statistics.geometric_mean(v):.2f}x')
+        print('\nGeometric mean energy ratio vs Rasterizer: ' + ', '.join(ratios))
+        print('\n#### Energy per frame above idle, mJ: CPU / GPU / memory\n')
+        print('| File | ' + ' | '.join(libs) + ' |')
+        print('|---|' + '---:|' * len(libs))
+        for f in files:
+            e = [energy_of(f, mode, l) for l in libs]
+            print(f'| {short(f)} | ' + ' | '.join(' / '.join(mj(c) for c in x[1:]) if x else '–' for x in e) + ' |')
     for f in files:
         for l in libs:
             m = best[(f, mode)].get(l)
             if m:
                 q = quality.get((f, l), {})
-                csv.append([mode, f, l, m['draws']] + [m.get(k) for k in METRICS] + [q.get('psnr_db'), q.get('pct_px_gt32')])
+                e = energy_of(f, mode, l) or [None] * 4
+                csv.append([mode, f, l, m['draws']] + [m.get(k) for k in METRICS] + [q.get('psnr_db'), q.get('pct_px_gt32')] + e)
 
 if quality:
     qlibs = [l for l in others if any((f, l) in quality for f in files)]
@@ -3480,7 +3786,7 @@ if spread:
     print(f"\nLargest round-to-round wall spread: {worst[0] * 100:.0f}% ({worst[1][0][0]}, {worst[1][0][1]}, {worst[1][1]})")
 
 with open(os.path.join(out, 'summary.csv'), 'w') as fcsv:
-    fcsv.write('mode,file,lib,draws,' + ','.join(METRICS) + ',psnr_db,pct_px_gt32\n')
+    fcsv.write('mode,file,lib,draws,' + ','.join(METRICS) + ',psnr_db,pct_px_gt32,energy_mj,cpu_mj,gpu_mj,mem_mj\n')
     for r in csv:
         fcsv.write(','.join('' if x is None else str(x) for x in r) + '\n')
 __SUMMARIZE_PY__
@@ -3531,11 +3837,13 @@ LIMIT=0; grep -q 'std::vector<Ra::Context> contexts' $INC/RasterizerRenderer.hpp
 QUADS=0; grep -q 'iid = vi >> 2' $INC/Shaders.metal && QUADS=1    # Its quads as indexed triangles, else 4 vertex instances
 RAFLAGS=(-DRA_CLIP_MASK=$CLIP -DRA_CLIP_CLEAR_CELLS=$CLEAR -DRA_CLIP_IN_PASS=$INPASS -DRA_BLEND=$BLEND -DRA_IMAGES=$IMAGES -DRA_CLIP_RULE=$RULE -DRA_PATH_DATA=$PATHS
          -DRA_BLEND_BATCHES=$BATCHES -DRA_EDGES_HEIGHT=$HEIGHTS -DRA_CONTEXT_LIMIT=$LIMIT -DRA_QUAD_INDICES=$QUADS)
-if [[ ! -x $B/rabench || $S/ra/rabench.mm -nt $B/rabench || -n $(find $INC $RA/Rasterizer/Demo/RasterizerPDF.hpp -newer $B/rabench 2>/dev/null) || $(cat $W/obj/rev 2>/dev/null) != $RA ]]; then
+# The energy counters (energy.c), which rabench & rivebench link, & raviewer through rsd
+[[ $W/obj/energy.o -nt $S/rsd/src/energy.c && $W/obj/energy.o -nt $S/rsd/src/energy.h ]] || clang -O2 -c $S/rsd/src/energy.c -o $W/obj/energy.o
+if [[ ! -x $B/rabench || $S/ra/rabench.mm -nt $B/rabench || $W/obj/energy.o -nt $B/rabench || -n $(find $INC $RA/Rasterizer/Demo/RasterizerPDF.hpp -newer $B/rabench 2>/dev/null) || $(cat $W/obj/rev 2>/dev/null) != $RA ]]; then
   step "Building rabench"
   clang -O3 -c $RA/Package/Sources/RasterizerCpp/xxhash.c -I$INC -o $W/obj/xxhash.o
   clang++ -O3 -std=c++17 -c -x objective-c++ $RA/Package/Sources/RasterizerCpp/nanosvg.cc -I$INC -o $W/obj/nanosvg.o
-  clang++ -O3 -std=c++17 -fobjc-arc $RAFLAGS -x objective-c++ $S/ra/rabench.mm -x none $W/obj/xxhash.o $W/obj/nanosvg.o \
+  clang++ -O3 -std=c++17 -fobjc-arc $RAFLAGS -x objective-c++ $S/ra/rabench.mm -x none $W/obj/xxhash.o $W/obj/nanosvg.o $W/obj/energy.o -lIOReport \
     -I$INC -I$RA/Rasterizer/Demo ${=${PDFIUM:+-I$PDFIUM/Headers -L$PDFIUM -lpdfium -Wl,-rpath,$PDFIUM}} \
     -framework Foundation -framework Metal -framework QuartzCore -framework CoreGraphics -framework CoreText -framework ImageIO -framework CoreServices \
     -Wno-deprecated-declarations -o $B/rabench
@@ -3548,6 +3856,7 @@ cargo_build() {    # crate, target dir name, binary, extra cargo args
   ln -sf $W/target/$2/release/$3 $B/$2
 }
 cargo_build rsd rsdcompare rsdcompare
+ln -sf $W/target/rsdcompare/release/rsdenergy $B/rsdenergy
 [[ ,$CONFIGS, == *,vello* ]] && cargo_build vello vello vello_bench
 [[ ,$CONFIGS, == *,skia_ganesh* ]] && cargo_build skia skia_ganesh skia_bench
 
@@ -3586,9 +3895,9 @@ build_rive() {
     libtool -static -o $RL/librive.a $O/*.o
     print $RIVE_SHA > $RL/rev
   fi
-  if [[ ! -x $B/rive || $S/rive/rivebench.mm -nt $B/rive || $RL/librive.a -nt $B/rive ]]; then
+  if [[ ! -x $B/rive || $S/rive/rivebench.mm -nt $B/rive || $RL/librive.a -nt $B/rive || $W/obj/energy.o -nt $B/rive ]]; then
     step "Building rivebench"
-    clang++ $flags -fobjc-arc -x objective-c++ $S/rive/rivebench.mm -x none $RL/librive.a -Wl,-dead_strip \
+    clang++ $flags -fobjc-arc -x objective-c++ $S/rive/rivebench.mm -x none $RL/librive.a $W/obj/energy.o -lIOReport -Wl,-dead_strip \
       -framework Foundation -framework Metal -framework CoreGraphics -framework ImageIO -framework CoreServices -Wno-deprecated-declarations -o $B/rive
   fi
 }
@@ -3600,12 +3909,12 @@ build_viewer() {
   step "Building raviewer"
   (cd $S/viewer && cargo build --release --quiet --target-dir $W/target/viewer)
   local lib=$W/target/viewer/release/libraviewer.a f
-  for f in $S/viewer/raviewer.mm $S/viewer/rive_view.mm $S/viewer/viewer.h $S/ra/rabench.mm $S/rive/rivebench.mm $B/rabench $RL/librive.a $lib; do
+  for f in $S/viewer/raviewer.mm $S/viewer/rive_view.mm $S/viewer/viewer.h $S/ra/rabench.mm $S/rive/rivebench.mm $S/rsd/src/energy.h $B/rabench $RL/librive.a $lib; do
     [[ -x $B/raviewer && ! $f -nt $B/raviewer ]] && continue
     clang++ -O3 -std=c++17 -fobjc-arc $RAFLAGS -x objective-c++ -c $S/viewer/raviewer.mm -I$INC -I$RA/Rasterizer/Demo ${=${PDFIUM:+-I$PDFIUM/Headers}} \
       -Wno-deprecated-declarations -o $W/obj/raviewer.o
     clang++ -O3 -std=c++17 -fobjc-arc -w -x objective-c++ -c $S/viewer/rive_view.mm -I$RV/renderer/include -I$RV/include -o $W/obj/rive_view.o
-    clang++ $W/obj/raviewer.o $W/obj/rive_view.o $W/obj/xxhash.o $W/obj/nanosvg.o $RL/librive.a $lib -Wl,-dead_strip \
+    clang++ $W/obj/raviewer.o $W/obj/rive_view.o $W/obj/xxhash.o $W/obj/nanosvg.o $RL/librive.a $lib -lIOReport -Wl,-dead_strip \
       ${=${PDFIUM:+-L$PDFIUM -lpdfium -Wl,-rpath,$PDFIUM}} -framework Foundation -framework AppKit -framework Metal -framework QuartzCore \
       -framework CoreGraphics -framework CoreText -framework ImageIO -framework CoreServices -framework UniformTypeIdentifiers -o $B/raviewer
     [[ -z $PDFIUM ]] || install_name_tool -change ./libpdfium.dylib @rpath/libpdfium.dylib $B/raviewer
@@ -3657,7 +3966,7 @@ run() {    # config, file, png | frames zoom
   else $B/$BIN[$c] $D/$n.rsd --size $SIZE ${=ARGS[$c]} "$@"; fi
 }
 
-OUT=$W/results/$(date +%Y%m%d-%H%M%S)-$SHA-$SIZE${CONTEXTS:+-c$CONTEXTS}; mkdir -p $OUT/png
+OUT=$W/results/$(date +%Y%m%d-%H%M%S)-$SHA-$SIZE${CONTEXTS:+-c$CONTEXTS}${ENERGY:+-e$ENERGY}; mkdir -p $OUT/png
 {
   print "date: $(date -u +%FT%TZ)"
   print "rasterizer: $SHA ($RA)${CONTEXTS:+, contexts capped at $CONTEXTS}"
@@ -3668,7 +3977,7 @@ OUT=$W/results/$(date +%Y%m%d-%H%M%S)-$SHA-$SIZE${CONTEXTS:+-c$CONTEXTS}; mkdir 
   print "rustc: $(cd $S/rsd && rustc --version)"
   print "crates: $(cat $S/*/Cargo.lock | awk '/^name = /{n=$3} /^version = /{if (n ~ /^"(vello|vello_encoding|wgpu|skia-safe|skia-bindings)"$/) print n "@" $3}' | tr -d '"' | sort -u | tr '\n' ' ')"
   if [[ ,$CONFIGS, == *,rive,* ]]; then print "rive: rive-runtime $RIVE_TAG ($RIVE_SHA)"; fi
-  print "args: rounds $ROUNDS, size $SIZE, frames $FRAMES, configs $CONFIGS"
+  print "args: rounds $ROUNDS, size $SIZE, frames $FRAMES, configs $CONFIGS${ENERGY:+, energy over at least $ENERGY s per run}"
 } > $OUT/info.txt
 cat $OUT/info.txt
 
@@ -3694,6 +4003,17 @@ for r in $(seq $ROUNDS); do
     done
   done
 done
+if [[ -n $ENERGY ]]; then
+  step "Energy pass"
+  for f in $RA/TestFiles/*; do
+    $B/rsdenergy idle 0.5 | sed "s/^{/{\"file\":\"${${f:t}%.*}\",/" >> $OUT/idle.jsonl     # Subtracted from this file's runs
+    for mode in fit:1 sweep:8; do
+      for c in ${(s:,:)CONFIGS}; do
+        run $c "$f" --frames 4 --zoom ${mode#*:} --energy $ENERGY | sed "s/^{/{\"mode\":\"${mode%:*}\",/" >> $OUT/energy.jsonl
+      done
+    done
+  done
+fi
 python3 $S/summarize.py $OUT > $OUT/summary.md
 cat $OUT/summary.md
 step "Results in $OUT"

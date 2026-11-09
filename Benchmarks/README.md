@@ -5,6 +5,7 @@ Benchmarks/bench.sh                                  # 3 rounds at 2048x2048, al
 Benchmarks/bench.sh --rounds 1 --size 4096x4096 --configs rasterizer,vello,skia_ganesh
 Benchmarks/bench.sh --rev <commit>                   # benchmark another commit's sources, TestFiles & shaders
 Benchmarks/bench.sh --configs rasterizer --contexts 1  # cap Rasterizer at one context, a baseline for its slicing
+Benchmarks/bench.sh --energy                         # then an energy pass, each run lasting at least 0.25 s, below
 Benchmarks/bench.sh --viewer TestFiles/pathological.pdf  # the interactive viewer, below
 ```
 
@@ -29,6 +30,19 @@ Configs:
 
 Skia's Graphite backend isn't benchmarked. It renders with internal 4x MSAA & depth-tests every draw to skip hidden pixels, so it isn't comparable with the analytic anti-aliasing of the others.
 
+## Energy
+
+`bench.sh --energy [S]` adds an energy pass after the timing rounds, which are unchanged. It reads the Mac's energy counters
+through IOReport, the source Mx Power Gadget & `powermetrics` use, which needs no root.
+- The pass runs each file, mode & library once. Each run repeats a 4-frame schedule until S seconds have passed, 0.25 s by
+  default. The GPU's counter is too coarse for runs of tens of milliseconds, but 0.25 s is within about 5% of 2 s.
+- The counters cover the whole machine, so before each file, `rsdenergy` measures 0.5 s of idle power.
+- summary.md reports energy per frame above idle, in mJ. It gives the total, its geometric mean ratio against Rasterizer, & the
+  split: CPU, GPU & memory. Memory is DRAM & its controllers (IOReport's AMCC & DCS), which all rise with GPU traffic.
+- summary.csv has the same columns, & energy.jsonl each run's joules.
+
+Quit other apps first. Display power isn't counted. IOReport is a private library, so its channel names could change.
+
 ## Viewer
 
 `bench.sh --viewer [file]` builds `raviewer`, then opens the file in it. The file can be an RSD dump, or an SVG or PDF, which is
@@ -45,7 +59,7 @@ Controls:
 - Keys:
   - `1`–`5` or tab picks the renderer.
   - `f` fits the view, as does a double click or a two-finger double tap.
-  - `c` toggles continuous redraw, for timing.
+  - `c` toggles continuous redraw, for timing. The title then also shows the machine's power.
   - `w` toggles waiting for the GPU each frame, as the benchmark does.
   - Left & right step through the file's directory.
   - ⌘O opens a file, as does dropping one on the window.
