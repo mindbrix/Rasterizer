@@ -355,13 +355,20 @@ struct RasterizerPDF {
             if (lo > hi)
                 return;
             xs.emplace_back(m * lo + c), xs.emplace_back(m * hi + c);
-            if (type == 0) {
+            if (type == 0) {        // A break at each sample, but no more than a gradient's color strip has texels, as finer ones are lost in it
                 float s = d1 == d0 ? 0.f : (encode[1] - encode[0]) / (d1 - d0);        // e = encode0 + (x - d0) * s
+                size_t inside = 0;
                 for (size_t i = 0; s != 0.f && i < size; i++) {
+                    float x = d0 + (float(i) - encode[0]) / s;
+                    inside += x > lo && x < hi;
+                }
+                for (size_t i = 0; s != 0.f && i < size && inside < kColorTextureWidth - 1; i++) {
                     float x = d0 + (float(i) - encode[0]) / s;
                     if (x > lo && x < hi)
                         xs.emplace_back(m * x + c);
                 }
+                for (int i = 1; inside >= kColorTextureWidth - 1 && i < kColorTextureWidth - 1; i++)
+                    xs.emplace_back(m * (lo + (hi - lo) * i / (kColorTextureWidth - 1)) + c);
             } else if (type == 2 || type == 4) {     // A calculator's pieces are unknown, so it's sampled as a curve's
                 for (int i = 1; (N != 1.f || type == 4) && i < kCurveSteps; i++)
                     xs.emplace_back(m * (lo + (hi - lo) * i / kCurveSteps) + c);
