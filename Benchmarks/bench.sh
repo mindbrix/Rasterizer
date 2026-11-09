@@ -54,7 +54,7 @@ RIVE_TAG=runtime-v0.1.698
 RIVE_SHA=03cd2cdf6322859f62e9edfcfc8040ce80b37ccc
 PLY_TAG=3.11
 PLY_SHA=0f398b72618c1564d71f7dc0558e6722b241875a
-ALL_CONFIGS=rasterizer,vello,vello_retained,skia_ganesh,rive
+ALL_CONFIGS=rasterizer,vello,skia_ganesh,rive
 ROUNDS=3; SIZE=2048x2048; FRAMES=30; CONFIGS=$ALL_CONFIGS; REV=; ML=${METALLIB:-}; CONTEXTS=; ENERGY=; BUILD_ONLY=0; VIEWER=0; VFILE=
 while (( $# )); do
   case $1 in
@@ -1450,7 +1450,7 @@ impl ClipKey {
 }
 
 /// A draw's device transform & stroke width for a frame. device is the y-down device transform the draw is encoded with;
-/// hair is the one hairline widths are computed for (the same, except for a retained scene)
+/// hair is the one hairline widths are computed for (the same, except for skia_bench's recorded picture)
 pub struct Placed {
     pub scene_m: Affine,
     pub m: Affine,
@@ -1799,12 +1799,12 @@ pub fn assets(d: &Dump) -> Assets {
     Assets { paths, grads, images }
 }
 
-/// Encodes the draws with y-down device transform device. Hairline widths use hair (device, except for a retained scene)
-pub fn build_scene(scene: &mut Scene, d: &Dump, a: &Assets, device: RAffine, hair: RAffine, w: f64, h: f64, cull: bool) -> usize {
+/// Encodes the draws with y-down device transform device
+pub fn build_scene(scene: &mut Scene, d: &Dump, a: &Assets, device: RAffine, w: f64, h: f64, cull: bool) -> usize {
     scene.reset();
     let (mut current, mut layers, mut encoded) = (None::<ClipKey>, 0, 0);
     for draw in &d.draws {
-        let Some(p) = rsd::place(d, draw, device, hair, w, h, cull) else { continue };
+        let Some(p) = rsd::place(d, draw, device, device, w, h, cull) else { continue };
         let key = ClipKey::new(d, draw);
         if current != Some(key) {
             for _ in 0..layers {
@@ -1854,11 +1854,10 @@ __VELLO_SRC_LIB_RS__
 
 w $S/vello/src/main.rs <<'__VELLO_SRC_MAIN_RS__'
 //! vello_bench: replays an RSD dump written by `rabench export` with Vello, & times each frame.
-//!   vello_bench <dump.rsd> [--size WxH] [--frames N] [--zoom Z] [--png out.png] [--pngframe k] [--aa area|msaa8|msaa16] [--nocull] [--retained]
+//!   vello_bench <dump.rsd> [--size WxH] [--frames N] [--zoom Z] [--png out.png] [--pngframe k] [--aa area|msaa8|msaa16] [--nocull]
 //!               [--energy S]
 //!
 //! See lib.rs for the mapping from Rasterizer semantics.
-//! - --retained encodes once & appends per frame: no culling, & hairlines keep their fit-view width as the view zooms
 
 use rsd::{Affine as RAffine, Opts, Stats};
 use std::{num::NonZeroUsize, time::Instant};
@@ -1867,16 +1866,16 @@ use vello::{
     peniko::Color,
     wgpu,
 };
-use vello_bench::{assets, build_scene, kurbo};
+use vello_bench::{assets, build_scene};
 
 fn main() {
     let o = Opts::parse(&["--aa"]);
     if o.file.is_empty() || o.file.starts_with("--") {
-        eprintln!("usage: vello_bench <dump.rsd> [--size WxH] [--frames N] [--zoom Z] [--png out.png] [--pngframe k] [--aa area|msaa8|msaa16] [--nocull] [--retained]");
+        eprintln!("usage: vello_bench <dump.rsd> [--size WxH] [--frames N] [--zoom Z] [--png out.png] [--pngframe k] [--aa area|msaa8|msaa16] [--nocull] [--energy S]");
         std::process::exit(2);
     }
     let aa = match o.value("--aa") { Some("msaa8") => AaConfig::Msaa8, Some("msaa16") => AaConfig::Msaa16, _ => AaConfig::Area };
-    let (cull, retained) = (!o.flag("--nocull"), o.flag("--retained"));
+    let cull = !o.flag("--nocull");
     let (w, h) = (o.w, o.h);
     let t = Instant::now();
     let dump = rsd::load(&o.file);
@@ -1917,15 +1916,7 @@ fn main() {
     let view = target.create_view(&wgpu::TextureViewDescriptor::default());
     let params = RenderParams { base_color: Color::WHITE, width: w, height: h, antialiasing_method: aa };
 
-    // --retained: encode once in list space (no culling, hairlines at the fit view), then append with each frame's view
     let flip = RAffine::flip(h as f64);
-    let (mut base, mut retained_ms) = (Scene::new(), 0.0);
-    if retained {
-        let t = Instant::now();
-        let v0 = rsd::frame_view(dump.bounds, w as f64, h as f64, 0, o.frames, o.zoom);
-        build_scene(&mut base, &dump, &a, RAffine::IDENTITY, flip * v0, w as f64, h as f64, false);
-        retained_ms = t.elapsed().as_secs_f64() * 1e3;
-    }
     let mut scene = Scene::new();
     let (mut stats, mut encoded_fit, warmup) = (Stats::default(), 0, 3);
     let (mut run, mut f) = (rsd::Frames::new(&o, warmup), 0);
@@ -1933,13 +1924,7 @@ fn main() {
         let (k, first_pass) = run.schedule(f);
         let v = flip * rsd::frame_view(dump.bounds, w as f64, h as f64, k, o.frames, o.zoom);
         let t0 = Instant::now();
-        let encoded = if retained {
-            scene.reset();
-            scene.append(&base, Some(kurbo(v)));
-            dump.draws.len()
-        } else {
-            build_scene(&mut scene, &dump, &a, v, v, w as f64, h as f64, cull)
-        };
+        let encoded = build_scene(&mut scene, &dump, &a, v, w as f64, h as f64, cull);
         let t1 = Instant::now();
         renderer.render_to_texture(&device, &queue, &scene, &view, &params).expect("render");
         let t2 = Instant::now();
@@ -1954,9 +1939,8 @@ fn main() {
         }
         f += 1;
     }
-    let lib = if retained { "vello_retained" } else { "vello" };
     let energy = run.fields();
-    stats.print(lib, &o, dump.draws.len(), &format!("\"encoded_fit\":{encoded_fit},\"load_ms\":{load_ms:.1},\"retained_build_ms\":{retained_ms:.1},{energy}"));
+    stats.print("vello", &o, dump.draws.len(), &format!("\"encoded_fit\":{encoded_fit},\"load_ms\":{load_ms:.1},{energy}"));
 }
 
 fn readback(device: &wgpu::Device, queue: &wgpu::Queue, target: &wgpu::Texture, w: u32, h: u32, path: &str) {
@@ -2863,7 +2847,7 @@ pub unsafe extern "C" fn rv_vello_draw(v: *mut Vello, w: u32, h: u32, view: *con
     let Some((_, target)) = &v.target else { return 0 };
     let t0 = Instant::now();
     let m = unsafe { device(view, h) };
-    let encoded = vello_bench::build_scene(&mut v.scene, dump, assets, m, m, w as f64, h as f64, true);
+    let encoded = vello_bench::build_scene(&mut v.scene, dump, assets, m, w as f64, h as f64, true);
     let params = RenderParams { base_color: vello::peniko::Color::WHITE, width: w, height: h, antialiasing_method: AaConfig::Area };
     if let Err(e) = v.renderer.render_to_texture(&v.device, &v.queue, &v.scene, target, &params) {
         eprintln!("raviewer: Vello can't render: {e}");
@@ -3957,8 +3941,8 @@ done
 
 # Each config: name, binary & extra args. rasterizer takes the source file, the replays its dump
 typeset -A BIN ARGS
-BIN=(vello vello vello_retained vello skia_ganesh skia_ganesh rive rive)
-ARGS=(vello "" vello_retained --retained skia_ganesh "" rive "")
+BIN=(vello vello skia_ganesh skia_ganesh rive rive)
+ARGS=(vello "" skia_ganesh "" rive "")
 REPLAYS=(${${(s:,:)CONFIGS}:#rasterizer})
 run() {    # config, file, png | frames zoom
   local c=$1 f=$2 n=${${2:t}%.*}; shift 2
