@@ -41,6 +41,7 @@
 - (void)cubicTo:(double)x1 y1:(double)y1 x2:(double)x2 y2:(double)y2 x3:(double)x3 y3:(double)y3;
 - (void)close;
 - (void)addCGPath:(nonnull CGPathRef)path;
+- (void)writeToCGPath:(nonnull CGMutablePathRef)path;
 - (void)addRect:(CGRect)rect;
 - (void)addEllipse:(CGRect)rect;
 - (void)addRoundedRect:(CGRect)rect

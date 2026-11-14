@@ -194,6 +194,10 @@
     RaCG::writeCGPathToPath(cgPath, _path);
 }
 
+- (void)writeToCGPath:(nonnull CGMutablePathRef)path {
+    RaCG::writePathToCGPath(_path.ptr, path);
+}
+
 - (RAPath *)dashedCopyWithPhase:(double)phase
                         lengths:(NSArray<NSNumber *>*)lengths {
     NSInteger count = lengths.count;
