@@ -1741,11 +1741,11 @@ struct Rasterizer {
             writeInstance(x0, y0, FLT_MAX, 0.f, x1, y1);
         }
         void Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
-            float ax, bx, ay, by, cx, cy, dot, adot, bdot, cdot, cos2, t0, t1, dt;
+            float ax, bx, ay, by, cx, cy, dot, adot, bdot, cdot, cosine, t0, t1, dt;
             ax = x2 - x1, bx = x1 - x0, ay = y2 - y1, by = y1 - y0;
             dot = ax * bx + ay * by, adot = ax * ax + ay * ay, bdot = bx * bx + by * by,
-            cos2 = dot * dot / (adot * bdot + 1e-12f);
-            if (cos2 > 0.5f) {
+            cosine = dot / sqrt(adot * bdot + 1e-12f);
+            if (cosine > 0.7071f) {
                 const float tan30 = 0.577350269189626f;
                 cx = x2 - x0, cy = y2 - y0, cdot = cx * cx + cy * cy;
                 t0 = (cx * bx + cy * by) / cdot - 0.5f;
